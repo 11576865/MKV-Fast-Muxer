@@ -118,7 +118,7 @@ export function scoreFontFaceMatch(request, descriptor) {
 }
 
 // Analyze fonts actually used by rendered Dialogue events. Besides Fontname,
-// n and , this tracks ASS Bold/Italic style fields and inline  / i tags.
+// ASS font-name/style resets are tracked together with Bold/Italic and inline style overrides.
 export function analyzeAssFontUsage(text) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   const styles = new Map();
@@ -351,7 +351,7 @@ export async function checkFontCoverage(file, assText) {
 }
 
 // Forced-font mode: preserve all non-font ASS formatting, but rewrite style
-// Fontname values and explicit inline n overrides to one uploaded family.
+// Fontname values and explicit inline font-name overrides are rewritten to one uploaded family.
 export function forceAssFontFamily(text, family) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   let section = '';
