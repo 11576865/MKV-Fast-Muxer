@@ -32,7 +32,7 @@
             <span class="num">2</span>
             <span class="picker-main">
               <strong>选择 ASS 字幕</strong>
-              <small>支持 UTF-8、UTF-16LE、UTF-16BE；封装前会改用所上传字体的内部名称</small>
+              <small>支持 UTF-8、UTF-16LE、UTF-16BE；可保留 ASS 原字体，也可强制统一字体</small>
               <span id="subName" class="filename">未选择</span>
             </span>
             <input id="subInput" type="file" accept=".ass,text/plain" />
@@ -42,14 +42,22 @@
             <span class="num">3</span>
             <span class="picker-main">
               <strong>选择字体</strong>
-              <small>TTF / OTF；强制字体模式会统一 ASS 字体名，并在封装前检查字幕字符是否缺字</small>
+              <small>TTF / OTF，可多选；保留模式会按 ASS 字体依赖匹配，强制模式只使用第一个字体</small>
               <span id="fontName" class="filename">未选择</span>
             </span>
-            <input id="fontInput" type="file" accept=".ttf,.otf,font/ttf,font/otf" />
+            <input id="fontInput" type="file" multiple accept=".ttf,.otf,font/ttf,font/otf" />
           </label>
         </div>
 
         <div class="options">
+          <label class="option-field">
+            <span>字体处理模式</span>
+            <select id="fontMode">
+              <option value="preserve" selected>保留 ASS 原字体（推荐）</option>
+              <option value="force">强制统一为第一个上传字体</option>
+            </select>
+            <small id="fontModeHint" class="field-hint"></small>
+          </label>
           <label class="option-field">
             <span>新字幕语言</span>
             <select id="subtitleLanguage">
@@ -75,7 +83,7 @@
           <div><span>视频</span><b>Copy</b></div>
           <div><span>音频</span><b>Copy</b></div>
           <div><span>新字幕</span><b>ASS</b></div>
-          <div><span>字体</span><b>Attachment</b></div>
+          <div><span>字体</span><b id="fontSummary">—</b></div>
           <div><span>输出</span><b id="outputName">—</b></div>
         </div>
 
@@ -85,7 +93,7 @@
         </div>
 
         <div class="notice">
-          当前默认行为不会保留输入 MKV 已有的字幕轨和附件；需要保留时请显式勾选上方选项。
+          保留字体模式不会改写 ASS Fontname；缺失字体或缺字会在日志中报警。输入 MKV 的原字幕与附件仍需显式勾选后保留。
         </div>
 
         <div id="status" class="status" aria-live="polite">选择三个文件后即可开始。</div>

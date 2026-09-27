@@ -1,13 +1,21 @@
 import './style.css';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import { checkFontCoverage, forceAssFontFamily, readFontFamily } from './ass-font-rewrite.js';
+import {
+  analyzeAssFontUsage,
+  checkFontCharacters,
+  fontNameMatches,
+  forceAssFontFamily,
+  readFontDescriptor,
+} from './ass-font-rewrite.js';
 
 const $ = (id) => document.getElementById(id);
 
 const videoInput = $('videoInput');
 const subInput = $('subInput');
 const fontInput = $('fontInput');
+const fontMode = $('fontMode');
+const fontModeHint = $('fontModeHint');
 const subtitleLanguage = $('subtitleLanguage');
 const preserveOriginal = $('preserveOriginal');
 const muxBtn = $('muxBtn');
@@ -44,7 +52,7 @@ ffmpeg.on('progress', ({ progress }) => {
 });
 
 function ext(name) {
-  const m = name.toLowerCase().match(/\.[a-z0-9]+$/);
+  const m = String(name || '').toLowerCase().match(/\.[a-z0-9]+$/);
   return m ? m[0] : '';
 }
 
@@ -52,10 +60,22 @@ function safeOutputName(videoName) {
   return videoName.replace(/\.[^.]+$/, '') + '.mkv';
 }
 
+function selectedFonts() {
+  return Array.from(fontInput.files || []);
+}
+
+function formatFontSelection(files) {
+  if (!files.length) return '未选择';
+  if (files.length === 1) return files[0].name;
+  const head = files.slice(0, 3).map((file) => file.name).join('、');
+  return files.length > 3 ? `${files.length} 个字体：${head}…` : `${files.length} 个字体：${head}`;
+}
+
 function setInputsDisabled(disabled) {
   videoInput.disabled = disabled;
   subInput.disabled = disabled;
   fontInput.disabled = disabled;
+  fontMode.disabled = disabled;
   subtitleLanguage.disabled = disabled;
   preserveOriginal.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
 }
@@ -63,20 +83,24 @@ function setInputsDisabled(disabled) {
 function updateUI() {
   const video = videoInput.files[0];
   const sub = subInput.files[0];
-  const font = fontInput.files[0];
+  const fonts = selectedFonts();
   const inputIsMkv = ext(video?.name || '') === '.mkv';
+  const mode = fontMode.value || 'preserve';
 
   $('videoName').textContent = video?.name ?? '未选择';
   $('subName').textContent = sub?.name ?? '未选择';
-  $('fontName').textContent = font?.name ?? '未选择';
+  $('fontName').textContent = formatFontSelection(fonts);
+  $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
 
-  if (!inputIsMkv) {
-    preserveOriginal.checked = false;
-  }
+  fontModeHint.textContent = mode === 'force'
+    ? '兼容旧行为：只使用并附加第一个上传字体；ASS 的 Style Fontname 与内联 \\fn 会统一改写。'
+    : '保留 ASS 原有 Fontname；解析实际使用的 Style、内联 \\fn 与 \\r，并检查上传字体是否满足依赖。';
+
+  if (!inputIsMkv) preserveOriginal.checked = false;
   preserveOriginal.disabled = running || !inputIsMkv;
 
-  muxBtn.disabled = running || !(video && sub && font);
+  muxBtn.disabled = running || !(video && sub && fonts.length);
   cancelBtn.disabled = !running;
   setInputsDisabled(running);
 }
@@ -84,6 +108,7 @@ function updateUI() {
 videoInput.addEventListener('change', updateUI);
 subInput.addEventListener('change', updateUI);
 fontInput.addEventListener('change', updateUI);
+fontMode.addEventListener('change', updateUI);
 updateUI();
 
 async function loadFFmpeg() {
@@ -120,7 +145,7 @@ async function removeQuietly(path) {
 }
 
 function taskPrefix() {
-  const random = crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+  const random = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
   return `task-${Date.now()}-${random}`;
 }
 
@@ -202,6 +227,70 @@ async function probeInput(path, probePath) {
   };
 }
 
+function mimeForFont(file) {
+  return ext(file.name) === '.otf' ? 'font/otf' : 'font/ttf';
+}
+
+function charPreview(chars, limit = 24) {
+  const values = chars.slice(0, limit).map((char) => (
+    `${char}(U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')})`
+  ));
+  return values.join(' ') + (chars.length > limit ? ' …' : '');
+}
+
+async function analyzePreservedFonts(analysis, uploadedFonts) {
+  const usedUploaded = new Set();
+  const missingFamilies = [];
+  const missingGlyphGroups = [];
+
+  logEl.textContent += `ASS 实际使用字体：${analysis.usedFonts.length}；样式声明字体：${analysis.declaredFonts.length}\n`;
+
+  for (const required of analysis.usedFonts) {
+    const matches = uploadedFonts.filter((item) => fontNameMatches(required.name, item.descriptor));
+
+    if (!matches.length) {
+      missingFamilies.push(required.name);
+      logEl.textContent += `WARNING: ASS 字体依赖未满足：“${required.name}”（来源：${required.sources.join(', ') || 'Dialogue'}）\n`;
+      continue;
+    }
+
+    for (const match of matches) usedUploaded.add(match.index);
+
+    logEl.textContent += `字体映射：“${required.name}” -> ${matches.map((item) => item.file.name).join('、')}\n`;
+
+    if (!required.characters.length) continue;
+
+    let remaining = [...required.characters];
+    let successfulChecks = 0;
+
+    for (const match of matches) {
+      if (!remaining.length) break;
+      try {
+        const result = await checkFontCharacters(match.file, remaining);
+        const missing = new Set(result.missing);
+        remaining = remaining.filter((char) => missing.has(char));
+        successfulChecks += 1;
+      } catch (error) {
+        logEl.textContent += `WARNING: 无法检查“${match.file.name}”的字形覆盖：${error?.message || error}\n`;
+      }
+    }
+
+    if (successfulChecks > 0 && remaining.length) {
+      missingGlyphGroups.push({ font: required.name, characters: remaining });
+      logEl.textContent += `WARNING: “${required.name}”对应的上传字体仍缺少 ${remaining.length} 个实际字幕字符：${charPreview(remaining)}\n`;
+    } else if (successfulChecks > 0) {
+      logEl.textContent += `字形覆盖通过：“${required.name}”的 ${required.characters.length} 个实际字幕字符均有至少一个匹配字体覆盖。\n`;
+    }
+  }
+
+  const unused = uploadedFonts.filter((item) => !usedUploaded.has(item.index));
+  if (unused.length) {
+    logEl.textContent += `INFO: ${unused.length} 个上传字体未匹配到当前 ASS 的实际字体依赖，但仍会作为附件封装：${unused.map((item) => item.file.name).join('、')}\n`;
+  }
+
+  return { missingFamilies, missingGlyphGroups };
+}
+
 cancelBtn.addEventListener('click', () => {
   if (!running) return;
   cancelRequested = true;
@@ -216,12 +305,13 @@ muxBtn.addEventListener('click', async () => {
 
   const video = videoInput.files[0];
   const sub = subInput.files[0];
-  const font = fontInput.files[0];
-  if (!video || !sub || !font) return;
+  const fontFiles = selectedFonts();
+  if (!video || !sub || !fontFiles.length) return;
 
   const videoExt = ext(video.name);
   const subExt = ext(sub.name);
-  const fontExt = ext(font.name);
+  const invalidFont = fontFiles.find((file) => !['.ttf', '.otf'].includes(ext(file.name)));
+  const mode = fontMode.value || 'preserve';
   const keepOriginalTracks = preserveOriginal.checked && videoExt === '.mkv';
   const language = subtitleLanguage.value || 'und';
 
@@ -233,8 +323,8 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '字幕必须是 .ass 文件。';
     return;
   }
-  if (!['.ttf', '.otf'].includes(fontExt)) {
-    status.textContent = '字体必须是 .ttf 或 .otf 文件。';
+  if (invalidFont) {
+    status.textContent = `字体“${invalidFont.name}”不是 .ttf 或 .otf 文件。`;
     return;
   }
 
@@ -253,49 +343,90 @@ muxBtn.addEventListener('click', async () => {
   const prefix = taskPrefix();
   const videoPath = `${prefix}-input${videoExt}`;
   const subPath = `${prefix}-subtitle.ass`;
-  const fontPath = `${prefix}-font${fontExt}`;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
   const outputName = safeOutputName(video.name);
-  const fontMime = fontExt === '.otf' ? 'font/otf' : 'font/ttf';
+  const fontPaths = [];
 
   try {
-    await loadFFmpeg();
+    status.textContent = '正在解析 ASS 与字体内部名称……';
+    bar.style.width = '10%';
+
+    const [{ text: sourceAss, encoding: assEncoding }, descriptors] = await Promise.all([
+      readAssText(sub),
+      Promise.all(fontFiles.map(async (file, index) => ({
+        index,
+        file,
+        descriptor: await readFontDescriptor(file),
+      }))),
+    ]);
     if (cancelRequested) return;
 
-    status.textContent = '正在读取字幕编码与字体内部名称……';
-    bar.style.width = '16%';
-
-    const [{ text: sourceAss, encoding: assEncoding }, fontFamily] = await Promise.all([
-      readAssText(sub),
-      readFontFamily(font),
-    ]);
-    const rewrittenAss = forceAssFontFamily(sourceAss, fontFamily);
     logEl.textContent += `ASS 编码：${assEncoding}\n`;
-    logEl.textContent += `ASS 字体已强制改为上传字体的内部名称：${fontFamily}\n`;
-
-    let glyphWarning = '';
-    try {
-      const coverage = await checkFontCoverage(font, sourceAss);
-      if (coverage.missing.length) {
-        const preview = coverage.missing.slice(0, 24)
-          .map((char) => `${char}(U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')})`)
-          .join(' ');
-        glyphWarning = `；字体缺少 ${coverage.missing.length} 个字幕字符`;
-        logEl.textContent += `WARNING: 字体 cmap 缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${preview}${coverage.missing.length > 24 ? ' …' : ''}\n`;
-      } else {
-        logEl.textContent += `字体缺字检查通过：${coverage.checkedCount} 个唯一字幕字符均可在 cmap 中找到。\n`;
-      }
-    } catch (coverageError) {
-      logEl.textContent += `WARNING: 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
+    for (const item of descriptors) {
+      logEl.textContent += `上传字体：${item.file.name} -> Family “${item.descriptor.family}”${item.descriptor.subfamily ? ` / ${item.descriptor.subfamily}` : ''}\n`;
     }
+
+    const analysis = analyzeAssFontUsage(sourceAss);
+    let outputAss = sourceAss;
+    let attachments = descriptors;
+    let completionNote = '';
+    let dependencyWarningCount = 0;
+
+    if (mode === 'force') {
+      const primary = descriptors[0];
+      outputAss = forceAssFontFamily(sourceAss, primary.descriptor.family);
+      attachments = [primary];
+
+      if (descriptors.length > 1) {
+        logEl.textContent += `INFO: 强制字体模式只使用第一个字体；其余 ${descriptors.length - 1} 个上传字体不会附加。\n`;
+      }
+
+      logEl.textContent += `ASS 字体已强制统一为：${primary.descriptor.family}\n`;
+
+      try {
+        const coverage = await checkFontCharacters(primary.file, analysis.allCharacters);
+        if (coverage.missing.length) {
+          dependencyWarningCount += 1;
+          completionNote = `；强制字体缺少 ${coverage.missing.length} 个字幕字符`;
+          logEl.textContent += `WARNING: 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
+        } else {
+          logEl.textContent += `字体缺字检查通过：${coverage.checkedCount} 个唯一字幕字符均可在“${primary.descriptor.family}”中找到。\n`;
+        }
+      } catch (coverageError) {
+        logEl.textContent += `WARNING: 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
+      }
+    } else {
+      const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
+      dependencyWarningCount =
+        dependencyResult.missingFamilies.length +
+        dependencyResult.missingGlyphGroups.length;
+
+      const parts = [];
+      if (dependencyResult.missingFamilies.length) {
+        parts.push(`缺 ${dependencyResult.missingFamilies.length} 个字体依赖`);
+      }
+      if (dependencyResult.missingGlyphGroups.length) {
+        parts.push(`${dependencyResult.missingGlyphGroups.length} 个字体存在缺字`);
+      }
+      if (parts.length) completionNote = `；警告：${parts.join('，')}`;
+    }
+
+    await loadFFmpeg();
+    if (cancelRequested) return;
 
     status.textContent = '正在把文件载入浏览器内存……';
     bar.style.width = '20%';
 
     await ffmpeg.writeFile(videoPath, await fetchFile(video));
-    await ffmpeg.writeFile(subPath, new TextEncoder().encode(rewrittenAss));
-    await ffmpeg.writeFile(fontPath, await fetchFile(font));
+    await ffmpeg.writeFile(subPath, new TextEncoder().encode(outputAss));
+
+    for (let i = 0; i < attachments.length; i++) {
+      const item = attachments[i];
+      const path = `${prefix}-font-${i}${ext(item.file.name)}`;
+      fontPaths.push(path);
+      await ffmpeg.writeFile(path, await fetchFile(item.file));
+    }
     if (cancelRequested) return;
 
     let originalAttachmentCount = 0;
@@ -330,17 +461,22 @@ muxBtn.addEventListener('click', async () => {
       '-metadata:s:s:0', `language=${language}`,
       '-metadata:s:s:0', `title=${languageTitles[language] || 'ASS 字幕'}`,
       '-disposition:s:0', 'default',
-      '-attach', fontPath,
-      `-metadata:s:t:${originalAttachmentCount}`, `mimetype=${fontMime}`,
-      `-metadata:s:t:${originalAttachmentCount}`, `filename=${font.name}`,
-      outputPath,
     );
+
+    attachments.forEach((item, index) => {
+      const attachmentIndex = originalAttachmentCount + index;
+      args.push(
+        '-attach', fontPaths[index],
+        `-metadata:s:t:${attachmentIndex}`, `mimetype=${mimeForFont(item.file)}`,
+        `-metadata:s:t:${attachmentIndex}`, `filename=${item.file.name}`,
+      );
+    });
+
+    args.push(outputPath);
 
     const code = await ffmpeg.exec(args);
     if (cancelRequested) return;
-    if (code !== 0) {
-      throw new Error(`FFmpeg 返回错误代码 ${code}`);
-    }
+    if (code !== 0) throw new Error(`FFmpeg 返回错误代码 ${code}`);
 
     status.textContent = '正在准备保存……';
     bar.style.width = '96%';
@@ -356,7 +492,14 @@ muxBtn.addEventListener('click', async () => {
     downloadLink.classList.remove('hidden');
 
     bar.style.width = '100%';
-    status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取并改用字体“${fontFamily}”${glyphWarning}；视频/音频未重新编码。`;
+    const modeText = mode === 'force'
+      ? `已强制统一字体并附加 ${attachments.length} 个字体文件`
+      : `已保留 ASS 字体并附加 ${attachments.length} 个字体文件`;
+    status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取；${modeText}${completionNote}；视频/音频未重新编码。`;
+
+    if (dependencyWarningCount) {
+      logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体依赖/字形覆盖警告。请在发布前检查日志。\n`;
+    }
 
     videoInput.value = '';
     subInput.value = '';
@@ -374,7 +517,7 @@ muxBtn.addEventListener('click', async () => {
     if (loaded) {
       await removeQuietly(videoPath);
       await removeQuietly(subPath);
-      await removeQuietly(fontPath);
+      for (const path of fontPaths) await removeQuietly(path);
       await removeQuietly(outputPath);
       await removeQuietly(probePath);
     }
