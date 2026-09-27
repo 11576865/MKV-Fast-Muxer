@@ -2,6 +2,7 @@ import './style.css';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
+import { buildProbeArgs } from './probe-policy.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -289,15 +290,15 @@ async function readAssText(file) {
   }
 }
 
-async function probeInput(path, probePath) {
-  const code = await ffmpeg.ffprobe([
-    '-v', 'error',
-    '-show_streams',
-    '-of', 'json',
-    path,
-    '-o', probePath,
-  ]);
-  if (code !== 0) throw new Error(`ffprobe 返回错误代码 ${code}`);
+async function runProbe(path, probePath, { decodeStreams = false } = {}) {
+  await removeQuietly(probePath);
+  const code = await ffmpeg.ffprobe(
+    buildProbeArgs(path, probePath, { decodeStreams })
+  );
+  if (code !== 0) {
+    const mode = decodeStreams ? '完整 stream-info' : '仅容器头';
+    throw new Error(`ffprobe 返回错误代码 ${code}（${mode}）`);
+  }
 
   const raw = await ffmpeg.readFile(probePath);
   const json = JSON.parse(new TextDecoder().decode(raw));
@@ -306,7 +307,19 @@ async function probeInput(path, probePath) {
   return {
     streams,
     attachmentCount: streams.filter((stream) => stream.codec_type === 'attachment').length,
+    probeMode: decodeStreams ? 'decoded' : 'container',
   };
+}
+
+async function probeInput(path, probePath, { allowDecodeFallback = true } = {}) {
+  try {
+    return await runProbe(path, probePath, { decodeStreams: false });
+  } catch (headerError) {
+    if (!allowDecodeFallback) throw headerError;
+
+    logEl.textContent += `WARNING: 容器头探测失败，将尝试完整 stream-info：${headerError?.message || headerError}\n`;
+    return runProbe(path, probePath, { decodeStreams: true });
+  }
 }
 
 function streamLabel(stream) {
@@ -998,7 +1011,6 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '正在审计输出 MKV……';
     bar.style.width = '94%';
 
-    const auditProbe = await probeInput(outputPath, auditPath);
     const expectedAudit = {
       videoMin: 1,
       audio: selectedAudio
@@ -1029,18 +1041,33 @@ muxBtn.addEventListener('click', async () => {
       newFontFilenames: attachments.map((item) => item.file.name),
     };
 
-    const audit = auditMuxProbe(auditProbe, expectedAudit);
-    if (audit.ok) {
-      const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
-      logEl.textContent += `AUDIT: ${auditText}\n`;
-      auditResult.textContent = auditText;
-      auditResult.className = 'audit-result';
-    } else {
-      const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
-      logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+    try {
+      // Post-mux audit must never require decoding the media payload. The
+      // muxing result already exists at this point; an ffprobe limitation must
+      // not discard a successfully generated MKV.
+      const auditProbe = await probeInput(outputPath, auditPath, {
+        allowDecodeFallback: false,
+      });
+      const audit = auditMuxProbe(auditProbe, expectedAudit);
+      if (audit.ok) {
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
+        logEl.textContent += `AUDIT: ${auditText}\n`;
+        auditResult.textContent = auditText;
+        auditResult.className = 'audit-result';
+      } else {
+        const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
+        logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+        auditResult.textContent = auditText;
+        auditResult.className = 'audit-result warn';
+        completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
+      }
+    } catch (auditError) {
+      const reason = auditError?.message || String(auditError);
+      const auditText = `封装已完成，但 ffprobe 审计不可用：${reason}`;
+      logEl.textContent += `AUDIT WARNING: ${auditText}。已保留 MKV 输出，不把审计工具限制当作封装失败。\n`;
       auditResult.textContent = auditText;
       auditResult.className = 'audit-result warn';
-      completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
+      completionNote += '；封装后审计未完成（不影响已生成 MKV）';
     }
 
     status.textContent = '正在准备保存……';
