@@ -166,14 +166,18 @@
             </section>
           </div>
 
-          <aside class="workbench-side">
+          <aside class="workbench-side" aria-label="输出工作台">
             <section class="side-panel manifest-panel">
-              <div class="side-title">
-                <span class="section-index">04</span>
-                <h2>输出</h2>
+              <div class="output-console-heading">
+                <div class="side-title">
+                  <span class="section-index">04</span>
+                  <h2>输出工作台</h2>
+                </div>
+                <span class="output-mode">LOCAL MKV</span>
               </div>
+              <p class="output-console-intro">确认封装结构、执行状态与最终文件。视频和音频保持 Stream copy。</p>
 
-              <div class="manifest">
+              <div class="manifest" aria-label="输出摘要">
                 <div><span>视频</span><strong>Copy</strong></div>
                 <div><span>音频</span><strong>Copy</strong></div>
                 <div><span>字幕</span><strong>ASS</strong></div>
@@ -185,6 +189,7 @@
             <section class="side-panel plan-panel">
               <div class="side-panel-head">
                 <div>
+                  <span class="panel-kicker">STRUCTURE</span>
                   <h3>封装计划</h3>
                   <p>最终轨道顺序、元数据与附件。</p>
                 </div>
@@ -197,6 +202,14 @@
             </section>
 
             <section class="side-panel execution-panel">
+              <div class="side-panel-head execution-head">
+                <div>
+                  <span class="panel-kicker">EXECUTION</span>
+                  <h3>执行与校验</h3>
+                  <p>封装完成后自动核对实际输出。</p>
+                </div>
+              </div>
+
               <div class="execution-status">
                 <span class="status-label">STATUS</span>
                 <div id="status" class="status" aria-live="polite">选择三个输入文件后即可开始。</div>
