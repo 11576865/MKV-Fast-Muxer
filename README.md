@@ -9,9 +9,10 @@
 - 支持 MP4 / MKV / WebM / MOV / M4V 输入视频
 - ASS 作为软字幕封装
 - 正确读取 UTF-8、UTF-16LE、UTF-16BE ASS（含 BOM；无 BOM UTF-16 使用保守启发式检测）
-- TTF / OTF 作为字体附件封装
-- “强制使用上传字体”模式：ASS 样式和内联 `\fn` 都改为字体内部 Family Name
-- 字体缺字检查：读取 Unicode `cmap`，对 ASS `Dialogue` 中实际可见字符做非阻断式覆盖检查
+- TTF / OTF 支持多选并作为多个字体附件封装
+- 默认“保留 ASS 原字体”模式：解析 Style `Fontname`、Dialogue 的 Style、内联 `\fn` 与 `\r`，并按实际使用关系匹配上传字体
+- 兼容“强制统一字体”模式：ASS 样式和显式内联 `\fn` 改为第一个上传字体的 Family Name，其余上传字体不附加
+- 字体依赖与缺字检查：读取 Unicode `cmap`，按每个 ASS 字体实际承担的 Dialogue 字符做非阻断式覆盖检查
 - 可选择新字幕的 Matroska 语言元数据，不再固定写成中文
 - MKV 输入可显式选择是否保留原字幕轨与附件
 - 任务运行期间锁定输入并防止重复启动；临时文件按任务唯一命名
@@ -19,6 +20,31 @@
 - 视频、音频使用 stream copy，不重新编码
 - 全程在浏览器本地处理，不上传媒体文件
 - 使用 ffmpeg.wasm，可在 Android 浏览器 / Termux + Vite 环境中运行
+
+## 字体处理模式
+
+### 保留 ASS 原字体（默认）
+
+程序不会改写 ASS 的 `Fontname`。封装前会：
+
+1. 解析 `[V4+ Styles]` / `[V4 Styles]` 中的字体声明；
+2. 解析 Dialogue 所用 Style；
+3. 追踪内联 `\fn` 字体覆盖和 `\r` 样式重置；
+4. 读取每个上传字体的 Family / Full Name / PostScript Name 等别名；
+5. 将 ASS 请求的字体名与上传字体匹配；
+6. 对每个字体实际负责显示的字符执行 Unicode `cmap` 覆盖检查。
+
+缺失字体和缺字只会产生 WARNING，不会阻止封装。所有上传字体仍会作为 MKV 附件保留，方便处理 ASS 中未被静态分析捕获的特殊情况。
+
+### 强制统一字体
+
+兼容旧版工作流。只使用第一个上传字体：
+
+- Style `Fontname` 改为该字体 Family Name；
+- 显式内联 `\fnSomeFont` 改为该字体；
+- `\fn` 空参数保留其“恢复当前样式字体”的语义；
+- 其余上传字体不会附加；
+- 用该字体检查整份 Dialogue 的字符覆盖。
 
 ## 当前轨道策略
 
@@ -106,7 +132,6 @@ npm run build
 
 ## 后续计划
 
-- 多字体附件与 ASS 字体到附件的对应关系
 - 更细粒度的轨道选择与默认轨 / 强制轨控制
 - 编码检测扩展到常见 legacy 编码，并提供明确的转换提示
 
