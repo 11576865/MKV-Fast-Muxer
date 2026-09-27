@@ -818,16 +818,66 @@ pre {
 }
 
 .download {
-  min-height: 42px;
-  margin-top: 9px;
+  min-height: 58px;
+  margin: 0 0 10px;
+  padding: 0 14px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 1px solid var(--success);
+  border-radius: 4px;
+  background: var(--success);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--success) 22%, transparent);
+  color: #07130d;
+  text-decoration: none;
+  font-size: .86rem;
+  font-weight: 760;
+  letter-spacing: .01em;
+  overflow-wrap: anywhere;
+  transition: transform .14s ease, filter .14s ease, box-shadow .14s ease;
+}
+
+.download::before {
+  content: "↓";
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--success) 55%, var(--line));
-  background: var(--success-soft);
-  color: var(--success);
-  text-decoration: none;
-  font-size: .78rem;
-  font-weight: 650;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .14);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.download::after {
+  content: "下载到本机";
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: .64rem;
+  font-weight: 680;
+  opacity: .72;
+  white-space: nowrap;
+}
+
+.download:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 13px 28px color-mix(in srgb, var(--success) 27%, transparent);
+}
+
+.download:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--success) 35%, transparent);
+  outline-offset: 3px;
+}
+
+:root[data-theme="light"] .download {
+  color: #fff;
+}
+
+.download:not(.hidden) + .actions {
+  margin-top: 2px;
 }
 
 .audit-result {
@@ -933,4 +983,5 @@ pre {
 
   .actions { grid-template-columns: 1fr; }
   .button-secondary { min-height: 38px; }
+  .download::after { display: none; }
 }

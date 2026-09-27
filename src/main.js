@@ -1080,7 +1080,8 @@ muxBtn.addEventListener('click', async () => {
 
     downloadLink.href = outputURL;
     downloadLink.download = outputName;
-    downloadLink.textContent = `保存 ${outputName}`;
+    downloadLink.textContent = `保存成品 · ${outputName}`;
+    downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
     downloadLink.classList.remove('hidden');
 
     bar.style.width = '100%';
