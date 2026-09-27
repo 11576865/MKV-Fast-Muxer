@@ -17,11 +17,15 @@ const fontInput = $('fontInput');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const subtitleLanguage = $('subtitleLanguage');
+const newSubTitle = $('newSubTitle');
 const newSubDefault = $('newSubDefault');
 const newSubForced = $('newSubForced');
 const preserveAttachments = $('preserveAttachments');
 const scanTracksBtn = $('scanTracksBtn');
 const trackList = $('trackList');
+const refreshPlanBtn = $('refreshPlanBtn');
+const muxPlan = $('muxPlan');
+const planWarnings = $('planWarnings');
 const muxBtn = $('muxBtn');
 const cancelBtn = $('cancelBtn');
 const status = $('status');
@@ -91,6 +95,7 @@ function setInputsDisabled(disabled) {
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
   subtitleLanguage.disabled = disabled;
+  newSubTitle.disabled = disabled;
   newSubDefault.disabled = disabled;
   newSubForced.disabled = disabled;
   preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
@@ -99,6 +104,7 @@ function setInputsDisabled(disabled) {
 function resetTrackState() {
   trackState = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
+  renderMuxPlan();
 }
 
 function updateUI() {
@@ -129,6 +135,8 @@ function updateUI() {
   muxBtn.disabled = busy || !(video && sub && fonts.length);
   cancelBtn.disabled = !busy;
   setInputsDisabled(busy);
+  refreshPlanBtn.disabled = busy;
+  renderMuxPlan();
 }
 
 videoInput.addEventListener('change', () => {
@@ -139,6 +147,12 @@ videoInput.addEventListener('change', () => {
 subInput.addEventListener('change', updateUI);
 fontInput.addEventListener('change', updateUI);
 fontMode.addEventListener('change', updateUI);
+subtitleLanguage.addEventListener('change', renderMuxPlan);
+newSubTitle.addEventListener('input', renderMuxPlan);
+newSubDefault.addEventListener('change', renderMuxPlan);
+newSubForced.addEventListener('change', renderMuxPlan);
+preserveAttachments.addEventListener('change', renderMuxPlan);
+refreshPlanBtn.addEventListener('click', renderMuxPlan);
 
 async function loadFFmpeg() {
   if (loaded) return;
@@ -265,6 +279,160 @@ function streamLabel(stream) {
   return `${type} #${stream.index} · ${codec} · ${language}${title ? ` · ${title}` : ''}`;
 }
 
+function trackKindLabel(type) {
+  return type === 'audio' ? '音频' : '字幕';
+}
+
+function selectedTracks(type) {
+  if (!trackState) return [];
+  return trackState.tracks
+    .filter((track) => track.type === type && track.include)
+    .sort((a, b) => a.order - b.order);
+}
+
+function normalizeTrackLanguage(value) {
+  const trimmed = String(value || '').trim().toLowerCase();
+  return trimmed || 'und';
+}
+
+function moveTrack(track, delta) {
+  if (!trackState) return;
+  const peers = trackState.tracks
+    .filter((item) => item.type === track.type && item.include)
+    .sort((a, b) => a.order - b.order);
+  const currentIndex = peers.findIndex((item) => item.index === track.index);
+  const targetIndex = currentIndex + delta;
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= peers.length) return;
+
+  const other = peers[targetIndex];
+  const temp = track.order;
+  track.order = other.order;
+  other.order = temp;
+}
+
+function defaultConflictWarnings() {
+  const warnings = [];
+  const audioDefaults = selectedTracks('audio').filter((track) => track.default);
+  const originalSubtitleDefaults = selectedTracks('subtitle').filter((track) => track.default);
+  const subtitleDefaultCount = originalSubtitleDefaults.length + (newSubDefault.checked ? 1 : 0);
+
+  if (audioDefaults.length > 1) {
+    warnings.push(`存在 ${audioDefaults.length} 条 Default 音频轨；播放器行为可能不一致。`);
+  }
+  if (subtitleDefaultCount > 1) {
+    warnings.push(`存在 ${subtitleDefaultCount} 条 Default 字幕轨；建议只保留一个 Default。`);
+  }
+
+  return warnings;
+}
+
+function buildMuxPlan() {
+  const video = videoInput.files[0];
+  const fonts = selectedFonts();
+  const mode = fontMode.value || 'preserve';
+  const entries = [];
+  const warnings = defaultConflictWarnings();
+
+  if (video) {
+    entries.push({
+      kind: '视频',
+      title: video.name,
+      meta: '原视频轨 · stream copy',
+      flags: '',
+    });
+  }
+
+  if (trackState) {
+    selectedTracks('audio').forEach((track, index) => {
+      entries.push({
+        kind: `音频 ${index + 1}`,
+        title: track.title || `Audio #${track.index}`,
+        meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
+        flags: dispositionValue(track.default, false),
+      });
+    });
+  } else if (video) {
+    entries.push({
+      kind: '音频',
+      title: '全部原音频轨',
+      meta: '未扫描 · 保持源顺序',
+      flags: 'source',
+    });
+  }
+
+  if (subInput.files[0]) {
+    entries.push({
+      kind: '字幕 1',
+      title: newSubTitle.value.trim() || languageTitles[subtitleLanguage.value] || 'ASS 字幕',
+      meta: `ASS · ${normalizeTrackLanguage(subtitleLanguage.value)} · 新增`,
+      flags: dispositionValue(newSubDefault.checked, newSubForced.checked),
+    });
+  }
+
+  selectedTracks('subtitle').forEach((track, index) => {
+    entries.push({
+      kind: `字幕 ${index + 2}`,
+      title: track.title || `Subtitle #${track.index}`,
+      meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
+      flags: dispositionValue(track.default, track.forced),
+    });
+  });
+
+  if (preserveAttachments.checked && trackState?.attachmentCount) {
+    entries.push({
+      kind: '附件',
+      title: `${trackState.attachmentCount} 个原 MKV 附件`,
+      meta: '按源顺序保留',
+      flags: '',
+    });
+  }
+
+  const attachedFonts = mode === 'force' ? fonts.slice(0, 1) : fonts;
+  attachedFonts.forEach((file, index) => {
+    entries.push({
+      kind: `字体 ${index + 1}`,
+      title: file.name,
+      meta: 'Matroska attachment',
+      flags: '',
+    });
+  });
+
+  if (!entries.length) {
+    return { entries, warnings };
+  }
+
+  if (trackState && selectedTracks('audio').length === 0) {
+    warnings.push('扫描后没有选择任何音频轨；输出将没有音频。');
+  }
+
+  return { entries, warnings };
+}
+
+function renderMuxPlan() {
+  if (!muxPlan || !planWarnings) return;
+  const { entries, warnings } = buildMuxPlan();
+
+  muxPlan.innerHTML = entries.length
+    ? entries.map((entry) => `
+      <div class="plan-row">
+        <span class="plan-kind">${escapeHtml(entry.kind)}</span>
+        <span class="plan-main">
+          <strong>${escapeHtml(entry.title)}</strong>
+          <small>${escapeHtml(entry.meta)}</small>
+        </span>
+        <span class="plan-flags">${escapeHtml(entry.flags === '0' ? '—' : entry.flags)}</span>
+      </div>`).join('')
+    : '<div class="track-empty">选择文件后可预览最终 MKV 结构。</div>';
+
+  if (warnings.length) {
+    planWarnings.textContent = warnings.join(' ');
+    planWarnings.classList.remove('hidden');
+  } else {
+    planWarnings.textContent = '';
+    planWarnings.classList.add('hidden');
+  }
+}
+
 function renderTrackList() {
   if (!trackState) {
     resetTrackState();
@@ -279,7 +447,7 @@ function renderTrackList() {
 
   trackList.innerHTML = tracks.map((track) => {
     const forced = track.type === 'subtitle'
-      ? `<label><input type="checkbox" data-track-action="forced" data-track-index="${track.index}" ${track.forced ? 'checked' : ''}> Forced</label>`
+      ? `<label><input type="checkbox" data-track-action="forced" data-track-index="${track.index}" ${track.forced ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Forced</label>`
       : '';
 
     return `
@@ -287,14 +455,27 @@ function renderTrackList() {
         <div class="track-title">
           <strong>${escapeHtml(streamLabel(track.stream))}</strong>
           <span class="track-meta">原始 Default=${track.originalDefault ? '1' : '0'}${track.type === 'subtitle' ? ` · Forced=${track.originalForced ? '1' : '0'}` : ''}</span>
+          <div class="track-edit-grid">
+            <label>语言
+              <input type="text" data-track-field="language" data-track-index="${track.index}" value="${escapeHtml(track.language)}" maxlength="16" ${track.include ? '' : 'disabled'}>
+            </label>
+            <label>标题
+              <input type="text" data-track-field="title" data-track-index="${track.index}" value="${escapeHtml(track.title)}" maxlength="160" ${track.include ? '' : 'disabled'}>
+            </label>
+          </div>
         </div>
         <div class="track-controls">
+          <span class="track-order">
+            <button type="button" data-track-move="-1" data-track-index="${track.index}" ${track.include ? '' : 'disabled'} aria-label="上移">↑</button>
+            <button type="button" data-track-move="1" data-track-index="${track.index}" ${track.include ? '' : 'disabled'} aria-label="下移">↓</button>
+          </span>
           <label><input type="checkbox" data-track-action="include" data-track-index="${track.index}" ${track.include ? 'checked' : ''}> 保留</label>
           <label><input type="checkbox" data-track-action="default" data-track-index="${track.index}" ${track.default ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Default</label>
-          ${forced.replace('> Forced', `${track.include ? '' : ' disabled'}> Forced`)}
+          ${forced}
         </div>
       </div>`;
   }).join('');
+  renderMuxPlan();
 }
 
 function escapeHtml(value) {
@@ -306,19 +487,46 @@ function escapeHtml(value) {
 }
 
 trackList.addEventListener('change', (event) => {
-  const input = event.target.closest('input[data-track-action]');
-  if (!input || !trackState) return;
+  if (!trackState) return;
+  const actionInput = event.target.closest('input[data-track-action]');
+  const fieldInput = event.target.closest('input[data-track-field]');
+  const target = actionInput || fieldInput;
+  if (!target) return;
 
-  const index = Number(input.dataset.trackIndex);
-  const action = input.dataset.trackAction;
+  const index = Number(target.dataset.trackIndex);
   const track = trackState.tracks.find((item) => item.index === index);
   if (!track) return;
 
-  track[action] = input.checked;
-  if (action === 'include' && !input.checked) {
-    track.default = false;
-    track.forced = false;
+  if (actionInput) {
+    const action = actionInput.dataset.trackAction;
+    track[action] = actionInput.checked;
+    if (action === 'include' && !actionInput.checked) {
+      track.default = false;
+      track.forced = false;
+    }
+  } else if (fieldInput) {
+    track[fieldInput.dataset.trackField] = fieldInput.value;
   }
+
+  renderTrackList();
+});
+
+trackList.addEventListener('input', (event) => {
+  if (!trackState) return;
+  const input = event.target.closest('input[data-track-field]');
+  if (!input) return;
+  const track = trackState.tracks.find((item) => item.index === Number(input.dataset.trackIndex));
+  if (!track) return;
+  track[input.dataset.trackField] = input.value;
+  renderMuxPlan();
+});
+
+trackList.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-track-move]');
+  if (!button || !trackState) return;
+  const track = trackState.tracks.find((item) => item.index === Number(button.dataset.trackIndex));
+  if (!track) return;
+  moveTrack(track, Number(button.dataset.trackMove));
   renderTrackList();
 });
 
@@ -352,6 +560,9 @@ scanTracksBtn.addEventListener('click', async () => {
         type: stream.codec_type,
         stream,
         include: stream.codec_type === 'audio',
+        language: stream.tags?.language || 'und',
+        title: stream.tags?.title || '',
+        order: stream.index,
         default: Boolean(stream.disposition?.default),
         forced: Boolean(stream.disposition?.forced),
         originalDefault: Boolean(stream.disposition?.default),
@@ -628,12 +839,8 @@ muxBtn.addEventListener('click', async () => {
       originalAttachmentCount = (await probeInput(videoPath, probePath)).attachmentCount;
     }
 
-    const selectedAudio = scanned
-      ? scanned.tracks.filter((track) => track.type === 'audio' && track.include)
-      : null;
-    const selectedSubtitles = scanned
-      ? scanned.tracks.filter((track) => track.type === 'subtitle' && track.include)
-      : [];
+    const selectedAudio = scanned ? selectedTracks('audio') : null;
+    const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
 
     if (scanned) {
       logEl.textContent += `轨道方案：音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${keepOriginalAttachments ? scanned.attachmentCount : 0}。\n`;
@@ -671,18 +878,26 @@ muxBtn.addEventListener('click', async () => {
       '-map_chapters', '0',
       '-c', 'copy',
       '-metadata:s:s:0', `language=${language}`,
-      '-metadata:s:s:0', `title=${languageTitles[language] || 'ASS 字幕'}`,
+      '-metadata:s:s:0', `title=${newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕'}`,
       '-disposition:s:0', dispositionValue(newSubDefault.checked, newSubForced.checked),
     );
 
     if (selectedAudio) {
       selectedAudio.forEach((track, index) => {
-        args.push(`-disposition:a:${index}`, dispositionValue(track.default, false));
+        args.push(
+          `-metadata:s:a:${index}`, `language=${normalizeTrackLanguage(track.language)}`,
+          `-metadata:s:a:${index}`, `title=${track.title || ''}`,
+          `-disposition:a:${index}`, dispositionValue(track.default, false),
+        );
       });
     }
 
     selectedSubtitles.forEach((track, index) => {
-      args.push(`-disposition:s:${index + 1}`, dispositionValue(track.default, track.forced));
+      args.push(
+        `-metadata:s:s:${index + 1}`, `language=${normalizeTrackLanguage(track.language)}`,
+        `-metadata:s:s:${index + 1}`, `title=${track.title || ''}`,
+        `-disposition:s:${index + 1}`, dispositionValue(track.default, track.forced),
+      );
     });
 
     attachments.forEach((item, index) => {
