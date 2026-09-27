@@ -1,6 +1,7 @@
-// Read the OpenType `name` table in the browser. For ASS, the family name is
-// the name libass/fontconfig should resolve after the font is attached.
-export async function readFontFamily(file) {
+// ASS font helpers: OpenType name/cmap parsing, font dependency analysis,
+// forced-font rewriting, and glyph coverage checks.
+
+export async function readFontDescriptor(file) {
   const view = new DataView(await file.arrayBuffer());
   validateSfnt(view);
   const table = findTable(view, 'name');
@@ -13,36 +14,222 @@ export async function readFontFamily(file) {
 
   const count = view.getUint16(offset + 2, false);
   const strings = offset + view.getUint16(offset + 4, false);
-  const found = new Map();
+  const best = new Map();
+  const aliases = new Set();
 
   for (let i = 0; i < count; i++) {
     const p = offset + 6 + i * 12;
     if (p + 12 > view.byteLength) break;
+
     const platform = view.getUint16(p, false);
     const language = view.getUint16(p + 4, false);
     const nameId = view.getUint16(p + 6, false);
     const bytes = view.getUint16(p + 8, false);
     const relative = view.getUint16(p + 10, false);
     const start = strings + relative;
-    if (start + bytes > view.byteLength || ![1, 4, 6, 16].includes(nameId)) continue;
+
+    if (start + bytes > view.byteLength || ![1, 2, 4, 6, 16, 17].includes(nameId)) continue;
 
     const text = decodeName(view, start, bytes, platform).trim();
     if (!text) continue;
 
-    const score = (platform === 3 ? 10 : 0) + ([0x0409, 0x0804, 0x0404].includes(language) ? 2 : 0);
-    const old = found.get(nameId);
-    if (!old || score > old.score) found.set(nameId, { text, score });
+    if ([1, 4, 6, 16].includes(nameId)) aliases.add(text);
+
+    const score =
+      (platform === 3 ? 10 : platform === 0 ? 8 : 0) +
+      ([0x0409, 0x0804, 0x0404, 0x0411, 0x0412].includes(language) ? 2 : 0);
+
+    const old = best.get(nameId);
+    if (!old || score > old.score) best.set(nameId, { text, score });
   }
 
-  const family = found.get(16)?.text || found.get(1)?.text || found.get(4)?.text || found.get(6)?.text;
+  const family = best.get(16)?.text || best.get(1)?.text || best.get(4)?.text || best.get(6)?.text;
   if (!family) throw new Error('字体缺少 Family Name / Full Name');
-  return family;
+
+  aliases.add(family);
+
+  return {
+    family,
+    subfamily: best.get(17)?.text || best.get(2)?.text || '',
+    fullName: best.get(4)?.text || '',
+    postScriptName: best.get(6)?.text || '',
+    aliases: [...aliases],
+  };
 }
 
-// Check the uploaded font's Unicode cmap against visible ASS dialogue text.
-// This is advisory only: shaping, variation selectors and fallback behavior are
-// renderer-dependent, so a "covered" result is not a rendering guarantee.
-export async function checkFontCoverage(file, assText) {
+export async function readFontFamily(file) {
+  return (await readFontDescriptor(file)).family;
+}
+
+export function fontNameMatches(requestedName, descriptor) {
+  const wanted = normalizeFontName(requestedName);
+  if (!wanted) return false;
+  return descriptor.aliases.some((alias) => normalizeFontName(alias) === wanted);
+}
+
+// Analyze fonts actually used by rendered Dialogue events. It understands style
+// Fontname, inline \fn, and \r style resets. The result is intentionally
+// conservative: unusual transform-driven font changes may be reported as a
+// dependency even if they are active only part of the time.
+export function analyzeAssFontUsage(text) {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  const styles = new Map();
+  const declaredFonts = new Map();
+  let section = '';
+  let styleFormat = [];
+
+  for (const raw of lines) {
+    const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (header) {
+      section = header[1].toLowerCase();
+      continue;
+    }
+
+    if (section !== 'v4+ styles' && section !== 'v4 styles') continue;
+
+    if (/^\s*Format\s*:/i.test(raw)) {
+      styleFormat = fieldsAfterColon(raw).split(',').map((x) => x.trim().toLowerCase());
+      continue;
+    }
+
+    if (!/^\s*Style\s*:/i.test(raw)) continue;
+
+    const format = styleFormat.length ? styleFormat : ['name', 'fontname'];
+    const values = splitAssFields(fieldsAfterColon(raw), format.length);
+    const nameIndex = format.indexOf('name');
+    const fontIndex = format.indexOf('fontname');
+    if (nameIndex < 0 || fontIndex < 0) continue;
+
+    const styleName = (values[nameIndex] || '').trim();
+    const fontName = (values[fontIndex] || '').trim();
+    if (!styleName || !fontName) continue;
+
+    styles.set(normalizeStyleName(styleName), { name: styleName, fontName });
+    declaredFonts.set(normalizeFontName(fontName), fontName);
+  }
+
+  const usage = new Map();
+  const allCharacters = new Set();
+  section = '';
+  let eventFormat = [];
+
+  const ensureUsage = (fontName, source) => {
+    const key = normalizeFontName(fontName);
+    if (!key) return null;
+
+    let item = usage.get(key);
+    if (!item) {
+      item = {
+        name: fontName.trim(),
+        characters: new Set(),
+        sources: new Set(),
+      };
+      usage.set(key, item);
+    }
+    if (source) item.sources.add(source);
+    return item;
+  };
+
+  const addVisibleText = (fontName, value, source) => {
+    const item = ensureUsage(fontName, source);
+    if (!item) return;
+
+    for (const char of decodeAssVisibleText(value)) {
+      if (!isMeaningfulCharacter(char)) continue;
+      item.characters.add(char);
+      allCharacters.add(char);
+    }
+  };
+
+  for (const raw of lines) {
+    const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (header) {
+      section = header[1].toLowerCase();
+      continue;
+    }
+    if (section !== 'events') continue;
+
+    if (/^\s*Format\s*:/i.test(raw)) {
+      eventFormat = fieldsAfterColon(raw).split(',').map((x) => x.trim().toLowerCase());
+      continue;
+    }
+
+    if (!/^\s*Dialogue\s*:/i.test(raw)) continue;
+
+    const format = eventFormat.length
+      ? eventFormat
+      : ['layer', 'start', 'end', 'style', 'name', 'marginl', 'marginr', 'marginv', 'effect', 'text'];
+    const values = splitAssFields(fieldsAfterColon(raw), format.length);
+    const styleIndex = format.indexOf('style');
+    const textIndex = format.indexOf('text');
+    if (textIndex < 0 || textIndex >= values.length) continue;
+
+    const eventStyleName = styleIndex >= 0 ? (values[styleIndex] || '').trim() : '';
+    const baseStyle = styles.get(normalizeStyleName(eventStyleName));
+    const baseFont = baseStyle?.fontName || '';
+    let currentStyleFont = baseFont;
+    let currentFont = baseFont;
+    let drawingMode = 0;
+
+    if (baseFont) ensureUsage(baseFont, `style:${eventStyleName || baseStyle?.name || 'Default'}`);
+
+    const pieces = values[textIndex].split(/(\{[^}]*\})/g);
+    for (const piece of pieces) {
+      if (!piece) continue;
+
+      if (piece.startsWith('{') && piece.endsWith('}')) {
+        const tags = piece.slice(1, -1);
+        const tagRegex = /\\(fn|r|p)([^\\}]*)/gi;
+        let match;
+
+        while ((match = tagRegex.exec(tags))) {
+          const tag = match[1].toLowerCase();
+          const value = match[2].trim();
+
+          if (tag === 'p') {
+            const parsed = Number.parseInt(value, 10);
+            drawingMode = Number.isFinite(parsed) ? parsed : drawingMode;
+            continue;
+          }
+
+          if (tag === 'r') {
+            if (value) {
+              const resetStyle = styles.get(normalizeStyleName(value));
+              currentStyleFont = resetStyle?.fontName || baseFont;
+            } else {
+              currentStyleFont = baseFont;
+            }
+            currentFont = currentStyleFont;
+            if (currentFont) ensureUsage(currentFont, value ? `reset:${value}` : 'reset:base');
+            continue;
+          }
+
+          if (tag === 'fn') {
+            currentFont = value || currentStyleFont || baseFont;
+            if (currentFont) ensureUsage(currentFont, value ? 'inline:\\fn' : 'inline:\\fn(reset)');
+          }
+        }
+        continue;
+      }
+
+      if (drawingMode === 0 && currentFont) {
+        addVisibleText(currentFont, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
+      }
+    }
+  }
+
+  return {
+    declaredFonts: [...declaredFonts.values()],
+    usedFonts: [...usage.values()].map((item) => ({
+      name: item.name,
+      characters: [...item.characters],
+      sources: [...item.sources],
+    })),
+    allCharacters: [...allCharacters],
+  };
+}
+
+export async function checkFontCharacters(file, characters) {
   const view = new DataView(await file.arrayBuffer());
   validateSfnt(view);
   const cmap = findTable(view, 'cmap');
@@ -55,31 +242,34 @@ export async function checkFontCoverage(file, assText) {
     throw new Error('字体没有可识别的 Unicode cmap（仅支持常见 format 4 / 12）');
   }
 
-  const characters = extractAssCharacters(assText);
+  const unique = [...new Set(characters)].filter(isMeaningfulCharacter);
   const missing = [];
 
-  for (const char of characters) {
+  for (const char of unique) {
     const codePoint = char.codePointAt(0);
-    if (!checkers.some((hasGlyph) => hasGlyph(codePoint))) {
-      missing.push(char);
-    }
+    if (!checkers.some((hasGlyph) => hasGlyph(codePoint))) missing.push(char);
   }
 
   return {
-    checkedCount: characters.length,
+    checkedCount: unique.length,
     missing,
   };
 }
 
-// The muxer accepts one explicit uploaded font, therefore leaving a different
-// ASS font request would silently cause fallback. Rewrite styles and inline \fn.
+export async function checkFontCoverage(file, assText) {
+  const analysis = analyzeAssFontUsage(assText);
+  return checkFontCharacters(file, analysis.allCharacters);
+}
+
+// Forced-font mode: preserve all non-font ASS formatting, but rewrite style
+// Fontname values and inline \fn overrides to one uploaded family.
 export function forceAssFontFamily(text, family) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   let section = '';
   let styleFormat = [];
   let eventFormat = [];
 
-  return lines.map(raw => {
+  return lines.map((raw) => {
     const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
     if (header) {
       section = header[1].toLowerCase();
@@ -88,7 +278,7 @@ export function forceAssFontFamily(text, family) {
 
     if (section === 'v4+ styles' || section === 'v4 styles') {
       if (/^\s*Format\s*:/i.test(raw)) {
-        styleFormat = fieldsAfterColon(raw).split(',').map(x => x.trim().toLowerCase());
+        styleFormat = fieldsAfterColon(raw).split(',').map((x) => x.trim().toLowerCase());
       } else if (/^\s*Style\s*:/i.test(raw) && styleFormat.length) {
         const values = splitAssFields(fieldsAfterColon(raw), styleFormat.length);
         const index = styleFormat.indexOf('fontname');
@@ -97,17 +287,34 @@ export function forceAssFontFamily(text, family) {
       }
     } else if (section === 'events') {
       if (/^\s*Format\s*:/i.test(raw)) {
-        eventFormat = fieldsAfterColon(raw).split(',').map(x => x.trim().toLowerCase());
+        eventFormat = fieldsAfterColon(raw).split(',').map((x) => x.trim().toLowerCase());
       } else if (/^\s*(Dialogue|Comment)\s*:/i.test(raw) && eventFormat.length) {
         const values = splitAssFields(fieldsAfterColon(raw), eventFormat.length);
         const index = eventFormat.indexOf('text');
-        if (index >= 0) values[index] = values[index].replace(/\\fn([^\\}]+)/gi, `\\fn${family}`);
+        if (index >= 0) {
+          values[index] = values[index].replace(/\\fn([^\\}]*)/gi, (match, requested) => (
+            requested.trim() ? `\\fn${family}` : match
+          ));
+        }
         return raw.slice(0, raw.indexOf(':') + 1) + ' ' + values.join(',');
       }
     }
 
     return raw;
   }).join('\n');
+}
+
+function normalizeFontName(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .trim()
+    .replace(/^@/, '')
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('en-US');
+}
+
+function normalizeStyleName(value) {
+  return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
 function validateSfnt(view) {
@@ -121,6 +328,7 @@ function validateSfnt(view) {
 
 function findTable(view, wantedTag) {
   const tableCount = view.getUint16(4, false);
+
   for (let i = 0; i < tableCount; i++) {
     const p = 12 + i * 16;
     if (p + 16 > view.byteLength) break;
@@ -131,6 +339,7 @@ function findTable(view, wantedTag) {
     if (offset + length > view.byteLength) return null;
     return { offset, length };
   }
+
   return null;
 }
 
@@ -161,9 +370,9 @@ function readUnicodeCmapCheckers(view, cmapOffset, cmapLength) {
   }
 
   return subtables
-    .filter(item => item.checker)
+    .filter((item) => item.checker)
     .sort((a, b) => b.priority - a.priority)
-    .map(item => item.checker);
+    .map((item) => item.checker);
 }
 
 function makeFormat12Checker(view, offset, cmapEnd) {
@@ -221,9 +430,7 @@ function makeFormat4Checker(view, offset, cmapEnd) {
       const rangeWord = idRangeOffsets + i * 2;
       const rangeOffset = view.getUint16(rangeWord, false);
 
-      if (rangeOffset === 0) {
-        return ((codePoint + delta) & 0xffff) !== 0;
-      }
+      if (rangeOffset === 0) return ((codePoint + delta) & 0xffff) !== 0;
 
       const glyphAddress = rangeWord + rangeOffset + 2 * (codePoint - start);
       if (glyphAddress + 2 > tableEnd) return false;
@@ -237,44 +444,16 @@ function makeFormat4Checker(view, offset, cmapEnd) {
   };
 }
 
-function extractAssCharacters(text) {
-  const lines = text.split(/\r?\n/);
-  let section = '';
-  let eventFormat = [];
-  const chars = new Set();
+function decodeAssVisibleText(value) {
+  return value
+    .replace(/\\[Nn]/g, '\n')
+    .replace(/\\h/g, ' ');
+}
 
-  for (const raw of lines) {
-    const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
-    if (header) {
-      section = header[1].toLowerCase();
-      continue;
-    }
-    if (section !== 'events') continue;
-
-    if (/^\s*Format\s*:/i.test(raw)) {
-      eventFormat = fieldsAfterColon(raw).split(',').map(x => x.trim().toLowerCase());
-      continue;
-    }
-    if (!/^\s*Dialogue\s*:/i.test(raw) || !eventFormat.length) continue;
-
-    const values = splitAssFields(fieldsAfterColon(raw), eventFormat.length);
-    const index = eventFormat.indexOf('text');
-    if (index < 0 || index >= values.length) continue;
-
-    const visible = values[index]
-      .replace(/\{[^}]*\}/g, '')
-      .replace(/\\[Nn]/g, '\n')
-      .replace(/\\h/g, ' ');
-
-    for (const char of visible) {
-      if (/\s/u.test(char)) continue;
-      const codePoint = char.codePointAt(0);
-      if (codePoint < 0x20 || (codePoint >= 0x7f && codePoint <= 0x9f)) continue;
-      chars.add(char);
-    }
-  }
-
-  return [...chars];
+function isMeaningfulCharacter(char) {
+  if (!char || /\s/u.test(char)) return false;
+  const codePoint = char.codePointAt(0);
+  return codePoint >= 0x20 && !(codePoint >= 0x7f && codePoint <= 0x9f);
 }
 
 function fieldsAfterColon(line) {
