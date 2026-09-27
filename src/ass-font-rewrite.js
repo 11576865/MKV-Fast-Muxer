@@ -238,6 +238,7 @@ export function analyzeAssFontUsage(text) {
     const baseFace = normalizeFace(baseStyle?.face || { name: '', weight: 400, italic: false });
     let currentStyleFace = { ...baseFace };
     let currentFace = { ...baseFace };
+    let transformFaces = [];
     let drawingMode = 0;
 
     if (currentFace.name) {
@@ -250,10 +251,20 @@ export function analyzeAssFontUsage(text) {
 
       if (piece.startsWith('{') && piece.endsWith('}')) {
         const tags = piece.slice(1, -1);
+        const { directTags, transforms } = splitTransformTags(tags);
+
+        for (const transform of transforms) {
+          const transformed = applyFaceOverrides(transform, currentFace, currentStyleFace, baseFace, styles);
+          if (transformed.changed && transformed.face.name) {
+            transformFaces.push(transformed.face);
+            ensureUsage(transformed.face, 'transform:\\t');
+          }
+        }
+
         const tagRegex = /\\(fn|r|p|b|i)([^\\}]*)/gi;
         let match;
 
-        while ((match = tagRegex.exec(tags))) {
+        while ((match = tagRegex.exec(directTags))) {
           const tag = match[1].toLowerCase();
           const value = match[2].trim();
 
@@ -269,6 +280,7 @@ export function analyzeAssFontUsage(text) {
               : baseStyle;
             currentStyleFace = normalizeFace(resetStyle?.face || baseFace);
             currentFace = { ...currentStyleFace };
+            transformFaces = [];
             if (currentFace.name) {
               ensureUsage(currentFace, value ? `reset:${value}` : 'reset:base');
             }
@@ -300,6 +312,9 @@ export function analyzeAssFontUsage(text) {
 
       if (drawingMode === 0 && currentFace.name) {
         addVisibleText(currentFace, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
+        for (const transformed of transformFaces) {
+          addVisibleText(transformed, piece, 'transform:\\t');
+        }
       }
     }
   }
@@ -391,6 +406,78 @@ export function forceAssFontFamily(text, family) {
 
     return raw;
   }).join('\n');
+}
+
+function splitTransformTags(tags) {
+  const transforms = [];
+  let directTags = '';
+  let cursor = 0;
+
+  while (cursor < tags.length) {
+    const start = tags.indexOf('\\t(', cursor);
+    if (start < 0) {
+      directTags += tags.slice(cursor);
+      break;
+    }
+
+    directTags += tags.slice(cursor, start);
+    let depth = 1;
+    let i = start + 3;
+
+    for (; i < tags.length && depth > 0; i++) {
+      if (tags[i] === '(') depth += 1;
+      else if (tags[i] === ')') depth -= 1;
+    }
+
+    if (depth !== 0) {
+      directTags += tags.slice(start);
+      break;
+    }
+
+    transforms.push(tags.slice(start + 3, i - 1));
+    cursor = i;
+  }
+
+  return { directTags, transforms };
+}
+
+function applyFaceOverrides(payload, seedFace, currentStyleFace, baseFace, styles) {
+  let face = { ...normalizeFace(seedFace) };
+  let changed = false;
+  const tagRegex = /\\(fn|r|b|i)([^\\,)]*)/gi;
+  let match;
+
+  while ((match = tagRegex.exec(payload))) {
+    const tag = match[1].toLowerCase();
+    const value = match[2].trim();
+
+    if (tag === 'r') {
+      const resetStyle = value ? styles.get(normalizeStyleName(value)) : null;
+      face = normalizeFace(resetStyle?.face || currentStyleFace || baseFace);
+      changed = true;
+      continue;
+    }
+
+    if (tag === 'fn') {
+      face.name = value || currentStyleFace.name || baseFace.name;
+      changed = true;
+      continue;
+    }
+
+    if (tag === 'b') {
+      face.weight = parseInlineWeight(value, face.weight);
+      face.bold = face.weight >= 600;
+      changed = true;
+      continue;
+    }
+
+    if (tag === 'i') {
+      face.italic = parseInlineItalic(value, face.italic);
+      changed = true;
+    }
+  }
+
+  return { face: normalizeFace(face), changed };
 }
 
 function readFaceTraits(view, subfamily) {

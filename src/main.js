@@ -1,6 +1,7 @@
 import './style.css';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
+import { auditMuxProbe } from './mux-audit.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -32,6 +33,7 @@ const status = $('status');
 const logEl = $('log');
 const bar = $('bar');
 const downloadLink = $('downloadLink');
+const auditResult = $('auditResult');
 
 const languageTitles = {
   und: 'ASS 字幕',
@@ -614,6 +616,32 @@ function faceLabel(face) {
   return `${face.name} [w${face.weight || 400}${face.italic ? ', italic' : ''}]`;
 }
 
+function reportFontFamilyCompleteness(uploadedFonts) {
+  const groups = new Map();
+
+  for (const item of uploadedFonts) {
+    const family = item.descriptor.family || item.file.name;
+    const key = family.normalize('NFKC').trim().toLocaleLowerCase('en-US');
+    let group = groups.get(key);
+    if (!group) {
+      group = { family, faces: new Set(), files: [] };
+      groups.set(key, group);
+    }
+
+    const bold = Boolean(item.descriptor.bold);
+    const italic = Boolean(item.descriptor.italic);
+    const face = bold && italic ? 'Bold Italic' : bold ? 'Bold' : italic ? 'Italic' : 'Regular';
+    group.faces.add(face);
+    group.files.push(item.file.name);
+  }
+
+  for (const group of groups.values()) {
+    const expected = ['Regular', 'Bold', 'Italic', 'Bold Italic'];
+    const missing = expected.filter((face) => !group.faces.has(face));
+    logEl.textContent += `字体家族：${group.family} · 已有 ${[...group.faces].join(', ')}${missing.length ? ` · 缺 ${missing.join(', ')}` : ' · 四种基础 face 齐全'}\n`;
+  }
+}
+
 async function analyzePreservedFonts(analysis, uploadedFonts) {
   const usedUploaded = new Set();
   const missingFamilies = [];
@@ -734,6 +762,8 @@ muxBtn.addEventListener('click', async () => {
   cancelRequested = false;
   updateUI();
   downloadLink.classList.add('hidden');
+  auditResult.className = 'audit-result hidden';
+  auditResult.textContent = '';
   logEl.textContent = '';
   bar.style.width = '4%';
 
@@ -747,6 +777,7 @@ muxBtn.addEventListener('click', async () => {
   const subPath = `${prefix}-subtitle.ass`;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
+  const auditPath = `${prefix}-audit.json`;
   const outputName = safeOutputName(video.name);
   const fontPaths = [];
 
@@ -768,6 +799,7 @@ muxBtn.addEventListener('click', async () => {
     for (const item of descriptors) {
       logEl.textContent += `上传字体：${item.file.name} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}\n`;
     }
+    reportFontFamilyCompleteness(descriptors);
 
     const analysis = analyzeAssFontUsage(sourceAss);
     let outputAss = sourceAss;
@@ -917,6 +949,54 @@ muxBtn.addEventListener('click', async () => {
     if (cancelRequested) return;
     if (code !== 0) throw new Error(`FFmpeg 返回错误代码 ${code}`);
 
+    status.textContent = '正在审计输出 MKV……';
+    bar.style.width = '94%';
+
+    const auditProbe = await probeInput(outputPath, auditPath);
+    const expectedAudit = {
+      videoMin: 1,
+      audio: selectedAudio
+        ? selectedAudio.map((track) => ({
+            codec: track.stream.codec_name || '',
+            language: normalizeTrackLanguage(track.language),
+            title: track.title || '',
+            default: track.default,
+          }))
+        : null,
+      subtitles: [
+        {
+          codec: 'ass',
+          language,
+          title: newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕',
+          default: newSubDefault.checked,
+          forced: newSubForced.checked,
+        },
+        ...selectedSubtitles.map((track) => ({
+          codec: track.stream.codec_name || '',
+          language: normalizeTrackLanguage(track.language),
+          title: track.title || '',
+          default: track.default,
+          forced: track.forced,
+        })),
+      ],
+      attachmentCount: (keepOriginalAttachments ? originalAttachmentCount : 0) + attachments.length,
+      newFontFilenames: attachments.map((item) => item.file.name),
+    };
+
+    const audit = auditMuxProbe(auditProbe, expectedAudit);
+    if (audit.ok) {
+      const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
+      logEl.textContent += `AUDIT: ${auditText}\n`;
+      auditResult.textContent = auditText;
+      auditResult.className = 'audit-result';
+    } else {
+      const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
+      logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+      auditResult.textContent = auditText;
+      auditResult.className = 'audit-result warn';
+      completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
+    }
+
     status.textContent = '正在准备保存……';
     bar.style.width = '96%';
 
@@ -960,6 +1040,7 @@ muxBtn.addEventListener('click', async () => {
       for (const path of fontPaths) await removeQuietly(path);
       await removeQuietly(outputPath);
       await removeQuietly(probePath);
+      await removeQuietly(auditPath);
     }
     running = false;
     cancelRequested = false;

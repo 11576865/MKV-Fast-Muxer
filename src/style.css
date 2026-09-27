@@ -553,3 +553,21 @@ pre {
     white-space: normal;
   }
 }
+
+
+.audit-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #355047;
+  border-radius: 10px;
+  background: #111815;
+  color: #bcd2c9;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+
+.audit-result.warn {
+  border-color: #5b4933;
+  background: #1b1712;
+  color: #d6c3a6;
+}
