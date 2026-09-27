@@ -33,6 +33,7 @@ const status = $('status');
 const logEl = $('log');
 const bar = $('bar');
 const downloadLink = $('downloadLink');
+const auditResult = $('auditResult');
 
 const languageTitles = {
   und: 'ASS 字幕',
@@ -761,6 +762,8 @@ muxBtn.addEventListener('click', async () => {
   cancelRequested = false;
   updateUI();
   downloadLink.classList.add('hidden');
+  auditResult.className = 'audit-result hidden';
+  auditResult.textContent = '';
   logEl.textContent = '';
   bar.style.width = '4%';
 
@@ -982,9 +985,15 @@ muxBtn.addEventListener('click', async () => {
 
     const audit = auditMuxProbe(auditProbe, expectedAudit);
     if (audit.ok) {
-      logEl.textContent += `AUDIT: 通过。输出包含 ${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。\n`;
+      const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
+      logEl.textContent += `AUDIT: ${auditText}\n`;
+      auditResult.textContent = auditText;
+      auditResult.className = 'audit-result';
     } else {
+      const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
       logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+      auditResult.textContent = auditText;
+      auditResult.className = 'audit-result warn';
       completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
     }
 
