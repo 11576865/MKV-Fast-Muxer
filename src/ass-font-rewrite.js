@@ -1,5 +1,5 @@
 // ASS font helpers: OpenType name/cmap parsing, font dependency analysis,
-// forced-font rewriting, and glyph coverage checks.
+// face matching (weight/italic), forced-font rewriting, and glyph coverage.
 
 export async function readFontDescriptor(file) {
   const view = new DataView(await file.arrayBuffer());
@@ -16,6 +16,7 @@ export async function readFontDescriptor(file) {
   const strings = offset + view.getUint16(offset + 4, false);
   const best = new Map();
   const aliases = new Set();
+  const familyAliases = new Set();
 
   for (let i = 0; i < count; i++) {
     const p = offset + 6 + i * 12;
@@ -34,6 +35,7 @@ export async function readFontDescriptor(file) {
     if (!text) continue;
 
     if ([1, 4, 6, 16].includes(nameId)) aliases.add(text);
+    if ([1, 16].includes(nameId)) familyAliases.add(text);
 
     const score =
       (platform === 3 ? 10 : platform === 0 ? 8 : 0) +
@@ -46,14 +48,22 @@ export async function readFontDescriptor(file) {
   const family = best.get(16)?.text || best.get(1)?.text || best.get(4)?.text || best.get(6)?.text;
   if (!family) throw new Error('字体缺少 Family Name / Full Name');
 
+  const subfamily = best.get(17)?.text || best.get(2)?.text || '';
+  const traits = readFaceTraits(view, subfamily);
+
   aliases.add(family);
+  familyAliases.add(family);
 
   return {
     family,
-    subfamily: best.get(17)?.text || best.get(2)?.text || '',
+    subfamily,
     fullName: best.get(4)?.text || '',
     postScriptName: best.get(6)?.text || '',
     aliases: [...aliases],
+    familyAliases: [...familyAliases],
+    weight: traits.weight,
+    bold: traits.bold,
+    italic: traits.italic,
   };
 }
 
@@ -67,10 +77,48 @@ export function fontNameMatches(requestedName, descriptor) {
   return descriptor.aliases.some((alias) => normalizeFontName(alias) === wanted);
 }
 
-// Analyze fonts actually used by rendered Dialogue events. It understands style
-// Fontname, inline \fn, and \r style resets. The result is intentionally
-// conservative: unusual transform-driven font changes may be reported as a
-// dependency even if they are active only part of the time.
+// Returns both name compatibility and face quality. Exact Full Name /
+// PostScript-name requests are treated as explicit face requests and outrank
+// family-level matching.
+export function scoreFontFaceMatch(request, descriptor) {
+  const wanted = normalizeFontName(request.name);
+  if (!wanted) return { matched: false, score: -Infinity, styleExact: false };
+
+  const aliasMatch = descriptor.aliases.some((alias) => normalizeFontName(alias) === wanted);
+  if (!aliasMatch) return { matched: false, score: -Infinity, styleExact: false };
+
+  const familyMatch = descriptor.familyAliases.some((alias) => normalizeFontName(alias) === wanted);
+  const explicitFaceName = aliasMatch && !familyMatch;
+  const requestedWeight = normalizeWeight(request.weight ?? (request.bold ? 700 : 400));
+  const descriptorWeight = normalizeWeight(descriptor.weight ?? (descriptor.bold ? 700 : 400));
+  const weightDistance = Math.abs(requestedWeight - descriptorWeight);
+  const italicMatch = Boolean(request.italic) === Boolean(descriptor.italic);
+  const boldMatch = Boolean(request.bold) === Boolean(descriptor.bold);
+
+  const styleExact =
+    explicitFaceName ||
+    (italicMatch && boldMatch && weightDistance <= 100);
+
+  const score =
+    1000 +
+    (explicitFaceName ? 600 : 0) +
+    (italicMatch ? 120 : -180) +
+    (boldMatch ? 80 : -120) -
+    weightDistance;
+
+  return {
+    matched: true,
+    score,
+    styleExact,
+    explicitFaceName,
+    weightDistance,
+    italicMatch,
+    boldMatch,
+  };
+}
+
+// Analyze fonts actually used by rendered Dialogue events. Besides Fontname,
+// n and , this tracks ASS Bold/Italic style fields and inline  / i tags.
 export function analyzeAssFontUsage(text) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   const styles = new Map();
@@ -94,18 +142,38 @@ export function analyzeAssFontUsage(text) {
 
     if (!/^\s*Style\s*:/i.test(raw)) continue;
 
-    const format = styleFormat.length ? styleFormat : ['name', 'fontname'];
+    const format = styleFormat.length
+      ? styleFormat
+      : ['name', 'fontname', 'fontsize', 'primarycolour', 'secondarycolour', 'outlinecolour',
+        'backcolour', 'bold', 'italic'];
     const values = splitAssFields(fieldsAfterColon(raw), format.length);
     const nameIndex = format.indexOf('name');
     const fontIndex = format.indexOf('fontname');
+    const boldIndex = format.indexOf('bold');
+    const italicIndex = format.indexOf('italic');
     if (nameIndex < 0 || fontIndex < 0) continue;
 
     const styleName = (values[nameIndex] || '').trim();
     const fontName = (values[fontIndex] || '').trim();
     if (!styleName || !fontName) continue;
 
-    styles.set(normalizeStyleName(styleName), { name: styleName, fontName });
-    declaredFonts.set(normalizeFontName(fontName), fontName);
+    const weight = parseStyleWeight(boldIndex >= 0 ? values[boldIndex] : '0');
+    const italic = parseAssBoolean(italicIndex >= 0 ? values[italicIndex] : '0');
+    const face = {
+      name: fontName,
+      weight,
+      bold: weight >= 600,
+      italic,
+    };
+
+    styles.set(normalizeStyleName(styleName), { name: styleName, face });
+    declaredFonts.set(faceKey(face), {
+      name: fontName,
+      weight,
+      bold: face.bold,
+      italic,
+      style: styleName,
+    });
   }
 
   const usage = new Map();
@@ -113,14 +181,15 @@ export function analyzeAssFontUsage(text) {
   section = '';
   let eventFormat = [];
 
-  const ensureUsage = (fontName, source) => {
-    const key = normalizeFontName(fontName);
-    if (!key) return null;
+  const ensureUsage = (face, source) => {
+    if (!face?.name) return null;
+    const normalized = normalizeFace(face);
+    const key = faceKey(normalized);
 
     let item = usage.get(key);
     if (!item) {
       item = {
-        name: fontName.trim(),
+        ...normalized,
         characters: new Set(),
         sources: new Set(),
       };
@@ -130,8 +199,8 @@ export function analyzeAssFontUsage(text) {
     return item;
   };
 
-  const addVisibleText = (fontName, value, source) => {
-    const item = ensureUsage(fontName, source);
+  const addVisibleText = (face, value, source) => {
+    const item = ensureUsage(face, source);
     if (!item) return;
 
     for (const char of decodeAssVisibleText(value)) {
@@ -166,12 +235,14 @@ export function analyzeAssFontUsage(text) {
 
     const eventStyleName = styleIndex >= 0 ? (values[styleIndex] || '').trim() : '';
     const baseStyle = styles.get(normalizeStyleName(eventStyleName));
-    const baseFont = baseStyle?.fontName || '';
-    let currentStyleFont = baseFont;
-    let currentFont = baseFont;
+    const baseFace = normalizeFace(baseStyle?.face || { name: '', weight: 400, italic: false });
+    let currentStyleFace = { ...baseFace };
+    let currentFace = { ...baseFace };
     let drawingMode = 0;
 
-    if (baseFont) ensureUsage(baseFont, `style:${eventStyleName || baseStyle?.name || 'Default'}`);
+    if (currentFace.name) {
+      ensureUsage(currentFace, `style:${eventStyleName || baseStyle?.name || 'Default'}`);
+    }
 
     const pieces = values[textIndex].split(/(\{[^}]*\})/g);
     for (const piece of pieces) {
@@ -179,7 +250,7 @@ export function analyzeAssFontUsage(text) {
 
       if (piece.startsWith('{') && piece.endsWith('}')) {
         const tags = piece.slice(1, -1);
-        const tagRegex = /\\(fn|r|p)([^\\}]*)/gi;
+        const tagRegex = /\\(fn|r|p|b|i)([^\\}]*)/gi;
         let match;
 
         while ((match = tagRegex.exec(tags))) {
@@ -193,27 +264,42 @@ export function analyzeAssFontUsage(text) {
           }
 
           if (tag === 'r') {
-            if (value) {
-              const resetStyle = styles.get(normalizeStyleName(value));
-              currentStyleFont = resetStyle?.fontName || baseFont;
-            } else {
-              currentStyleFont = baseFont;
+            const resetStyle = value
+              ? styles.get(normalizeStyleName(value))
+              : baseStyle;
+            currentStyleFace = normalizeFace(resetStyle?.face || baseFace);
+            currentFace = { ...currentStyleFace };
+            if (currentFace.name) {
+              ensureUsage(currentFace, value ? `reset:${value}` : 'reset:base');
             }
-            currentFont = currentStyleFont;
-            if (currentFont) ensureUsage(currentFont, value ? `reset:${value}` : 'reset:base');
             continue;
           }
 
           if (tag === 'fn') {
-            currentFont = value || currentStyleFont || baseFont;
-            if (currentFont) ensureUsage(currentFont, value ? 'inline:\\fn' : 'inline:\\fn(reset)');
+            currentFace.name = value || currentStyleFace.name || baseFace.name;
+            if (currentFace.name) {
+              ensureUsage(currentFace, value ? 'inline:\\fn' : 'inline:\\fn(reset)');
+            }
+            continue;
+          }
+
+          if (tag === 'b') {
+            currentFace.weight = parseInlineWeight(value, currentFace.weight);
+            currentFace.bold = currentFace.weight >= 600;
+            if (currentFace.name) ensureUsage(currentFace, 'inline:\\b');
+            continue;
+          }
+
+          if (tag === 'i') {
+            currentFace.italic = parseInlineItalic(value, currentFace.italic);
+            if (currentFace.name) ensureUsage(currentFace, 'inline:\\i');
           }
         }
         continue;
       }
 
-      if (drawingMode === 0 && currentFont) {
-        addVisibleText(currentFont, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
+      if (drawingMode === 0 && currentFace.name) {
+        addVisibleText(currentFace, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
       }
     }
   }
@@ -222,6 +308,9 @@ export function analyzeAssFontUsage(text) {
     declaredFonts: [...declaredFonts.values()],
     usedFonts: [...usage.values()].map((item) => ({
       name: item.name,
+      weight: item.weight,
+      bold: item.bold,
+      italic: item.italic,
       characters: [...item.characters],
       sources: [...item.sources],
     })),
@@ -262,7 +351,7 @@ export async function checkFontCoverage(file, assText) {
 }
 
 // Forced-font mode: preserve all non-font ASS formatting, but rewrite style
-// Fontname values and inline \fn overrides to one uploaded family.
+// Fontname values and explicit inline n overrides to one uploaded family.
 export function forceAssFontFamily(text, family) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
   let section = '';
@@ -302,6 +391,102 @@ export function forceAssFontFamily(text, family) {
 
     return raw;
   }).join('\n');
+}
+
+function readFaceTraits(view, subfamily) {
+  let weight = inferWeightFromSubfamily(subfamily);
+  let bold = /\b(bold|semibold|demibold|extrabold|ultrabold|black|heavy)\b/i.test(subfamily);
+  let italic = /\b(italic|oblique|slanted)\b/i.test(subfamily);
+
+  const os2 = findTable(view, 'OS/2');
+  if (os2) {
+    if (os2.length >= 8) {
+      const value = view.getUint16(os2.offset + 4, false);
+      if (value >= 1 && value <= 1000) weight = normalizeWeight(value);
+    }
+    if (os2.length >= 64) {
+      const fsSelection = view.getUint16(os2.offset + 62, false);
+      italic ||= Boolean(fsSelection & 0x0001);
+      bold ||= Boolean(fsSelection & 0x0020);
+    }
+  }
+
+  const head = findTable(view, 'head');
+  if (head && head.length >= 46) {
+    const macStyle = view.getUint16(head.offset + 44, false);
+    bold ||= Boolean(macStyle & 0x0001);
+    italic ||= Boolean(macStyle & 0x0002);
+  }
+
+  if (bold && weight < 600) weight = 700;
+  return { weight: normalizeWeight(weight), bold: bold || weight >= 600, italic };
+}
+
+function inferWeightFromSubfamily(value) {
+  const text = String(value || '').toLowerCase();
+  if (/thin|hairline/.test(text)) return 100;
+  if (/extra\s*light|ultra\s*light/.test(text)) return 200;
+  if (/\blight\b/.test(text)) return 300;
+  if (/medium/.test(text)) return 500;
+  if (/semi\s*bold|demi\s*bold/.test(text)) return 600;
+  if (/extra\s*bold|ultra\s*bold/.test(text)) return 800;
+  if (/black|heavy/.test(text)) return 900;
+  if (/bold/.test(text)) return 700;
+  return 400;
+}
+
+function parseStyleWeight(value) {
+  const number = Number.parseInt(String(value || '').trim(), 10);
+  if (!Number.isFinite(number) || number === 0) return 400;
+  if (Math.abs(number) >= 100) return normalizeWeight(Math.abs(number));
+  return 700;
+}
+
+function parseInlineWeight(value, currentWeight = 400) {
+  const text = String(value || '').trim();
+  if (!text) return 700;
+  const number = Number.parseInt(text, 10);
+  if (!Number.isFinite(number)) return currentWeight;
+  if (number === 0) return 400;
+  if (Math.abs(number) >= 100) return normalizeWeight(Math.abs(number));
+  return 700;
+}
+
+function parseAssBoolean(value) {
+  const number = Number.parseInt(String(value || '').trim(), 10);
+  return Number.isFinite(number) ? number !== 0 : false;
+}
+
+function parseInlineItalic(value, current = false) {
+  const text = String(value || '').trim();
+  if (!text) return true;
+  const number = Number.parseInt(text, 10);
+  return Number.isFinite(number) ? number !== 0 : current;
+}
+
+function normalizeFace(face) {
+  const weight = normalizeWeight(face?.weight ?? (face?.bold ? 700 : 400));
+  return {
+    name: String(face?.name || '').trim(),
+    weight,
+    bold: weight >= 600,
+    italic: Boolean(face?.italic),
+  };
+}
+
+function faceKey(face) {
+  const normalized = normalizeFace(face);
+  return [
+    normalizeFontName(normalized.name),
+    normalized.weight,
+    normalized.italic ? 'i' : 'n',
+  ].join('|');
+}
+
+function normalizeWeight(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 400;
+  return Math.min(1000, Math.max(1, Math.round(numeric / 100) * 100));
 }
 
 function normalizeFontName(value) {
