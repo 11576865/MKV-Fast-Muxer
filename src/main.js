@@ -1,7 +1,7 @@
 import './style.css';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import { forceAssFontFamily, readFontFamily } from './ass-font-rewrite.js';
+import { checkFontCoverage, forceAssFontFamily, readFontFamily } from './ass-font-rewrite.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -274,6 +274,22 @@ muxBtn.addEventListener('click', async () => {
     logEl.textContent += `ASS 编码：${assEncoding}\n`;
     logEl.textContent += `ASS 字体已强制改为上传字体的内部名称：${fontFamily}\n`;
 
+    let glyphWarning = '';
+    try {
+      const coverage = await checkFontCoverage(font, sourceAss);
+      if (coverage.missing.length) {
+        const preview = coverage.missing.slice(0, 24)
+          .map((char) => `${char}(U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')})`)
+          .join(' ');
+        glyphWarning = `；字体缺少 ${coverage.missing.length} 个字幕字符`;
+        logEl.textContent += `WARNING: 字体 cmap 缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${preview}${coverage.missing.length > 24 ? ' …' : ''}\n`;
+      } else {
+        logEl.textContent += `字体缺字检查通过：${coverage.checkedCount} 个唯一字幕字符均可在 cmap 中找到。\n`;
+      }
+    } catch (coverageError) {
+      logEl.textContent += `WARNING: 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
+    }
+
     status.textContent = '正在把文件载入浏览器内存……';
     bar.style.width = '20%';
 
@@ -340,7 +356,7 @@ muxBtn.addEventListener('click', async () => {
     downloadLink.classList.remove('hidden');
 
     bar.style.width = '100%';
-    status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取并改用字体“${fontFamily}”；视频/音频未重新编码。`;
+    status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取并改用字体“${fontFamily}”${glyphWarning}；视频/音频未重新编码。`;
 
     videoInput.value = '';
     subInput.value = '';
