@@ -132,6 +132,12 @@ select {
 
 select:disabled { opacity: .55; }
 
+.field-hint {
+  color: #7f8a96;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
 .check-row {
   display: flex;
   gap: 10px;
