@@ -280,3 +280,123 @@ pre {
   .actions { grid-template-columns: 1fr; }
   .secondary { width: 100%; }
 }
+
+
+.track-panel {
+  border: 1px solid #2b323a;
+  border-radius: 12px;
+  background: #121519;
+  padding: 12px;
+}
+
+.track-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.track-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.track-head small,
+.track-empty,
+.track-meta {
+  color: #8f99a5;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+.compact {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #46515d;
+  border-radius: 9px;
+  background: #1b2026;
+  color: #e8edf3;
+  font: inherit;
+  font-size: .84rem;
+}
+
+.track-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.track-empty {
+  padding: 8px 0;
+}
+
+.track-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid #2b323a;
+  border-radius: 10px;
+  background: #0f1216;
+}
+
+.track-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.track-title strong {
+  font-size: .88rem;
+  overflow-wrap: anywhere;
+}
+
+.track-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.track-controls label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: #b8c1cb;
+  font-size: .78rem;
+}
+
+.compact-check {
+  margin-top: 10px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+@media (max-width: 680px) {
+  .track-head,
+  .track-row {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .track-controls {
+    justify-content: flex-start;
+  }
+}
+
+
+.inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inline-options label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: #b8c1cb;
+  font-size: .8rem;
+}

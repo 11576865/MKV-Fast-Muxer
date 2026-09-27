@@ -10,11 +10,11 @@
 - ASS 作为软字幕封装
 - 正确读取 UTF-8、UTF-16LE、UTF-16BE ASS（含 BOM；无 BOM UTF-16 使用保守启发式检测）
 - TTF / OTF 支持多选并作为多个字体附件封装
-- 默认“保留 ASS 原字体”模式：解析 Style `Fontname`、Dialogue 的 Style、内联 `\fn` 与 `\r`，并按实际使用关系匹配上传字体
+- 默认“保留 ASS 原字体”模式：解析 Style `Fontname` / `Bold` / `Italic`、Dialogue 的 Style、内联 `\fn` / `\b` / `\i` 与 `\r`，并匹配到具体字体 face
 - 兼容“强制统一字体”模式：ASS 样式和显式内联 `\fn` 改为第一个上传字体的 Family Name，其余上传字体不附加
 - 字体依赖与缺字检查：读取 Unicode `cmap`，按每个 ASS 字体实际承担的 Dialogue 字符做非阻断式覆盖检查
 - 可选择新字幕的 Matroska 语言元数据，不再固定写成中文
-- MKV 输入可显式选择是否保留原字幕轨与附件
+- MKV 输入可扫描原音频/字幕轨，逐轨选择是否保留，并设置 Default / Forced；原附件单独控制
 - 任务运行期间锁定输入并防止重复启动；临时文件按任务唯一命名
 - 支持取消当前任务；取消后会终止 ffmpeg.wasm worker，下次任务自动重新加载核心
 - 视频、音频使用 stream copy，不重新编码
@@ -31,8 +31,9 @@
 2. 解析 Dialogue 所用 Style；
 3. 追踪内联 `\fn` 字体覆盖和 `\r` 样式重置；
 4. 读取每个上传字体的 Family / Full Name / PostScript Name 等别名；
-5. 将 ASS 请求的字体名与上传字体匹配；
-6. 对每个字体实际负责显示的字符执行 Unicode `cmap` 覆盖检查。
+5. 读取字体 OS/2 / head 表中的 weight、bold、italic 信息；
+6. 将 ASS 请求的 Family + Weight/Bold + Italic 与具体字体 face 匹配；
+7. 对每个 face 实际负责显示的字符执行 Unicode `cmap` 覆盖检查。
 
 缺失字体和缺字只会产生 WARNING，不会阻止封装。所有上传字体仍会作为 MKV 附件保留，方便处理 ASS 中未被静态分析捕获的特殊情况。
 
@@ -56,7 +57,13 @@
 - 新加入的字体附件
 - 输入文件的全局元数据与章节
 
-对于 MKV 输入，**默认不保留原字幕轨和附件**。界面提供“保留原 MKV 字幕与附件”选项；启用后，原字幕轨与附件会一并 stream copy 到输出，并在其基础上加入新的 ASS 和字体。
+对于 MKV 输入，可先使用“扫描轨道”读取原音频和字幕轨。扫描后：
+
+- 音频轨默认保留，可逐轨取消，并可设置 Default；
+- 原字幕轨默认不保留，可逐轨启用，并可设置 Default / Forced；
+- 新加入的 ASS 独立设置 Default / Forced；
+- 原 MKV 附件由单独开关决定是否保留；
+- 未扫描轨道时保持兼容行为：保留所有原音频，不保留原字幕。
 
 ## 字幕语言元数据
 
@@ -132,7 +139,9 @@ npm run build
 
 ## 后续计划
 
-- 更细粒度的轨道选择与默认轨 / 强制轨控制
+- 轨道语言/标题编辑与重排
+- 自动检测并提示多个 Default 音频/字幕轨
+- 更完整的 ASS 标签分析（例如 transform 中的字体变化）
 - 编码检测扩展到常见 legacy 编码，并提供明确的转换提示
 
 ## 许可证

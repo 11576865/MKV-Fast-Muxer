@@ -58,8 +58,8 @@
             </select>
             <small id="fontModeHint" class="field-hint"></small>
           </label>
-          <label class="option-field">
-            <span>新字幕语言</span>
+          <div class="option-field">
+            <span>新字幕轨</span>
             <select id="subtitleLanguage">
               <option value="und" selected>未指定（und）</option>
               <option value="zho">简体中文（zho）</option>
@@ -68,15 +68,31 @@
               <option value="kor">韩语（kor）</option>
               <option value="mul">多语言 / 双语（mul）</option>
             </select>
-          </label>
+            <div class="inline-options">
+              <label><input id="newSubDefault" type="checkbox" checked /> Default</label>
+              <label><input id="newSubForced" type="checkbox" /> Forced</label>
+            </div>
+          </div>
 
-          <label class="check-row">
-            <input id="preserveOriginal" type="checkbox" disabled />
-            <span>
-              <strong>保留原 MKV 字幕与附件</strong>
-              <small>仅 MKV 输入可用。未勾选时仍只保留原视频、音频、章节与全局元数据，再加入新 ASS 和字体。</small>
-            </span>
-          </label>
+          <div class="track-panel">
+            <div class="track-head">
+              <div>
+                <strong>原 MKV 轨道</strong>
+                <small>扫描后可逐轨选择音频/字幕，并设置 Default / Forced。</small>
+              </div>
+              <button id="scanTracksBtn" class="compact" type="button" disabled>扫描轨道</button>
+            </div>
+            <div id="trackList" class="track-list">
+              <div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>
+            </div>
+            <label class="check-row compact-check">
+              <input id="preserveAttachments" type="checkbox" disabled />
+              <span>
+                <strong>保留原 MKV 附件</strong>
+                <small>仅控制输入 MKV 已有的附件；新上传字体始终按字体模式封装。</small>
+              </span>
+            </label>
+          </div>
         </div>
 
         <div class="summary">
@@ -93,7 +109,7 @@
         </div>
 
         <div class="notice">
-          保留字体模式不会改写 ASS Fontname；缺失字体或缺字会在日志中报警。输入 MKV 的原字幕与附件仍需显式勾选后保留。
+          保留字体模式会按 Family + Weight/Bold + Italic 匹配具体字体 face。原 MKV 音轨/字幕轨可逐轨选择；附件单独控制。
         </div>
 
         <div id="status" class="status" aria-live="polite">选择三个文件后即可开始。</div>
