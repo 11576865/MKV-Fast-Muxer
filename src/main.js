@@ -35,6 +35,42 @@ const bar = $('bar');
 const downloadLink = $('downloadLink');
 const auditResult = $('auditResult');
 
+const THEME_KEY = 'mkv-muxer-theme-v1';
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let themePreference = localStorage.getItem(THEME_KEY)
+  || document.documentElement.dataset.themePreference
+  || 'system';
+
+function resolvedTheme(preference = themePreference) {
+  if (preference === 'system') return systemThemeQuery.matches ? 'dark' : 'light';
+  return preference === 'light' ? 'light' : 'dark';
+}
+
+function updateThemeButtons() {
+  document.documentElement.dataset.themePreference = themePreference;
+  document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+    button.setAttribute('aria-pressed', button.dataset.themeChoice === themePreference ? 'true' : 'false');
+  });
+}
+
+function applyTheme(preference, { persist = true } = {}) {
+  themePreference = ['light', 'dark', 'system'].includes(preference) ? preference : 'system';
+  if (persist) localStorage.setItem(THEME_KEY, themePreference);
+  document.documentElement.dataset.theme = resolvedTheme(themePreference);
+  updateThemeButtons();
+}
+
+document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+  button.addEventListener('click', () => applyTheme(button.dataset.themeChoice));
+});
+
+const onSystemThemeChange = () => {
+  if (themePreference === 'system') applyTheme('system', { persist: false });
+};
+if (systemThemeQuery.addEventListener) systemThemeQuery.addEventListener('change', onSystemThemeChange);
+else if (systemThemeQuery.addListener) systemThemeQuery.addListener(onSystemThemeChange);
+applyTheme(themePreference, { persist: false });
+
 const languageTitles = {
   und: 'ASS 字幕',
   zho: '简体中文 ASS',
@@ -412,13 +448,23 @@ function buildMuxPlan() {
   return { entries, warnings };
 }
 
+function planKindClass(kind) {
+  const label = String(kind || '');
+  if (label.startsWith('视频')) return 'plan-video';
+  if (label.startsWith('音频')) return 'plan-audio';
+  if (label.startsWith('字幕')) return 'plan-subtitle';
+  if (label.startsWith('字体')) return 'plan-font';
+  if (label.startsWith('附件')) return 'plan-attachment';
+  return '';
+}
+
 function renderMuxPlan() {
   if (!muxPlan || !planWarnings) return;
   const { entries, warnings } = buildMuxPlan();
 
   muxPlan.innerHTML = entries.length
     ? entries.map((entry) => `
-      <div class="plan-row">
+      <div class="plan-row ${planKindClass(entry.kind)}">
         <span class="plan-kind">${escapeHtml(entry.kind)}</span>
         <span class="plan-main">
           <strong>${escapeHtml(entry.title)}</strong>
@@ -455,7 +501,7 @@ function renderTrackList() {
       : '';
 
     return `
-      <div class="track-row">
+      <div class="track-row track-${track.type}">
         <div class="track-title">
           <strong>${escapeHtml(streamLabel(track.stream))}</strong>
           <span class="track-meta">原始 Default=${track.originalDefault ? '1' : '0'}${track.type === 'subtitle' ? ` · Forced=${track.originalForced ? '1' : '0'}` : ''}</span>
