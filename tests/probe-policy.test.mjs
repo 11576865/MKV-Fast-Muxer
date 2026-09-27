@@ -7,7 +7,7 @@ test('default probe skips find_stream_info and limits requested fields', () => {
   const args = buildProbeArgs('input.mkv', 'probe.json');
 
   assert.ok(args.includes('-no_find_stream_info'));
-  assert.deepEqual(args.slice(-4), ['-of', 'json', 'input.mkv', '-o', 'probe.json'].slice(-4));
+  assert.deepEqual(args.slice(-5), ['-of', 'json', 'input.mkv', '-o', 'probe.json']);
 
   const showEntriesIndex = args.indexOf('-show_entries');
   assert.ok(showEntriesIndex >= 0);
