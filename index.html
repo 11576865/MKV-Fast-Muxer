@@ -68,6 +68,7 @@
               <option value="kor">韩语（kor）</option>
               <option value="mul">多语言 / 双语（mul）</option>
             </select>
+            <input id="newSubTitle" class="text-input" type="text" value="ASS 字幕" maxlength="160" aria-label="新字幕标题" />
             <div class="inline-options">
               <label><input id="newSubDefault" type="checkbox" checked /> Default</label>
               <label><input id="newSubForced" type="checkbox" /> Forced</label>
@@ -78,7 +79,7 @@
             <div class="track-head">
               <div>
                 <strong>原 MKV 轨道</strong>
-                <small>扫描后可逐轨选择音频/字幕，并设置 Default / Forced。</small>
+                <small>扫描后可逐轨保留、重排，编辑语言/标题，并设置 Default / Forced。</small>
               </div>
               <button id="scanTracksBtn" class="compact" type="button" disabled>扫描轨道</button>
             </div>
@@ -103,13 +104,27 @@
           <div><span>输出</span><b id="outputName">—</b></div>
         </div>
 
+        <div class="plan-panel">
+          <div class="plan-head">
+            <div>
+              <strong>封装计划</strong>
+              <small>这里显示实际输出顺序、元数据、Default / Forced 与附件。警告不会自动阻止封装。</small>
+            </div>
+            <button id="refreshPlanBtn" class="compact" type="button">刷新计划</button>
+          </div>
+          <div id="planWarnings" class="plan-warnings hidden"></div>
+          <div id="muxPlan" class="mux-plan">
+            <div class="track-empty">选择文件后可预览最终 MKV 结构。</div>
+          </div>
+        </div>
+
         <div class="actions">
           <button id="muxBtn" class="primary" type="button">开始封装</button>
           <button id="cancelBtn" class="secondary" type="button" disabled>取消任务</button>
         </div>
 
         <div class="notice">
-          保留字体模式会按 Family + Weight/Bold + Italic 匹配具体字体 face。原 MKV 音轨/字幕轨可逐轨选择；附件单独控制。
+          保留字体模式会按 Family + Weight/Bold + Italic 匹配具体字体 face。轨道扫描后可编辑输出顺序和元数据；封装计划会提示多个 Default 等结构冲突。
         </div>
 
         <div id="status" class="status" aria-live="polite">选择三个文件后即可开始。</div>

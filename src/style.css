@@ -400,3 +400,156 @@ pre {
   color: #b8c1cb;
   font-size: .8rem;
 }
+
+
+.text-input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid #3a434d;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #0f1216;
+  color: #eef2f7;
+  font: inherit;
+}
+
+.text-input:disabled { opacity: .55; }
+
+.track-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(88px, .55fr) minmax(140px, 1.45fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.track-edit-grid label {
+  display: grid;
+  gap: 4px;
+  color: #7f8a96;
+  font-size: .72rem;
+}
+
+.track-edit-grid input {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid #333b44;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #11151a;
+  color: #dfe6ee;
+  font: inherit;
+  font-size: .78rem;
+}
+
+.track-order {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.track-order button {
+  min-width: 32px;
+  min-height: 30px;
+  border: 1px solid #414b56;
+  border-radius: 8px;
+  background: #171c22;
+  color: #dce4ed;
+  font-size: .8rem;
+}
+
+.plan-panel {
+  margin: 16px 0;
+  border: 1px solid #2b323a;
+  border-radius: 12px;
+  background: #121519;
+  padding: 12px;
+}
+
+.plan-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.plan-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.plan-head small {
+  color: #8f99a5;
+  font-size: .78rem;
+  line-height: 1.45;
+}
+
+.mux-plan {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.plan-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #2a3139;
+  border-radius: 9px;
+  background: #0f1216;
+}
+
+.plan-kind {
+  color: #8994a0;
+  font-size: .74rem;
+}
+
+.plan-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.plan-main strong {
+  font-size: .84rem;
+  overflow-wrap: anywhere;
+}
+
+.plan-main small {
+  color: #7f8a96;
+  font-size: .74rem;
+  overflow-wrap: anywhere;
+}
+
+.plan-flags {
+  color: #b6c1cc;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+.plan-warnings {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid #5b4933;
+  border-radius: 9px;
+  background: #1b1712;
+  color: #d6c3a6;
+  font-size: .78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 680px) {
+  .track-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .plan-head,
+  .plan-row {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .plan-flags {
+    white-space: normal;
+  }
+}
