@@ -265,8 +265,6 @@ export function analyzeAssFontUsage(text) {
         let match;
 
         while ((match = tagRegex.exec(directTags))) {
-
-        while ((match = tagRegex.exec(tags))) {
           const tag = match[1].toLowerCase();
           const value = match[2].trim();
 
