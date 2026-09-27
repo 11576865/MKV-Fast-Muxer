@@ -104,7 +104,7 @@ select:disabled {
 .app-shell { min-height: 100vh; }
 
 .topbar {
-  width: min(1380px, calc(100% - 40px));
+  width: min(1880px, calc(100% - clamp(28px, 3vw, 64px)));
   margin: 0 auto;
   min-height: 82px;
   display: flex;
@@ -209,7 +209,7 @@ select:disabled {
 }
 
 .workspace {
-  width: min(1380px, calc(100% - 40px));
+  width: min(1880px, calc(100% - clamp(28px, 3vw, 64px)));
   margin: 0 auto;
   padding: 26px 0 50px;
 }
@@ -984,4 +984,77 @@ pre {
   .actions { grid-template-columns: 1fr; }
   .button-secondary { min-height: 38px; }
   .download::after { display: none; }
+}
+
+
+/* Wide workspace layout: use desktop side space without stretching controls */
+@media (min-width: 1500px) {
+  .workbench-grid {
+    grid-template-columns: minmax(0, 2.25fr) minmax(410px, .85fr);
+    gap: clamp(24px, 2vw, 36px);
+  }
+
+  .workbench-main {
+    display: grid;
+    grid-template-columns: minmax(360px, .76fr) minmax(0, 1.24fr);
+    grid-template-rows: auto auto;
+    column-gap: clamp(20px, 1.5vw, 28px);
+    align-items: start;
+  }
+
+  .workbench-main > .work-section {
+    margin-top: 0;
+  }
+
+  .workbench-main > .work-section:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .workbench-main > .track-section {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .workbench-main > .log-section {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    padding-top: 18px;
+  }
+
+  .config-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .source-grid {
+    gap: 12px;
+  }
+
+  .source-item {
+    padding-inline: 20px;
+  }
+
+  .side-panel {
+    padding: 16px;
+  }
+
+  .manifest > div {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1900px) {
+  .workbench-grid {
+    grid-template-columns: minmax(0, 2.35fr) minmax(430px, .82fr);
+  }
+
+  .workbench-main {
+    grid-template-columns: minmax(390px, .72fr) minmax(0, 1.28fr);
+  }
+
+  .source-item {
+    min-height: 104px;
+  }
 }
