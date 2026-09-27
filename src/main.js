@@ -593,7 +593,6 @@ scanTracksBtn.addEventListener('click', async () => {
     if (loaded) {
       await removeQuietly(videoPath);
       await removeQuietly(probePath);
-      await removeQuietly(auditPath);
     }
     scanning = false;
     cancelRequested = false;
@@ -1032,6 +1031,7 @@ muxBtn.addEventListener('click', async () => {
       for (const path of fontPaths) await removeQuietly(path);
       await removeQuietly(outputPath);
       await removeQuietly(probePath);
+      await removeQuietly(auditPath);
     }
     running = false;
     cancelRequested = false;
