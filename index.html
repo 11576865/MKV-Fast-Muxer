@@ -22,7 +22,7 @@
             <span class="num">1</span>
             <span class="picker-main">
               <strong>选择视频</strong>
-              <small>系统文件选择器；支持 MP4 / MKV / WebM / MOV / M4V</small>
+              <small>支持 MP4 / MKV / WebM / MOV / M4V</small>
               <span id="videoName" class="filename">未选择</span>
             </span>
             <input id="videoInput" type="file" />
@@ -32,7 +32,7 @@
             <span class="num">2</span>
             <span class="picker-main">
               <strong>选择 ASS 字幕</strong>
-              <small>不会烧录进画面；封装前会改用所上传字体的内部名称</small>
+              <small>支持 UTF-8、UTF-16LE、UTF-16BE；封装前会改用所上传字体的内部名称</small>
               <span id="subName" class="filename">未选择</span>
             </span>
             <input id="subInput" type="file" accept=".ass,text/plain" />
@@ -42,22 +42,51 @@
             <span class="num">3</span>
             <span class="picker-main">
               <strong>选择字体</strong>
-              <small>TTF / OTF；封装完成后保留选择，方便连续处理</small>
+              <small>TTF / OTF；当前强制字体模式会把 ASS 样式和内联 \fn 统一到此字体</small>
               <span id="fontName" class="filename">未选择</span>
             </span>
             <input id="fontInput" type="file" accept=".ttf,.otf,font/ttf,font/otf" />
           </label>
         </div>
 
+        <div class="options">
+          <label class="option-field">
+            <span>新字幕语言</span>
+            <select id="subtitleLanguage">
+              <option value="und" selected>未指定 / 自动识别不到时使用（und）</option>
+              <option value="zho">简体中文（zho）</option>
+              <option value="eng">英语（eng）</option>
+              <option value="jpn">日语（jpn）</option>
+              <option value="kor">韩语（kor）</option>
+              <option value="mul">多语言 / 双语（mul）</option>
+            </select>
+          </label>
+
+          <label class="check-row">
+            <input id="preserveOriginal" type="checkbox" disabled />
+            <span>
+              <strong>保留原 MKV 字幕与附件</strong>
+              <small>仅 MKV 输入可用。未勾选时仍只保留原视频、音频、章节与全局元数据，再加入新 ASS 和字体。</small>
+            </span>
+          </label>
+        </div>
+
         <div class="summary">
           <div><span>视频</span><b>Copy</b></div>
           <div><span>音频</span><b>Copy</b></div>
-          <div><span>字幕</span><b>ASS</b></div>
+          <div><span>新字幕</span><b>ASS</b></div>
           <div><span>字体</span><b>Attachment</b></div>
           <div><span>输出</span><b id="outputName">—</b></div>
         </div>
 
-        <button id="muxBtn" class="primary" type="button">开始封装</button>
+        <div class="actions">
+          <button id="muxBtn" class="primary" type="button">开始封装</button>
+          <button id="cancelBtn" class="secondary" type="button" disabled>取消任务</button>
+        </div>
+
+        <div class="notice">
+          当前默认行为不会保留输入 MKV 已有的字幕轨和附件；需要保留时请显式勾选上方选项。
+        </div>
 
         <div id="status" class="status" aria-live="polite">选择三个文件后即可开始。</div>
         <div class="progress" aria-hidden="true"><div id="bar"></div></div>
