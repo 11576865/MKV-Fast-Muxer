@@ -4,9 +4,9 @@ import { fetchFile } from '@ffmpeg/util';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
-  fontNameMatches,
   forceAssFontFamily,
   readFontDescriptor,
+  scoreFontFaceMatch,
 } from './ass-font-rewrite.js';
 
 const $ = (id) => document.getElementById(id);
@@ -17,7 +17,11 @@ const fontInput = $('fontInput');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const subtitleLanguage = $('subtitleLanguage');
-const preserveOriginal = $('preserveOriginal');
+const newSubDefault = $('newSubDefault');
+const newSubForced = $('newSubForced');
+const preserveAttachments = $('preserveAttachments');
+const scanTracksBtn = $('scanTracksBtn');
+const trackList = $('trackList');
 const muxBtn = $('muxBtn');
 const cancelBtn = $('cancelBtn');
 const status = $('status');
@@ -37,8 +41,10 @@ const languageTitles = {
 const ffmpeg = new FFmpeg();
 let loaded = false;
 let running = false;
+let scanning = false;
 let cancelRequested = false;
 let outputURL = null;
+let trackState = null;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -46,7 +52,7 @@ ffmpeg.on('log', ({ message }) => {
 });
 
 ffmpeg.on('progress', ({ progress }) => {
-  if (running && Number.isFinite(progress) && progress >= 0) {
+  if ((running || scanning) && Number.isFinite(progress) && progress >= 0) {
     bar.style.width = `${Math.min(95, Math.max(8, progress * 95))}%`;
   }
 });
@@ -64,11 +70,19 @@ function selectedFonts() {
   return Array.from(fontInput.files || []);
 }
 
+function fileKey(file) {
+  return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
+}
+
 function formatFontSelection(files) {
   if (!files.length) return '未选择';
   if (files.length === 1) return files[0].name;
   const head = files.slice(0, 3).map((file) => file.name).join('、');
   return files.length > 3 ? `${files.length} 个字体：${head}…` : `${files.length} 个字体：${head}`;
+}
+
+function isBusy() {
+  return running || scanning;
 }
 
 function setInputsDisabled(disabled) {
@@ -77,7 +91,14 @@ function setInputsDisabled(disabled) {
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
   subtitleLanguage.disabled = disabled;
-  preserveOriginal.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  newSubDefault.disabled = disabled;
+  newSubForced.disabled = disabled;
+  preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+}
+
+function resetTrackState() {
+  trackState = null;
+  trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
 }
 
 function updateUI() {
@@ -86,6 +107,7 @@ function updateUI() {
   const fonts = selectedFonts();
   const inputIsMkv = ext(video?.name || '') === '.mkv';
   const mode = fontMode.value || 'preserve';
+  const busy = isBusy();
 
   $('videoName').textContent = video?.name ?? '未选择';
   $('subName').textContent = sub?.name ?? '未选择';
@@ -94,22 +116,29 @@ function updateUI() {
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
 
   fontModeHint.textContent = mode === 'force'
-    ? '兼容旧行为：只使用并附加第一个上传字体；ASS 的 Style Fontname 与内联 \\fn 会统一改写。'
-    : '保留 ASS 原有 Fontname；解析实际使用的 Style、内联 \\fn 与 \\r，并检查上传字体是否满足依赖。';
+    ? '兼容旧行为：只使用并附加第一个上传字体；ASS 的 Style Fontname 与显式内联 \\fn 会统一改写。'
+    : '保留 ASS Fontname；按 Family、Weight/Bold、Italic 匹配具体字体 face，并检查实际字符覆盖。';
 
-  if (!inputIsMkv) preserveOriginal.checked = false;
-  preserveOriginal.disabled = running || !inputIsMkv;
+  if (!inputIsMkv) {
+    preserveAttachments.checked = false;
+    if (trackState) resetTrackState();
+  }
 
-  muxBtn.disabled = running || !(video && sub && fonts.length);
-  cancelBtn.disabled = !running;
-  setInputsDisabled(running);
+  preserveAttachments.disabled = busy || !inputIsMkv;
+  scanTracksBtn.disabled = busy || !inputIsMkv || !video;
+  muxBtn.disabled = busy || !(video && sub && fonts.length);
+  cancelBtn.disabled = !busy;
+  setInputsDisabled(busy);
 }
 
-videoInput.addEventListener('change', updateUI);
+videoInput.addEventListener('change', () => {
+  resetTrackState();
+  preserveAttachments.checked = false;
+  updateUI();
+});
 subInput.addEventListener('change', updateUI);
 fontInput.addEventListener('change', updateUI);
 fontMode.addEventListener('change', updateUI);
-updateUI();
 
 async function loadFFmpeg() {
   if (loaded) return;
@@ -221,11 +250,141 @@ async function probeInput(path, probePath) {
   const raw = await ffmpeg.readFile(probePath);
   const json = JSON.parse(new TextDecoder().decode(raw));
   const streams = Array.isArray(json.streams) ? json.streams : [];
+
   return {
-    subtitleCount: streams.filter((stream) => stream.codec_type === 'subtitle').length,
+    streams,
     attachmentCount: streams.filter((stream) => stream.codec_type === 'attachment').length,
   };
 }
+
+function streamLabel(stream) {
+  const type = stream.codec_type === 'audio' ? '音频' : '字幕';
+  const language = stream.tags?.language || 'und';
+  const title = stream.tags?.title || '';
+  const codec = stream.codec_name || 'unknown';
+  return `${type} #${stream.index} · ${codec} · ${language}${title ? ` · ${title}` : ''}`;
+}
+
+function renderTrackList() {
+  if (!trackState) {
+    resetTrackState();
+    return;
+  }
+
+  const tracks = trackState.tracks;
+  if (!tracks.length) {
+    trackList.innerHTML = '<div class="track-empty">未发现可管理的音频或字幕轨。</div>';
+    return;
+  }
+
+  trackList.innerHTML = tracks.map((track) => {
+    const forced = track.type === 'subtitle'
+      ? `<label><input type="checkbox" data-track-action="forced" data-track-index="${track.index}" ${track.forced ? 'checked' : ''}> Forced</label>`
+      : '';
+
+    return `
+      <div class="track-row">
+        <div class="track-title">
+          <strong>${escapeHtml(streamLabel(track.stream))}</strong>
+          <span class="track-meta">原始 Default=${track.originalDefault ? '1' : '0'}${track.type === 'subtitle' ? ` · Forced=${track.originalForced ? '1' : '0'}` : ''}</span>
+        </div>
+        <div class="track-controls">
+          <label><input type="checkbox" data-track-action="include" data-track-index="${track.index}" ${track.include ? 'checked' : ''}> 保留</label>
+          <label><input type="checkbox" data-track-action="default" data-track-index="${track.index}" ${track.default ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Default</label>
+          ${forced.replace('> Forced', `${track.include ? '' : ' disabled'}> Forced`)}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+trackList.addEventListener('change', (event) => {
+  const input = event.target.closest('input[data-track-action]');
+  if (!input || !trackState) return;
+
+  const index = Number(input.dataset.trackIndex);
+  const action = input.dataset.trackAction;
+  const track = trackState.tracks.find((item) => item.index === index);
+  if (!track) return;
+
+  track[action] = input.checked;
+  if (action === 'include' && !input.checked) {
+    track.default = false;
+    track.forced = false;
+  }
+  renderTrackList();
+});
+
+scanTracksBtn.addEventListener('click', async () => {
+  const video = videoInput.files[0];
+  if (!video || ext(video.name) !== '.mkv' || isBusy()) return;
+
+  scanning = true;
+  cancelRequested = false;
+  updateUI();
+  logEl.textContent = '';
+  bar.style.width = '4%';
+
+  const prefix = taskPrefix();
+  const videoPath = `${prefix}-scan.mkv`;
+  const probePath = `${prefix}-tracks.json`;
+
+  try {
+    await loadFFmpeg();
+    if (cancelRequested) return;
+
+    status.textContent = '正在载入 MKV 并扫描轨道……';
+    await ffmpeg.writeFile(videoPath, await fetchFile(video));
+    const probe = await probeInput(videoPath, probePath);
+    if (cancelRequested) return;
+
+    const tracks = probe.streams
+      .filter((stream) => ['audio', 'subtitle'].includes(stream.codec_type))
+      .map((stream) => ({
+        index: stream.index,
+        type: stream.codec_type,
+        stream,
+        include: stream.codec_type === 'audio',
+        default: Boolean(stream.disposition?.default),
+        forced: Boolean(stream.disposition?.forced),
+        originalDefault: Boolean(stream.disposition?.default),
+        originalForced: Boolean(stream.disposition?.forced),
+      }));
+
+    trackState = {
+      fileKey: fileKey(video),
+      tracks,
+      attachmentCount: probe.attachmentCount,
+    };
+
+    renderTrackList();
+    bar.style.width = '0%';
+    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕。`;
+  } catch (err) {
+    if (cancelRequested || String(err?.message || err).includes('terminate')) {
+      status.textContent = '轨道扫描已取消。';
+    } else {
+      logEl.textContent += `ERROR: ${err?.stack || err}\n`;
+      status.textContent = `轨道扫描失败：${err?.message || err}`;
+    }
+    bar.style.width = '0%';
+  } finally {
+    if (loaded) {
+      await removeQuietly(videoPath);
+      await removeQuietly(probePath);
+    }
+    scanning = false;
+    cancelRequested = false;
+    updateUI();
+  }
+});
 
 function mimeForFont(file) {
   return ext(file.name) === '.otf' ? 'font/otf' : 'font/ttf';
@@ -238,70 +397,99 @@ function charPreview(chars, limit = 24) {
   return values.join(' ') + (chars.length > limit ? ' …' : '');
 }
 
+function faceLabel(face) {
+  return `${face.name} [w${face.weight || 400}${face.italic ? ', italic' : ''}]`;
+}
+
 async function analyzePreservedFonts(analysis, uploadedFonts) {
   const usedUploaded = new Set();
   const missingFamilies = [];
+  const faceFallbacks = [];
   const missingGlyphGroups = [];
 
-  logEl.textContent += `ASS 实际使用字体：${analysis.usedFonts.length}；样式声明字体：${analysis.declaredFonts.length}\n`;
+  logEl.textContent += `ASS 实际使用字体 face：${analysis.usedFonts.length}；样式声明 face：${analysis.declaredFonts.length}\n`;
 
   for (const required of analysis.usedFonts) {
-    const matches = uploadedFonts.filter((item) => fontNameMatches(required.name, item.descriptor));
+    const candidates = uploadedFonts
+      .map((item) => ({ item, match: scoreFontFaceMatch(required, item.descriptor) }))
+      .filter((entry) => entry.match.matched)
+      .sort((a, b) => b.match.score - a.match.score);
 
-    if (!matches.length) {
-      missingFamilies.push(required.name);
-      logEl.textContent += `WARNING: ASS 字体依赖未满足：“${required.name}”（来源：${required.sources.join(', ') || 'Dialogue'}）\n`;
+    if (!candidates.length) {
+      missingFamilies.push(faceLabel(required));
+      logEl.textContent += `WARNING: ASS 字体依赖未满足：“${faceLabel(required)}”（来源：${required.sources.join(', ') || 'Dialogue'}）\n`;
       continue;
     }
 
-    for (const match of matches) usedUploaded.add(match.index);
+    const bestScore = candidates[0].match.score;
+    const bestCandidates = candidates.filter((entry) => entry.match.score >= bestScore - 20);
+    const styleExact = bestCandidates.some((entry) => entry.match.styleExact);
 
-    logEl.textContent += `字体映射：“${required.name}” -> ${matches.map((item) => item.file.name).join('、')}\n`;
+    if (!styleExact) {
+      faceFallbacks.push(faceLabel(required));
+      logEl.textContent += `WARNING: 找到字体家族，但没有精确 face：“${faceLabel(required)}”；将使用最接近的 ${bestCandidates.map((entry) => entry.item.file.name).join('、')}\n`;
+    }
+
+    for (const entry of bestCandidates) usedUploaded.add(entry.item.index);
+
+    logEl.textContent += `字体 face 映射：“${faceLabel(required)}” -> ${bestCandidates.map((entry) => `${entry.item.file.name} [w${entry.item.descriptor.weight}${entry.item.descriptor.italic ? ', italic' : ''}]`).join('、')}\n`;
 
     if (!required.characters.length) continue;
 
     let remaining = [...required.characters];
     let successfulChecks = 0;
 
-    for (const match of matches) {
+    for (const entry of bestCandidates) {
       if (!remaining.length) break;
       try {
-        const result = await checkFontCharacters(match.file, remaining);
+        const result = await checkFontCharacters(entry.item.file, remaining);
         const missing = new Set(result.missing);
         remaining = remaining.filter((char) => missing.has(char));
         successfulChecks += 1;
       } catch (error) {
-        logEl.textContent += `WARNING: 无法检查“${match.file.name}”的字形覆盖：${error?.message || error}\n`;
+        logEl.textContent += `WARNING: 无法检查“${entry.item.file.name}”的字形覆盖：${error?.message || error}\n`;
       }
     }
 
     if (successfulChecks > 0 && remaining.length) {
-      missingGlyphGroups.push({ font: required.name, characters: remaining });
-      logEl.textContent += `WARNING: “${required.name}”对应的上传字体仍缺少 ${remaining.length} 个实际字幕字符：${charPreview(remaining)}\n`;
+      missingGlyphGroups.push({ font: faceLabel(required), characters: remaining });
+      logEl.textContent += `WARNING: “${faceLabel(required)}”仍缺少 ${remaining.length} 个实际字幕字符：${charPreview(remaining)}\n`;
     } else if (successfulChecks > 0) {
-      logEl.textContent += `字形覆盖通过：“${required.name}”的 ${required.characters.length} 个实际字幕字符均有至少一个匹配字体覆盖。\n`;
+      logEl.textContent += `字形覆盖通过：“${faceLabel(required)}”的 ${required.characters.length} 个实际字幕字符均有匹配 face 覆盖。\n`;
     }
   }
 
   const unused = uploadedFonts.filter((item) => !usedUploaded.has(item.index));
   if (unused.length) {
-    logEl.textContent += `INFO: ${unused.length} 个上传字体未匹配到当前 ASS 的实际字体依赖，但仍会作为附件封装：${unused.map((item) => item.file.name).join('、')}\n`;
+    logEl.textContent += `INFO: ${unused.length} 个上传字体未匹配到当前 ASS 的实际 face，但仍会作为附件封装：${unused.map((item) => item.file.name).join('、')}\n`;
   }
 
-  return { missingFamilies, missingGlyphGroups };
+  return { missingFamilies, faceFallbacks, missingGlyphGroups };
+}
+
+function dispositionValue(isDefault, isForced = false) {
+  const values = [];
+  if (isDefault) values.push('default');
+  if (isForced) values.push('forced');
+  return values.length ? values.join('+') : '0';
+}
+
+function getScannedSelection(video) {
+  if (!trackState || trackState.fileKey !== fileKey(video)) return null;
+  return trackState;
 }
 
 cancelBtn.addEventListener('click', () => {
-  if (!running) return;
+  if (!isBusy()) return;
   cancelRequested = true;
-  status.textContent = '正在取消任务……';
-  logEl.textContent += 'CANCEL: 用户请求终止当前任务。\n';
+  status.textContent = '正在取消当前操作……';
+  logEl.textContent += 'CANCEL: 用户请求终止当前操作。\n';
   ffmpeg.terminate();
   loaded = false;
 });
 
 muxBtn.addEventListener('click', async () => {
-  if (running) return;
+  if (isBusy()) return;
 
   const video = videoInput.files[0];
   const sub = subInput.files[0];
@@ -312,8 +500,9 @@ muxBtn.addEventListener('click', async () => {
   const subExt = ext(sub.name);
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf'].includes(ext(file.name)));
   const mode = fontMode.value || 'preserve';
-  const keepOriginalTracks = preserveOriginal.checked && videoExt === '.mkv';
   const language = subtitleLanguage.value || 'und';
+  const scanned = getScannedSelection(video);
+  const keepOriginalAttachments = preserveAttachments.checked && videoExt === '.mkv';
 
   if (!['.mp4', '.mkv', '.webm', '.mov', '.m4v'].includes(videoExt)) {
     status.textContent = '请选择 MP4 / MKV / WebM / MOV / M4V 视频文件。';
@@ -349,7 +538,7 @@ muxBtn.addEventListener('click', async () => {
   const fontPaths = [];
 
   try {
-    status.textContent = '正在解析 ASS 与字体内部名称……';
+    status.textContent = '正在解析 ASS 与字体 face……';
     bar.style.width = '10%';
 
     const [{ text: sourceAss, encoding: assEncoding }, descriptors] = await Promise.all([
@@ -364,7 +553,7 @@ muxBtn.addEventListener('click', async () => {
 
     logEl.textContent += `ASS 编码：${assEncoding}\n`;
     for (const item of descriptors) {
-      logEl.textContent += `上传字体：${item.file.name} -> Family “${item.descriptor.family}”${item.descriptor.subfamily ? ` / ${item.descriptor.subfamily}` : ''}\n`;
+      logEl.textContent += `上传字体：${item.file.name} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}\n`;
     }
 
     const analysis = analyzeAssFontUsage(sourceAss);
@@ -400,14 +589,18 @@ muxBtn.addEventListener('click', async () => {
       const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
       dependencyWarningCount =
         dependencyResult.missingFamilies.length +
+        dependencyResult.faceFallbacks.length +
         dependencyResult.missingGlyphGroups.length;
 
       const parts = [];
       if (dependencyResult.missingFamilies.length) {
         parts.push(`缺 ${dependencyResult.missingFamilies.length} 个字体依赖`);
       }
+      if (dependencyResult.faceFallbacks.length) {
+        parts.push(`${dependencyResult.faceFallbacks.length} 个 face 仅近似匹配`);
+      }
       if (dependencyResult.missingGlyphGroups.length) {
-        parts.push(`${dependencyResult.missingGlyphGroups.length} 个字体存在缺字`);
+        parts.push(`${dependencyResult.missingGlyphGroups.length} 个 face 存在缺字`);
       }
       if (parts.length) completionNote = `；警告：${parts.join('，')}`;
     }
@@ -429,14 +622,23 @@ muxBtn.addEventListener('click', async () => {
     }
     if (cancelRequested) return;
 
-    let originalAttachmentCount = 0;
-    if (keepOriginalTracks) {
-      status.textContent = '正在读取原 MKV 轨道信息……';
-      const probe = await probeInput(videoPath, probePath);
-      originalAttachmentCount = probe.attachmentCount;
-      logEl.textContent += `保留原 MKV 字幕轨：${probe.subtitleCount}；附件：${probe.attachmentCount}\n`;
+    let originalAttachmentCount = scanned?.attachmentCount ?? 0;
+    if (keepOriginalAttachments && !scanned) {
+      status.textContent = '正在读取原 MKV 附件信息……';
+      originalAttachmentCount = (await probeInput(videoPath, probePath)).attachmentCount;
+    }
+
+    const selectedAudio = scanned
+      ? scanned.tracks.filter((track) => track.type === 'audio' && track.include)
+      : null;
+    const selectedSubtitles = scanned
+      ? scanned.tracks.filter((track) => track.type === 'subtitle' && track.include)
+      : [];
+
+    if (scanned) {
+      logEl.textContent += `轨道方案：音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${keepOriginalAttachments ? scanned.attachmentCount : 0}。\n`;
     } else if (videoExt === '.mkv') {
-      logEl.textContent += '原 MKV 字幕与附件不会写入输出。\n';
+      logEl.textContent += 'INFO: 未扫描轨道，按兼容模式保留所有音频、不保留原字幕。\n';
     }
 
     status.textContent = '正在无损封装 MKV……';
@@ -446,12 +648,22 @@ muxBtn.addEventListener('click', async () => {
       '-i', videoPath,
       '-i', subPath,
       '-map', '0:v?',
-      '-map', '0:a?',
-      '-map', '1:0',
     ];
 
-    if (keepOriginalTracks) {
-      args.push('-map', '0:s?', '-map', '0:t?');
+    if (selectedAudio) {
+      for (const track of selectedAudio) args.push('-map', `0:${track.index}`);
+    } else {
+      args.push('-map', '0:a?');
+    }
+
+    args.push('-map', '1:0');
+
+    for (const track of selectedSubtitles) {
+      args.push('-map', `0:${track.index}`);
+    }
+
+    if (keepOriginalAttachments) {
+      args.push('-map', '0:t?');
     }
 
     args.push(
@@ -460,11 +672,21 @@ muxBtn.addEventListener('click', async () => {
       '-c', 'copy',
       '-metadata:s:s:0', `language=${language}`,
       '-metadata:s:s:0', `title=${languageTitles[language] || 'ASS 字幕'}`,
-      '-disposition:s:0', 'default',
+      '-disposition:s:0', dispositionValue(newSubDefault.checked, newSubForced.checked),
     );
 
+    if (selectedAudio) {
+      selectedAudio.forEach((track, index) => {
+        args.push(`-disposition:a:${index}`, dispositionValue(track.default, false));
+      });
+    }
+
+    selectedSubtitles.forEach((track, index) => {
+      args.push(`-disposition:s:${index + 1}`, dispositionValue(track.default, track.forced));
+    });
+
     attachments.forEach((item, index) => {
-      const attachmentIndex = originalAttachmentCount + index;
+      const attachmentIndex = (keepOriginalAttachments ? originalAttachmentCount : 0) + index;
       args.push(
         '-attach', fontPaths[index],
         `-metadata:s:t:${attachmentIndex}`, `mimetype=${mimeForFont(item.file)}`,
@@ -498,15 +720,16 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取；${modeText}${completionNote}；视频/音频未重新编码。`;
 
     if (dependencyWarningCount) {
-      logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体依赖/字形覆盖警告。请在发布前检查日志。\n`;
+      logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体 face / 字形覆盖警告。请在发布前检查日志。\n`;
     }
 
     videoInput.value = '';
     subInput.value = '';
+    resetTrackState();
   } catch (err) {
     console.error(err);
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
-      status.textContent = '任务已取消。下次封装会重新加载 ffmpeg.wasm 核心。';
+      status.textContent = '任务已取消。下次操作会重新加载 ffmpeg.wasm 核心。';
       bar.style.width = '0%';
     } else {
       logEl.textContent += `ERROR: ${err?.stack || err}\n`;
@@ -526,3 +749,6 @@ muxBtn.addEventListener('click', async () => {
     updateUI();
   }
 });
+
+resetTrackState();
+updateUI();
