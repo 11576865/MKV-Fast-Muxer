@@ -13,11 +13,14 @@
 - 默认“保留 ASS 原字体”模式：解析 Style `Fontname` / `Bold` / `Italic`、Dialogue 的 Style、内联 `\fn` / `\b` / `\i` 与 `\r`，并匹配到具体字体 face
 - 兼容“强制统一字体”模式：ASS 样式和显式内联 `\fn` 改为第一个上传字体的 Family Name，其余上传字体不附加
 - 字体依赖与缺字检查：读取 Unicode `cmap`，按每个 ASS 字体实际承担的 Dialogue 字符做非阻断式覆盖检查
+- 字体家族完整性检查：按 Family 汇总 Regular / Bold / Italic / Bold Italic，报告缺失的基础 face
+- ASS transform 字体分析：识别 `\t(...)` 内的 `\fn` / `\b` / `\i`，将动态样式作为潜在字体依赖纳入检查
 - 可选择新字幕的 Matroska 语言元数据，不再固定写成中文
 - MKV 输入可扫描原音频/字幕轨，逐轨选择是否保留、编辑语言/标题、调整输出顺序，并设置 Default / Forced；原附件单独控制
 - 任务运行期间锁定输入并防止重复启动；临时文件按任务唯一命名
 - 支持取消当前任务；取消后会终止 ffmpeg.wasm worker，下次任务自动重新加载核心
 - 视频、音频使用 stream copy，不重新编码
+- 封装后再次运行 `ffprobe`，审计实际轨道数量、顺序相关元数据、language/title、Default/Forced、附件数量和新字体文件名
 - 全程在浏览器本地处理，不上传媒体文件
 - 使用 ffmpeg.wasm，可在 Android 浏览器 / Termux + Vite 环境中运行
 
@@ -140,7 +143,7 @@ npm run build
 
 ## 后续计划
 
-- 更完整的 ASS 标签分析（例如 transform 中的字体变化）
+- 更完整的 ASS transform 语义分析（复杂嵌套 transform、clip/drawing 等）
 - 编码检测扩展到常见 legacy 编码，并提供明确的转换提示
 
 ## 许可证
