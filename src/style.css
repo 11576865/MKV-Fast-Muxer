@@ -640,7 +640,7 @@ pre {
 }
 
 .side-panel {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--line);
   background: var(--surface-1);
 }
@@ -655,6 +655,47 @@ pre {
 .execution-panel {
   border-top: 3px solid var(--success);
   background: linear-gradient(180deg, var(--success-soft), var(--surface-1) 38%);
+}
+
+.output-console-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.output-mode,
+.panel-kicker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 720;
+  letter-spacing: .08em;
+}
+
+.output-mode {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-0));
+  color: var(--accent);
+  font-size: .59rem;
+}
+
+.output-console-intro {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+.panel-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted-2);
+  font-size: .58rem;
+}
+
+.execution-head {
+  margin-bottom: 14px;
 }
 
 .manifest {
@@ -1056,5 +1097,104 @@ pre {
 
   .source-item {
     min-height: 104px;
+  }
+}
+
+
+/* Desktop output console: visually merge summary, plan and execution */
+@media (min-width: 1041px) {
+  .workbench-side {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--surface-1);
+    box-shadow: var(--shadow);
+  }
+
+  .workbench-side > .side-panel {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .workbench-side > .side-panel + .side-panel {
+    border-top: 1px solid var(--line);
+  }
+
+  .workbench-side > .manifest-panel {
+    border-top: 3px solid var(--accent);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 130px),
+      var(--surface-1);
+  }
+
+  .workbench-side > .plan-panel {
+    position: relative;
+  }
+
+  .workbench-side > .plan-panel::before,
+  .workbench-side > .execution-panel::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 18px;
+    bottom: 18px;
+    width: 2px;
+  }
+
+  .workbench-side > .plan-panel::before {
+    background: var(--subtitle);
+  }
+
+  .workbench-side > .execution-panel {
+    position: relative;
+    background:
+      linear-gradient(180deg, var(--success-soft), transparent 150px),
+      var(--surface-1);
+  }
+
+  .workbench-side > .execution-panel::before {
+    background: var(--success);
+  }
+
+  .workbench-side .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 18px;
+  }
+
+  .workbench-side .manifest > div {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  .workbench-side .manifest-output {
+    grid-column: 1 / -1;
+  }
+
+  .workbench-side .plan-panel,
+  .workbench-side .execution-panel {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .workbench-side {
+    align-self: start;
+  }
+
+  .workbench-side .side-panel {
+    padding-inline: 18px;
+  }
+
+  .workbench-side .manifest {
+    column-gap: 22px;
+  }
+
+  .workbench-side .mux-plan {
+    gap: 6px;
+  }
+
+  .workbench-side .plan-row {
+    padding-block: 10px;
   }
 }
