@@ -378,11 +378,13 @@ function buildMuxPlan() {
     });
   });
 
-  if (preserveAttachments.checked && trackState?.attachmentCount) {
+  if (preserveAttachments.checked) {
     entries.push({
       kind: '附件',
-      title: `${trackState.attachmentCount} 个原 MKV 附件`,
-      meta: '按源顺序保留',
+      title: trackState
+        ? `${trackState.attachmentCount} 个原 MKV 附件`
+        : '原 MKV 附件',
+      meta: trackState ? '按源顺序保留' : '未扫描 · 数量将在封装时探测',
       flags: '',
     });
   }
