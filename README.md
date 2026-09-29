@@ -1,90 +1,119 @@
 # MKV Fast Muxer v3
 
-一个在浏览器本地运行的 MKV 快捷自动封包工具。
+一个在浏览器本地运行的 **MKV 快速封装工作台**。
 
-它把视频、ASS 字幕和 TTF/OTF 字体封装进 MKV 容器，视频与音频保持 `copy`，不重新编码。
+它面向“已有视频 + ASS 字幕 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
-## 功能
+**Web App:** https://11576865.github.io/MKV-Fast-Muxer-v3/  
+**Package version:** 0.3.0
 
-- 支持 MP4 / MKV / WebM / MOV / M4V 输入视频
-- ASS 作为软字幕封装
-- 正确读取 UTF-8、UTF-16LE、UTF-16BE ASS（含 BOM；无 BOM UTF-16 使用保守启发式检测）
-- TTF / OTF 支持多选并作为多个字体附件封装
-- 默认“保留 ASS 原字体”模式：解析 Style `Fontname` / `Bold` / `Italic`、Dialogue 的 Style、内联 `\fn` / `\b` / `\i` 与 `\r`，并匹配到具体字体 face
-- 兼容“强制统一字体”模式：ASS 样式和显式内联 `\fn` 改为第一个上传字体的 Family Name，其余上传字体不附加
-- 字体依赖与缺字检查：读取 Unicode `cmap`，按每个 ASS 字体实际承担的 Dialogue 字符做非阻断式覆盖检查
-- 字体家族完整性检查：按 Family 汇总 Regular / Bold / Italic / Bold Italic，报告缺失的基础 face
-- ASS transform 字体分析：识别 `\t(...)` 内的 `\fn` / `\b` / `\i`，将动态样式作为潜在字体依赖纳入检查
-- 可选择新字幕的 Matroska 语言元数据，不再固定写成中文
-- MKV 输入可扫描原音频/字幕轨，逐轨选择是否保留、编辑语言/标题、调整输出顺序，并设置 Default / Forced；原附件单独控制
-- 任务运行期间锁定输入并防止重复启动；临时文件按任务唯一命名
-- 支持取消当前任务；取消后会终止 ffmpeg.wasm worker，下次任务自动重新加载核心
-- 视频、音频使用 stream copy，不重新编码
-- 封装后再次运行 `ffprobe`，审计实际轨道数量、顺序相关元数据、language/title、Default/Forced、附件数量和新字体文件名；审计使用容器元数据模式，不要求解码视频流
-- 全程在浏览器本地处理，不上传媒体文件
-- 使用 ffmpeg.wasm，可在 Android 浏览器 / Termux + Vite 环境中运行
+> 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
-## 字体处理模式
+## About
 
-### 保留 ASS 原字体（默认）
+MKV Fast Muxer v3 is a browser-local Matroska muxing workbench for combining existing video, ASS subtitles and font attachments without re-encoding the media streams. It includes ASS font dependency analysis, MKV track management, editable subtitle metadata, mux-plan preview and post-mux ffprobe auditing, while keeping all media processing on the user device.
 
-程序不会改写 ASS 的 `Fontname`。封装前会：
+## 项目定位
 
-1. 解析 `[V4+ Styles]` / `[V4 Styles]` 中的字体声明；
-2. 解析 Dialogue 所用 Style；
-3. 追踪内联 `\fn` 字体覆盖和 `\r` 样式重置；
-4. 读取每个上传字体的 Family / Full Name / PostScript Name 等别名；
-5. 读取字体 OS/2 / head 表中的 weight、bold、italic 信息；
-6. 将 ASS 请求的 Family + Weight/Bold + Italic 与具体字体 face 匹配；
-7. 对每个 face 实际负责显示的字符执行 Unicode `cmap` 覆盖检查。
+这个项目不是视频编辑器，也不是硬字幕压制器。
 
-缺失字体和缺字只会产生 WARNING，不会阻止封装。所有上传字体仍会作为 MKV 附件保留，方便处理 ASS 中未被静态分析捕获的特殊情况。
+它解决的是已经完成字幕排版之后的 **最终封装（muxing）**：
 
-### 强制统一字体
+```text
+视频 / 原 MKV
+      +
+ASS 字幕
+      +
+TTF / OTF 字体
+      ↓
+轨道与字体检查
+      ↓
+封装计划
+      ↓
+ffmpeg.wasm stream copy
+      ↓
+MKV
+      ↓
+ffprobe 审计
+```
 
-兼容旧版工作流。只使用第一个上传字体：
+核心原则：
 
-- Style `Fontname` 改为该字体 Family Name；
-- 显式内联 `\fnSomeFont` 改为该字体；
-- `\fn` 空参数保留其“恢复当前样式字体”的语义；
-- 其余上传字体不会附加；
-- 用该字体检查整份 Dialogue 的字符覆盖。
+- 不重新编码视频；
+- 不重新编码音频；
+- 不把 ASS 烧进画面；
+- 不把媒体上传到远端后端；
+- 尽可能在封装前暴露轨道、字体和元数据问题；
+- 封装后再检查实际容器结构。
 
-## 当前轨道策略
+## 适合的工作流
 
-默认输出包括：
+典型使用场景：
 
-- 输入视频轨
-- 输入音频轨
-- 新加入的 ASS 字幕
-- 新加入的字体附件
-- 输入文件的全局元数据与章节
+- MP4 / MKV / WebM / MOV / M4V 已经是最终视频；
+- ASS 字幕已经完成时间轴和排版；
+- 字幕使用一个或多个外部字体；
+- 希望把视频、字幕、字体一次性封装进 MKV；
+- 希望保留原视频 / 音频码流，不做二次压缩；
+- 输入本身是 MKV 时，需要管理原音频、字幕和附件。
 
-对于 MKV 输入，可先使用“扫描轨道”读取原音频和字幕轨。扫描后：
+如果需要的是：
 
-- 音频轨默认保留，可逐轨取消，编辑 language/title，调整音频输出顺序，并设置 Default；
-- 原字幕轨默认不保留，可逐轨启用，编辑 language/title，调整字幕输出顺序，并设置 Default / Forced；
-- 新加入的 ASS 独立设置 language/title、Default / Forced；
-- 原 MKV 附件由单独开关决定是否保留；
-- “封装计划”会预览最终视频、音频、字幕和附件结构，并提示多个 Default 等潜在冲突；
-- 未扫描轨道时保持兼容行为：保留所有原音频，不保留原字幕。
+- 硬字幕烧录；
+- H.264 / HEVC / AV1 转码；
+- 视频剪辑；
+- 音频重编码；
+- OCR / 字幕识别；
 
-## 字幕语言元数据
+这些不属于本项目职责。
 
-界面目前提供：
+## 核心能力
 
-- `und`：未指定
-- `zho`：简体中文
-- `eng`：英语
-- `jpn`：日语
-- `kor`：韩语
-- `mul`：多语言 / 双语
+### 1. Stream copy MKV 封装
 
-默认使用 `und`，避免在无法可靠判断字幕语言时写入错误元数据。
+封装核心等价于：
 
-## ASS 编码
+```text
+-c copy
+```
 
-封装前会先把 ASS 解码为 JavaScript 字符串、完成字体名重写，再统一以 UTF-8 写入 ffmpeg.wasm 虚拟文件系统。
+因此原有视频和音频不会因为封装再次有损压缩。
+
+支持输入：
+
+```text
+MP4 / MKV / WebM / MOV / M4V
+```
+
+输出固定为：
+
+```text
+MKV
+```
+
+### 2. ASS 软字幕
+
+新字幕以 ASS 轨道写入 MKV。
+
+可设置：
+
+- language
+- title
+- Default
+- Forced
+
+内置语言项：
+
+- `und` — 未指定
+- `zho` — 简体中文
+- `eng` — English
+- `jpn` — 日本語
+- `kor` — 한국어
+- `mul` — 多语言 / 双语
+
+默认使用 `und`，避免在无法可靠判断语言时写入错误元数据。
+
+### 3. ASS 编码处理
 
 支持：
 
@@ -92,30 +121,267 @@
 - UTF-8 BOM
 - UTF-16LE BOM
 - UTF-16BE BOM
-- 无 BOM UTF-16LE / UTF-16BE（仅在空字节分布足够明显时识别）
+- 无 BOM UTF-16LE / UTF-16BE（仅在字节分布足够明显时）
 
-无法确认的非 UTF-8 / UTF-16 文本会中止任务，而不是继续写入乱码。
+程序会先把字幕解码成 JavaScript 字符串，再统一以 UTF-8 写入 ffmpeg.wasm 文件系统。
 
-## v3 主要改动
+如果文本编码无法可靠判断，任务会中止，而不是继续生成乱码字幕。
 
-v3 处理了 Android/Termux + Vite 下 ffmpeg.wasm 的 Worker 加载问题。
+### 4. 多字体附件
 
-`vite.config.js` 排除了 `@ffmpeg/ffmpeg` 与 `@ffmpeg/util` 的依赖预打包；安装依赖时，`scripts/copy-core.mjs` 会把 ffmpeg.wasm core 和 class worker 复制到 `public/`，供浏览器从本站静态加载。
+支持一次选择多个 TTF / OTF。
+
+默认模式是：
+
+```text
+保留 ASS 原字体
+```
+
+程序会分析：
+
+- `[V4+ Styles]` / `[V4 Styles]`
+- Style `Fontname`
+- Dialogue 使用的 Style
+- 内联 `\fn`
+- `\b`
+- `\i`
+- `\r`
+- `\t(...)` 中的字体 / 粗体 / 斜体变化
+
+并读取字体文件中的：
+
+- Family Name
+- Full Name
+- PostScript Name
+- weight
+- bold / italic 信息
+- Unicode `cmap`
+
+然后把 ASS 实际请求的 Family / Weight / Italic 映射到上传的具体 font face。
+
+### 5. 字体依赖与缺字检查
+
+程序不仅检查“有没有上传字体”，还会检查：
+
+```text
+这个 ASS 片段
+由哪个字体 face 负责
+这个 face 是否真的包含这些 Unicode 字符
+```
+
+检查结果是 **WARNING**，不会自动阻止封装。
+
+这样可以在保留用户决定权的同时，提前发现：
+
+- 缺失字体；
+- Regular / Bold / Italic / Bold Italic 家族不完整；
+- CJK / 特殊符号缺字；
+- ASS transform 中潜在的动态字体依赖。
+
+### 6. 强制统一字体模式
+
+兼容旧式工作流。
+
+选择后：
+
+- 只使用第一个上传字体；
+- ASS Style `Fontname` 改为该字体 Family Name；
+- 显式 `\fnSomeFont` 改写为该字体；
+- `\fn` 空参数仍保留“恢复当前样式字体”的语义；
+- 其他上传字体不附加。
+
+这不是默认模式。
+
+## MKV 轨道管理
+
+当输入本身是 MKV 时，可以先执行 **扫描轨道**。
+
+扫描后可管理原：
+
+### 音频轨
+
+- 保留 / 移除
+- language
+- title
+- 输出顺序
+- Default
+
+### 字幕轨
+
+- 保留 / 移除
+- language
+- title
+- 输出顺序
+- Default
+- Forced
+
+### 原附件
+
+通过独立开关控制是否保留。
+
+新加入的 ASS 与原字幕分开配置。
+
+如果没有扫描 MKV 轨道，则保持兼容行为：
+
+- 原音频默认保留；
+- 原字幕默认不保留。
+
+## 封装计划
+
+执行前，“封装计划”会把预期容器结构直接列出来：
+
+```text
+Video
+Audio #1
+Audio #2
+Subtitle #1
+New ASS
+Attachments
+```
+
+并提示例如：
+
+- 多个 Default 音频；
+- 多个 Default 字幕；
+- 未扫描原 MKV 时的兼容行为；
+- 原附件是否保留；
+- 新字体附件数量。
+
+这样轨道策略不是隐藏在 FFmpeg 命令里，而是在执行前可见。
+
+## 封装后审计
+
+生成 MKV 后，会再运行 ffprobe 检查实际结果，包括：
+
+- 视频 / 音频 / 字幕轨数量；
+- 轨道相关元数据；
+- language；
+- title；
+- Default / Forced；
+- 附件数量；
+- 新字体文件名。
+
+审计使用偏向 **容器元数据** 的探测策略，不要求完整解码视频。
+
+对于 AV1 等浏览器 wasm 解码支持有限的情况，会尽量关闭不必要的 stream info 分析，避免“只是检查容器，却因为视频解码器限制失败”。
+
+如果：
+
+```text
+MKV 已成功生成
+但 ffprobe 审计失败
+```
+
+成品仍然允许保存，界面会明确标记为 **审计未完成**，不会把已成功生成的 MKV 当成失败结果丢弃。
+
+## 任务安全
+
+当前实现包含：
+
+- 任务运行期间锁定输入；
+- 防止重复启动同一封装任务；
+- 每个任务使用唯一临时文件名；
+- 可取消当前任务；
+- 取消时终止当前 ffmpeg.wasm worker；
+- 下一次任务自动重新加载 core；
+- 新任务不会复用上一次任务的临时文件。
+
+这是为了避免浏览器端并行任务互相覆盖输入或输出。
+
+## 本地处理与隐私边界
+
+浏览器页面和 ffmpeg.wasm core 可以从 GitHub Pages 加载，但：
+
+```text
+视频
+字幕
+字体
+生成的 MKV
+```
+
+都在当前设备的浏览器上下文中处理。
+
+项目没有媒体上传 API，也没有远端转码后端。
+
+需要注意：
+
+> 浏览器本地处理不等于“无限文件大小”。
+
+ffmpeg.wasm 需要把输入和处理中间数据放进浏览器可用内存，因此超大视频的可处理上限取决于：
+
+- 设备 RAM；
+- 浏览器内存限制；
+- wasm 内存；
+- 输入文件数量；
+- MKV 原附件规模。
+
+桌面浏览器通常比移动设备更适合较大的文件。
+
+## 界面
+
+当前 UI 已作为专用 muxing workbench 整理：
+
+- 白天 / 夜间 / 跟随系统；
+- 宽屏桌面布局；
+- 输入区；
+- 字幕与字体控制；
+- MKV 轨道管理；
+- 输出工作台；
+- 封装计划；
+- 执行与校验；
+- 可展开运行日志；
+- 明确的成品保存入口。
+
+手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。
+
+## 在线使用
+
+GitHub Pages：
+
+https://11576865.github.io/MKV-Fast-Muxer-v3/
+
+打开页面后直接选择本地文件即可。
+
+媒体不会先上传到 GitHub Pages；Pages 只提供静态 Web App 和 ffmpeg.wasm 运行资源。
 
 ## 本地运行
 
 需要 Node.js 与 npm。
 
 ```bash
+git clone https://github.com/11576865/MKV-Fast-Muxer-v3.git
+cd MKV-Fast-Muxer-v3
 npm install
 npm run dev -- --host 127.0.0.1
 ```
 
-然后打开终端显示的本地地址，通常为：
+然后打开 Vite 输出的地址，通常为：
 
 ```text
 http://127.0.0.1:5173/
 ```
+
+安装阶段的 `postinstall` 会运行：
+
+```text
+scripts/copy-core.mjs
+```
+
+把 ffmpeg.wasm core 与 class worker 复制到 `public/`，避免运行时依赖外部 CDN。
+
+## 测试
+
+```bash
+npm test
+```
+
+当前自动测试覆盖：
+
+- AV1 / ffprobe 探测参数策略；
+- favicon 资源；
+- 宽屏桌面布局关键结构。
+
+GitHub Actions 在 Pull Request 上执行测试和构建；向 `main` 推送后再部署 GitHub Pages。
 
 ## 构建
 
@@ -123,36 +389,47 @@ http://127.0.0.1:5173/
 npm run build
 ```
 
-构建结果位于 `dist/`。
-
-## GitHub Pages
-
-仓库内包含 `.github/workflows/deploy-pages.yml`。启用 GitHub Pages，并将 Source 设为 **GitHub Actions** 后，每次向 `main` 分支推送都会自动构建并部署。
-
-## 技术说明
-
-封装时核心参数相当于：
+结果位于：
 
 ```text
--c copy
+dist/
 ```
 
-因此媒体流不会因为封装过程被再次压缩。字幕与字体作为 MKV 内部轨道/附件加入。
+## v3 的由来
 
-浏览器版 ffmpeg.wasm 需要把输入文件完整载入浏览器可用内存，因此超大视频的实际可处理上限受设备内存和浏览器限制。
+v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker 与 core 静态加载问题。
 
-对于 AV1 等视频，轨道扫描与封装后审计会优先使用 ffprobe 的容器头信息（关闭 `find_stream_info`），避免为了读取本工具并不需要的像素格式等信息而触发浏览器内视频解码。封装后审计属于验证步骤：如果 ffmpeg.wasm 的 ffprobe 因编解码器限制无法完成审计，已成功生成的 MKV 仍然允许保存，并在界面与日志中明确标记为“审计未完成”。
+之后项目逐渐加入：
 
-## 后续计划
+- UTF-16 ASS 安全解码；
+- 字幕语言元数据；
+- 多字体依赖分析；
+- glyph coverage；
+- 字体 face 匹配；
+- 原 MKV 轨道管理；
+- 封装计划；
+- post-mux audit；
+- AV1 容器级探测策略；
+- 任务互斥与取消；
+- 深浅色和宽屏工作台。
 
-- 更完整的 ASS transform 语义分析（复杂嵌套 transform、clip/drawing 等）
-- 编码检测扩展到常见 legacy 编码，并提供明确的转换提示
+因此当前 v3 已不只是“把三个文件拖进去”的最小封装页面，而是一套针对 ASS + font attachment 工作流的浏览器本地 MKV muxing 工具。
+
+## 已知边界
+
+当前新加入字幕只面向 ASS。
+
+字体静态分析不能完整证明任意复杂 ASS override / drawing / transform 在所有播放器中的最终渲染行为，因此字体检查被设计为辅助诊断，而不是完整 ASS renderer。
+
+浏览器端 ffmpeg.wasm 的性能和文件大小上限不能等同于原生 FFmpeg。
+
+项目只负责封装和容器审计，不负责证明每个播放器都会以完全相同方式渲染 ASS。
 
 ## 许可证
 
 本仓库原创代码采用 [MIT License](./LICENSE)。
 
-项目使用/分发的第三方组件仍按各自许可证授权，其中：
+第三方组件按各自许可证授权：
 
 - `@ffmpeg/ffmpeg` 0.12.15 — MIT
 - `@ffmpeg/util` 0.12.2 — MIT
