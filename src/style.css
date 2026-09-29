@@ -1198,3 +1198,102 @@ pre {
     padding-block: 10px;
   }
 }
+
+
+/* Windows desktop layout authority v2 --------------------------------------
+   Treat a wide fine-pointer viewport as the desktop work surface. Keep the
+   controls readable, but use the available Windows browser canvas instead of
+   capping the whole application at the previous 1880px shell width. */
+@media (min-width: 1280px) and (hover: hover) and (pointer: fine) {
+  .topbar,
+  .workspace {
+    width: calc(100% - clamp(24px, 2vw, 40px));
+    max-width: none;
+  }
+
+  .workspace {
+    padding-top: 20px;
+    padding-bottom: 38px;
+  }
+
+  .source-grid {
+    gap: 10px;
+  }
+
+  .source-item {
+    min-height: 96px;
+    padding: 16px 18px;
+  }
+
+  .workbench-grid {
+    grid-template-columns: minmax(0, 1fr) clamp(400px, 24vw, 560px);
+    gap: clamp(18px, 1.5vw, 28px);
+    margin-top: 24px;
+  }
+
+  .workbench-main {
+    display: grid;
+    grid-template-columns: clamp(340px, 28%, 560px) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: clamp(18px, 1.35vw, 26px);
+    align-items: start;
+  }
+
+  .workbench-main > .work-section {
+    margin-top: 0;
+  }
+
+  .workbench-main > .work-section:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .workbench-main > .track-section {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .workbench-main > .log-section {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: start;
+    padding-top: 18px;
+  }
+
+  .config-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .workbench-side {
+    position: sticky;
+    top: 14px;
+    align-self: start;
+    max-height: calc(100vh - 28px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .workbench-side .side-panel {
+    padding-inline: 18px;
+  }
+
+  .workbench-side .manifest {
+    column-gap: 22px;
+  }
+
+  .workbench-side .manifest > div {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 2100px) and (hover: hover) and (pointer: fine) {
+  .workbench-grid {
+    grid-template-columns: minmax(0, 1fr) clamp(460px, 22vw, 620px);
+  }
+
+  .workbench-main {
+    grid-template-columns: clamp(380px, 26%, 600px) minmax(0, 1fr);
+  }
+}
