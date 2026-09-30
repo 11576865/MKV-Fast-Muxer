@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.0.0
+**Package version:** 1.0.1
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -394,7 +394,7 @@ ffmpeg.wasm 需要把输入和处理中间数据放进浏览器可用内存，�
 - 次级的可展开诊断日志；
 - 明确的成品保存入口。
 
-手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。字幕预览使用 JASSUB/libass 在本机将所选 ASS 与上传字体叠加到浏览器视频预览；若浏览器本身无法直接播放某个 MKV 容器或 codec，最终 Stream Copy 封装仍可正常工作。
+手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。字幕预览改为按需生成固定预览帧：选择 ASS 后由工具自动定位到一条字幕出现的时间点，用户点击“生成预览帧”时才加载 JASSUB/libass 与上传字体。这样避免持续实时渲染拖慢页面；若浏览器本身无法直接播放某个 MKV 容器或 codec，最终 Stream Copy 封装仍可正常工作。
 
 ## 在线使用
 
