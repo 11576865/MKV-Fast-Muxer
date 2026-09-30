@@ -2262,3 +2262,254 @@ pre {
     grid-template-columns: 1fr 72px;
   }
 }
+
+/* Mobile/tablet layout authority v1 ------------------------------------------------
+   Preserve useful density on small tablets / landscape phones, then collapse
+   only when the viewport is genuinely narrow. Keep this block last. */
+@media (max-width: 1120px) {
+  .topbar,
+  .workspace {
+    width: calc(100% - clamp(16px, 3vw, 28px));
+    max-width: none;
+  }
+
+  .stage-input,
+  .editor-column,
+  .output-hub,
+  .editor-card,
+  .track-title,
+  .new-track-main,
+  .attachment-main,
+  .plan-main {
+    min-width: 0;
+  }
+
+  .track-meta,
+  .attachment-meta,
+  .plan-main strong,
+  .plan-main small,
+  .status,
+  .filename {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (min-width: 560px) and (max-width: 760px) {
+  .source-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-summary .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-summary .manifest-output {
+    grid-column: 1 / -1;
+  }
+
+  .stage-input .source-item {
+    min-height: 74px;
+  }
+
+  .output-section .mux-plan {
+    max-height: min(48dvh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace {
+    padding-top: 8px;
+    padding-bottom: 28px;
+  }
+
+  .workbench-grid {
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .stage-input {
+    padding: 10px;
+  }
+
+  .editor-column {
+    padding: 10px;
+  }
+
+  .column-head {
+    padding-bottom: 9px;
+  }
+
+  .editor-grid {
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .editor-card {
+    padding: 10px;
+  }
+
+  .card-head {
+    min-height: 0;
+    padding-bottom: 8px;
+  }
+
+  .compact-control {
+    margin-top: 9px;
+  }
+
+  .track-stack {
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .editor-card .new-track-row,
+  .editor-card .track-row,
+  .editor-card .attachment-item {
+    padding: 8px;
+  }
+
+  .tool-drawer,
+  .attachment-manager,
+  .diagnostics-panel {
+    margin-top: 8px;
+  }
+
+  .tool-drawer > summary,
+  .attachment-manager > summary,
+  .diagnostics-panel > summary {
+    padding: 8px;
+  }
+
+  .attachment-manager-body {
+    padding: 0 8px 8px;
+  }
+
+  .diagnostics-panel pre {
+    max-height: 190px;
+  }
+
+  .output-hub-head {
+    padding: 11px 12px;
+  }
+
+  .output-summary {
+    padding: 0 12px 8px;
+  }
+
+  .output-section {
+    padding: 11px 12px;
+  }
+
+  .output-section .plan-row {
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px 8px;
+  }
+
+  .output-section .plan-group + .plan-group {
+    margin-top: 6px;
+  }
+
+  .status {
+    min-height: 0;
+  }
+
+  .download {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 559px) {
+  .source-grid,
+  .output-summary .manifest {
+    grid-template-columns: 1fr;
+  }
+
+  .output-summary .manifest-output {
+    grid-column: auto;
+  }
+
+  .stage-input .source-item {
+    min-height: 62px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 9px 10px;
+  }
+
+  .stage-input .source-action {
+    display: none;
+  }
+
+  .new-track-row,
+  .attachment-item {
+    grid-template-columns: 1fr;
+  }
+
+  .new-track-flags,
+  .attachment-select {
+    justify-content: flex-start;
+  }
+
+  .output-mode {
+    display: none;
+  }
+
+  .output-section .plan-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar,
+  .workspace {
+    width: calc(100% - 12px);
+  }
+
+  .stage-input,
+  .editor-column {
+    padding: 8px;
+  }
+
+  .editor-card {
+    padding: 8px;
+  }
+
+  .output-hub-head,
+  .output-summary,
+  .output-section {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+}
+
+@media (max-width: 1120px) and (hover: none) and (pointer: coarse) {
+  .button-small,
+  .button-quiet {
+    min-height: 36px;
+  }
+
+  .theme-control button {
+    min-height: 34px;
+  }
+
+  .track-order button {
+    width: 36px;
+    min-height: 36px;
+  }
+
+  .editor-card .new-track-fields input,
+  .editor-card .track-edit-grid input,
+  .editor-card .attachment-fields input,
+  .bulk-tool input {
+    min-height: 36px;
+  }
+
+  .tool-drawer > summary,
+  .attachment-manager > summary,
+  .diagnostics-panel > summary {
+    min-height: 40px;
+  }
+}
