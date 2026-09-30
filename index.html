@@ -138,7 +138,7 @@
             <section class="subtitle-preview-card" aria-labelledby="preview-title">
               <div class="preview-head">
                 <div>
-                  <span class="card-kicker">PREVIEW FRAME · LIBASS</span>
+                  <span class="card-kicker">ASS PREVIEW FRAME</span>
                   <h3 id="preview-title">字幕预览帧</h3>
                   <p>只在需要时生成一张字幕出现时的实际渲染帧，不再持续实时渲染视频。</p>
                 </div>
@@ -153,7 +153,7 @@
                 </div>
               </div>
               <div class="preview-stage" id="previewStage">
-                <img id="previewImage" alt="ASS 字幕预览帧" />
+                <img id="previewImage" class="preview-image-trigger" alt="ASS 字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
                 <div id="previewEmpty" class="preview-empty">
                   <strong>选择视频与 ASS 后生成预览帧</strong>
                   <span>自动定位到一条字幕出现的时间点，由 FFmpeg 提取源帧并用 libass 渲染成 PNG；不依赖浏览器直接播放源视频。</span>
@@ -164,6 +164,18 @@
                 <span>按需生成 · FFmpeg/libass · 本地处理 · 不上传媒体</span>
               </div>
             </section>
+
+            <dialog id="previewDialog" class="preview-dialog" aria-label="字幕预览帧大图">
+              <div class="preview-dialog-shell">
+                <div class="preview-dialog-head">
+                  <strong>字幕预览帧</strong>
+                  <button id="previewDialogClose" class="button button-quiet" type="button">关闭</button>
+                </div>
+                <div class="preview-dialog-body">
+                  <img id="previewDialogImage" alt="ASS 字幕预览帧大图" />
+                </div>
+              </div>
+            </dialog>
 
             <div class="editor-grid">
               <section class="editor-card config-card" aria-labelledby="config-title">
