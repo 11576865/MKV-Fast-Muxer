@@ -510,6 +510,244 @@ async function scenarioSequentialTasks(browser) {
   }
 }
 
+
+async function scenarioBrokenSubtitle(browser) {
+  console.log('E2E scenario 12: malformed ASS does not poison the next task');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'broken.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#muxBtn').click();
+
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#status')?.textContent || '';
+      return value.startsWith('失败：') || value.startsWith('完成。');
+    }, null, { timeout: 180_000 });
+
+    const firstStatus = await page.locator('#status').textContent();
+    if (firstStatus.startsWith('完成。')) {
+      const first = path.join(outDir, 'malformed-ass-output.mkv');
+      await saveDownload(page, '#downloadLink', first);
+      assert.equal(streams(probe(first), 'subtitle').length, 1);
+    } else {
+      assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    }
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const recovered = path.join(outDir, 'recovered-after-malformed-ass.mkv');
+    await saveDownload(page, '#downloadLink', recovered);
+    assert.equal(streams(probe(recovered), 'subtitle').length, 1);
+    console.log('Scenario 12 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioBrokenFonts(browser) {
+  console.log('E2E scenario 13: broken and zero-byte fonts fail without stale output');
+  const { context, page } = await openApp(browser);
+
+  try {
+    for (const filename of ['broken.ttf', 'zero-byte.ttf']) {
+      await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+      await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+      await page.setInputFiles('#fontInput', path.join(root, filename));
+      await page.locator('#muxBtn').click();
+
+      await page.waitForFunction(() => {
+        const value = document.querySelector('#status')?.textContent || '';
+        return value.startsWith('失败：');
+      }, null, { timeout: 180_000 });
+
+      assert.equal(await page.locator('#downloadLink').isVisible(), false);
+      assert.equal(await page.locator('#reportLink').isVisible(), false);
+      await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
+    }
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    console.log('Scenario 13 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioVideoOnly(browser) {
+  console.log('E2E scenario 14: video-only source remains audio-free');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'video-only.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'video-only.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    assert.equal(streams(out, 'video').length, 1);
+    assert.equal(streams(out, 'audio').length, 0);
+    assert.equal(streams(out, 'subtitle').length, 1);
+    console.log('Scenario 14 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioPlainMkvScan(browser) {
+  console.log('E2E scenario 15: plain MKV scan handles no subtitles and no attachments');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'plain-no-subs-no-attachments.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    assert.equal(await page.locator('.track-row.track-audio').count(), 1);
+    assert.equal(await page.locator('.track-row.track-subtitle').count(), 0);
+    assert.match(await page.locator('#attachmentList').textContent(), /没有附件/);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'plain-mkv-scan.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    assert.equal(streams(out, 'audio').length, 1);
+    assert.equal(streams(out, 'subtitle').length, 1);
+    console.log('Scenario 15 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioTrackReorder(browser) {
+  console.log('E2E scenario 16: original audio reorder is reflected in output order');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    const audioRows = page.locator('.track-row.track-audio');
+    assert.equal(await audioRows.count(), 2);
+    await audioRows.nth(1).locator('button[data-track-move="-1"]').click();
+
+    const plan = await page.locator('#muxPlan').textContent();
+    const opusPos = plan.indexOf('English Opus');
+    const aacPos = plan.indexOf('Japanese AAC');
+    assert.ok(opusPos >= 0 && aacPos >= 0 && opusPos < aacPos);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'reordered-audio.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    assert.deepEqual(streams(probe(output), 'audio').map((stream) => stream.codec_name), ['opus', 'aac']);
+    console.log('Scenario 16 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioCancelScan(browser) {
+  console.log('E2E scenario 17: cancel track scan and scan again');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'cancel-scan.mkv'));
+    await page.locator('#scanTracksBtn').click();
+    await page.locator('#cancelBtn').click();
+
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#status')?.textContent || '';
+      return value.includes('取消');
+    }, null, { timeout: 60_000 });
+    await page.waitForFunction(() => !document.querySelector('#scanTracksBtn')?.disabled, null, { timeout: 60_000 });
+
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+    assert.equal(await page.locator('.track-row.track-audio').count(), 1);
+    console.log('Scenario 17 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnicodeNamesAndLongTitle(browser) {
+  console.log('E2E scenario 18: Unicode filenames and max-length track title');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, '视频 空格 😀.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, '字幕 空格 😀.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, '字体 空格 😀.ttf'));
+
+    const longTitle = '长标题'.repeat(53) + 'X';
+    assert.equal(longTitle.length, 160);
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill(longTitle);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'unicode-names.mkv');
+    const reportPath = path.join(outDir, 'unicode-names.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const sub = streams(probe(output), 'subtitle')[0];
+    assert.equal(sub.tags?.title, longTitle);
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.input.name, '视频 空格 😀.mp4');
+    assert.equal(report.subtitle.tracks[0].name, '字幕 空格 😀.ass');
+    assert.equal(report.fonts.attachments[0].sourceName, '字体 空格 😀.ttf');
+    console.log('Scenario 18 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioTenSequential(browser) {
+  console.log('E2E scenario 19: ten consecutive mux tasks on one page');
+  const { context, page } = await openApp(browser);
+
+  try {
+    for (let index = 0; index < 10; index += 1) {
+      await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+      await page.setInputFiles('#subInput', path.join(root, index % 2 === 0 ? 'zh.ass' : 'en.ass'));
+      await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+      const title = `Loop ${index + 1}`;
+      await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill(title);
+      await page.locator('#muxBtn').click();
+      await waitForStatus(page, '完成。');
+
+      if (index === 0 || index === 9) {
+        const output = path.join(outDir, `loop-${index + 1}.mkv`);
+        await saveDownload(page, '#downloadLink', output);
+        assert.equal(streams(probe(output), 'subtitle')[0].tags?.title, title);
+      }
+    }
+    console.log('Scenario 19 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -563,6 +801,14 @@ try {
   await scenarioInvalidAudioRecovery(browser);
   await scenarioCancelAndRestart(browser);
   await scenarioSequentialTasks(browser);
+  await scenarioBrokenSubtitle(browser);
+  await scenarioBrokenFonts(browser);
+  await scenarioVideoOnly(browser);
+  await scenarioPlainMkvScan(browser);
+  await scenarioTrackReorder(browser);
+  await scenarioCancelScan(browser);
+  await scenarioUnicodeNamesAndLongTitle(browser);
+  await scenarioTenSequential(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();

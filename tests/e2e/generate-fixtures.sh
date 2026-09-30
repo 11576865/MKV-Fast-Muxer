@@ -95,7 +95,30 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:a aac -b:a 128k \
   "$ROOT/cancel-medium.mp4"
 
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$ROOT/cancel-medium.mp4" -map 0 -c copy \
+  "$ROOT/cancel-scan.mkv"
+
+cp "$ROOT/base.mp4" "$ROOT/视频 空格 😀.mp4"
+cp "$ROOT/zh.ass" "$ROOT/字幕 空格 😀.ass"
+cp "$ROOT/DejaVuSans.ttf" "$ROOT/字体 空格 😀.ttf"
+
 printf 'this is not an audio file\n' > "$ROOT/not-audio.wav"
+printf '[Script Info]\nthis is broken ASS\n' > "$ROOT/broken.ass"
+: > "$ROOT/empty.ass"
+printf 'not a font\n' > "$ROOT/broken.ttf"
+: > "$ROOT/zero-byte.ttf"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "testsrc2=size=320x180:rate=24:duration=2" \
+  -an \
+  -c:v mpeg4 -q:v 5 -pix_fmt yuv420p \
+  "$ROOT/video-only.mp4"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$ROOT/base.mp4" \
+  -map 0:v:0 -map 0:a:0 -c copy \
+  "$ROOT/plain-no-subs-no-attachments.mkv"
 
 ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i "sine=frequency=660:sample_rate=48000:duration=2" \
