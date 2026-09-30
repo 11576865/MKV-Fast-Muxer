@@ -220,7 +220,7 @@ function renderNewTrackLists() {
     ? externalAudioState.map((item, index) => `
       <div class="new-track-row is-audio">
         <div class="new-track-main">
-          <strong class="new-track-name">${escapeHtml(item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || 'SUB')}</span></strong>
+          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
             <select data-new-audio-field="language" data-index="${index}" aria-label="外部音频语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
@@ -242,7 +242,7 @@ function renderNewTrackLists() {
     ? newSubtitleState.map((item, index) => `
       <div class="new-track-row is-subtitle">
         <div class="new-track-main">
-          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <strong class="new-track-name">${escapeHtml(item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || subtitleFormatInfo(item.file.name)?.label || 'SUB')}</span></strong>
           <div class="new-track-fields">
             <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
@@ -305,7 +305,7 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning || previewing || batchRunning;
+  return running || scanning || previewing;
 }
 
 function setInputsDisabled(disabled) {
@@ -323,6 +323,8 @@ function setInputsDisabled(disabled) {
   attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
     button.disabled = disabled || !trackState;
   });
+  if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
+  if (batchSubtitleInput) batchSubtitleInput.disabled = disabled || batchRunning;
 }
 
 function resetTrackState() {
@@ -332,6 +334,7 @@ function resetTrackState() {
   trackBulkTools?.classList.add('hidden');
   attachmentBulkTools?.classList.add('hidden');
   renderMuxPlan();
+  if (!batchRunning) syncBatchPlan?.();
 }
 
 function updateUI() {
