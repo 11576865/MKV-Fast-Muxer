@@ -420,11 +420,12 @@ async function scenarioInvalidAudioRecovery(browser) {
     await page.locator('#muxBtn').click();
     await page.waitForFunction(() => {
       const value = document.querySelector('#status')?.textContent || '';
-      return value.startsWith('失败：');
+      return value.includes('外部音频') && (value.includes('换用') || value.includes('移除'));
     }, null, { timeout: 180_000 });
 
     const failedStatus = await page.locator('#status').textContent();
-    assert.match(failedStatus, /外部音频|ffprobe|音频/);
+    assert.match(failedStatus, /外部音频/);
+    assert.match(failedStatus, /换用|移除/);
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
 
