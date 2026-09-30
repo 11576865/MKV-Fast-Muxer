@@ -2,32 +2,36 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('desktop workbench uses the full browser canvas and three-stage hierarchy', async () => {
+test('expanded desktop uses a bounded adaptive preview-detail-supporting layout', async () => {
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
-  assert.match(css, /Workbench UI reorganization v3/);
+  assert.match(css, /Adaptive pane layout v4/);
   assert.match(
     css,
-    /@media \(min-width: 1280px\) and \(hover: hover\) and \(pointer: fine\)/
+    /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/
+  );
+  assert.match(css, /width: min\(calc\(100% - 40px\), 1520px\);/);
+  assert.match(css, /max-width: 1520px;/);
+  assert.match(
+    css,
+    /grid-template-columns: minmax\(0, 1fr\) clamp\(340px, 22vw, 410px\);/
   );
   assert.match(
     css,
-    /width: calc\(100% - clamp\(24px, 2vw, 42px\)\);\n    max-width: none;/
+    /grid-template-areas:\n      "head head"\n      "preview editors"\n      "logs logs";/
   );
-  assert.match(
-    css,
-    /grid-template-columns: minmax\(0, 1fr\) clamp\(370px, 24vw, 470px\);/
-  );
-  assert.match(css, /\.output-hub \{\n    max-height: calc\(100vh - 24px\);/);
+  assert.match(css, /\.editor-column > \.subtitle-preview-card \{\n    grid-area: preview;/);
+  assert.match(css, /\.editor-column > \.editor-grid \{\n    grid-area: editors;\n    grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(css, /aspect-ratio: 16 \/ 9;/);
 
   assert.match(html, /class="flow-rail"/);
   assert.match(html, />输入<\/span>/);
   assert.match(html, />调整<\/span>/);
   assert.match(html, />检查并封装<\/span>/);
   assert.match(html, /class="editor-column"/);
+  assert.match(html, /class="subtitle-preview-card"/);
   assert.match(html, /class="output-hub"/);
-  assert.match(html, /id="trackBulkTools" class="tool-drawer hidden"/);
 });
 
 test('mobile layout collapses editing and output into one column', async () => {
