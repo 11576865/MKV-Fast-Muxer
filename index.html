@@ -148,6 +148,16 @@
             </label>
           </div>
           <div id="batchPlan" class="mux-plan"><div class="track-empty">选择批量视频和字幕后显示配对结果。</div></div>
+          <div class="bulk-tools batch-options">
+            <label class="attachment-toggle">
+              <input id="batchPreserveAttachments" type="checkbox" checked />
+              <span><strong>保留原 MKV 附件</strong><small>批量 MKV 默认保留已有字体 / 封面等 attachment</small></span>
+            </label>
+            <label class="attachment-toggle">
+              <input type="checkbox" checked disabled />
+              <span><strong>单项失败后继续</strong><small>固定开启；失败项单独记录，不阻断后续任务</small></span>
+            </label>
+          </div>
           <div class="actions batch-actions">
             <button id="batchStartBtn" class="button button-primary" type="button" disabled>开始批量封装</button>
             <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消批量</button>
