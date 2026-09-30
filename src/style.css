@@ -3236,3 +3236,35 @@ pre {
     align-self: start;
   }
 }
+
+
+/* 1.1 batch / subset controls */
+.stage-batch {
+  margin-top: 14px;
+}
+.batch-source-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.batch-options {
+  margin-top: 10px;
+}
+.batch-options .attachment-toggle {
+  margin-top: 0;
+}
+.batch-actions {
+  margin-top: 10px;
+}
+#batchPlan {
+  margin-top: 10px;
+}
+#batchResults {
+  margin-top: 10px;
+}
+.font-subset-toggle {
+  margin-top: 10px;
+}
+@media (max-width: 760px) {
+  .batch-source-grid {
+    grid-template-columns: 1fr;
+  }
+}
