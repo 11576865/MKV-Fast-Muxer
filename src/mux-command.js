@@ -1,6 +1,20 @@
 export function normalizeTrackLanguage(value) {
-  const trimmed = String(value || '').trim().toLowerCase();
-  return trimmed || 'und';
+  const trimmed = String(value || '').trim().replace(/_/g, '-');
+  if (!trimmed) return 'und';
+
+  const parts = trimmed.split('-').filter(Boolean);
+  if (parts.length === 1) return parts[0].toLowerCase();
+
+  return parts.map((part, index) => {
+    if (index === 0) return part.toLowerCase();
+    if (/^[A-Za-z]{4}$/.test(part)) {
+      return part[0].toUpperCase() + part.slice(1).toLowerCase();
+    }
+    if (/^[A-Za-z]{2}$/.test(part) || /^\d{3}$/.test(part)) {
+      return part.toUpperCase();
+    }
+    return part.toLowerCase();
+  }).join('-');
 }
 
 export function dispositionValue(isDefault, isForced = false, extra = {}) {
