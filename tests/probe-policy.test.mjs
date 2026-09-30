@@ -9,10 +9,10 @@ import {
   PROBE_STREAM_ENTRIES,
 } from '../src/probe-policy.js';
 
-test('default probe skips find_stream_info and requests structural metadata', () => {
+test('default probe requests structural metadata without unsupported wasm flags', () => {
   const args = buildProbeArgs('input.mkv', 'probe.json');
 
-  assert.ok(args.includes('-no_find_stream_info'));
+  assert.equal(args.includes('-no_find_stream_info'), false);
   assert.ok(args.includes('-show_streams'));
   assert.ok(args.includes('-show_chapters'));
   assert.ok(args.includes('-show_format'));
@@ -35,10 +35,12 @@ test('default probe skips find_stream_info and requests structural metadata', ()
   assert.doesNotMatch(PROBE_STREAM_ENTRIES, /pix_fmt|width|height|profile/);
 });
 
-test('explicit decode fallback enables normal stream-info probing', () => {
+test('decode compatibility mode keeps the same supported ffprobe surface', () => {
   const args = buildProbeArgs('input.mkv', 'probe.json', { decodeStreams: true });
   assert.equal(args.includes('-no_find_stream_info'), false);
   assert.ok(args.includes('-show_streams'));
+  assert.ok(args.includes('-show_chapters'));
+  assert.ok(args.includes('-show_format'));
 });
 
 test('probe input and output paths are preserved verbatim', () => {
