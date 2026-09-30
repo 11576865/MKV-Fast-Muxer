@@ -4,7 +4,7 @@
 
 **Description**
 
-Browser-local MKV muxing workbench with libass ASS preview, Stream Copy, font attachments, track metadata editing, mux planning and post-mux audit.
+Browser-local MKV muxing workbench with FFmpeg/libass ASS preview frames, Stream Copy, font attachments, track metadata editing, mux planning and post-mux audit.
 
 **Homepage**
 
@@ -18,7 +18,7 @@ https://11576865.github.io/MKV-Fast-Muxer/
 
 MKV Fast Muxer v3 是一个完全在浏览器本地运行的 Matroska / MKV 软封装工作台。它面向“视频已经完成、ASS 已经排版、现在需要检查效果并封成最终 MKV”的阶段。
 
-1.0.0 将工作流从“先看参数，再封装”改为“先看见，再封装”：选择本地视频、ASS 与字体后，可以先用 JASSUB / libass 直接查看字幕在画面中的渲染，再调整新增轨道、原 MKV 轨道、metadata、Default / Forced、附件与字体策略。
+1.0.0 将工作流从“先看参数，再封装”改为“先看见，再封装”：选择本地视频、ASS 与字体后，可以先用 FFmpeg / libass 直接查看字幕在画面中的渲染，再调整新增轨道、原 MKV 轨道、metadata、Default / Forced、附件与字体策略。
 
 视频和音频默认使用 Stream Copy，不重新编码；ASS 作为软字幕轨加入；字体作为 Matroska attachments 写入；生成后再由 ffprobe 审计实际轨道、附件、Chapter 与 metadata。
 
@@ -49,7 +49,7 @@ ASS subtitles
         +
 fonts / optional external audio
         ↓
-JASSUB / libass visual preview
+FFmpeg / libass preview frame
         ↓
 track + font + metadata adjustments
         ↓
