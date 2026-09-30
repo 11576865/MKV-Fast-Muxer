@@ -276,13 +276,22 @@ export function inferLanguageFromFilename(name = '') {
   if (/(?:^|[. _\-\[\](){}])zh[-_]?(tw|hk)(?:$|[. _\-\[\](){}])/i.test(lower)) return 'zh-Hant';
 
   const tokens = lower.split(/[. _\-\[\](){}]+/).filter(Boolean);
-  // Filename language tags are normally suffix metadata. Restrict heuristic
-  // matching to the last three tokens so movie titles such as "It (2017)"
-  // are not misclassified as Italian merely because "it" appears in the title.
-  const suffixTokens = tokens.slice(-3);
-  for (let index = suffixTokens.length - 1; index >= 0; index -= 1) {
-    const language = TOKEN_LANGUAGE[suffixTokens[index]];
+  // Language tags are suffix metadata. Walk from the filename tail, but stop
+  // when we hit a likely title/episode boundary. This prevents titles such as
+  // "It.2017.srt" from becoming Italian while still accepting
+  // "Show.S01E01.en.forced.ass".
+  let inspected = 0;
+  for (let index = tokens.length - 1; index >= 0 && inspected < 4; index -= 1, inspected += 1) {
+    const token = tokens[index];
+    const language = TOKEN_LANGUAGE[token];
     if (language) return language;
+    if (
+      /^\d{2,4}$/.test(token) ||
+      /^s\d{1,2}e\d{1,3}$/i.test(token) ||
+      /^(?:ep?|episode)\d{1,4}$/i.test(token)
+    ) {
+      break;
+    }
   }
   return 'und';
 }
