@@ -255,25 +255,18 @@ function updateUI() {
   renderMuxPlan();
 }
 
-function bindNewTrackEditor(container, selector, state) {
-  container.addEventListener('input', (event) => {
+function bindNewTrackEditor(container, selector, getState) {
+  const update = (event) => {
     const input = event.target.closest(selector);
     if (!input) return;
-    const item = state[Number(input.dataset.index)];
+    const item = getState()[Number(input.dataset.index)];
     if (!item) return;
     const field = input.dataset.newAudioField || input.dataset.newSubField;
     item[field] = input.type === 'checkbox' ? input.checked : input.value;
     renderMuxPlan();
-  });
-  container.addEventListener('change', (event) => {
-    const input = event.target.closest(selector);
-    if (!input) return;
-    const item = state[Number(input.dataset.index)];
-    if (!item) return;
-    const field = input.dataset.newAudioField || input.dataset.newSubField;
-    item[field] = input.type === 'checkbox' ? input.checked : input.value;
-    renderMuxPlan();
-  });
+  };
+  container.addEventListener('input', update);
+  container.addEventListener('change', update);
 }
 
 videoInput.addEventListener('change', () => {
@@ -299,8 +292,8 @@ preserveAttachments.addEventListener('change', () => {
   renderMuxPlan();
 });
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
-bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', externalAudioState);
-bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', newSubtitleState);
+bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', () => externalAudioState);
+bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', () => newSubtitleState);
 
 async function loadFFmpeg() {
   if (loaded) return;
@@ -665,6 +658,41 @@ function renderTrackList() {
   }).join('');
   renderMuxPlan();
 }
+
+function renderAttachmentList() {
+  if (!trackState) {
+    attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
+    return;
+  }
+  if (!trackState.attachments.length) {
+    attachmentList.innerHTML = '<div class="track-empty">这个 MKV 没有附件。</div>';
+    return;
+  }
+
+  attachmentList.innerHTML = trackState.attachments.map((item) => `
+    <label class="attachment-item">
+      <span>
+        <strong>${escapeHtml(item.filename || `Attachment #${item.index}`)}</strong>
+        <span class="attachment-meta">${escapeHtml(item.mimetype || item.stream.codec_name || 'attachment')} · source #${item.index}</span>
+      </span>
+      <span class="attachment-select">
+        <input type="checkbox" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''}>
+        保留
+      </span>
+    </label>
+  `).join('');
+}
+
+attachmentList.addEventListener('change', (event) => {
+  if (!trackState) return;
+  const input = event.target.closest('input[data-attachment-index]');
+  if (!input) return;
+  const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
+  if (!item) return;
+  item.include = input.checked;
+  preserveAttachments.checked = trackState.attachments.length > 0 && trackState.attachments.every((entry) => entry.include);
+  renderMuxPlan();
+});
 
 function escapeHtml(value) {
   return String(value)
