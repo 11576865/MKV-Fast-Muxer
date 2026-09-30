@@ -16,7 +16,7 @@ test('visual ASS preview is present and explicit light theme is removed', async 
   assert.match(html, /id="previewVideo"/);
   assert.match(html, /id="previewSubtitleSelect"/);
   assert.match(html, /id="previewRefreshBtn"/);
-  assert.match(html, /VISUAL PREVIEW · LIBASS/);
+  assert.match(html, /PREVIEW FRAME · LIBASS/);
   assert.doesNotMatch(html, /data-theme-choice="light"/);
   assert.doesNotMatch(html, />白天</);
 
@@ -37,7 +37,7 @@ test('JASSUB runtime assets are copied locally and dependency is pinned', async 
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.0');
+  assert.equal(pkg.version, '1.0.1');
   assert.equal(pkg.dependencies.jassub, '2.5.15');
 
   assert.match(copyScript, /jassub\/dist/);
@@ -50,4 +50,27 @@ test('JASSUB runtime assets are copied locally and dependency is pinned', async 
 test('Vite emits module workers for the JASSUB bundle', async () => {
   const vite = await text('vite.config.js');
   assert.match(vite, /worker:\s*\{[\s\S]*format:\s*['"]es['"]/);
+});
+
+
+test('preview is explicitly on-demand rather than auto-started', async () => {
+  const [html, main] = await Promise.all([
+    text('index.html'),
+    text('src/main.js'),
+  ]);
+
+  assert.match(html, /生成预览帧/);
+  assert.match(html, /按需生成/);
+  assert.match(main, /previewRefreshBtn\?\.addEventListener\('click', refreshSubtitlePreview\)/);
+  assert.doesNotMatch(main, /scheduleSubtitlePreview/);
+  assert.match(main, /choosePreviewFrameTime/);
+  assert.match(main, /manualRender/);
+});
+
+test('desktop output plan expands naturally instead of using nested scrolling', async () => {
+  const css = await text('src/style.css');
+
+  assert.match(css, /Desktop output panel should use available page space/);
+  assert.match(css, /\.output-hub \{\s*position: static;\s*max-height: none;\s*overflow: visible;/);
+  assert.match(css, /\.output-section \.mux-plan \{\s*max-height: none;\s*overflow: visible;/);
 });
