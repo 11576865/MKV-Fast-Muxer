@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.4 — 2026-09-30
+
+### Fixed
+
+- AV1 固定预览帧在 ffmpeg.wasm 5.1.x 上出现 `Missing Sequence Header` / `Invalid data found when processing input` 时，优先尝试浏览器原生 AV1 解码抽帧，再交给 FFmpeg/libass 烧字幕。
+- FFmpeg 抽帧失败后也会尝试浏览器 Canvas 抽帧作为补充 fallback；最终字幕渲染仍由 FFmpeg/libass 完成。
+- 新增轨道的语言字段改为真正的可见下拉选择，不再只有默认 `und` 看起来像唯一选项；包含中文、简体/繁体 BCP 47、英语、日语、韩语、多语言等常用项。
+- 桌面端字幕预览区域高度压缩到约 132–190px，避免固定预览帧占据主工作区过多纵向空间。
+
+
 ## 1.0.3 — 2026-09-30
 
 ### Fixed

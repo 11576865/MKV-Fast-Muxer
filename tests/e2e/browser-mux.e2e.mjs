@@ -83,12 +83,12 @@ async function scenarioMultiTrack(browser) {
       path.join(root, 'DejaVuSans-copy.ttf'),
     ]);
 
-    await page.locator('input[data-new-audio-field="language"][data-index="0"]').fill('eng');
+    await page.locator('select[data-new-audio-field="language"][data-index="0"]').selectOption('eng');
     await page.locator('input[data-new-audio-field="title"][data-index="0"]').fill('External FLAC');
 
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('简体中文');
-    await page.locator('input[data-new-sub-field="language"][data-index="1"]').fill('eng');
+    await page.locator('select[data-new-sub-field="language"][data-index="1"]').selectOption('eng');
     await page.locator('input[data-new-sub-field="title"][data-index="1"]').fill('English');
     await page.locator('input[data-new-sub-field="forced"][data-index="1"]').check();
 
@@ -124,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.0.3');
+    assert.equal(report.application.version, '1.0.4');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -159,7 +159,7 @@ async function scenarioSelectiveAttachments(browser) {
     await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
     await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
 
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Fixture Subtitle');
 
     await page.locator('#muxBtn').click();
@@ -229,7 +229,7 @@ async function scenarioOriginalTracks(browser) {
     await originalSubtitle.locator('input[data-track-field="title"]').fill('Original Signs Edited');
     await originalSubtitle.locator('input[data-track-action="forced"]').check();
 
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('新增中文');
     await page.locator('input[data-new-sub-field="default"][data-index="0"]').check();
 
@@ -286,8 +286,8 @@ async function scenarioUtf16(browser) {
     ]);
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
-    await page.locator('input[data-new-sub-field="language"][data-index="1"]').fill('eng');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="1"]').selectOption('eng');
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -492,7 +492,7 @@ async function scenarioSequentialTasks(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('First Task');
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -502,7 +502,7 @@ async function scenarioSequentialTasks(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'en.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('eng');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('eng');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Second Task');
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -716,7 +716,7 @@ async function scenarioUnicodeNamesAndLongTitle(browser) {
 
     const longTitle = '长标题'.repeat(53) + 'X';
     assert.equal(longTitle.length, 160);
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill(longTitle);
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -775,13 +775,13 @@ async function scenarioFontCollectionAndAdvancedFlags(browser) {
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuCollection.ttc'));
 
-    await page.locator('input[data-new-audio-field="language"][data-index="0"]').fill('eng');
+    await page.locator('select[data-new-audio-field="language"][data-index="0"]').selectOption('eng');
     await page.locator('input[data-new-audio-field="title"][data-index="0"]').fill('Director Commentary');
     await page.locator('#newAudioList details.track-advanced summary').click();
     await page.locator('input[data-new-audio-field="original"][data-index="0"]').check();
     await page.locator('input[data-new-audio-field="commentary"][data-index="0"]').check();
 
-    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zh-Hans');
+    await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zh-Hans');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('简体中文字幕');
     await page.locator('#newSubtitleList details.track-advanced summary').click();
     await page.locator('input[data-new-sub-field="hearingImpaired"][data-index="0"]').check();
@@ -970,6 +970,39 @@ async function scenarioAv1(browser) {
   }
 }
 
+async function scenarioAv1PreviewFrame(browser) {
+  const av1Path = path.join(root, 'av1.mp4');
+  try {
+    await fs.access(av1Path);
+  } catch {
+    console.log('E2E scenario 25: AV1 preview skipped (fixture unavailable)');
+    return;
+  }
+
+  console.log('E2E scenario 25: AV1 fixed preview frame');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', av1Path);
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      if (status.startsWith('无法生成预览帧：')) throw new Error(status);
+      const image = document.querySelector('#previewImage');
+      return status.startsWith('预览帧：') && image?.naturalWidth > 0 && image?.naturalHeight > 0;
+    }, null, { timeout: 180_000 });
+
+    const status = await page.locator('#previewStatus').textContent();
+    assert.match(status, /FFmpeg\/libass/);
+    console.log('Scenario 25 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioPreviewTimeClamp(browser) {
   console.log('E2E scenario 24: preview time clamps to source duration');
   const { context, page } = await openApp(browser);
@@ -1050,6 +1083,7 @@ try {
   await scenarioWorkbenchEfficiency(browser);
   await scenarioPreviewFrame(browser);
   await scenarioPreviewTimeClamp(browser);
+  await scenarioAv1PreviewFrame(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();

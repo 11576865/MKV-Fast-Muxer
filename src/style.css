@@ -2723,3 +2723,40 @@ pre {
     scrollbar-gutter: auto;
   }
 }
+
+
+/* Compact preview stage for desktop workbench. */
+@media (min-width: 900px) {
+  .subtitle-preview-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview-head {
+    padding: 9px 11px;
+  }
+
+  .preview-head p {
+    margin-top: 3px;
+    max-width: 680px;
+  }
+
+  .preview-stage {
+    min-height: 132px;
+    max-height: 190px;
+  }
+
+  .preview-stage img {
+    width: auto;
+    max-width: 100%;
+    max-height: 190px;
+  }
+
+  .preview-empty {
+    padding: 14px 18px;
+  }
+
+  .preview-footer {
+    padding: 6px 10px;
+  }
+}
