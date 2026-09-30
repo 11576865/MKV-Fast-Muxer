@@ -35,3 +35,13 @@ test('different files with colliding attachment names receive deterministic suff
   assert.equal(items[0].attachmentName, 'Font.ttf');
   assert.equal(items[1].attachmentName, 'font-mkvfm-22222222.ttf');
 });
+
+test('reserved original attachment names force deterministic font renaming', () => {
+  const items = assignUniqueAttachmentNames([
+    { file: { name: 'Font.ttf' }, sha256: 'abcdef1234567890' },
+    { file: { name: 'Other.otf' }, sha256: '99999999aaaaaaaa' },
+  ], ['font.ttf', 'cover.jpg']);
+
+  assert.equal(items[0].attachmentName, 'Font-mkvfm-abcdef12.ttf');
+  assert.equal(items[1].attachmentName, 'Other.otf');
+});

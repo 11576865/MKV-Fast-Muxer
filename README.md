@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer-v3/  
-**Package version:** 0.5.0
+**Package version:** 0.6.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -221,7 +221,12 @@ MKV
 
 ### 原附件
 
-扫描 MKV 后会列出原附件，可逐项选择保留；也可以使用“全部保留”。未扫描时仍保留兼容性的整体开关。
+扫描 MKV 后会列出原附件，可逐项选择保留，也可以修改选中附件的：
+
+- filename
+- MIME type
+
+新字体如果与保留的原附件同名，会自动获得稳定的 SHA-256 短后缀，避免输出中出现含义不清的同名附件。也可以使用“全部保留”；未扫描时仍保留兼容性的整体开关。
 
 ### 外部音频
 
@@ -252,7 +257,9 @@ Attachments
 - 多个 Default 音频；
 - 多个 Default 字幕；
 - 未扫描原 MKV 时的兼容行为；
-- 原附件是否保留；
+- Chapter 的保留状态；
+- 全局 metadata 的保留状态；
+- 原附件是否保留及同名冲突；
 - 新字体附件数量。
 
 这样轨道策略不是隐藏在 FFmpeg 命令里，而是在执行前可见。
@@ -267,9 +274,11 @@ Attachments
 - title；
 - Default / Forced；
 - Original / Commentary / Hearing impaired；
-- 附件数量与被选择保留的原附件文件名；
-- 新字体文件名；
-- Chapter 数量与容器 title。
+- 附件数量、filename 与 MIME type；
+- 被选择保留的原附件与新字体文件名；
+- Chapter 数量；
+- 容器 title；
+- 可保留的全局 metadata tags。
 
 审计使用偏向 **容器元数据** 的探测策略，不要求完整解码视频。
 

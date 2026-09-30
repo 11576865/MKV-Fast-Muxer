@@ -11,7 +11,7 @@ export const PROBE_CHAPTER_ENTRIES = [
 
 export const PROBE_FORMAT_ENTRIES = [
   'format=format_name,duration',
-  'format_tags=title',
+  'format_tags',
 ].join(':');
 
 export const PROBE_ENTRIES = [

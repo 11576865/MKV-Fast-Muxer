@@ -46,8 +46,13 @@ export async function dedupeFilesBySha256(files) {
   return { unique, duplicates };
 }
 
-export function assignUniqueAttachmentNames(items) {
-  const used = new Set();
+export function assignUniqueAttachmentNames(items, reservedNames = []) {
+  const used = new Set(
+    reservedNames
+      .map((name) => String(name || '').trim())
+      .filter(Boolean)
+      .map((name) => name.toLocaleLowerCase('en-US'))
+  );
 
   return items.map((item) => {
     const originalName = String(item.file?.name || 'font');

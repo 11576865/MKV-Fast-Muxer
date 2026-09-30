@@ -626,7 +626,8 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .new-track-row.is-audio { border-left: 3px solid var(--audio); }
 .attachment-item { border-left: 3px solid var(--warning); }
 
-.new-track-main {
+.new-track-main,
+.attachment-main {
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -736,6 +737,35 @@ input[type="checkbox"] { accent-color: var(--accent); }
   font-size: .66rem;
   overflow-wrap: anywhere;
 }
+.attachment-fields {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.2fr) minmax(120px, .8fr);
+  gap: 7px;
+}
+
+.attachment-fields label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: .64rem;
+}
+
+.attachment-fields input {
+  min-width: 0;
+  min-height: 31px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: .69rem;
+}
+
+.attachment-fields input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 
 .log-section { padding-bottom: 0; }
 
@@ -1146,7 +1176,8 @@ pre {
 
   .track-row { grid-template-columns: 1fr; }
   .track-controls { justify-content: flex-start; }
-  .track-edit-grid { grid-template-columns: 1fr; }
+  .track-edit-grid,
+  .attachment-fields { grid-template-columns: 1fr; }
   .execution-panel { grid-column: auto; }
 }
 

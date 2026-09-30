@@ -15,6 +15,14 @@ function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object || {}, key);
 }
 
+function tagValue(tags, key) {
+  const wanted = String(key || '').toLowerCase();
+  for (const [name, value] of Object.entries(tags || {})) {
+    if (String(name).toLowerCase() === wanted) return value;
+  }
+  return undefined;
+}
+
 function pushMismatch(issues, label, expected, actual) {
   issues.push(`${label}：期望“${expected}”，实际“${actual}”`);
 }
@@ -84,6 +92,48 @@ function compareTrackGroup(issues, kind, expected, actual) {
   expected.forEach((track, index) => compareTrack(issues, kind, index, track, actual[index]));
 }
 
+function compareAttachments(issues, expected, actual) {
+  if (!Array.isArray(expected)) return;
+  if (actual.length !== expected.length) {
+    issues.push(`附件数量不一致：期望 ${expected.length} 个，实际 ${actual.length} 个。`);
+  }
+
+  expected.forEach((item, index) => {
+    const stream = actual[index];
+    if (!stream) {
+      issues.push(`附件 #${index + 1} 缺失。`);
+      return;
+    }
+    if (hasOwn(item, 'filename')) {
+      const actualFilename = String(stream.tags?.filename || '');
+      const expectedFilename = String(item.filename || '');
+      if (actualFilename !== expectedFilename) {
+        pushMismatch(issues, `附件 #${index + 1} filename`, expectedFilename || '(空)', actualFilename || '(空)');
+      }
+    }
+    if (hasOwn(item, 'mimetype')) {
+      const actualMime = String(stream.tags?.mimetype || '');
+      const expectedMime = String(item.mimetype || '');
+      if (actualMime !== expectedMime) {
+        pushMismatch(issues, `附件 #${index + 1} mimetype`, expectedMime || '(空)', actualMime || '(空)');
+      }
+    }
+  });
+}
+
+function compareFormatTags(issues, expected, actual) {
+  if (!expected || typeof expected !== 'object') return;
+  const actualByKey = new Map(
+    Object.entries(actual || {}).map(([key, value]) => [String(key).toLowerCase(), value])
+  );
+  for (const [key, value] of Object.entries(expected)) {
+    const actualValue = actualByKey.get(String(key).toLowerCase());
+    if (String(actualValue ?? '') !== String(value ?? '')) {
+      pushMismatch(issues, `全局 metadata ${key}`, value || '(空)', actualValue || '(空)');
+    }
+  }
+}
+
 function missingFromMultiset(expected, actual) {
   const counts = new Map();
   for (const value of actual) counts.set(value, (counts.get(value) || 0) + 1);
@@ -120,16 +170,20 @@ export function auditMuxProbe(probe, expected) {
   }
 
   if (hasOwn(expected, 'formatTitle')) {
-    const actualTitle = normTitle(probe?.format?.tags?.title);
+    const actualTitle = normTitle(tagValue(probe?.format?.tags, 'title'));
     const expectedTitle = normTitle(expected.formatTitle);
     if (actualTitle !== expectedTitle) {
       pushMismatch(issues, '容器 title', expectedTitle || '(空)', actualTitle || '(空)');
     }
   }
 
-  if (Number.isInteger(expected.attachmentCount) && attachments.length !== expected.attachmentCount) {
+  if (Array.isArray(expected.attachments)) {
+    compareAttachments(issues, expected.attachments, attachments);
+  } else if (Number.isInteger(expected.attachmentCount) && attachments.length !== expected.attachmentCount) {
     issues.push(`附件数量不一致：期望 ${expected.attachmentCount} 个，实际 ${attachments.length} 个。`);
   }
+
+  compareFormatTags(issues, expected.formatTags, probe?.format?.tags || {});
 
   const actualFilenames = attachments
     .map((stream) => String(stream.tags?.filename || ''))

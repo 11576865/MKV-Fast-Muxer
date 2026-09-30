@@ -505,6 +505,32 @@ function selectedOriginalAttachments() {
   return trackState?.attachments?.filter((item) => item.include) || [];
 }
 
+const VOLATILE_FORMAT_TAGS = new Set([
+  'encoder',
+  'major_brand',
+  'minor_version',
+  'compatible_brands',
+]);
+
+function preservableFormatTags(tags) {
+  return Object.fromEntries(
+    Object.entries(tags || {})
+      .filter(([key]) => !VOLATILE_FORMAT_TAGS.has(String(key).toLowerCase()))
+      .map(([key, value]) => [String(key).toLowerCase(), value])
+  );
+}
+
+function attachmentNameConflicts(items) {
+  const counts = new Map();
+  for (const item of items) {
+    const name = String(item.filename || '').trim();
+    if (!name) continue;
+    const key = name.toLocaleLowerCase('en-US');
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.entries()].filter(([, count]) => count > 1).map(([name]) => name);
+}
+
 function defaultConflictWarnings() {
   const warnings = [];
   const audioDefaultCount =
@@ -540,6 +566,32 @@ function buildMuxPlan() {
     });
   }
 
+  if (video) {
+    if (trackState) {
+      const tags = preservableFormatTags(trackState.format?.tags || {});
+      const chapterCount = trackState.chapters?.length || 0;
+      entries.push({
+        kind: '章节',
+        title: chapterCount ? `${chapterCount} 个 Chapter` : '无 Chapter',
+        meta: '保留源章节 · map_chapters 0',
+        flags: 'copy',
+      });
+      entries.push({
+        kind: '元数据',
+        title: trackState.format?.tags?.title || `${Object.keys(tags).length} 个全局 tag`,
+        meta: `保留全局 metadata · ${Object.keys(tags).length} 个可审计 tag · map_metadata 0`,
+        flags: 'copy',
+      });
+    } else {
+      entries.push({
+        kind: '容器',
+        title: 'Chapters / 全局 metadata',
+        meta: '执行时从源容器读取并保留',
+        flags: 'copy',
+      });
+    }
+  }
+
   if (trackState) {
     selectedTracks('audio').forEach((track, index) => {
       entries.push({
@@ -563,7 +615,7 @@ function buildMuxPlan() {
       kind: `外部音频 ${index + 1}`,
       title: track.title || track.file.name,
       meta: `${normalizeTrackLanguage(track.language)} · ${track.file.name} · stream copy`,
-      flags: dispositionValue(track.default, false),
+      flags: dispositionValue(track.default, false, track),
     });
   });
 
@@ -581,7 +633,7 @@ function buildMuxPlan() {
       kind: `原字幕 ${index + 1}`,
       title: track.title || `Subtitle #${track.index}`,
       meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
-      flags: dispositionValue(track.default, track.forced),
+      flags: dispositionValue(track.default, track.forced, track),
     });
   });
 
@@ -615,6 +667,26 @@ function buildMuxPlan() {
 
   if (trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
     warnings.push('扫描后没有选择原音频，也没有外部音频；输出将没有音频。');
+  }
+
+  if (trackState) {
+    const selectedAttachments = selectedOriginalAttachments();
+    const duplicateNames = attachmentNameConflicts(selectedAttachments);
+    if (duplicateNames.length) {
+      warnings.push(`原附件存在同名输出：${duplicateNames.join('、')}；建议修改附件文件名。`);
+    }
+
+    const reserved = new Set(
+      selectedAttachments
+        .map((item) => String(item.filename || '').trim().toLocaleLowerCase('en-US'))
+        .filter(Boolean)
+    );
+    const collisions = attachedFonts
+      .map((file) => file.name)
+      .filter((name) => reserved.has(String(name).toLocaleLowerCase('en-US')));
+    if (collisions.length) {
+      warnings.push(`新字体与原附件同名：${collisions.join('、')}；封装时会自动重命名新字体附件。`);
+    }
   }
 
   return { entries, warnings };
@@ -717,27 +789,54 @@ function renderAttachmentList() {
   }
 
   attachmentList.innerHTML = trackState.attachments.map((item) => `
-    <label class="attachment-item">
-      <span>
-        <strong>${escapeHtml(item.filename || `Attachment #${item.index}`)}</strong>
-        <span class="attachment-meta">${escapeHtml(item.mimetype || item.stream.codec_name || 'attachment')} · source #${item.index}</span>
-      </span>
-      <span class="attachment-select">
-        <input type="checkbox" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''}>
+    <div class="attachment-item">
+      <div class="attachment-main">
+        <strong>${escapeHtml(item.filename || item.originalFilename || `Attachment #${item.index}`)}</strong>
+        <span class="attachment-meta">source #${item.index} · ${escapeHtml(item.stream.codec_name || 'attachment')}</span>
+        <div class="attachment-fields">
+          <label>文件名
+            <input type="text" data-attachment-field="filename" data-attachment-index="${item.index}" value="${escapeHtml(item.filename)}" maxlength="240" ${item.include ? '' : 'disabled'}>
+          </label>
+          <label>MIME
+            <input type="text" data-attachment-field="mimetype" data-attachment-index="${item.index}" value="${escapeHtml(item.mimetype)}" maxlength="120" ${item.include ? '' : 'disabled'}>
+          </label>
+        </div>
+      </div>
+      <label class="attachment-select">
+        <input type="checkbox" data-attachment-action="include" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''}>
         保留
-      </span>
-    </label>
+      </label>
+    </div>
   `).join('');
 }
 
-attachmentList.addEventListener('change', (event) => {
+attachmentList.addEventListener('input', (event) => {
   if (!trackState) return;
-  const input = event.target.closest('input[data-attachment-index]');
+  const input = event.target.closest('input[data-attachment-field]');
   if (!input) return;
   const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
   if (!item) return;
-  item.include = input.checked;
-  preserveAttachments.checked = trackState.attachments.length > 0 && trackState.attachments.every((entry) => entry.include);
+  item[input.dataset.attachmentField] = input.value;
+  renderMuxPlan();
+});
+
+attachmentList.addEventListener('change', (event) => {
+  if (!trackState) return;
+  const includeInput = event.target.closest('input[data-attachment-action="include"]');
+  const fieldInput = event.target.closest('input[data-attachment-field]');
+  const target = includeInput || fieldInput;
+  if (!target) return;
+
+  const item = trackState.attachments.find((entry) => entry.index === Number(target.dataset.attachmentIndex));
+  if (!item) return;
+
+  if (includeInput) {
+    item.include = includeInput.checked;
+    preserveAttachments.checked = trackState.attachments.length > 0 && trackState.attachments.every((entry) => entry.include);
+    renderAttachmentList();
+  } else {
+    item[fieldInput.dataset.attachmentField] = fieldInput.value;
+  }
   renderMuxPlan();
 });
 
@@ -849,6 +948,8 @@ scanTracksBtn.addEventListener('click', async () => {
         stream,
         filename: stream.tags?.filename || '',
         mimetype: stream.tags?.mimetype || '',
+        originalFilename: stream.tags?.filename || '',
+        originalMimetype: stream.tags?.mimetype || '',
         include: false,
       }));
 
@@ -856,6 +957,8 @@ scanTracksBtn.addEventListener('click', async () => {
       fileKey: fileKey(video),
       tracks,
       attachments,
+      chapters: probe.chapters,
+      format: probe.format,
       attachmentCount: probe.attachmentCount,
     };
 
@@ -1073,7 +1176,10 @@ muxBtn.addEventListener('click', async () => {
     bar.style.width = '10%';
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
-    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique);
+    const initialReservedAttachmentNames = scanned
+      ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
+      : [];
+    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames);
     const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
       const faces = await readFontDescriptors(item.file);
       return faces.map((descriptor, faceIndex) => ({
@@ -1184,6 +1290,19 @@ muxBtn.addEventListener('click', async () => {
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
     const originalAttachments = scanned ? selectedOriginalAttachments() : [];
 
+    const reservedAttachmentNames = scanned
+      ? originalAttachments.map((item) => item.filename).filter(Boolean)
+      : (preserveAllOriginalAttachments
+          ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+          : []);
+    const renamedFontItems = assignUniqueAttachmentNames(uniqueFontItems, reservedAttachmentNames);
+    renamedFontItems.forEach((named, index) => {
+      if (uniqueFontItems[index].attachmentName !== named.attachmentName) {
+        logEl.textContent += `INFO: 新字体附件与原附件重名，“${uniqueFontItems[index].attachmentName}”自动改为“${named.attachmentName}”。\n`;
+      }
+      uniqueFontItems[index].attachmentName = named.attachmentName;
+    });
+
     const runtimeExternalAudio = [];
     for (let index = 0; index < externalAudioTracks.length; index += 1) {
       const probeOutput = `${prefix}-audio-${index}-probe.json`;
@@ -1275,11 +1394,24 @@ muxBtn.addEventListener('click', async () => {
       })),
     ];
 
-    const expectedOriginalAttachmentNames = scanned
-      ? originalAttachments.map((item) => item.filename).filter(Boolean)
+    const expectedOriginalAttachments = scanned
+      ? originalAttachments.map((item) => ({
+          filename: item.filename || '',
+          mimetype: item.mimetype || '',
+        }))
       : (preserveAllOriginalAttachments
-          ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+          ? sourceAttachments.map((stream) => ({
+              filename: String(stream.tags?.filename || ''),
+              mimetype: String(stream.tags?.mimetype || ''),
+            }))
           : []);
+    const expectedOriginalAttachmentNames = expectedOriginalAttachments
+      .map((item) => item.filename)
+      .filter(Boolean);
+    const expectedFontAttachments = attachments.map((item) => ({
+      filename: item.attachmentName,
+      mimetype: mimeForFont(item.file),
+    }));
 
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
@@ -1308,11 +1440,9 @@ muxBtn.addEventListener('click', async () => {
       ],
       chapterCount: inputProbe.chapters.length,
       formatTitle: inputProbe.format?.tags?.title || '',
-      attachmentCount:
-        (scanned
-          ? originalAttachments.length
-          : (preserveAllOriginalAttachments ? originalAttachmentCount : 0))
-        + attachments.length,
+      formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
+      attachmentCount: expectedOriginalAttachments.length + expectedFontAttachments.length,
+      attachments: [...expectedOriginalAttachments, ...expectedFontAttachments],
       attachmentFilenames: expectedOriginalAttachmentNames,
       newFontFilenames: attachments.map((item) => item.attachmentName),
     };
@@ -1365,16 +1495,25 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.5.0',
+      appVersion: '0.6.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
         format: inputProbe.format?.format_name || '',
         formatTitle: inputProbe.format?.tags?.title || '',
+        formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
         videoCodecs: sourceVideos.map((stream) => stream.codec_name || 'unknown'),
         audioCodecs: sourceAudios.map((stream) => stream.codec_name || 'unknown'),
         chapterCount: inputProbe.chapters.length,
+        chapters: inputProbe.chapters.map((chapter) => ({
+          id: chapter.id,
+          startTime: chapter.start_time,
+          endTime: chapter.end_time,
+          title: chapter.tags?.title || '',
+          language: chapter.tags?.language || '',
+        })),
         attachmentCount: originalAttachmentCount,
+        selectedOriginalAttachments: expectedOriginalAttachments,
       },
       subtitle: {
         tracks: runtimeSubtitles.map((track) => ({
