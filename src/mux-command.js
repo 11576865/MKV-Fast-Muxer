@@ -20,6 +20,7 @@ export function buildMuxCommand({
   originalSubtitleTracks = [],
   originalAttachments = [],
   preserveAllOriginalAttachments = false,
+  originalAttachmentCount = 0,
   fontAttachments = [],
 }) {
   const args = ['-i', mainInputPath];
@@ -101,12 +102,12 @@ export function buildMuxCommand({
     );
   });
 
-  const originalAttachmentCount = preserveAllOriginalAttachments
-    ? Number(fontAttachments.originalAttachmentCount || 0)
+  const mappedOriginalAttachmentCount = preserveAllOriginalAttachments
+    ? Number(originalAttachmentCount || 0)
     : originalAttachments.length;
 
   fontAttachments.forEach((item, index) => {
-    const attachmentIndex = originalAttachmentCount + index;
+    const attachmentIndex = mappedOriginalAttachmentCount + index;
     args.push(
       '-attach', item.path,
       `-metadata:s:t:${attachmentIndex}`, `mimetype=${item.mimeType}`,
