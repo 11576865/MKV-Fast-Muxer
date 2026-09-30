@@ -3897,3 +3897,184 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .batch-head { display: grid; }
   .batch-status-chip { justify-self: start; }
 }
+
+
+/* 1.2.3 spacing density only ----------------------------------------------------
+   Keep the 1.2.2 visual system intact; reduce only whitespace, gaps and panel
+   padding so the workbench reads as a tighter desktop tool. */
+.topbar {
+  min-height: 82px;
+}
+
+.workspace {
+  padding-top: clamp(16px, 1.5vw, 26px);
+  padding-bottom: 44px;
+}
+
+.stage-head,
+.column-head,
+.output-hub-head {
+  margin-bottom: 12px;
+}
+
+.stage-title {
+  gap: 10px;
+}
+
+.source-strip {
+  gap: 10px;
+}
+
+.source-strip .source-item {
+  min-height: 108px;
+  padding: 16px 17px;
+}
+
+.editor-column {
+  padding: clamp(16px, 1.4vw, 24px);
+}
+
+.preview-head {
+  padding: clamp(12px, 1vw, 18px);
+}
+
+.subtitle-preview-card .preview-tools {
+  padding: 11px 14px 3px;
+}
+
+.preview-footer {
+  padding: 9px 14px;
+}
+
+.editor-grid {
+  gap: 12px;
+}
+
+.editor-card .card-head {
+  padding: 14px 16px;
+}
+
+.config-card > :not(.card-head),
+.source-track-card > :not(.card-head) {
+  margin-left: 14px;
+  margin-right: 14px;
+}
+
+.config-card .track-stack {
+  gap: 14px;
+}
+
+.track-stack {
+  margin-top: 10px;
+}
+
+.font-editor {
+  padding: 14px 0;
+}
+
+.editor-grid .source-track-card {
+  padding-bottom: 14px;
+}
+
+.output-hub {
+  padding: clamp(15px, 1.1vw, 20px);
+}
+
+.output-hub-head {
+  padding-bottom: 14px;
+}
+
+.output-summary {
+  padding-top: 6px;
+  padding-bottom: 8px;
+}
+
+.output-summary .manifest > div {
+  padding: 8px 2px;
+}
+
+.side-panel-head {
+  margin-top: 10px;
+}
+
+.execution-panel {
+  margin-top: 12px;
+  padding-top: 16px;
+}
+
+.batch-workspace {
+  padding: 14px 16px;
+}
+
+.batch-drawer {
+  margin-top: 10px;
+}
+
+.batch-layout {
+  margin-top: 14px;
+  gap: 12px;
+}
+
+.batch-settings {
+  gap: 8px;
+}
+
+.batch-settings .attachment-toggle,
+.batch-settings .compact-control,
+.batch-settings .batch-output-tool {
+  padding: 10px;
+}
+
+@media (min-width: 1360px) {
+  .workspace {
+    gap: 14px;
+  }
+
+  .editor-column {
+    column-gap: 14px;
+    row-gap: 12px;
+  }
+}
+
+@media (max-width: 1359px) {
+  .workbench-grid {
+    gap: 14px;
+  }
+
+  .output-summary .manifest {
+    gap: 0 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    min-height: 70px;
+  }
+
+  .workspace {
+    padding-top: 14px;
+    padding-bottom: 36px;
+  }
+
+  .source-strip .source-item {
+    min-height: 92px;
+    padding: 12px 14px;
+  }
+
+  .source-strip .source-secondary {
+    min-height: 76px;
+  }
+
+  .editor-column,
+  .output-hub {
+    padding: 14px 12px;
+  }
+
+  .subtitle-preview-card .preview-tools {
+    padding: 10px;
+  }
+
+  .batch-workspace {
+    padding: 14px 12px;
+  }
+}
