@@ -2760,3 +2760,85 @@ pre {
     padding: 6px 10px;
   }
 }
+
+
+/* 1.0.5 visual density polish ------------------------------------------------ */
+.preview-image-trigger[src] {
+  cursor: zoom-in;
+}
+
+.preview-image-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.preview-dialog {
+  width: min(94vw, 1500px);
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-0);
+  color: var(--text);
+}
+
+.preview-dialog::backdrop {
+  background: rgba(2, 5, 10, .84);
+  backdrop-filter: blur(3px);
+}
+
+.preview-dialog-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: 92vh;
+}
+
+.preview-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-dialog-body {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: #030609;
+}
+
+.preview-dialog-body img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(92vh - 62px);
+  object-fit: contain;
+}
+
+/* Long names should provide identity without dictating panel height. */
+.stage-input .filename {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 900px) {
+  .manifest-output strong,
+  .output-section .plan-main strong,
+  .output-section .plan-main small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .manifest-output strong {
+    max-width: 100%;
+  }
+}
