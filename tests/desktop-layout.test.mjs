@@ -49,3 +49,21 @@ test('narrow layouts stack controls and batch is a secondary expandable workspac
   assert.match(html, /id="batchOutputDirBtn"/);
   assert.match(html, /<details class="diagnostics-panel">/);
 });
+
+
+test('desktop refinement removes explanatory noise and prioritizes action without changing mobile markup', async () => {
+  const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
+
+  assert.match(css, /Desktop refinement: annotated 1920px pass/);
+  assert.match(css, /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/);
+  assert.match(css, /\.stage-input \.stage-title p,[\s\S]*\.stage-input \.workload-notice \{[\s\S]*display: none;/);
+  assert.match(css, /\.subtitle-preview-card \.preview-head \{[\s\S]*display: none;/);
+  assert.match(css, /\.object-editor-nav \{[\s\S]*display: none;/);
+  assert.match(css, /\.execution-panel \.button-primary \{[\s\S]*min-height: 48px;[\s\S]*linear-gradient/);
+  assert.match(css, /\.batch-layout \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(400px, \.65fr\)/);
+
+  // Controls stay in the DOM for narrower layouts and scripted state preservation.
+  assert.match(html, /class="object-editor-nav"/);
+  assert.match(html, /id="previewRefreshBtn"/);
+  assert.match(html, /id="batchStartBtn"/);
+});
