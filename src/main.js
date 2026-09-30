@@ -612,7 +612,6 @@ async function buildPreviewAss(track, fontFiles) {
 }
 
 async function refreshSubtitlePreview() {
-  const generation = ++previewGeneration;
   const video = videoInput.files[0];
   const subs = selectedSubtitleFiles();
   const selectedIndex = Number(previewSubtitleSelect?.value || 0);
@@ -620,7 +619,7 @@ async function refreshSubtitlePreview() {
   const fontFiles = selectedFonts();
 
   await destroySubtitlePreview();
-  if (generation !== previewGeneration - 1 && previewRenderer) return;
+  const generation = previewGeneration;
 
   syncPreviewControls();
 
