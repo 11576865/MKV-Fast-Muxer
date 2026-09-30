@@ -452,11 +452,6 @@ function selectedTracks(type) {
     .sort((a, b) => a.order - b.order);
 }
 
-function normalizeTrackLanguage(value) {
-  const trimmed = String(value || '').trim().toLowerCase();
-  return trimmed || 'und';
-}
-
 function moveTrack(track, delta) {
   if (!trackState) return;
   const peers = trackState.tracks
@@ -472,14 +467,21 @@ function moveTrack(track, delta) {
   other.order = temp;
 }
 
+function selectedOriginalAttachments() {
+  return trackState?.attachments?.filter((item) => item.include) || [];
+}
+
 function defaultConflictWarnings() {
   const warnings = [];
-  const audioDefaults = selectedTracks('audio').filter((track) => track.default);
-  const originalSubtitleDefaults = selectedTracks('subtitle').filter((track) => track.default);
-  const subtitleDefaultCount = originalSubtitleDefaults.length + (newSubDefault.checked ? 1 : 0);
+  const audioDefaultCount =
+    selectedTracks('audio').filter((track) => track.default).length +
+    externalAudioState.filter((track) => track.default).length;
+  const subtitleDefaultCount =
+    selectedTracks('subtitle').filter((track) => track.default).length +
+    newSubtitleState.filter((track) => track.default).length;
 
-  if (audioDefaults.length > 1) {
-    warnings.push(`存在 ${audioDefaults.length} 条 Default 音频轨；播放器行为可能不一致。`);
+  if (audioDefaultCount > 1) {
+    warnings.push(`存在 ${audioDefaultCount} 条 Default 音频轨；播放器行为可能不一致。`);
   }
   if (subtitleDefaultCount > 1) {
     warnings.push(`存在 ${subtitleDefaultCount} 条 Default 字幕轨；建议只保留一个 Default。`);
@@ -522,31 +524,47 @@ function buildMuxPlan() {
     });
   }
 
-  if (subInput.files[0]) {
+  externalAudioState.forEach((track, index) => {
     entries.push({
-      kind: '字幕 1',
-      title: newSubTitle.value.trim() || languageTitles[subtitleLanguage.value] || 'ASS 字幕',
-      meta: `ASS · ${normalizeTrackLanguage(subtitleLanguage.value)} · 新增`,
-      flags: dispositionValue(newSubDefault.checked, newSubForced.checked),
+      kind: `外部音频 ${index + 1}`,
+      title: track.title || track.file.name,
+      meta: `${normalizeTrackLanguage(track.language)} · ${track.file.name} · stream copy`,
+      flags: dispositionValue(track.default, false),
     });
-  }
+  });
+
+  newSubtitleState.forEach((track, index) => {
+    entries.push({
+      kind: `字幕 ${index + 1}`,
+      title: track.title || track.file.name,
+      meta: `ASS · ${normalizeTrackLanguage(track.language)} · 新增`,
+      flags: dispositionValue(track.default, track.forced),
+    });
+  });
 
   selectedTracks('subtitle').forEach((track, index) => {
     entries.push({
-      kind: `字幕 ${index + 2}`,
+      kind: `原字幕 ${index + 1}`,
       title: track.title || `Subtitle #${track.index}`,
       meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
       flags: dispositionValue(track.default, track.forced),
     });
   });
 
-  if (preserveAttachments.checked) {
+  if (trackState) {
+    selectedOriginalAttachments().forEach((item) => {
+      entries.push({
+        kind: '附件',
+        title: item.filename || `Attachment #${item.index}`,
+        meta: `${item.mimetype || item.stream.codec_name || 'attachment'} · source #${item.index}`,
+        flags: '',
+      });
+    });
+  } else if (preserveAttachments.checked) {
     entries.push({
       kind: '附件',
-      title: trackState
-        ? `${trackState.attachmentCount} 个原 MKV 附件`
-        : '原 MKV 附件',
-      meta: trackState ? '按源顺序保留' : '未扫描 · 数量将在封装时探测',
+      title: '全部原 MKV 附件',
+      meta: '未扫描 · 封装时全部保留',
       flags: '',
     });
   }
@@ -561,12 +579,8 @@ function buildMuxPlan() {
     });
   });
 
-  if (!entries.length) {
-    return { entries, warnings };
-  }
-
-  if (trackState && selectedTracks('audio').length === 0) {
-    warnings.push('扫描后没有选择任何音频轨；输出将没有音频。');
+  if (trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
+    warnings.push('扫描后没有选择原音频，也没有外部音频；输出将没有音频。');
   }
 
   return { entries, warnings };
@@ -575,8 +589,8 @@ function buildMuxPlan() {
 function planKindClass(kind) {
   const label = String(kind || '');
   if (label.startsWith('视频')) return 'plan-video';
-  if (label.startsWith('音频')) return 'plan-audio';
-  if (label.startsWith('字幕')) return 'plan-subtitle';
+  if (label.includes('音频')) return 'plan-audio';
+  if (label.includes('字幕')) return 'plan-subtitle';
   if (label.startsWith('字体')) return 'plan-font';
   if (label.startsWith('附件')) return 'plan-attachment';
   return '';
@@ -876,13 +890,6 @@ async function analyzePreservedFonts(analysis, uploadedFonts) {
   }
 
   return { missingFamilies, faceFallbacks, missingGlyphGroups };
-}
-
-function dispositionValue(isDefault, isForced = false) {
-  const values = [];
-  if (isDefault) values.push('default');
-  if (isForced) values.push('forced');
-  return values.length ? values.join('+') : '0';
 }
 
 function getScannedSelection(video) {
