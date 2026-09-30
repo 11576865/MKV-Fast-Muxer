@@ -93,11 +93,6 @@ Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: Marked=0,0:00:00.20,0:00:01.70,Default,,0,0,0,,SSA subtitle
 SSA
 
-cp "$ROOT/base.mp4" "$ROOT/Batch S01E01.mp4"
-cp "$ROOT/base.mp4" "$ROOT/Batch S01E02.mp4"
-cp "$ROOT/zh.ass" "$ROOT/Batch S01E01.zh-Hans.ass"
-cp "$ROOT/sample.srt" "$ROOT/Batch S01E02.en.srt"
-
 cat > "$ROOT/en.ass" <<'ASS'
 [Script Info]
 ScriptType: v4.00+
@@ -149,6 +144,11 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:v mpeg4 -q:v 5 -pix_fmt yuv420p \
   -c:a aac -b:a 96k \
   "$ROOT/base.mp4"
+
+cp "$ROOT/base.mp4" "$ROOT/Batch S01E01.mp4"
+cp "$ROOT/base.mp4" "$ROOT/Batch S01E02.mp4"
+cp "$ROOT/zh.ass" "$ROOT/Batch S01E01.zh-Hans.ass"
+cp "$ROOT/sample.srt" "$ROOT/Batch S01E02.en.srt"
 
 ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=2" \
