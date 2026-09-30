@@ -213,6 +213,7 @@ async function scenarioOriginalTracks(browser) {
     await secondAudio.locator('input[data-track-action="default"]').check();
 
     const originalSubtitle = subtitleRows.nth(0);
+    await originalSubtitle.locator('input[data-track-action="include"]').check();
     await originalSubtitle.locator('input[data-track-field="language"]').fill('eng');
     await originalSubtitle.locator('input[data-track-field="title"]').fill('Original Signs Edited');
     await originalSubtitle.locator('input[data-track-action="forced"]').check();
