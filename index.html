@@ -90,11 +90,11 @@
             </label>
 
             <label class="source-item source-font">
-              <input id="fontInput" type="file" multiple accept=".ttf,.otf,font/ttf,font/otf" />
+              <input id="fontInput" type="file" multiple accept=".ttf,.otf,.ttc,.otc,font/ttf,font/otf,font/collection" />
               <span class="source-type">FONT</span>
               <span class="source-body">
                 <strong>字体附件</strong>
-                <small>TTF / OTF · 支持多选</small>
+                <small>TTF / OTF / TTC / OTC · 支持多选</small>
                 <span id="fontName" class="filename">未选择</span>
               </span>
               <span class="source-action">选择</span>
@@ -248,6 +248,25 @@
         </div>
       </main>
     </div>
+
+    <datalist id="languageSuggestions">
+      <option value="und">未指定</option>
+      <option value="zho">中文</option>
+      <option value="zh-Hans">简体中文（BCP 47）</option>
+      <option value="zh-Hant">繁体中文（BCP 47）</option>
+      <option value="eng">English</option>
+      <option value="jpn">日本語</option>
+      <option value="kor">한국어</option>
+      <option value="rus">Русский</option>
+      <option value="deu">Deutsch</option>
+      <option value="fra">Français</option>
+      <option value="spa">Español</option>
+      <option value="por">Português</option>
+      <option value="ita">Italiano</option>
+      <option value="ara">العربية</option>
+      <option value="hin">हिन्दी</option>
+      <option value="mul">多语言</option>
+    </datalist>
 
     <script type="module" src="/src/main.js"></script>
   </body>
