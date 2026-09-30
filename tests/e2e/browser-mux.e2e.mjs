@@ -31,7 +31,9 @@ async function waitForStatus(page, prefix, timeout = 180_000) {
     await page.waitForFunction(
       (expected) => {
         const value = document.querySelector('#status')?.textContent || '';
-        if (value.startsWith('失败：')) throw new Error(value);
+        if (/^失败：|没有生成可保存的成品|当前任务没有完成|封装没有完成|轨道扫描失败|无法可靠读取|没有可用音频轨|字体文件无法被可靠解析/.test(value)) {
+          throw new Error(value);
+        }
         return value.startsWith(expected);
       },
       prefix,
@@ -122,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '0.8.1');
+    assert.equal(report.application.version, '0.8.2');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -420,11 +422,12 @@ async function scenarioInvalidAudioRecovery(browser) {
     await page.locator('#muxBtn').click();
     await page.waitForFunction(() => {
       const value = document.querySelector('#status')?.textContent || '';
-      return value.startsWith('失败：');
+      return value.includes('外部音频') && (value.includes('换用') || value.includes('移除'));
     }, null, { timeout: 180_000 });
 
     const failedStatus = await page.locator('#status').textContent();
-    assert.match(failedStatus, /外部音频|ffprobe|音频/);
+    assert.match(failedStatus, /外部音频/);
+    assert.match(failedStatus, /换用|移除/);
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
 
@@ -531,7 +534,8 @@ async function scenarioBrokenSubtitle(browser) {
 
     await page.waitForFunction(() => {
       const value = document.querySelector('#status')?.textContent || '';
-      return value.startsWith('失败：') || value.startsWith('完成。');
+      return /^失败：|没有生成可保存的成品|当前任务没有完成|封装没有完成|字体文件无法被可靠解析/.test(value) ||
+        value.startsWith('完成。');
     }, null, { timeout: 180_000 });
 
     const firstStatus = await page.locator('#status').textContent();
@@ -571,9 +575,13 @@ async function scenarioBrokenFonts(browser) {
 
       await page.waitForFunction(() => {
         const value = document.querySelector('#status')?.textContent || '';
-        return value.startsWith('失败：');
+        return value.includes('字体文件无法被可靠解析') &&
+          value.includes('重新选择有效的 TTF / OTF / TTC / OTC');
       }, null, { timeout: 180_000 });
 
+      const failedStatus = await page.locator('#status').textContent();
+      assert.match(failedStatus, /字体文件无法被可靠解析/);
+      assert.match(failedStatus, /重新选择有效的 TTF \/ OTF \/ TTC \/ OTC/);
       assert.equal(await page.locator('#downloadLink').isVisible(), false);
       assert.equal(await page.locator('#reportLink').isVisible(), false);
       await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });

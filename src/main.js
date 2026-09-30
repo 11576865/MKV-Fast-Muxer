@@ -7,6 +7,7 @@ import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
+import { formatOperationError } from './error-feedback.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -1156,7 +1157,10 @@ scanTracksBtn.addEventListener('click', async () => {
       status.textContent = '轨道扫描已取消。';
     } else {
       logEl.textContent += `ERROR: ${err?.stack || err}\n`;
-      status.textContent = `轨道扫描失败：${err?.message || err}`;
+      status.textContent = formatOperationError(err, {
+        phase: 'scan',
+        logText: logEl.textContent,
+      });
     }
     bar.style.width = '0%';
   } finally {
@@ -1679,7 +1683,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.8.1',
+      appVersion: '0.8.2',
       input: {
         name: video.name,
         sizeBytes: video.size,
@@ -1802,7 +1806,10 @@ muxBtn.addEventListener('click', async () => {
       bar.style.width = '0%';
     } else {
       logEl.textContent += `ERROR: ${err?.stack || err}\n`;
-      status.textContent = `失败：${err?.message || err}`;
+      status.textContent = formatOperationError(err, {
+        phase: 'mux',
+        logText: logEl.textContent,
+      });
       bar.style.width = '0%';
     }
   } finally {
