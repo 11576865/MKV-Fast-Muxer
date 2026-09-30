@@ -16,7 +16,7 @@ test('visual ASS preview is present and explicit light theme is removed', async 
   assert.match(html, /id="previewImage"/);
   assert.match(html, /id="previewSubtitleSelect"/);
   assert.match(html, /id="previewRefreshBtn"/);
-  assert.match(html, /ASS PREVIEW FRAME/);
+  assert.match(html, /SUBTITLE PREVIEW/);
   assert.doesNotMatch(html, /data-theme-choice="light"/);
   assert.doesNotMatch(html, />白天</);
 
@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.2.0');
+  assert.equal(pkg.version, '1.2.1');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -119,7 +119,7 @@ test('visual polish adds preview zoom and clamps long desktop names', async () =
     text('src/main.js'),
   ]);
 
-  assert.match(html, /ASS PREVIEW FRAME/);
+  assert.match(html, /SUBTITLE PREVIEW/);
   assert.doesNotMatch(html, /PREVIEW FRAME · LIBASS/);
   assert.match(html, /id="previewDialog"/);
   assert.match(html, /id="previewDialogImage"/);
