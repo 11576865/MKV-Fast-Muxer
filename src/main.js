@@ -850,20 +850,49 @@ function planKindClass(kind) {
   return '';
 }
 
+function planGroupForKind(kind) {
+  const label = String(kind || '');
+  if (['容器', '章节', '元数据'].some((prefix) => label.startsWith(prefix))) return '容器';
+  if (label.startsWith('视频')) return '视频';
+  if (label.includes('音频')) return '音频';
+  if (label.includes('字幕')) return '字幕';
+  if (label.startsWith('附件') || label.startsWith('字体')) return '附件';
+  return '其他';
+}
+
+function groupedPlanEntries(entries) {
+  const order = ['容器', '视频', '音频', '字幕', '附件', '其他'];
+  const groups = new Map(order.map((name) => [name, []]));
+  entries.forEach((entry) => groups.get(planGroupForKind(entry.kind))?.push(entry));
+  return order
+    .map((name) => ({ name, entries: groups.get(name) || [] }))
+    .filter((group) => group.entries.length);
+}
+
 function renderMuxPlan() {
   if (!muxPlan || !planWarnings) return;
   const { entries, warnings } = buildMuxPlan();
+  const groups = groupedPlanEntries(entries);
 
-  muxPlan.innerHTML = entries.length
-    ? entries.map((entry) => `
-      <div class="plan-row ${planKindClass(entry.kind)}">
-        <span class="plan-kind">${escapeHtml(entry.kind)}</span>
-        <span class="plan-main">
-          <strong>${escapeHtml(entry.title)}</strong>
-          <small>${escapeHtml(entry.meta)}</small>
-        </span>
-        <span class="plan-flags">${escapeHtml(entry.flags === '0' ? '—' : entry.flags)}</span>
-      </div>`).join('')
+  muxPlan.innerHTML = groups.length
+    ? groups.map((group) => `
+      <section class="plan-group" data-plan-group="${escapeHtml(group.name)}">
+        <div class="plan-group-head">
+          <strong>${escapeHtml(group.name)}</strong>
+          <span>${group.entries.length}</span>
+        </div>
+        <div class="plan-group-body">
+          ${group.entries.map((entry) => `
+            <div class="plan-row ${planKindClass(entry.kind)}">
+              <span class="plan-kind">${escapeHtml(entry.kind)}</span>
+              <span class="plan-main">
+                <strong>${escapeHtml(entry.title)}</strong>
+                <small>${escapeHtml(entry.meta)}</small>
+              </span>
+              <span class="plan-flags">${escapeHtml(entry.flags === '0' ? '—' : entry.flags)}</span>
+            </div>`).join('')}
+        </div>
+      </section>`).join('')
     : '<div class="track-empty">选择文件后可预览最终 MKV 结构。</div>';
 
   if (warnings.length) {
