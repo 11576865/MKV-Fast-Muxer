@@ -2,16 +2,16 @@
 
 一个在浏览器本地运行的 **MKV 快速封装工作台**。
 
-它面向“已有视频 / 原 MKV + 多条 ASS / SSA / SRT / WebVTT + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
+它面向“已有视频 / 原 MKV + ASS / SSA / SRT / WebVTT / PGS / VobSub + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.1.0
+**Package version:** 1.2.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
 ## About
 
-MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a visual-first soft-mux workflow. It previews selected ASS subtitles over local video with JASSUB/libass, keeps video and audio on Stream Copy, attaches subtitle fonts, manages MKV tracks and metadata, previews the final mux structure, and audits the generated container with ffprobe. Media stays on the user device.
+MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a visual-first soft-mux workflow. It previews ASS/SSA with FFmpeg/libass, supports text and bitmap subtitle tracks, keeps media on Stream Copy where possible, manages source-MKV tracks/attachments, batches folder-based jobs, and audits the generated container with ffprobe. Media stays on the user device.
 
 ## 项目定位
 
@@ -95,11 +95,11 @@ MP4 / MKV / WebM / MOV / M4V
 MKV
 ```
 
-### 2. 本地 ASS 可视化预览
+### 2. 本地 ASS / SSA 可视化预览
 
 1.0.0 起，主工作流加入视频 + ASS 预览。
 
-预览使用 **JASSUB / libass** 在浏览器本地渲染所选 ASS，并可直接使用用户上传的 TTF / OTF / TTC / OTC 字体。多条 ASS 可在预览区切换；“强制统一字体”模式也会同步反映到预览。
+预览使用 ffmpeg.wasm 内置 **libass** 在浏览器本地渲染所选 ASS / SSA，并可直接使用用户上传的 TTF / OTF / TTC / OTC 字体。支持输入任意时间点（秒数或 `HH:MM:SS.mmm`），也可以按“上一条 / 下一条”在 Dialogue 之间跳转；“强制统一字体”模式会同步反映到预览。
 
 预览不会：
 
@@ -147,9 +147,11 @@ MKV
 - ASS：完整高级路径（字体依赖、glyph coverage、libass 预览、可选强制字体）；
 - SSA：按 ASS-like 路径处理，可预览并保留样式；
 - SRT：直接作为 Matroska 文本字幕软封装；
-- WebVTT：输入支持；由于当前 ffmpeg.wasm / Matroska 写入兼容性边界，仅将该字幕流规范化为 SubRip，视频与音频仍保持 stream copy。
+- WebVTT：输入支持；由于当前 ffmpeg.wasm / Matroska 写入兼容性边界，仅将该字幕流规范化为 SubRip，视频与音频仍保持 stream copy；
+- PGS / SUP：作为 Matroska 图形字幕直接 stream copy；
+- VobSub：选择同名 `.idx + .sub` 文件对，作为一条 DVD bitmap subtitle 轨写入 MKV。
 
-字幕文件统一支持 UTF-8 / UTF-16 文本解码策略。
+ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / VobSub 按二进制字幕流处理，不经过文本解码。
 
 ### 5. 可选字体子集化
 
@@ -157,7 +159,9 @@ MKV
 
 ### 6. 批处理
 
-批量模式支持一次选择多段视频和字幕，按同名、语言后缀以及常见 SxxExx / EPxx 形式自动配对。任务按队列顺序逐项运行，共用既有 Stream Copy、字体、封装计划与 post-mux audit 路径；单项失败会记录并继续后续任务，可中途取消。每个成功任务分别提供 MKV 与审计报告保存入口。
+批量模式支持多选文件，也支持直接选择视频目录、字幕目录与字体目录；按同名、语言后缀以及常见 SxxExx / EPxx 形式自动配对。字幕文件名中的 `zh-Hans` / `chs` / `cht` / `en` / `ja` / `ko` 等常见后缀会自动填入 language 与默认 title。任务按队列顺序逐项运行，共用既有 Stream Copy 与 post-mux audit 路径；单项失败会记录并继续后续任务，可中途取消。
+
+批量字体子集化支持两种范围：每个任务独立 subset，或 **Group 模式**先汇总整个批次实际字幕字符，只生成一次 HarfBuzz 子集并复用。支持 File System Access API 的 Chromium 浏览器还可以选择输出目录，成功任务会直接把 MKV 与 JSON 报告写入该目录；不支持时保留逐项下载回退。
 
 ### 7. ASS 编码处理
 
@@ -242,7 +246,9 @@ MKV
 
 ## MKV 轨道管理
 
-当输入本身是 MKV 时，可以先执行 **扫描轨道**。
+输入本身是 MKV 时，默认启用 **“完整保留原容器结构，仅追加”**：保留全部原音频、原字幕、附件、Chapters、全局 metadata 与原 disposition，只追加新字幕 / 外部音频 / 新字体。这个模式不要求先扫描轨道。
+
+如果需要删轨、改 language/title、调整 Default/Forced 或附件，则点击 **扫描轨道**。开始扫描会自动切换到手动源轨控制模式，之后按逐项选择结果执行。
 
 扫描后可管理原：
 
@@ -294,10 +300,7 @@ MKV
 
 新加入的 ASS、外部音频与原容器轨道分开配置。
 
-如果没有扫描 MKV 轨道，则保持兼容行为：
-
-- 原音频默认保留；
-- 原字幕默认不保留。
+关闭“完整保留原容器结构，仅追加”且又没有扫描时，才使用旧兼容行为：原音频保留、原字幕不保留；原附件由兼容开关决定。
 
 ## 封装计划
 
@@ -472,7 +475,7 @@ npm run test:e2e
 - ASS 固定预览帧结构、WORKERFS 本地视频挂载与 FFmpeg/libass 渲染路径；
 - 仓库改名后的 Pages / canonical / sitemap / clone URL 一致性。
 
-Browser E2E 当前覆盖 22 个编号场景，包括：
+Browser E2E 当前覆盖 30+ 个编号场景，包括：
 
 - MP4 / MKV、多音轨、多 ASS、字体附件；
 - Chapter、全局 metadata 与原 MKV 附件保留；
@@ -485,7 +488,13 @@ Browser E2E 当前覆盖 22 个编号场景，包括：
 - video-only、无字幕 / 无附件 MKV；
 - 原音频排序、Unicode 文件名与长 title；
 - TTC collection、BCP 47、批量 metadata；
-- 10 次连续 mux 的状态隔离。
+- 10 次连续 mux 的状态隔离；
+- SRT / SSA / WebVTT 无字体封装；
+- HarfBuzz 字体子集；
+- 两任务批处理与失败隔离；
+- 文件名语言自动识别；
+- 原 MKV 完整保留并追加；
+- 批量 Group 字体子集。
 
 GitHub Actions 在 Pull Request 与 `main` push 上执行测试和构建；`main` 通过后部署 GitHub Pages。
 
