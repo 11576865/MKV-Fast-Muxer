@@ -72,6 +72,7 @@ PY
 cat > "$ROOT/chapters.ffmeta" <<'META'
 ;FFMETADATA1
 title=Fixture Container
+comment=Fixture global comment
 [CHAPTER]
 TIMEBASE=1/1000
 START=0
