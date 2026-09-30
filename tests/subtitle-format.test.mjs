@@ -78,6 +78,7 @@ test('infers common subtitle language suffixes and metadata', () => {
   assert.equal(inferLanguageFromFilename('Show.S01E01.en.srt'), 'eng');
   assert.equal(inferLanguageFromFilename('Show.S01E01.ja.ass'), 'jpn');
   assert.equal(inferLanguageFromFilename('Show.S01E01.unknown.ass'), 'und');
+  assert.equal(inferLanguageFromFilename('It.2017.srt'), 'und');
   assert.deepEqual(
     inferredSubtitleMetadata('Show.S01E01.en.srt', subtitleFormatInfo('x.srt')),
     { language: 'eng', title: 'English · SRT' },
