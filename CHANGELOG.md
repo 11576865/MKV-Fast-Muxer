@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2 — 2026-09-30
+
+### Fixed
+
+- 修复 1.0.1 固定预览帧仍依赖浏览器 `<video>` 解码与 seek，导致部分 MKV / HEVC / AV1 等输入无法生成预览的问题。
+- 预览改为与硬压工具同类的 FFmpeg 路径：通过 WORKERFS 挂载本地视频，精确提取源帧，再由 FFmpeg 内置 libass 渲染 ASS 与上传字体，输出 PNG。
+- 移除 JASSUB 运行时依赖与额外 worker / WASM 资源，减少预览初始化开销和重复字幕渲染栈。
+
+
 ## 1.0.1 — 2026-09-30
 
 ### Changed

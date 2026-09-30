@@ -2582,15 +2582,12 @@ pre {
   background: #05080d;
 }
 
-.preview-stage video {
+.preview-stage img {
   display: block;
   width: 100%;
   max-height: 58vh;
+  object-fit: contain;
   background: #000;
-}
-
-.preview-stage > canvas.JASSUB {
-  z-index: 2;
 }
 
 .preview-empty {
@@ -2682,7 +2679,7 @@ pre {
     min-height: 190px;
   }
 
-  .preview-stage video {
+  .preview-stage img {
     max-height: 52vh;
   }
 

@@ -13,43 +13,33 @@ test('visual ASS preview is present and explicit light theme is removed', async 
     text('src/main.js'),
   ]);
 
-  assert.match(html, /id="previewVideo"/);
+  assert.match(html, /id="previewImage"/);
   assert.match(html, /id="previewSubtitleSelect"/);
   assert.match(html, /id="previewRefreshBtn"/);
   assert.match(html, /PREVIEW FRAME · LIBASS/);
   assert.doesNotMatch(html, /data-theme-choice="light"/);
   assert.doesNotMatch(html, />白天</);
 
-  assert.match(main, /import JASSUB from 'jassub'/);
-  assert.match(main, /queryFonts:\s*false/);
-  assert.match(main, /new URL\('jassub\/', window\.location\.href\)/);
-  assert.match(main, /worker\/worker\.js/);
-  assert.match(main, /wasm\/jassub-worker\.wasm/);
+  assert.doesNotMatch(main, /JASSUB/);
+  assert.match(main, /FFFSType\.WORKERFS/);
+  assert.match(main, /-vf/);
+  assert.match(main, /ass=/);
 
   assert.match(css, /\.subtitle-preview-card/);
   assert.match(css, /\.editor-card \.new-track-row \{\s*grid-template-columns: minmax\(0, 1fr\)/);
 });
 
-test('JASSUB runtime assets are copied locally and dependency is pinned', async () => {
+test('preview uses the existing local FFmpeg runtime without a second subtitle renderer', async () => {
   const [packageJson, copyScript] = await Promise.all([
     text('package.json'),
     text('scripts/copy-core.mjs'),
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.1');
-  assert.equal(pkg.dependencies.jassub, '2.5.15');
-
-  assert.match(copyScript, /jassub\/dist/);
-  assert.match(copyScript, /worker\/worker\.js/);
-  assert.match(copyScript, /jassub-worker-modern\.wasm/);
-  assert.match(copyScript, /default\.woff2/);
-});
-
-
-test('Vite emits module workers for the JASSUB bundle', async () => {
-  const vite = await text('vite.config.js');
-  assert.match(vite, /worker:\s*\{[\s\S]*format:\s*['"]es['"]/);
+  assert.equal(pkg.version, '1.0.2');
+  assert.equal('jassub' in pkg.dependencies, false);
+  assert.doesNotMatch(copyScript, /jassub/i);
+  assert.match(copyScript, /ffmpeg-core\.wasm/);
 });
 
 
@@ -64,7 +54,8 @@ test('preview is explicitly on-demand rather than auto-started', async () => {
   assert.match(main, /previewRefreshBtn\?\.addEventListener\('click', refreshSubtitlePreview\)/);
   assert.doesNotMatch(main, /scheduleSubtitlePreview/);
   assert.match(main, /choosePreviewFrameTime/);
-  assert.match(main, /manualRender/);
+  assert.match(main, /FFFSType\.WORKERFS/);
+  assert.match(main, /preview-sub\.png/);
 });
 
 test('desktop output plan expands naturally instead of using nested scrolling', async () => {

@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.0.1
+**Package version:** 1.0.2
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -394,7 +394,7 @@ ffmpeg.wasm 需要把输入和处理中间数据放进浏览器可用内存，�
 - 次级的可展开诊断日志；
 - 明确的成品保存入口。
 
-手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。字幕预览改为按需生成固定预览帧：选择 ASS 后由工具自动定位到一条字幕出现的时间点，用户点击“生成预览帧”时才加载 JASSUB/libass 与上传字体。这样避免持续实时渲染拖慢页面；若浏览器本身无法直接播放某个 MKV 容器或 codec，最终 Stream Copy 封装仍可正常工作。
+手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。字幕预览采用按需固定预览帧：工具自动定位到一条 ASS Dialogue 的代表性时间点，用户点击“生成预览帧”后，由 ffmpeg.wasm 直接读取源视频、提取该帧，再通过内置 libass 与上传字体渲染成 PNG。这个流程不依赖浏览器 `<video>` 能否直接播放源 MKV / codec，因此与最终 Stream Copy 封装的兼容性边界更一致。
 
 ## 在线使用
 
@@ -429,7 +429,7 @@ http://127.0.0.1:5173/
 scripts/copy-core.mjs
 ```
 
-把 ffmpeg.wasm core / class worker，以及 JASSUB 的 worker、WASM 与 fallback font 复制到 `public/`，避免预览和封装运行时依赖外部 CDN。
+把 ffmpeg.wasm core 与 class worker 复制到 `public/`，避免预览和封装运行时依赖外部 CDN。
 
 ## 测试
 
@@ -448,7 +448,7 @@ npm run test:e2e
 - 工作负载提示；
 - favicon；
 - 宽屏、移动端与小平板响应式布局；
-- ASS 可视化预览结构、JASSUB 本地资源与 ES module worker 构建配置；
+- ASS 固定预览帧结构、WORKERFS 本地视频挂载与 FFmpeg/libass 渲染路径；
 - 仓库改名后的 Pages / canonical / sitemap / clone URL 一致性。
 
 Browser E2E 当前覆盖 22 个编号场景，包括：
@@ -498,7 +498,7 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 - AV1 容器级探测策略；
 - 任务互斥与取消；
 - 深色和宽屏工作台；
-- JASSUB / libass 视频字幕预览。
+- FFmpeg / libass 固定字幕预览帧。
 
 因此当前 v3 已不只是“把三个文件拖进去”的最小封装页面，而是一套针对 ASS + font attachment 工作流的浏览器本地 MKV muxing 工具。
 

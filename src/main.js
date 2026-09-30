@@ -1,6 +1,5 @@
 import './style.css';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import JASSUB from 'jassub';
+import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
@@ -60,7 +59,7 @@ const attachmentBulkTools = $('attachmentBulkTools');
 const keepAllAttachments = $('keepAllAttachments');
 const dropAllAttachments = $('dropAllAttachments');
 const resetAttachmentMetadata = $('resetAttachmentMetadata');
-const previewVideo = $('previewVideo');
+const previewImage = $('previewImage');
 const previewEmpty = $('previewEmpty');
 const previewStatus = $('previewStatus');
 const previewSubtitleSelect = $('previewSubtitleSelect');
@@ -88,10 +87,9 @@ let reportURL = null;
 let trackState = null;
 let externalAudioState = [];
 let newSubtitleState = [];
-let previewRenderer = null;
-let previewVideoURL = null;
-let previewVideoKey = '';
+let previewImageURL = null;
 let previewGeneration = 0;
+let previewing = false;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -250,7 +248,7 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning;
+  return running || scanning || previewing;
 }
 
 function setInputsDisabled(disabled) {
@@ -334,7 +332,7 @@ videoInput.addEventListener('change', () => {
   resetTrackState();
   preserveAttachments.checked = false;
   destroySubtitlePreview();
-  clearPreviewVideo();
+  clearPreviewImage();
   updateUI();
   previewStatus.textContent = '视频已更换；点击“生成预览帧”按需检查字幕效果。';
 });
@@ -363,11 +361,7 @@ previewSubtitleSelect?.addEventListener('change', () => {
   previewStatus.textContent = '预览字幕已切换；点击“生成预览帧”。';
 });
 previewRefreshBtn?.addEventListener('click', refreshSubtitlePreview);
-previewVideo?.addEventListener('error', () => {
-  if (!previewVideo.src) return;
-  previewStatus.textContent = '当前浏览器无法直接播放这个视频容器 / codec；最终 Stream Copy 封装不受此限制。';
-  previewEmpty?.classList.remove('hidden');
-});
+
 preserveAttachments.addEventListener('change', () => {
   if (trackState) {
     trackState.attachments.forEach((item) => { item.include = preserveAttachments.checked; });
@@ -586,6 +580,52 @@ function splitAssCsv(text, count) {
   return out;
 }
 
+function secondsToAssTime(seconds) {
+  const centiseconds = Math.max(0, Math.round(Number(seconds || 0) * 100));
+  const hours = Math.floor(centiseconds / 360000);
+  const minutes = Math.floor((centiseconds % 360000) / 6000);
+  const secs = Math.floor((centiseconds % 6000) / 100);
+  const fraction = centiseconds % 100;
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(fraction).padStart(2, '0')}`;
+}
+
+function shiftAssForPreview(text, offsetSeconds) {
+  if (!Number.isFinite(offsetSeconds) || offsetSeconds <= 0) return text;
+
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+  let section = '';
+  let format = [];
+
+  return lines.map((raw) => {
+    const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (header) {
+      section = header[1].toLowerCase();
+      return raw;
+    }
+    if (section !== 'events') return raw;
+
+    if (/^\s*Format\s*:/i.test(raw)) {
+      format = raw.replace(/^\s*Format\s*:/i, '').split(',').map((item) => item.trim().toLowerCase());
+      return raw;
+    }
+    if (!/^\s*(Dialogue|Comment)\s*:/i.test(raw) || !format.length) return raw;
+
+    const prefix = raw.slice(0, raw.indexOf(':') + 1);
+    const values = splitAssCsv(raw.slice(raw.indexOf(':') + 1), format.length);
+    const startIndex = format.indexOf('start');
+    const endIndex = format.indexOf('end');
+    if (startIndex < 0 || endIndex < 0) return raw;
+
+    const start = assTimestampSeconds(values[startIndex]);
+    const end = assTimestampSeconds(values[endIndex]);
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return raw;
+
+    values[startIndex] = secondsToAssTime(Math.max(0, start - offsetSeconds));
+    values[endIndex] = secondsToAssTime(Math.max(0, end - offsetSeconds));
+    return `${prefix} ${values.join(',')}`;
+  }).join('\n');
+}
+
 function choosePreviewFrameTime(assText) {
   const lines = String(assText || '').replace(/^\uFEFF/, '').split(/\r?\n/);
   let section = '';
@@ -626,43 +666,22 @@ function choosePreviewFrameTime(assText) {
   return firstVisible ?? candidates[0];
 }
 
-function waitForVideoSeek(video, timeSeconds) {
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      video.removeEventListener('seeked', onSeeked);
-      video.removeEventListener('error', onError);
-    };
-    const onSeeked = () => {
-      cleanup();
-      resolve();
-    };
-    const onError = () => {
-      cleanup();
-      reject(new Error('浏览器无法定位到预览帧。'));
-    };
-
-    video.addEventListener('seeked', onSeeked, { once: true });
-    video.addEventListener('error', onError, { once: true });
-    video.currentTime = Math.max(0, timeSeconds);
-  });
-}
 
 async function destroySubtitlePreview() {
   previewGeneration += 1;
-  if (previewRenderer) {
-    try { await previewRenderer.destroy(); } catch {}
-    previewRenderer = null;
+  if (previewImageURL) {
+    URL.revokeObjectURL(previewImageURL);
+    previewImageURL = null;
   }
+  previewImage?.removeAttribute('src');
 }
 
-function clearPreviewVideo() {
-  if (previewVideoURL) {
-    URL.revokeObjectURL(previewVideoURL);
-    previewVideoURL = null;
+function clearPreviewImage() {
+  if (previewImageURL) {
+    URL.revokeObjectURL(previewImageURL);
+    previewImageURL = null;
   }
-  previewVideoKey = '';
-  previewVideo.removeAttribute('src');
-  previewVideo.load();
+  previewImage?.removeAttribute('src');
 }
 
 function syncPreviewControls() {
@@ -682,15 +701,6 @@ function syncPreviewControls() {
   previewRefreshBtn.disabled = !(videoInput.files[0] && subs.length);
 }
 
-function ensurePreviewVideoSource(video) {
-  const key = fileKey(video);
-  if (previewVideoKey === key && previewVideoURL) return;
-  clearPreviewVideo();
-  previewVideoURL = URL.createObjectURL(video);
-  previewVideoKey = key;
-  previewVideo.src = previewVideoURL;
-  previewVideo.load();
-}
 
 async function buildPreviewAss(track, fontFiles) {
   const { text } = await readAssText(track.file);
@@ -700,6 +710,8 @@ async function buildPreviewAss(track, fontFiles) {
 }
 
 async function refreshSubtitlePreview() {
+  if (isBusy()) return;
+
   const video = videoInput.files[0];
   const subs = selectedSubtitleFiles();
   const selectedIndex = Number(previewSubtitleSelect?.value || 0);
@@ -713,66 +725,102 @@ async function refreshSubtitlePreview() {
   if (!video || !track) {
     previewStatus.textContent = '等待视频与 ASS；不会自动加载预览。';
     previewEmpty?.classList.remove('hidden');
-    if (!video) clearPreviewVideo();
     return;
   }
 
+  previewing = true;
+  cancelRequested = false;
+  updateUI();
+  previewRefreshBtn.disabled = true;
+
+  const prefix = taskPrefix();
+  const mountPoint = `/${prefix}-preview-input`;
+  const inputPath = `${mountPoint}/${video.name}`;
+  const assPath = `/${prefix}-preview.ass`;
+  const fontDir = `/${prefix}-preview-fonts`;
+  const basePath = `/${prefix}-preview-base.png`;
+  const outputPath = `/${prefix}-preview-sub.png`;
+  let mounted = false;
+
   try {
-    previewRefreshBtn.disabled = true;
-    previewStatus.textContent = '正在生成一张实际字幕预览帧……';
-    previewEmpty?.classList.add('hidden');
-    ensurePreviewVideoSource(video);
-    previewVideo.pause();
+    previewStatus.textContent = '正在加载 FFmpeg 并提取字幕所在画面……';
+    previewEmpty?.classList.remove('hidden');
+    await loadFFmpeg();
+    if (cancelRequested || generation !== previewGeneration) return;
 
-    const [{ text: sourceAss }, fonts] = await Promise.all([
-      readAssText(track),
-      Promise.all(fontFiles.map(async (file) => new Uint8Array(await file.arrayBuffer()))),
-    ]);
+    const sourceAss = await buildPreviewAss({ file: track }, fontFiles);
     const previewTime = choosePreviewFrameTime(sourceAss);
-    const subContent = (fontMode.value || 'preserve') === 'force' && fontFiles.length
-      ? await buildPreviewAss({ file: track }, fontFiles)
-      : sourceAss;
+    const previewCenter = 0.5;
+    const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
-    await waitForVideoSeek(previewVideo, previewTime);
+    await ffmpeg.createDir(mountPoint);
+    await ffmpeg.mount(FFFSType.WORKERFS, { files: [video] }, mountPoint);
+    mounted = true;
+    await ffmpeg.createDir(fontDir);
+
+    await Promise.all(fontFiles.map(async (font, index) => {
+      const suffix = ext(font.name) || '.font';
+      await ffmpeg.writeFile(`${fontDir}/font-${index}${suffix}`, await fetchFile(font));
+    }));
+    await ffmpeg.writeFile(assPath, new TextEncoder().encode(shiftedAss));
+
+    previewStatus.textContent = `正在提取 ${previewTime.toFixed(2)} s 视频帧……`;
+    const extractCode = await ffmpeg.exec([
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-ss', previewTime.toFixed(3),
+      '-i', inputPath,
+      '-an', '-sn',
+      '-frames:v', '1',
+      basePath,
+    ]);
+    if (extractCode !== 0) throw new Error(`视频帧提取失败（FFmpeg 返回 ${extractCode}）`);
+
+    previewStatus.textContent = '正在用 libass 渲染字幕到预览帧……';
+    const filter = `ass=${assPath}:fontsdir=${fontDir}`;
+    const renderCode = await ffmpeg.exec([
+      '-hide_banner', '-loglevel', 'error', '-y',
+      '-loop', '1',
+      '-framerate', '10',
+      '-i', basePath,
+      '-vf', filter,
+      '-ss', previewCenter.toFixed(3),
+      '-frames:v', '1',
+      outputPath,
+    ]);
+    if (renderCode !== 0) throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderCode}）`);
+
+    const bytes = await ffmpeg.readFile(outputPath);
+    if (!(bytes instanceof Uint8Array) || !bytes.byteLength) throw new Error('预览 PNG 没有生成。');
     if (generation !== previewGeneration) return;
 
-    const assetBase = new URL('jassub/', window.location.href).href;
-    const renderer = new JASSUB({
-      video: previewVideo,
-      subContent,
-      fonts,
-      workerUrl: `${assetBase}worker/worker.js`,
-      wasmUrl: `${assetBase}wasm/jassub-worker.wasm`,
-      modernWasmUrl: `${assetBase}wasm/jassub-worker-modern.wasm`,
-      availableFonts: {
-        'liberation sans': `${assetBase}default.woff2`,
-      },
-      queryFonts: false,
-    });
-
-    await renderer.ready;
-    if (generation !== previewGeneration) {
-      try { await renderer.destroy(); } catch {}
-      return;
-    }
-
-    previewRenderer = renderer;
-    const width = previewVideo.videoWidth || 1280;
-    const height = previewVideo.videoHeight || 720;
-    await renderer.manualRender({
-      expectedDisplayTime: performance.now(),
-      mediaTime: previewTime,
-      width,
-      height,
-    }, true);
-
-    previewVideo.pause();
-    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · ${fontFiles.length} 个上传字体`;
+    clearPreviewImage();
+    previewImageURL = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
+    previewImage.src = previewImageURL;
+    previewEmpty?.classList.add('hidden');
+    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · FFmpeg/libass`;
   } catch (error) {
     if (generation !== previewGeneration) return;
+    clearPreviewImage();
     previewEmpty?.classList.remove('hidden');
-    previewStatus.textContent = `预览帧不可用：${error?.message || error}`;
+    previewStatus.textContent = `无法生成预览帧：${error?.message || error}`;
+    logEl.textContent += `PREVIEW ERROR: ${error?.stack || error}\n`;
   } finally {
+    await removeQuietly(outputPath);
+    await removeQuietly(basePath);
+    await removeQuietly(assPath);
+    if (loaded) {
+      for (let index = 0; index < fontFiles.length; index += 1) {
+        const suffix = ext(fontFiles[index].name) || '.font';
+        await removeQuietly(`${fontDir}/font-${index}${suffix}`);
+      }
+      if (mounted) {
+        try { await ffmpeg.unmount(mountPoint); } catch {}
+      }
+      try { await ffmpeg.deleteDir(fontDir); } catch {}
+      try { await ffmpeg.deleteDir(mountPoint); } catch {}
+    }
+    previewing = false;
+    updateUI();
     syncPreviewControls();
   }
 }
@@ -1896,7 +1944,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.1',
+      appVersion: '1.0.2',
       input: {
         name: video.name,
         sizeBytes: video.size,
