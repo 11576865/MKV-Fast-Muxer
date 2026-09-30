@@ -3313,3 +3313,400 @@ pre {
     width: 100%;
   }
 }
+
+
+/* 1.2.1 workbench redraw -------------------------------------------------------
+   Preserve capability visibility while restoring a clear task hierarchy.
+   Primary path: sources -> preview/edit -> review/mux. Batch is visible but
+   visually secondary and no longer competes with the single-job workflow. */
+
+.source-strip {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.25fr) minmax(0, .9fr) minmax(0, .9fr);
+  gap: 10px;
+}
+
+.source-strip .source-item {
+  min-height: 78px;
+}
+
+.source-strip .source-primary {
+  border-color: color-mix(in srgb, var(--source-accent) 34%, var(--line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--source-accent) 8%, transparent), transparent 95px),
+    var(--surface-1);
+}
+
+.source-strip .source-secondary {
+  opacity: .88;
+  background: color-mix(in srgb, var(--source-accent) 3%, var(--surface-1));
+}
+
+.source-strip .source-secondary:hover,
+.source-strip .source-secondary:focus-within {
+  opacity: 1;
+}
+
+.editor-column {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 2.5%, transparent), transparent 220px),
+    var(--surface-0);
+}
+
+.subtitle-preview-card {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+  box-shadow: 0 12px 26px rgba(0, 0, 0, .10);
+}
+
+.config-card,
+.source-track-card {
+  border-color: color-mix(in srgb, var(--line) 88%, transparent);
+  box-shadow: none;
+}
+
+.config-card .card-head,
+.source-track-card .card-head {
+  border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.font-subset-toggle,
+.append-mode-toggle {
+  border-radius: 4px;
+}
+
+.append-mode-toggle {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface-1));
+}
+
+.output-hub {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+
+.batch-workspace {
+  margin-top: 16px;
+  padding: 15px 16px 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--subtitle) 2.5%, transparent), transparent 150px),
+    var(--surface-0);
+}
+
+.batch-head {
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.batch-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-1);
+}
+
+.batch-status-chip .status {
+  min-height: 0;
+  max-width: 420px;
+  padding: 0;
+  color: var(--muted);
+  font-size: .66rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+  gap: 14px;
+  margin-top: 13px;
+  align-items: start;
+}
+
+.batch-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.batch-source-cluster {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.batch-cluster-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.batch-cluster-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.batch-cluster-head strong {
+  color: var(--text-strong);
+  font-size: .76rem;
+}
+
+.batch-cluster-head small {
+  color: var(--muted);
+  font-size: .61rem;
+  line-height: 1.3;
+}
+
+.batch-picker-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.batch-picker {
+  position: relative;
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 9px 10px;
+  cursor: pointer;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+  transition: background .14s ease, border-color .14s ease;
+}
+
+.batch-picker:last-child {
+  border-right: 0;
+}
+
+.batch-picker:hover,
+.batch-picker:focus-within {
+  background: var(--surface-2);
+}
+
+.batch-picker input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.batch-picker > span {
+  color: var(--text);
+  font-size: .69rem;
+  font-weight: 650;
+}
+
+.batch-picker .filename {
+  color: var(--muted);
+  font-size: .59rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.batch-detail {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.batch-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.batch-settings .attachment-toggle,
+.batch-settings .compact-control,
+.batch-settings .batch-output-tool {
+  min-width: 0;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.batch-settings .attachment-toggle strong,
+.batch-settings .control-label {
+  font-size: .68rem;
+}
+
+.batch-settings .attachment-toggle small,
+.batch-settings .field-hint,
+.batch-output-tool small {
+  font-size: .59rem;
+  line-height: 1.35;
+}
+
+.batch-subset-control select {
+  min-height: 31px;
+}
+
+.batch-output-tool {
+  display: grid;
+  gap: 6px;
+}
+
+.batch-output-tool .button {
+  width: 100%;
+}
+
+.batch-queue {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.batch-queue-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.batch-queue-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.batch-queue-head strong {
+  font-size: .75rem;
+  color: var(--text-strong);
+}
+
+.batch-queue-head > span {
+  color: var(--muted);
+  font-size: .59rem;
+  text-align: right;
+}
+
+.batch-queue #batchPlan {
+  margin: 0;
+  padding: 7px 8px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.batch-queue .plan-row {
+  padding: 7px 8px;
+}
+
+.batch-actions {
+  margin: 0;
+  padding: 9px 10px;
+  border-top: 1px solid var(--line);
+  grid-template-columns: minmax(0, 1fr) 74px;
+}
+
+.batch-actions .button-primary,
+.batch-actions .button-secondary {
+  min-height: 36px;
+}
+
+#batchResults {
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+#batchResults:empty {
+  display: none;
+}
+
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+  .workspace > .batch-workspace {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .source-strip {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(0, .82fr) minmax(0, .82fr);
+  }
+
+  .editor-column {
+    grid-template-columns: minmax(560px, 1.24fr) minmax(350px, .76fr);
+  }
+}
+
+@media (max-width: 1120px) {
+  .batch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-inputs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .source-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .source-strip .source-secondary {
+    opacity: 1;
+  }
+
+  .batch-workspace {
+    padding: 11px;
+  }
+
+  .batch-head,
+  .batch-queue-head {
+    align-items: flex-start;
+  }
+
+  .batch-status-chip {
+    max-width: 100%;
+  }
+
+  .batch-status-chip .status {
+    max-width: min(68vw, 420px);
+  }
+
+  .batch-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-settings {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 559px) {
+  .source-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-head {
+    display: grid;
+    gap: 9px;
+  }
+
+  .batch-status-chip {
+    justify-self: stretch;
+    border-radius: 4px;
+  }
+
+  .batch-status-chip .status {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .batch-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-picker-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
