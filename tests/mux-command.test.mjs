@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildMuxCommand } from '../src/mux-command.js';
+import { buildMuxCommand, normalizeTrackLanguage } from '../src/mux-command.js';
 
 test('builds deterministic multi-audio multi-subtitle mux command', () => {
   const args = buildMuxCommand({
@@ -120,4 +120,12 @@ test('writes Original, Commentary and Hearing impaired dispositions', () => {
   const subtitleDisposition = args[args.indexOf('-disposition:s:0') + 1];
   assert.equal(audioDisposition, 'original+comment');
   assert.equal(subtitleDisposition, 'default+hearing_impaired');
+});
+
+test('normalizes ISO codes and canonicalizes common BCP47 casing', () => {
+  assert.equal(normalizeTrackLanguage(' ZHO '), 'zho');
+  assert.equal(normalizeTrackLanguage('zh-hans'), 'zh-Hans');
+  assert.equal(normalizeTrackLanguage('pt_br'), 'pt-BR');
+  assert.equal(normalizeTrackLanguage('sr-latn-rs'), 'sr-Latn-RS');
+  assert.equal(normalizeTrackLanguage(''), 'und');
 });
