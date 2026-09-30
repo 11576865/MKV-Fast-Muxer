@@ -150,6 +150,13 @@
 
               <div id="trackBulkTools" class="bulk-tools hidden">
                 <div class="bulk-tool">
+                  <span>批量保留</span>
+                  <button id="keepAllAudio" class="button button-small" type="button">保留全部音频</button>
+                  <button id="dropAllAudio" class="button button-small" type="button">取消全部音频</button>
+                  <button id="keepAllSubtitles" class="button button-small" type="button">保留全部字幕</button>
+                  <button id="dropAllSubtitles" class="button button-small" type="button">取消全部字幕</button>
+                </div>
+                <div class="bulk-tool">
                   <span>批量语言</span>
                   <input id="bulkLanguage" type="text" list="languageSuggestions" maxlength="35" placeholder="例如 zho / eng / zh-Hans">
                   <button id="applyAudioLanguage" class="button button-small" type="button">应用到保留音频</button>
@@ -160,6 +167,11 @@
                   <button id="firstAudioDefault" class="button button-small" type="button">仅第一音频 Default</button>
                   <button id="firstSubtitleDefault" class="button button-small" type="button">仅第一字幕 Default</button>
                   <button id="clearAllDefaults" class="button button-small" type="button">全部关闭</button>
+                </div>
+                <div class="bulk-tool">
+                  <span>恢复原值</span>
+                  <button id="resetAudioMetadata" class="button button-small" type="button">恢复音频元数据</button>
+                  <button id="resetSubtitleMetadata" class="button button-small" type="button">恢复字幕元数据</button>
                 </div>
               </div>
 
@@ -180,6 +192,11 @@
                       <small>未扫描时使用此开关。</small>
                     </span>
                   </label>
+                </div>
+                <div id="attachmentBulkTools" class="attachment-bulk-tools hidden">
+                  <button id="keepAllAttachments" class="button button-small" type="button">全部保留</button>
+                  <button id="dropAllAttachments" class="button button-small" type="button">全部取消</button>
+                  <button id="resetAttachmentMetadata" class="button button-small" type="button">恢复原文件名与 MIME</button>
                 </div>
                 <div id="attachmentList" class="attachment-list">
                   <div class="track-empty">扫描 MKV 后显示附件列表。</div>
