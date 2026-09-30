@@ -29,7 +29,11 @@ function streams(probeJson, type) {
 async function waitForStatus(page, prefix, timeout = 180_000) {
   try {
     await page.waitForFunction(
-      (expected) => document.querySelector('#status')?.textContent?.startsWith(expected),
+      (expected) => {
+        const value = document.querySelector('#status')?.textContent || '';
+        if (value.startsWith('失败：')) throw new Error(value);
+        return value.startsWith(expected);
+      },
       prefix,
       { timeout },
     );
@@ -38,7 +42,7 @@ async function waitForStatus(page, prefix, timeout = 180_000) {
     const log = await page.locator('#log').textContent().catch(() => '(log unavailable)');
     console.error('Browser status:', status);
     console.error('Browser log:\n' + log);
-    throw error;
+    throw new Error(`${status}\n${log}`, { cause: error });
   }
 }
 
