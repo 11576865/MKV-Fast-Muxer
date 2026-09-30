@@ -738,11 +738,15 @@ trackList.addEventListener('change', (event) => {
       track.default = false;
       track.forced = false;
     }
-  } else if (fieldInput) {
-    track[fieldInput.dataset.trackField] = fieldInput.value;
+    renderTrackList();
+    return;
   }
 
-  renderTrackList();
+  // Text fields are already synchronized on the input event. Re-rendering the
+  // whole track list on blur/change can replace a sibling field while the user
+  // is moving focus to it, causing the next edit to be lost.
+  track[fieldInput.dataset.trackField] = fieldInput.value;
+  renderMuxPlan();
 });
 
 trackList.addEventListener('input', (event) => {

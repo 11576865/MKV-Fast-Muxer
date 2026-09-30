@@ -186,10 +186,207 @@ async function scenarioSelectiveAttachments(browser) {
   }
 }
 
+
+async function scenarioOriginalTracks(browser) {
+  console.log('E2E scenario 3: scanned MKV + original track selection/edit + new ASS');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    const audioRows = page.locator('.track-row.track-audio');
+    const subtitleRows = page.locator('.track-row.track-subtitle');
+    assert.equal(await audioRows.count(), 2);
+    assert.equal(await subtitleRows.count(), 1);
+
+    const firstAudio = audioRows.nth(0);
+    const secondAudio = audioRows.nth(1);
+
+    await firstAudio.locator('input[data-track-action="include"]').uncheck();
+    await secondAudio.locator('input[data-track-field="language"]').fill('zho');
+    await secondAudio.locator('input[data-track-field="title"]').fill('保留的 Opus');
+    await secondAudio.locator('input[data-track-action="default"]').check();
+
+    const originalSubtitle = subtitleRows.nth(0);
+    await originalSubtitle.locator('input[data-track-action="include"]').check();
+    await originalSubtitle.locator('input[data-track-field="language"]').fill('eng');
+    await originalSubtitle.locator('input[data-track-field="title"]').fill('Original Signs Edited');
+    await originalSubtitle.locator('input[data-track-action="forced"]').check();
+
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('新增中文');
+    await page.locator('input[data-new-sub-field="default"][data-index="0"]').check();
+
+    const planText = await page.locator('#muxPlan').textContent();
+    assert.match(planText, /保留的 Opus/);
+    assert.match(planText, /Original Signs Edited/);
+    assert.match(planText, /新增中文/);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'original-track-selection.mkv');
+    const reportPath = path.join(outDir, 'original-track-selection.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.expectedAudit.audio[0].title, '保留的 Opus');
+    assert.equal(report.expectedAudit.audio[0].language, 'zho');
+    assert.equal(report.expectedAudit.subtitles[1].title, 'Original Signs Edited');
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+
+    const out = probe(output);
+    const audio = streams(out, 'audio');
+    const subtitles = streams(out, 'subtitle');
+
+    assert.deepEqual(audio.map((stream) => stream.codec_name), ['opus']);
+    assert.equal(audio[0].tags?.language, 'zho');
+    assert.equal(audio[0].tags?.title, '保留的 Opus');
+    assert.equal(Boolean(audio[0].disposition?.default), true);
+
+    assert.deepEqual(subtitles.map((stream) => stream.codec_name), ['ass', 'ass']);
+    assert.equal(subtitles[0].tags?.language, 'zho');
+    assert.equal(subtitles[0].tags?.title, '新增中文');
+    assert.equal(subtitles[1].tags?.language, 'eng');
+    assert.equal(subtitles[1].tags?.title, 'Original Signs Edited');
+    assert.equal(Boolean(subtitles[1].disposition?.forced), true);
+
+    console.log('Scenario 3 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUtf16(browser) {
+  console.log('E2E scenario 4: UTF-16LE + UTF-16BE ASS');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', [
+      path.join(root, 'zh-utf16le.ass'),
+      path.join(root, 'en-utf16be.ass'),
+    ]);
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('input[data-new-sub-field="language"][data-index="1"]').fill('eng');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'utf16-subs.mkv');
+    const reportPath = path.join(outDir, 'utf16-subs.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const out = probe(output);
+    assert.deepEqual(streams(out, 'subtitle').map((stream) => stream.codec_name), ['ass', 'ass']);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.deepEqual(
+      report.subtitle.tracks.map((track) => track.encoding),
+      ['UTF-16LE BOM', 'UTF-16BE BOM'],
+    );
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 4 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioSameNameFonts(browser) {
+  console.log('E2E scenario 5: same-name different-content fonts');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', [
+      path.join(root, 'font-a', 'Same.ttf'),
+      path.join(root, 'font-b', 'Same.ttf'),
+    ]);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'same-name-fonts.mkv');
+    const reportPath = path.join(outDir, 'same-name-fonts.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const out = probe(output);
+    const attachments = streams(out, 'attachment');
+    const filenames = attachments.map((stream) => stream.tags?.filename);
+
+    assert.equal(attachments.length, 2);
+    assert.equal(filenames.includes('Same.ttf'), true);
+    assert.equal(filenames.some((name) => /^Same-mkvfm-[0-9a-f]{8}\.ttf$/i.test(name || '')), true);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.fonts.uniqueCount, 2);
+    assert.equal(report.fonts.duplicateCount, 0);
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 5 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioAv1(browser) {
+  const av1Path = path.join(root, 'av1.mp4');
+  try {
+    await fs.access(av1Path);
+  } catch {
+    console.log('E2E scenario 6: AV1 skipped (fixture unavailable)');
+    return;
+  }
+
+  console.log('E2E scenario 6: AV1 container probe + mux');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', av1Path);
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'av1.mkv');
+    const reportPath = path.join(outDir, 'av1.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const source = probe(av1Path);
+    const out = probe(output);
+    assert.deepEqual(
+      streams(out, 'video').map((stream) => stream.codec_name),
+      streams(source, 'video').map((stream) => stream.codec_name),
+    );
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 6 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   await scenarioMultiTrack(browser);
   await scenarioSelectiveAttachments(browser);
+  await scenarioOriginalTracks(browser);
+  await scenarioUtf16(browser);
+  await scenarioSameNameFonts(browser);
+  await scenarioAv1(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
