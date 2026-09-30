@@ -92,7 +92,6 @@ let previewRenderer = null;
 let previewVideoURL = null;
 let previewVideoKey = '';
 let previewGeneration = 0;
-let previewTimer = null;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -334,9 +333,10 @@ function bindNewTrackEditor(container, selector, getState) {
 videoInput.addEventListener('change', () => {
   resetTrackState();
   preserveAttachments.checked = false;
+  destroySubtitlePreview();
   clearPreviewVideo();
   updateUI();
-  scheduleSubtitlePreview(0);
+  previewStatus.textContent = '视频已更换；点击“生成预览帧”按需检查字幕效果。';
 });
 audioInput.addEventListener('change', () => {
   syncNewTrackState();
@@ -344,19 +344,25 @@ audioInput.addEventListener('change', () => {
 });
 subInput.addEventListener('change', () => {
   syncNewTrackState();
+  destroySubtitlePreview();
   updateUI();
-  scheduleSubtitlePreview(0);
+  previewStatus.textContent = '字幕已更换；点击“生成预览帧”按需检查字幕效果。';
 });
 fontInput.addEventListener('change', () => {
+  destroySubtitlePreview();
   updateUI();
-  scheduleSubtitlePreview();
+  previewStatus.textContent = '字体已更换；点击“生成预览帧”重新检查。';
 });
 fontMode.addEventListener('change', () => {
+  destroySubtitlePreview();
   updateUI();
-  scheduleSubtitlePreview();
+  previewStatus.textContent = '字体模式已更换；点击“生成预览帧”重新检查。';
 });
-previewSubtitleSelect?.addEventListener('change', () => scheduleSubtitlePreview(0));
-previewRefreshBtn?.addEventListener('click', () => scheduleSubtitlePreview(0));
+previewSubtitleSelect?.addEventListener('change', () => {
+  destroySubtitlePreview();
+  previewStatus.textContent = '预览字幕已切换；点击“生成预览帧”。';
+});
+previewRefreshBtn?.addEventListener('click', refreshSubtitlePreview);
 previewVideo?.addEventListener('error', () => {
   if (!previewVideo.src) return;
   previewStatus.textContent = '当前浏览器无法直接播放这个视频容器 / codec；最终 Stream Copy 封装不受此限制。';
@@ -559,6 +565,88 @@ async function readAssText(file) {
   }
 }
 
+function assTimestampSeconds(value = '') {
+  const match = String(value).trim().match(/^(\d+):(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?$/);
+  if (!match) return NaN;
+  const fraction = Number(`0.${match[4] || '0'}`);
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) + fraction;
+}
+
+function splitAssCsv(text, count) {
+  const out = [];
+  let start = 0;
+  for (let index = 0; index < count - 1; index += 1) {
+    const comma = text.indexOf(',', start);
+    if (comma < 0) break;
+    out.push(text.slice(start, comma).trim());
+    start = comma + 1;
+  }
+  out.push(text.slice(start).trim());
+  while (out.length < count) out.push('');
+  return out;
+}
+
+function choosePreviewFrameTime(assText) {
+  const lines = String(assText || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+  let section = '';
+  let format = [];
+  const candidates = [];
+
+  for (const raw of lines) {
+    const header = raw.match(/^\s*\[([^\]]+)\]\s*$/);
+    if (header) {
+      section = header[1].toLowerCase();
+      continue;
+    }
+    if (section !== 'events') continue;
+
+    if (/^\s*Format\s*:/i.test(raw)) {
+      format = raw.replace(/^\s*Format\s*:/i, '').split(',').map((item) => item.trim().toLowerCase());
+      continue;
+    }
+
+    if (!/^\s*Dialogue\s*:/i.test(raw) || !format.length) continue;
+    const values = splitAssCsv(raw.slice(raw.indexOf(':') + 1), format.length);
+    const startIndex = format.indexOf('start');
+    const endIndex = format.indexOf('end');
+    if (startIndex < 0 || endIndex < 0) continue;
+
+    const start = assTimestampSeconds(values[startIndex]);
+    const end = assTimestampSeconds(values[endIndex]);
+    if (!Number.isFinite(start)) continue;
+
+    const midpoint = Number.isFinite(end) && end > start
+      ? start + Math.max(0.08, Math.min((end - start) / 2, 1))
+      : start + 0.12;
+    candidates.push(Math.max(0, midpoint));
+  }
+
+  if (!candidates.length) return 0;
+  const firstVisible = candidates.find((value) => value >= 0.25);
+  return firstVisible ?? candidates[0];
+}
+
+function waitForVideoSeek(video, timeSeconds) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+    };
+    const onSeeked = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('浏览器无法定位到预览帧。'));
+    };
+
+    video.addEventListener('seeked', onSeeked, { once: true });
+    video.addEventListener('error', onError, { once: true });
+    video.currentTime = Math.max(0, timeSeconds);
+  });
+}
+
 async function destroySubtitlePreview() {
   previewGeneration += 1;
   if (previewRenderer) {
@@ -620,25 +708,33 @@ async function refreshSubtitlePreview() {
 
   await destroySubtitlePreview();
   const generation = previewGeneration;
-
   syncPreviewControls();
 
   if (!video || !track) {
-    previewStatus.textContent = '等待视频与 ASS。';
+    previewStatus.textContent = '等待视频与 ASS；不会自动加载预览。';
     previewEmpty?.classList.remove('hidden');
     if (!video) clearPreviewVideo();
     return;
   }
 
   try {
-    previewStatus.textContent = '正在载入本地视频、ASS 与字体……';
+    previewRefreshBtn.disabled = true;
+    previewStatus.textContent = '正在生成一张实际字幕预览帧……';
     previewEmpty?.classList.add('hidden');
     ensurePreviewVideoSource(video);
+    previewVideo.pause();
 
-    const [subContent, fonts] = await Promise.all([
-      buildPreviewAss({ file: track }, fontFiles),
+    const [{ text: sourceAss }, fonts] = await Promise.all([
+      readAssText(track),
       Promise.all(fontFiles.map(async (file) => new Uint8Array(await file.arrayBuffer()))),
     ]);
+    const previewTime = choosePreviewFrameTime(sourceAss);
+    const subContent = (fontMode.value || 'preserve') === 'force' && fontFiles.length
+      ? await buildPreviewAss({ file: track }, fontFiles)
+      : sourceAss;
+
+    await waitForVideoSeek(previewVideo, previewTime);
+    if (generation !== previewGeneration) return;
 
     const assetBase = new URL('jassub/', window.location.href).href;
     const renderer = new JASSUB({
@@ -661,20 +757,24 @@ async function refreshSubtitlePreview() {
     }
 
     previewRenderer = renderer;
-    previewStatus.textContent = `正在预览：${track.name} · ${fontFiles.length} 个上传字体`;
+    const width = previewVideo.videoWidth || 1280;
+    const height = previewVideo.videoHeight || 720;
+    await renderer.manualRender({
+      expectedDisplayTime: performance.now(),
+      mediaTime: previewTime,
+      width,
+      height,
+    }, true);
+
+    previewVideo.pause();
+    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · ${fontFiles.length} 个上传字体`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     previewEmpty?.classList.remove('hidden');
-    previewStatus.textContent = `预览不可用：${error?.message || error}`;
+    previewStatus.textContent = `预览帧不可用：${error?.message || error}`;
+  } finally {
+    syncPreviewControls();
   }
-}
-
-function scheduleSubtitlePreview(delay = 120) {
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = setTimeout(() => {
-    previewTimer = null;
-    refreshSubtitlePreview();
-  }, delay);
 }
 
 async function runProbe(path, probePath, { decodeStreams = false } = {}) {
@@ -1796,7 +1896,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.0',
+      appVersion: '1.0.1',
       input: {
         name: video.name,
         sizeBytes: video.size,

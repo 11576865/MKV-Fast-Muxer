@@ -2709,3 +2709,20 @@ pre {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Desktop output panel should use available page space instead of nesting scroll areas. */
+@media (min-width: 1280px) and (hover: hover) and (pointer: fine) {
+  .output-hub {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .output-section .mux-plan {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+    scrollbar-gutter: auto;
+  }
+}
