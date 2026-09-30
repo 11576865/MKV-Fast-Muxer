@@ -6,6 +6,7 @@ import { buildProbeArgs } from './probe-policy.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
+import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -39,6 +40,14 @@ const bar = $('bar');
 const downloadLink = $('downloadLink');
 const reportLink = $('reportLink');
 const auditResult = $('auditResult');
+const workloadNotice = $('workloadNotice');
+const trackBulkTools = $('trackBulkTools');
+const bulkLanguage = $('bulkLanguage');
+const applyAudioLanguage = $('applyAudioLanguage');
+const applySubtitleLanguage = $('applySubtitleLanguage');
+const firstAudioDefault = $('firstAudioDefault');
+const firstSubtitleDefault = $('firstSubtitleDefault');
+const clearAllDefaults = $('clearAllDefaults');
 
 const THEME_KEY = 'mkv-muxer-theme-v1';
 const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -221,6 +230,37 @@ function formatFontSelection(files) {
   return files.length > 3 ? `${files.length} 个字体：${head}…` : `${files.length} 个字体：${head}`;
 }
 
+function selectedInputFiles() {
+  return [
+    ...Array.from(videoInput.files || []),
+    ...selectedExternalAudioFiles(),
+    ...selectedSubtitleFiles(),
+    ...selectedFonts(),
+  ];
+}
+
+function renderWorkloadNotice() {
+  if (!workloadNotice) return;
+  const files = selectedInputFiles();
+  if (!files.length) {
+    workloadNotice.dataset.level = 'normal';
+    workloadNotice.innerHTML = '<strong>输入规模：—</strong><span>选择文件后显示浏览器内处理规模提示。</span>';
+    return;
+  }
+
+  const totalBytes = sumFileSizes(files);
+  const workload = classifyBrowserWorkload(totalBytes);
+  workloadNotice.dataset.level = workload.level;
+  workloadNotice.innerHTML = `<strong>输入规模：${escapeHtml(formatBytes(totalBytes))} · ${escapeHtml(workload.label)}</strong><span>${escapeHtml(workload.message)}</span>`;
+}
+
+function setBulkToolsDisabled(disabled) {
+  if (!trackBulkTools) return;
+  trackBulkTools.querySelectorAll('input, button').forEach((control) => {
+    control.disabled = disabled;
+  });
+}
+
 function isBusy() {
   return running || scanning;
 }
@@ -235,12 +275,14 @@ function setInputsDisabled(disabled) {
   newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  setBulkToolsDisabled(disabled || !trackState);
 }
 
 function resetTrackState() {
   trackState = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
   attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
+  trackBulkTools?.classList.add('hidden');
   renderMuxPlan();
 }
 
@@ -258,6 +300,7 @@ function updateUI() {
   $('fontName').textContent = formatFontSelection(fonts);
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
+  renderWorkloadNotice();
 
   fontModeHint.textContent = mode === 'force'
     ? '兼容旧行为：只使用并附加第一个上传字体；所有新增 ASS 的 Fontname 与显式内联 \\fn 会统一改写。'
@@ -272,6 +315,7 @@ function updateUI() {
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
   muxBtn.disabled = busy || !(video && subs.length && fonts.length);
   cancelBtn.disabled = !busy;
+  trackBulkTools?.classList.toggle('hidden', !trackState);
   renderNewTrackLists();
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
@@ -317,6 +361,35 @@ preserveAttachments.addEventListener('change', () => {
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
 bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', () => externalAudioState);
 bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', () => newSubtitleState);
+
+function applyLanguageToSelectedTracks(type) {
+  if (!trackState) return;
+  const language = normalizeTrackLanguage(bulkLanguage?.value);
+  selectedTracks(type).forEach((track) => { track.language = language; });
+  renderTrackList();
+}
+
+function setOnlyFirstDefault(type) {
+  if (!trackState) return;
+  const selected = selectedTracks(type);
+  selected.forEach((track, index) => { track.default = index === 0; });
+  renderTrackList();
+}
+
+applyAudioLanguage?.addEventListener('click', () => applyLanguageToSelectedTracks('audio'));
+applySubtitleLanguage?.addEventListener('click', () => applyLanguageToSelectedTracks('subtitle'));
+firstAudioDefault?.addEventListener('click', () => setOnlyFirstDefault('audio'));
+firstSubtitleDefault?.addEventListener('click', () => setOnlyFirstDefault('subtitle'));
+clearAllDefaults?.addEventListener('click', () => {
+  if (!trackState) return;
+  selectedTracks('audio').forEach((track) => { track.default = false; });
+  selectedTracks('subtitle').forEach((track) => { track.default = false; });
+  externalAudioState.forEach((track) => { track.default = false; });
+  newSubtitleState.forEach((track) => { track.default = false; });
+  renderTrackList();
+  renderNewTrackLists();
+  renderMuxPlan();
+});
 
 async function loadFFmpeg() {
   if (loaded) return;
@@ -963,6 +1036,7 @@ scanTracksBtn.addEventListener('click', async () => {
     };
 
     preserveAttachments.checked = false;
+    trackBulkTools?.classList.remove('hidden');
     renderTrackList();
     renderAttachmentList();
     bar.style.width = '0%';
@@ -1495,7 +1569,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.6.0',
+      appVersion: '0.7.0',
       input: {
         name: video.name,
         sizeBytes: video.size,

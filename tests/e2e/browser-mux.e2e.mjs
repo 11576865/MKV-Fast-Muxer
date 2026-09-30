@@ -122,7 +122,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '0.6.0');
+    assert.equal(report.application.version, '0.7.0');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -813,6 +813,58 @@ async function scenarioFontCollectionAndAdvancedFlags(browser) {
   }
 }
 
+async function scenarioBulkTrackMetadata(browser) {
+  console.log('E2E scenario 21: bulk language and Default presets');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    await page.locator('.track-row.track-subtitle input[data-track-action="include"]').check();
+    await page.locator('#bulkLanguage').fill('zho');
+    await page.locator('#applyAudioLanguage').click();
+    await page.locator('#applySubtitleLanguage').click();
+    await page.locator('#firstAudioDefault').click();
+    await page.locator('#firstSubtitleDefault').click();
+
+    const audioLanguages = await page.locator('.track-row.track-audio input[data-track-field="language"]').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    );
+    const subtitleLanguages = await page.locator('.track-row.track-subtitle input[data-track-field="language"]').evaluateAll(
+      (inputs) => inputs.map((input) => input.value),
+    );
+    assert.deepEqual(audioLanguages, ['zho', 'zho']);
+    assert.deepEqual(subtitleLanguages, ['zho']);
+
+    const audioDefaults = await page.locator('.track-row.track-audio input[data-track-action="default"]').evaluateAll(
+      (inputs) => inputs.map((input) => input.checked),
+    );
+    const subtitleDefaults = await page.locator('.track-row.track-subtitle input[data-track-action="default"]').evaluateAll(
+      (inputs) => inputs.map((input) => input.checked),
+    );
+    assert.deepEqual(audioDefaults, [true, false]);
+    assert.deepEqual(subtitleDefaults, [true]);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'bulk-track-metadata.mkv');
+    await saveDownload(page, '#downloadLink', output);
+
+    const out = probe(output);
+    assert.deepEqual(streams(out, 'audio').map((stream) => stream.tags?.language), ['zho', 'zho']);
+    assert.equal(Boolean(streams(out, 'audio')[0].disposition?.default), true);
+    assert.equal(Boolean(streams(out, 'audio')[1].disposition?.default), false);
+    assert.equal(streams(out, 'subtitle').at(-1).tags?.language, 'zho');
+    console.log('Scenario 21 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -875,6 +927,7 @@ try {
   await scenarioUnicodeNamesAndLongTitle(browser);
   await scenarioTenSequential(browser);
   await scenarioFontCollectionAndAdvancedFlags(browser);
+  await scenarioBulkTrackMetadata(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
