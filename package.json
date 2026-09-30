@@ -1,7 +1,7 @@
 {
   "name": "mkv-fast-muxer-v3",
   "private": true,
-  "version": "0.8.2",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "0.12.15",
     "@ffmpeg/util": "0.12.2",
-    "@ffmpeg/core": "0.12.10"
+    "@ffmpeg/core": "0.12.10",
+    "jassub": "2.5.15"
   },
   "devDependencies": {
     "vite": "^7.1.0",
