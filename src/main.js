@@ -371,9 +371,19 @@ function setInputsDisabled(disabled) {
   attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
     button.disabled = disabled || !trackState;
   });
+  if (appendPreserveAll) appendPreserveAll.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleFiles().some(isPreviewableSubtitle);
+  if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
+  if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
   if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
+  if (batchVideoFolderInput) batchVideoFolderInput.disabled = disabled || batchRunning;
   if (batchSubtitleInput) batchSubtitleInput.disabled = disabled || batchRunning;
+  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = disabled || batchRunning;
+  if (batchFontInput) batchFontInput.disabled = disabled || batchRunning;
+  if (batchFontFolderInput) batchFontFolderInput.disabled = disabled || batchRunning;
   if (batchPreserveAttachments) batchPreserveAttachments.disabled = disabled || batchRunning;
+  if (batchSubsetScope) batchSubsetScope.disabled = disabled || batchRunning;
+  if (batchOutputDirBtn) batchOutputDirBtn.disabled = disabled || batchRunning;
 }
 
 function resetTrackState() {
@@ -388,7 +398,8 @@ function resetTrackState() {
 
 function updateUI() {
   const video = videoInput.files[0];
-  const subs = selectedSubtitleFiles();
+  const collectedSubs = selectedSubtitleTrackInputs();
+  const subs = collectedSubs.tracks.map((track) => track.file);
   const fonts = selectedFonts();
   const inputIsMkv = ext(video?.name || '') === '.mkv';
   const mode = fontMode.value || 'preserve';
@@ -397,7 +408,9 @@ function updateUI() {
   const videoLabel = video?.name ?? '未选择';
   const audioFiles = selectedExternalAudioFiles();
   const audioLabel = formatFontSelection(audioFiles).replace(/字体/g, '音频');
-  const subtitleLabel = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 条字幕`) : '未选择';
+  const subtitleLabel = subs.length
+    ? (subs.length === 1 ? (collectedSubs.tracks[0].displayName || subs[0].name) : `${subs.length} 条字幕`)
+    : (collectedSubs.invalid.length ? 'VobSub 缺少 IDX/SUB 配对' : '未选择');
   const fontLabel = formatFontSelection(fonts);
   const outputLabel = video ? safeOutputName(video.name) : '—';
 
@@ -406,7 +419,7 @@ function updateUI() {
   $('audioName').textContent = audioLabel;
   $('audioName').title = audioFiles.map((file) => file.name).join('\n');
   $('subName').textContent = subtitleLabel;
-  $('subName').title = subs.map((file) => file.name).join('\n');
+  $('subName').title = collectedSubs.tracks.map((track) => track.displayName || track.file.name).join('\n');
   $('fontName').textContent = fontLabel;
   $('fontName').title = fonts.map((file) => file.name).join('\n');
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}${fontSubsetEnabled?.checked ? ' · subset' : ''}` : '—';
@@ -423,12 +436,17 @@ function updateUI() {
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
+    if (appendPreserveAll) appendPreserveAll.checked = false;
     if (trackState) resetTrackState();
+  } else if (appendPreserveAll && appendPreserveAll.dataset.userTouched !== '1') {
+    appendPreserveAll.checked = true;
   }
 
-  preserveAttachments.disabled = busy || !inputIsMkv;
+  const appendMode = Boolean(inputIsMkv && appendPreserveAll?.checked);
+  preserveAttachments.checked = appendMode ? true : preserveAttachments.checked;
+  preserveAttachments.disabled = busy || !inputIsMkv || appendMode;
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
-  muxBtn.disabled = busy || !(video && subs.length);
+  muxBtn.disabled = busy || !(video && subs.length) || collectedSubs.invalid.length > 0;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
@@ -455,7 +473,12 @@ function bindNewTrackEditor(container, selector, getState) {
 
 videoInput.addEventListener('change', () => {
   resetTrackState();
-  preserveAttachments.checked = false;
+  const isMkv = ext(videoInput.files[0]?.name || '') === '.mkv';
+  if (appendPreserveAll) {
+    appendPreserveAll.dataset.userTouched = '0';
+    appendPreserveAll.checked = isMkv;
+  }
+  preserveAttachments.checked = isMkv;
   destroySubtitlePreview();
   clearPreviewImage();
   updateUI();
@@ -467,6 +490,9 @@ audioInput.addEventListener('change', () => {
 });
 subInput.addEventListener('change', () => {
   syncNewTrackState();
+  previewCueTimes = [];
+  previewCueIndex = -1;
+  if (previewTimeInput) previewTimeInput.value = '';
   destroySubtitlePreview();
   updateUI();
   previewStatus.textContent = '字幕已更换；点击“生成预览帧”按需检查字幕效果。';
@@ -499,6 +525,13 @@ previewImage?.addEventListener('keydown', (event) => {
 previewDialogClose?.addEventListener('click', () => previewDialog?.close());
 previewDialog?.addEventListener('click', (event) => {
   if (event.target === previewDialog) previewDialog.close();
+});
+
+appendPreserveAll?.addEventListener('change', () => {
+  appendPreserveAll.dataset.userTouched = '1';
+  if (appendPreserveAll.checked) preserveAttachments.checked = true;
+  updateUI();
+  renderMuxPlan();
 });
 
 preserveAttachments.addEventListener('change', () => {
