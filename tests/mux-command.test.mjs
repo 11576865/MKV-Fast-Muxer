@@ -22,9 +22,10 @@ test('builds deterministic multi-audio multi-subtitle mux command', () => {
       { index: 4, language: 'jpn', title: 'Signs', default: false, forced: true },
     ],
     originalAttachments: [{ index: 7 }],
-    fontAttachments: Object.assign([
+    originalAttachmentCount: 1,
+    fontAttachments: [
       { path: 'font.ttf', filename: 'font.ttf', mimeType: 'font/ttf' },
-    ], { originalAttachmentCount: 1 }),
+    ],
   });
 
   assert.deepEqual(args.slice(0, 8), [
@@ -75,9 +76,10 @@ test('can preserve all original attachments without enumerating them', () => {
     mainInputPath: 'main.mkv',
     outputPath: 'out.mkv',
     preserveAllOriginalAttachments: true,
-    fontAttachments: Object.assign([
+    originalAttachmentCount: 3,
+    fontAttachments: [
       { path: 'font.otf', filename: 'font.otf', mimeType: 'font/otf' },
-    ], { originalAttachmentCount: 3 }),
+    ],
   });
 
   assert.ok(args.includes('0:t?'));
