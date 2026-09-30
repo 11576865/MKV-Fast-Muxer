@@ -62,6 +62,18 @@ function compareTrack(issues, kind, index, expected, actual) {
       pushMismatch(issues, `${kind} #${index + 1} Forced`, expected.forced ? '1' : '0', actualForced ? '1' : '0');
     }
   }
+
+  for (const [field, dispositionKey, label] of [
+    ['original', 'original', 'Original'],
+    ['commentary', 'comment', 'Commentary'],
+    ['hearingImpaired', 'hearing_impaired', 'Hearing impaired'],
+  ]) {
+    if (!hasOwn(expected, field)) continue;
+    const actualValue = disposition(actual, dispositionKey);
+    if (actualValue !== Boolean(expected[field])) {
+      pushMismatch(issues, `${kind} #${index + 1} ${label}`, expected[field] ? '1' : '0', actualValue ? '1' : '0');
+    }
+  }
 }
 
 function compareTrackGroup(issues, kind, expected, actual) {
