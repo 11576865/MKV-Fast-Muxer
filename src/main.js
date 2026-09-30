@@ -249,9 +249,9 @@ function updateUI() {
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
   muxBtn.disabled = busy || !(video && subs.length && fonts.length);
   cancelBtn.disabled = !busy;
+  renderNewTrackLists();
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
-  renderNewTrackLists();
   renderMuxPlan();
 }
 
@@ -1285,7 +1285,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.3.0',
+      appVersion: '0.4.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
