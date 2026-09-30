@@ -173,7 +173,9 @@ async function scenarioSelectiveAttachments(browser) {
 
     assert.equal((outputProbe.chapters || []).length, 2, 'chapters must be preserved');
     assert.equal(outputProbe.format?.tags?.title, 'Fixture Container');
-    assert.equal(outputProbe.format?.tags?.comment, 'Fixture global comment');
+    const outputComment = Object.entries(outputProbe.format?.tags || {})
+      .find(([key]) => key.toLowerCase() === 'comment')?.[1];
+    assert.equal(outputComment, 'Fixture global comment');
     assert.deepEqual(filenames, ['DejaVuSans.ttf', 'notes-renamed.txt']);
     assert.equal(filenames.includes('fixture-original.ttf'), false, 'unselected original font attachment must be removed');
     const renamedNotes = attachments.find((stream) => stream.tags?.filename === 'notes-renamed.txt');
