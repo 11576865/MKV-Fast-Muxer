@@ -167,3 +167,22 @@ test('subtitle codec override only transcodes the requested subtitle stream', ()
   assert.equal(args[overrideIndex + 1], 'srt');
   assert.equal(args.includes('-c:s:0'), false);
 });
+
+
+test('preserve-all append mode maps every source subtitle without rewriting metadata', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mkv',
+    outputPath: 'out.mkv',
+    preserveAllOriginalSubtitles: true,
+    preserveAllOriginalAttachments: true,
+    originalAttachmentCount: 2,
+    newSubtitleTracks: [
+      { path: 'new.sup', inputIndex: 1, language: 'eng', title: 'PGS', default: false },
+    ],
+  });
+
+  assert.ok(args.includes('0:s?'));
+  assert.ok(args.includes('0:t?'));
+  assert.equal(args.some((arg) => String(arg).startsWith('-metadata:s:s:1')), false);
+  assert.ok(args.includes('1:0'));
+});
