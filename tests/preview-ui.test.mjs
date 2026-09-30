@@ -22,8 +22,9 @@ test('visual ASS preview is present and explicit light theme is removed', async 
 
   assert.match(main, /import JASSUB from 'jassub'/);
   assert.match(main, /queryFonts:\s*false/);
-  assert.match(main, /jassub\/worker\/worker\.js/);
-  assert.match(main, /jassub\/wasm\/jassub-worker\.wasm/);
+  assert.match(main, /new URL\('jassub\/', window\.location\.href\)/);
+  assert.match(main, /worker\/worker\.js/);
+  assert.match(main, /wasm\/jassub-worker\.wasm/);
 
   assert.match(css, /\.subtitle-preview-card/);
   assert.match(css, /\.editor-card \.new-track-row \{\s*grid-template-columns: minmax\(0, 1fr\)/);
@@ -36,7 +37,7 @@ test('JASSUB runtime assets are copied locally and dependency is pinned', async 
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '0.9.0');
+  assert.equal(pkg.version, '1.0.0');
   assert.equal(pkg.dependencies.jassub, '2.5.15');
 
   assert.match(copyScript, /jassub\/dist/);
