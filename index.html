@@ -67,12 +67,23 @@
               <span class="source-action">选择</span>
             </label>
 
+            <label class="source-item source-audio">
+              <input id="audioInput" type="file" multiple accept="audio/*,.flac,.aac,.m4a,.mp3,.opus,.ogg,.wav,.ac3,.eac3,.dts,.mka" />
+              <span class="source-type">AUDIO</span>
+              <span class="source-body">
+                <strong>外部音频</strong>
+                <small>可选 · 支持多选 · Stream copy</small>
+                <span id="audioName" class="filename">未选择</span>
+              </span>
+              <span class="source-action">选择</span>
+            </label>
+
             <label class="source-item source-subtitle">
-              <input id="subInput" type="file" accept=".ass,text/plain" />
+              <input id="subInput" type="file" multiple accept=".ass,text/plain" />
               <span class="source-type">ASS</span>
               <span class="source-body">
                 <strong>字幕</strong>
-                <small>UTF-8 / UTF-16LE / UTF-16BE</small>
+                <small>支持多 ASS · UTF-8 / UTF-16LE / UTF-16BE</small>
                 <span id="subName" class="filename">未选择</span>
               </span>
               <span class="source-action">选择</span>
@@ -113,21 +124,12 @@
                 </label>
 
                 <div class="control-group">
-                  <span class="control-label">新字幕轨</span>
-                  <div class="control-row">
-                    <select id="subtitleLanguage">
-                      <option value="und" selected>未指定（und）</option>
-                      <option value="zho">简体中文（zho）</option>
-                      <option value="eng">英语（eng）</option>
-                      <option value="jpn">日语（jpn）</option>
-                      <option value="kor">韩语（kor）</option>
-                      <option value="mul">多语言 / 双语（mul）</option>
-                    </select>
-                    <input id="newSubTitle" class="text-input" type="text" value="ASS 字幕" maxlength="160" aria-label="新字幕标题" />
+                  <span class="control-label">新增轨道</span>
+                  <div id="newAudioList" class="new-track-list">
+                    <div class="track-empty">未选择外部音频。</div>
                   </div>
-                  <div class="flag-row">
-                    <label><input id="newSubDefault" type="checkbox" checked /> Default</label>
-                    <label><input id="newSubForced" type="checkbox" /> Forced</label>
+                  <div id="newSubtitleList" class="new-track-list">
+                    <div class="track-empty">未选择 ASS 字幕。</div>
                   </div>
                 </div>
               </div>
@@ -146,13 +148,24 @@
                 <div class="track-empty">选择 MKV 后可扫描原音频与字幕轨。未扫描时默认保留全部音频、不保留原字幕。</div>
               </div>
 
-              <label class="attachment-toggle">
-                <input id="preserveAttachments" type="checkbox" disabled />
-                <span>
-                  <strong>保留原 MKV 附件</strong>
-                  <small>原附件与新上传字体分开处理。</small>
-                </span>
-              </label>
+              <div class="attachment-manager">
+                <div class="attachment-manager-head">
+                  <div>
+                    <strong>原 MKV 附件</strong>
+                    <small>扫描后可逐项保留；未扫描时仍可使用“全部保留”。</small>
+                  </div>
+                  <label class="attachment-toggle">
+                    <input id="preserveAttachments" type="checkbox" disabled />
+                    <span>
+                      <strong>全部保留</strong>
+                      <small>未扫描时使用此开关。</small>
+                    </span>
+                  </label>
+                </div>
+                <div id="attachmentList" class="attachment-list">
+                  <div class="track-empty">扫描 MKV 后显示附件列表。</div>
+                </div>
+              </div>
             </section>
 
             <section class="work-section log-section">
@@ -212,7 +225,7 @@
 
               <div class="execution-status">
                 <span class="status-label">STATUS</span>
-                <div id="status" class="status" aria-live="polite">选择三个输入文件后即可开始。</div>
+                <div id="status" class="status" aria-live="polite">选择视频、至少一个 ASS 和字体后即可开始；外部音频可选。</div>
               </div>
 
               <div class="progress" aria-hidden="true"><div id="bar"></div></div>

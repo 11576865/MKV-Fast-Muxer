@@ -3,6 +3,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
+import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import {
@@ -16,15 +17,15 @@ import {
 const $ = (id) => document.getElementById(id);
 
 const videoInput = $('videoInput');
+const audioInput = $('audioInput');
 const subInput = $('subInput');
 const fontInput = $('fontInput');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
-const subtitleLanguage = $('subtitleLanguage');
-const newSubTitle = $('newSubTitle');
-const newSubDefault = $('newSubDefault');
-const newSubForced = $('newSubForced');
+const newAudioList = $('newAudioList');
+const newSubtitleList = $('newSubtitleList');
 const preserveAttachments = $('preserveAttachments');
+const attachmentList = $('attachmentList');
 const scanTracksBtn = $('scanTracksBtn');
 const trackList = $('trackList');
 const refreshPlanBtn = $('refreshPlanBtn');
@@ -92,6 +93,8 @@ let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
 let trackState = null;
+let externalAudioState = [];
+let newSubtitleState = [];
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -117,6 +120,73 @@ function selectedFonts() {
   return Array.from(fontInput.files || []);
 }
 
+function selectedExternalAudioFiles() {
+  return Array.from(audioInput.files || []);
+}
+
+function selectedSubtitleFiles() {
+  return Array.from(subInput.files || []);
+}
+
+function stripExtension(name) {
+  return String(name || '').replace(/\.[^.]+$/, '');
+}
+
+function syncNewTrackState() {
+  const oldAudio = new Map(externalAudioState.map((item) => [fileKey(item.file), item]));
+  externalAudioState = selectedExternalAudioFiles().map((file) => {
+    const old = oldAudio.get(fileKey(file));
+    return old || { file, language: 'und', title: stripExtension(file.name), default: false };
+  });
+
+  const oldSubs = new Map(newSubtitleState.map((item) => [fileKey(item.file), item]));
+  newSubtitleState = selectedSubtitleFiles().map((file, index) => {
+    const old = oldSubs.get(fileKey(file));
+    return old || {
+      file,
+      language: 'und',
+      title: stripExtension(file.name) || languageTitles.und,
+      default: index === 0,
+      forced: false,
+    };
+  });
+}
+
+function renderNewTrackLists() {
+  newAudioList.innerHTML = externalAudioState.length
+    ? externalAudioState.map((item, index) => `
+      <div class="new-track-row is-audio">
+        <div class="new-track-main">
+          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <div class="new-track-fields">
+            <input data-new-audio-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="外部音频语言">
+            <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
+          </div>
+        </div>
+        <div class="new-track-flags">
+          <label><input type="checkbox" data-new-audio-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
+        </div>
+      </div>`).join('')
+    : '<div class="track-empty">未选择外部音频。</div>';
+
+  newSubtitleList.innerHTML = newSubtitleState.length
+    ? newSubtitleState.map((item, index) => `
+      <div class="new-track-row is-subtitle">
+        <div class="new-track-main">
+          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <div class="new-track-fields">
+            <input data-new-sub-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="字幕语言">
+            <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
+          </div>
+        </div>
+        <div class="new-track-flags">
+          <label><input type="checkbox" data-new-sub-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
+          <label><input type="checkbox" data-new-sub-field="forced" data-index="${index}" ${item.forced ? 'checked' : ''}> Forced</label>
+        </div>
+      </div>`).join('')
+    : '<div class="track-empty">未选择 ASS 字幕。</div>';
+}
+
 function fileKey(file) {
   return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
 }
@@ -134,39 +204,41 @@ function isBusy() {
 
 function setInputsDisabled(disabled) {
   videoInput.disabled = disabled;
+  audioInput.disabled = disabled;
   subInput.disabled = disabled;
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
-  subtitleLanguage.disabled = disabled;
-  newSubTitle.disabled = disabled;
-  newSubDefault.disabled = disabled;
-  newSubForced.disabled = disabled;
   preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
 }
 
 function resetTrackState() {
   trackState = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
+  attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
   renderMuxPlan();
 }
 
 function updateUI() {
   const video = videoInput.files[0];
-  const sub = subInput.files[0];
+  const subs = selectedSubtitleFiles();
   const fonts = selectedFonts();
   const inputIsMkv = ext(video?.name || '') === '.mkv';
   const mode = fontMode.value || 'preserve';
   const busy = isBusy();
 
   $('videoName').textContent = video?.name ?? '未选择';
-  $('subName').textContent = sub?.name ?? '未选择';
+  $('audioName').textContent = formatFontSelection(selectedExternalAudioFiles()).replace(/字体/g, '音频');
+  $('subName').textContent = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 个 ASS`) : '未选择';
   $('fontName').textContent = formatFontSelection(fonts);
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
 
   fontModeHint.textContent = mode === 'force'
-    ? '兼容旧行为：只使用并附加第一个上传字体；ASS 的 Style Fontname 与显式内联 \\fn 会统一改写。'
-    : '保留 ASS Fontname；按 Family、Weight/Bold、Italic 匹配具体字体 face，并检查实际字符覆盖。';
+    ? '兼容旧行为：只使用并附加第一个上传字体；所有新增 ASS 的 Fontname 与显式内联 \\fn 会统一改写。'
+    : '保留各 ASS Fontname；按 Family、Weight/Bold、Italic 匹配字体 face，并检查实际字符覆盖。';
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
@@ -175,11 +247,26 @@ function updateUI() {
 
   preserveAttachments.disabled = busy || !inputIsMkv;
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
-  muxBtn.disabled = busy || !(video && sub && fonts.length);
+  muxBtn.disabled = busy || !(video && subs.length && fonts.length);
   cancelBtn.disabled = !busy;
+  renderNewTrackLists();
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
+}
+
+function bindNewTrackEditor(container, selector, getState) {
+  const update = (event) => {
+    const input = event.target.closest(selector);
+    if (!input) return;
+    const item = getState()[Number(input.dataset.index)];
+    if (!item) return;
+    const field = input.dataset.newAudioField || input.dataset.newSubField;
+    item[field] = input.type === 'checkbox' ? input.checked : input.value;
+    renderMuxPlan();
+  };
+  container.addEventListener('input', update);
+  container.addEventListener('change', update);
 }
 
 videoInput.addEventListener('change', () => {
@@ -187,15 +274,26 @@ videoInput.addEventListener('change', () => {
   preserveAttachments.checked = false;
   updateUI();
 });
-subInput.addEventListener('change', updateUI);
+audioInput.addEventListener('change', () => {
+  syncNewTrackState();
+  updateUI();
+});
+subInput.addEventListener('change', () => {
+  syncNewTrackState();
+  updateUI();
+});
 fontInput.addEventListener('change', updateUI);
 fontMode.addEventListener('change', updateUI);
-subtitleLanguage.addEventListener('change', renderMuxPlan);
-newSubTitle.addEventListener('input', renderMuxPlan);
-newSubDefault.addEventListener('change', renderMuxPlan);
-newSubForced.addEventListener('change', renderMuxPlan);
-preserveAttachments.addEventListener('change', renderMuxPlan);
+preserveAttachments.addEventListener('change', () => {
+  if (trackState) {
+    trackState.attachments.forEach((item) => { item.include = preserveAttachments.checked; });
+    renderAttachmentList();
+  }
+  renderMuxPlan();
+});
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
+bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', () => externalAudioState);
+bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', () => newSubtitleState);
 
 async function loadFFmpeg() {
   if (loaded) return;
@@ -347,11 +445,6 @@ function selectedTracks(type) {
     .sort((a, b) => a.order - b.order);
 }
 
-function normalizeTrackLanguage(value) {
-  const trimmed = String(value || '').trim().toLowerCase();
-  return trimmed || 'und';
-}
-
 function moveTrack(track, delta) {
   if (!trackState) return;
   const peers = trackState.tracks
@@ -367,14 +460,21 @@ function moveTrack(track, delta) {
   other.order = temp;
 }
 
+function selectedOriginalAttachments() {
+  return trackState?.attachments?.filter((item) => item.include) || [];
+}
+
 function defaultConflictWarnings() {
   const warnings = [];
-  const audioDefaults = selectedTracks('audio').filter((track) => track.default);
-  const originalSubtitleDefaults = selectedTracks('subtitle').filter((track) => track.default);
-  const subtitleDefaultCount = originalSubtitleDefaults.length + (newSubDefault.checked ? 1 : 0);
+  const audioDefaultCount =
+    selectedTracks('audio').filter((track) => track.default).length +
+    externalAudioState.filter((track) => track.default).length;
+  const subtitleDefaultCount =
+    selectedTracks('subtitle').filter((track) => track.default).length +
+    newSubtitleState.filter((track) => track.default).length;
 
-  if (audioDefaults.length > 1) {
-    warnings.push(`存在 ${audioDefaults.length} 条 Default 音频轨；播放器行为可能不一致。`);
+  if (audioDefaultCount > 1) {
+    warnings.push(`存在 ${audioDefaultCount} 条 Default 音频轨；播放器行为可能不一致。`);
   }
   if (subtitleDefaultCount > 1) {
     warnings.push(`存在 ${subtitleDefaultCount} 条 Default 字幕轨；建议只保留一个 Default。`);
@@ -417,31 +517,47 @@ function buildMuxPlan() {
     });
   }
 
-  if (subInput.files[0]) {
+  externalAudioState.forEach((track, index) => {
     entries.push({
-      kind: '字幕 1',
-      title: newSubTitle.value.trim() || languageTitles[subtitleLanguage.value] || 'ASS 字幕',
-      meta: `ASS · ${normalizeTrackLanguage(subtitleLanguage.value)} · 新增`,
-      flags: dispositionValue(newSubDefault.checked, newSubForced.checked),
+      kind: `外部音频 ${index + 1}`,
+      title: track.title || track.file.name,
+      meta: `${normalizeTrackLanguage(track.language)} · ${track.file.name} · stream copy`,
+      flags: dispositionValue(track.default, false),
     });
-  }
+  });
+
+  newSubtitleState.forEach((track, index) => {
+    entries.push({
+      kind: `字幕 ${index + 1}`,
+      title: track.title || track.file.name,
+      meta: `ASS · ${normalizeTrackLanguage(track.language)} · 新增`,
+      flags: dispositionValue(track.default, track.forced),
+    });
+  });
 
   selectedTracks('subtitle').forEach((track, index) => {
     entries.push({
-      kind: `字幕 ${index + 2}`,
+      kind: `原字幕 ${index + 1}`,
       title: track.title || `Subtitle #${track.index}`,
       meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
       flags: dispositionValue(track.default, track.forced),
     });
   });
 
-  if (preserveAttachments.checked) {
+  if (trackState) {
+    selectedOriginalAttachments().forEach((item) => {
+      entries.push({
+        kind: '附件',
+        title: item.filename || `Attachment #${item.index}`,
+        meta: `${item.mimetype || item.stream.codec_name || 'attachment'} · source #${item.index}`,
+        flags: '',
+      });
+    });
+  } else if (preserveAttachments.checked) {
     entries.push({
       kind: '附件',
-      title: trackState
-        ? `${trackState.attachmentCount} 个原 MKV 附件`
-        : '原 MKV 附件',
-      meta: trackState ? '按源顺序保留' : '未扫描 · 数量将在封装时探测',
+      title: '全部原 MKV 附件',
+      meta: '未扫描 · 封装时全部保留',
       flags: '',
     });
   }
@@ -456,12 +572,8 @@ function buildMuxPlan() {
     });
   });
 
-  if (!entries.length) {
-    return { entries, warnings };
-  }
-
-  if (trackState && selectedTracks('audio').length === 0) {
-    warnings.push('扫描后没有选择任何音频轨；输出将没有音频。');
+  if (trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
+    warnings.push('扫描后没有选择原音频，也没有外部音频；输出将没有音频。');
   }
 
   return { entries, warnings };
@@ -470,8 +582,8 @@ function buildMuxPlan() {
 function planKindClass(kind) {
   const label = String(kind || '');
   if (label.startsWith('视频')) return 'plan-video';
-  if (label.startsWith('音频')) return 'plan-audio';
-  if (label.startsWith('字幕')) return 'plan-subtitle';
+  if (label.includes('音频')) return 'plan-audio';
+  if (label.includes('字幕')) return 'plan-subtitle';
   if (label.startsWith('字体')) return 'plan-font';
   if (label.startsWith('附件')) return 'plan-attachment';
   return '';
@@ -546,6 +658,41 @@ function renderTrackList() {
   }).join('');
   renderMuxPlan();
 }
+
+function renderAttachmentList() {
+  if (!trackState) {
+    attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
+    return;
+  }
+  if (!trackState.attachments.length) {
+    attachmentList.innerHTML = '<div class="track-empty">这个 MKV 没有附件。</div>';
+    return;
+  }
+
+  attachmentList.innerHTML = trackState.attachments.map((item) => `
+    <label class="attachment-item">
+      <span>
+        <strong>${escapeHtml(item.filename || `Attachment #${item.index}`)}</strong>
+        <span class="attachment-meta">${escapeHtml(item.mimetype || item.stream.codec_name || 'attachment')} · source #${item.index}</span>
+      </span>
+      <span class="attachment-select">
+        <input type="checkbox" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''}>
+        保留
+      </span>
+    </label>
+  `).join('');
+}
+
+attachmentList.addEventListener('change', (event) => {
+  if (!trackState) return;
+  const input = event.target.closest('input[data-attachment-index]');
+  if (!input) return;
+  const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
+  if (!item) return;
+  item.include = input.checked;
+  preserveAttachments.checked = trackState.attachments.length > 0 && trackState.attachments.every((entry) => entry.include);
+  renderMuxPlan();
+});
 
 function escapeHtml(value) {
   return String(value)
@@ -638,15 +785,28 @@ scanTracksBtn.addEventListener('click', async () => {
         originalForced: Boolean(stream.disposition?.forced),
       }));
 
+    const attachments = probe.streams
+      .filter((stream) => stream.codec_type === 'attachment')
+      .map((stream) => ({
+        index: stream.index,
+        stream,
+        filename: stream.tags?.filename || '',
+        mimetype: stream.tags?.mimetype || '',
+        include: false,
+      }));
+
     trackState = {
       fileKey: fileKey(video),
       tracks,
+      attachments,
       attachmentCount: probe.attachmentCount,
     };
 
+    preserveAttachments.checked = false;
     renderTrackList();
+    renderAttachmentList();
     bar.style.width = '0%';
-    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕。`;
+    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕，${attachments.length} 个附件。`;
   } catch (err) {
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
       status.textContent = '轨道扫描已取消。';
@@ -773,13 +933,6 @@ async function analyzePreservedFonts(analysis, uploadedFonts) {
   return { missingFamilies, faceFallbacks, missingGlyphGroups };
 }
 
-function dispositionValue(isDefault, isForced = false) {
-  const values = [];
-  if (isDefault) values.push('default');
-  if (isForced) values.push('forced');
-  return values.length ? values.join('+') : '0';
-}
-
 function getScannedSelection(video) {
   if (!trackState || trackState.fileKey !== fileKey(video)) return null;
   return trackState;
@@ -797,25 +950,28 @@ cancelBtn.addEventListener('click', () => {
 muxBtn.addEventListener('click', async () => {
   if (isBusy()) return;
 
+  syncNewTrackState();
   const video = videoInput.files[0];
-  const sub = subInput.files[0];
   const fontFiles = selectedFonts();
-  if (!video || !sub || !fontFiles.length) return;
+  const subtitleTracks = newSubtitleState;
+  const externalAudioTracks = externalAudioState;
+  if (!video || !subtitleTracks.length || !fontFiles.length) return;
 
   const videoExt = ext(video.name);
-  const subExt = ext(sub.name);
+  const invalidSubtitle = subtitleTracks.find((track) => ext(track.file.name) !== '.ass');
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf'].includes(ext(file.name)));
   const mode = fontMode.value || 'preserve';
-  const language = subtitleLanguage.value || 'und';
   const scanned = getScannedSelection(video);
-  const keepOriginalAttachments = preserveAttachments.checked && videoExt === '.mkv';
+  const preserveAllOriginalAttachments = !scanned
+    && preserveAttachments.checked
+    && videoExt === '.mkv';
 
   if (!['.mp4', '.mkv', '.webm', '.mov', '.m4v'].includes(videoExt)) {
     status.textContent = '请选择 MP4 / MKV / WebM / MOV / M4V 视频文件。';
     return;
   }
-  if (subExt !== '.ass') {
-    status.textContent = '字幕必须是 .ass 文件。';
+  if (invalidSubtitle) {
+    status.textContent = `字幕“${invalidSubtitle.file.name}”不是 .ass 文件。`;
     return;
   }
   if (invalidFont) {
@@ -844,12 +1000,14 @@ muxBtn.addEventListener('click', async () => {
 
   const prefix = taskPrefix();
   const videoPath = `${prefix}-input${videoExt}`;
-  const subPath = `${prefix}-subtitle.ass`;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
   const auditPath = `${prefix}-audit.json`;
   const outputName = safeOutputName(video.name);
   const fontPaths = [];
+  const audioPaths = [];
+  const subtitlePaths = [];
+  const extraProbePaths = [];
 
   try {
     status.textContent = '正在解析 ASS 与字体 face……';
@@ -857,17 +1015,12 @@ muxBtn.addEventListener('click', async () => {
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
     const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique);
-    const [{ text: sourceAss, encoding: assEncoding }, descriptors] = await Promise.all([
-      readAssText(sub),
-      Promise.all(uniqueFontItems.map(async (item, index) => ({
-        ...item,
-        index,
-        descriptor: await readFontDescriptor(item.file),
-      }))),
-    ]);
-    if (cancelRequested) return;
+    const descriptors = await Promise.all(uniqueFontItems.map(async (item, index) => ({
+      ...item,
+      index,
+      descriptor: await readFontDescriptor(item.file),
+    })));
 
-    logEl.textContent += `ASS 编码：${assEncoding}\n`;
     if (fontDedupe.duplicates.length) {
       logEl.textContent += `INFO: 检测到 ${fontDedupe.duplicates.length} 个内容完全相同的重复字体，按 SHA-256 去重，不重复写入 MKV：${fontDedupe.duplicates.map((item) => item.file.name).join('、')}\n`;
     }
@@ -877,53 +1030,53 @@ muxBtn.addEventListener('click', async () => {
     }
     reportFontFamilyCompleteness(descriptors);
 
-    const analysis = analyzeAssFontUsage(sourceAss);
-    let outputAss = sourceAss;
     let attachments = descriptors;
     let completionNote = '';
     let dependencyWarningCount = 0;
+    const preparedSubtitles = [];
 
-    if (mode === 'force') {
-      const primary = descriptors[0];
-      outputAss = forceAssFontFamily(sourceAss, primary.descriptor.family);
-      attachments = [primary];
+    for (let index = 0; index < subtitleTracks.length; index += 1) {
+      const track = subtitleTracks[index];
+      const { text: sourceAss, encoding } = await readAssText(track.file);
+      const analysis = analyzeAssFontUsage(sourceAss);
+      let outputAss = sourceAss;
 
-      if (descriptors.length > 1) {
-        logEl.textContent += `INFO: 强制字体模式只使用第一个字体；其余 ${descriptors.length - 1} 个上传字体不会附加。\n`;
-      }
+      logEl.textContent += `ASS #${index + 1}：${track.file.name} · 编码 ${encoding}\n`;
 
-      logEl.textContent += `ASS 字体已强制统一为：${primary.descriptor.family}\n`;
+      if (mode === 'force') {
+        const primary = descriptors[0];
+        outputAss = forceAssFontFamily(sourceAss, primary.descriptor.family);
+        attachments = [primary];
 
-      try {
-        const coverage = await checkFontCharacters(primary.file, analysis.allCharacters);
-        if (coverage.missing.length) {
-          dependencyWarningCount += 1;
-          completionNote = `；强制字体缺少 ${coverage.missing.length} 个字幕字符`;
-          logEl.textContent += `WARNING: 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
-        } else {
-          logEl.textContent += `字体缺字检查通过：${coverage.checkedCount} 个唯一字幕字符均可在“${primary.descriptor.family}”中找到。\n`;
+        try {
+          const coverage = await checkFontCharacters(primary.file, analysis.allCharacters);
+          if (coverage.missing.length) {
+            dependencyWarningCount += 1;
+            logEl.textContent += `WARNING: ASS #${index + 1} 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
+          }
+        } catch (coverageError) {
+          logEl.textContent += `WARNING: ASS #${index + 1} 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
         }
-      } catch (coverageError) {
-        logEl.textContent += `WARNING: 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
+      } else {
+        const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
+        dependencyWarningCount +=
+          dependencyResult.missingFamilies.length +
+          dependencyResult.faceFallbacks.length +
+          dependencyResult.missingGlyphGroups.length;
       }
-    } else {
-      const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
-      dependencyWarningCount =
-        dependencyResult.missingFamilies.length +
-        dependencyResult.faceFallbacks.length +
-        dependencyResult.missingGlyphGroups.length;
 
-      const parts = [];
-      if (dependencyResult.missingFamilies.length) {
-        parts.push(`缺 ${dependencyResult.missingFamilies.length} 个字体依赖`);
-      }
-      if (dependencyResult.faceFallbacks.length) {
-        parts.push(`${dependencyResult.faceFallbacks.length} 个 face 仅近似匹配`);
-      }
-      if (dependencyResult.missingGlyphGroups.length) {
-        parts.push(`${dependencyResult.missingGlyphGroups.length} 个 face 存在缺字`);
-      }
-      if (parts.length) completionNote = `；警告：${parts.join('，')}`;
+      preparedSubtitles.push({
+        ...track,
+        encoding,
+        outputAss,
+      });
+    }
+
+    if (mode === 'force' && descriptors.length > 1) {
+      logEl.textContent += `INFO: 强制字体模式只使用第一个字体；其余 ${descriptors.length - 1} 个上传字体不会附加。\n`;
+    }
+    if (dependencyWarningCount) {
+      completionNote = `；字体检查存在 ${dependencyWarningCount} 组警告`;
     }
 
     await loadFFmpeg();
@@ -933,11 +1086,23 @@ muxBtn.addEventListener('click', async () => {
     bar.style.width = '20%';
 
     await ffmpeg.writeFile(videoPath, await fetchFile(video));
-    await ffmpeg.writeFile(subPath, new TextEncoder().encode(outputAss));
 
-    for (let i = 0; i < attachments.length; i++) {
-      const item = attachments[i];
-      const path = `${prefix}-font-${i}${ext(item.file.name)}`;
+    for (let index = 0; index < externalAudioTracks.length; index += 1) {
+      const track = externalAudioTracks[index];
+      const path = `${prefix}-audio-${index}${ext(track.file.name) || '.bin'}`;
+      audioPaths.push(path);
+      await ffmpeg.writeFile(path, await fetchFile(track.file));
+    }
+
+    for (let index = 0; index < preparedSubtitles.length; index += 1) {
+      const path = `${prefix}-subtitle-${index}.ass`;
+      subtitlePaths.push(path);
+      await ffmpeg.writeFile(path, new TextEncoder().encode(preparedSubtitles[index].outputAss));
+    }
+
+    for (let index = 0; index < attachments.length; index += 1) {
+      const item = attachments[index];
+      const path = `${prefix}-font-${index}${ext(item.file.name)}`;
       fontPaths.push(path);
       await ffmpeg.writeFile(path, await fetchFile(item.file));
     }
@@ -946,78 +1111,66 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '正在读取输入容器结构……';
     const inputProbe = await probeInput(videoPath, probePath);
     const originalAttachmentCount = inputProbe.attachmentCount;
+    const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
+    const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
+    const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
 
     const selectedAudio = scanned ? selectedTracks('audio') : null;
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
+    const originalAttachments = scanned ? selectedOriginalAttachments() : [];
+
+    const runtimeExternalAudio = [];
+    for (let index = 0; index < externalAudioTracks.length; index += 1) {
+      const probeOutput = `${prefix}-audio-${index}-probe.json`;
+      extraProbePaths.push(probeOutput);
+      const probe = await probeInput(audioPaths[index], probeOutput);
+      const audioStream = probe.streams.find((stream) => stream.codec_type === 'audio');
+      if (!audioStream) {
+        throw new Error(`外部音频“${externalAudioTracks[index].file.name}”没有可用音频轨。`);
+      }
+      runtimeExternalAudio.push({
+        ...externalAudioTracks[index],
+        path: audioPaths[index],
+        inputIndex: 1 + index,
+        codec: audioStream.codec_name || '',
+      });
+    }
+
+    const subtitleInputOffset = 1 + runtimeExternalAudio.length;
+    const runtimeSubtitles = preparedSubtitles.map((track, index) => ({
+      ...track,
+      path: subtitlePaths[index],
+      inputIndex: subtitleInputOffset + index,
+    }));
 
     if (scanned) {
-      logEl.textContent += `轨道方案：音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${keepOriginalAttachments ? scanned.attachmentCount : 0}。\n`;
+      logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增 ASS ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (videoExt === '.mkv') {
-      logEl.textContent += 'INFO: 未扫描轨道，按兼容模式保留所有音频、不保留原字幕。\n';
+      logEl.textContent += `INFO: 未扫描轨道，按兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
 
     status.textContent = '正在无损封装 MKV……';
     bar.style.width = '40%';
 
-    const args = [
-      '-i', videoPath,
-      '-i', subPath,
-      '-map', '0:v?',
-    ];
+    const fontAttachments = attachments.map((item, index) => ({
+      path: fontPaths[index],
+      mimeType: mimeForFont(item.file),
+      filename: item.attachmentName,
+    }));
 
-    if (selectedAudio) {
-      for (const track of selectedAudio) args.push('-map', `0:${track.index}`);
-    } else {
-      args.push('-map', '0:a?');
-    }
-
-    args.push('-map', '1:0');
-
-    for (const track of selectedSubtitles) {
-      args.push('-map', `0:${track.index}`);
-    }
-
-    if (keepOriginalAttachments) {
-      args.push('-map', '0:t?');
-    }
-
-    args.push(
-      '-map_metadata', '0',
-      '-map_chapters', '0',
-      '-c', 'copy',
-      '-metadata:s:s:0', `language=${language}`,
-      '-metadata:s:s:0', `title=${newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕'}`,
-      '-disposition:s:0', dispositionValue(newSubDefault.checked, newSubForced.checked),
-    );
-
-    if (selectedAudio) {
-      selectedAudio.forEach((track, index) => {
-        args.push(
-          `-metadata:s:a:${index}`, `language=${normalizeTrackLanguage(track.language)}`,
-          `-metadata:s:a:${index}`, `title=${track.title || ''}`,
-          `-disposition:a:${index}`, dispositionValue(track.default, false),
-        );
-      });
-    }
-
-    selectedSubtitles.forEach((track, index) => {
-      args.push(
-        `-metadata:s:s:${index + 1}`, `language=${normalizeTrackLanguage(track.language)}`,
-        `-metadata:s:s:${index + 1}`, `title=${track.title || ''}`,
-        `-disposition:s:${index + 1}`, dispositionValue(track.default, track.forced),
-      );
+    const args = buildMuxCommand({
+      mainInputPath: videoPath,
+      outputPath,
+      sourceAudioCount: sourceAudios.length,
+      originalAudioTracks: selectedAudio,
+      externalAudioTracks: runtimeExternalAudio,
+      newSubtitleTracks: runtimeSubtitles,
+      originalSubtitleTracks: selectedSubtitles,
+      originalAttachments,
+      preserveAllOriginalAttachments,
+      originalAttachmentCount,
+      fontAttachments,
     });
-
-    attachments.forEach((item, index) => {
-      const attachmentIndex = (keepOriginalAttachments ? originalAttachmentCount : 0) + index;
-      args.push(
-        '-attach', fontPaths[index],
-        `-metadata:s:t:${attachmentIndex}`, `mimetype=${mimeForFont(item.file)}`,
-        `-metadata:s:t:${attachmentIndex}`, `filename=${item.attachmentName}`,
-      );
-    });
-
-    args.push(outputPath);
 
     const code = await ffmpeg.exec(args);
     if (cancelRequested) return;
@@ -1026,15 +1179,8 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '正在审计输出 MKV……';
     bar.style.width = '94%';
 
-    const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
-    const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
-    const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
-
-    const expectedAudit = {
-      video: sourceVideos.map((stream) => ({
-        codec: stream.codec_name || '',
-      })),
-      audio: selectedAudio
+    const expectedAudio = [
+      ...(selectedAudio
         ? selectedAudio.map((track) => ({
             codec: track.stream.codec_name || '',
             language: normalizeTrackLanguage(track.language),
@@ -1046,15 +1192,32 @@ muxBtn.addEventListener('click', async () => {
             language: normalizeTrackLanguage(stream.tags?.language),
             title: stream.tags?.title || '',
             default: Boolean(stream.disposition?.default),
-          })),
+          }))),
+      ...runtimeExternalAudio.map((track) => ({
+        codec: track.codec,
+        language: normalizeTrackLanguage(track.language),
+        title: track.title || '',
+        default: track.default,
+      })),
+    ];
+
+    const expectedOriginalAttachmentNames = scanned
+      ? originalAttachments.map((item) => item.filename).filter(Boolean)
+      : (preserveAllOriginalAttachments
+          ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+          : []);
+
+    const expectedAudit = {
+      video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
+      audio: expectedAudio,
       subtitles: [
-        {
+        ...runtimeSubtitles.map((track) => ({
           codec: 'ass',
-          language,
-          title: newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕',
-          default: newSubDefault.checked,
-          forced: newSubForced.checked,
-        },
+          language: normalizeTrackLanguage(track.language),
+          title: track.title || '',
+          default: track.default,
+          forced: track.forced,
+        })),
         ...selectedSubtitles.map((track) => ({
           codec: track.stream.codec_name || '',
           language: normalizeTrackLanguage(track.language),
@@ -1065,19 +1228,18 @@ muxBtn.addEventListener('click', async () => {
       ],
       chapterCount: inputProbe.chapters.length,
       formatTitle: inputProbe.format?.tags?.title || '',
-      attachmentCount: (keepOriginalAttachments ? originalAttachmentCount : 0) + attachments.length,
-      attachmentFilenames: keepOriginalAttachments
-        ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
-        : [],
+      attachmentCount:
+        (scanned
+          ? originalAttachments.length
+          : (preserveAllOriginalAttachments ? originalAttachmentCount : 0))
+        + attachments.length,
+      attachmentFilenames: expectedOriginalAttachmentNames,
       newFontFilenames: attachments.map((item) => item.attachmentName),
     };
 
     let finalAudit = null;
 
     try {
-      // Post-mux audit must never require decoding the media payload. The
-      // muxing result already exists at this point; an ffprobe limitation must
-      // not discard a successfully generated MKV.
       const auditProbe = await probeInput(outputPath, auditPath, {
         allowDecodeFallback: false,
       });
@@ -1087,7 +1249,7 @@ muxBtn.addEventListener('click', async () => {
         ...audit,
       };
       if (audit.ok) {
-        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
@@ -1123,7 +1285,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.3.0',
+      appVersion: '0.4.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
@@ -1135,12 +1297,14 @@ muxBtn.addEventListener('click', async () => {
         attachmentCount: originalAttachmentCount,
       },
       subtitle: {
-        name: sub.name,
-        encoding: assEncoding,
-        language,
-        title: newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕',
-        default: newSubDefault.checked,
-        forced: newSubForced.checked,
+        tracks: runtimeSubtitles.map((track) => ({
+          name: track.file.name,
+          encoding: track.encoding,
+          language: normalizeTrackLanguage(track.language),
+          title: track.title || '',
+          default: track.default,
+          forced: track.forced,
+        })),
       },
       fonts: {
         selectedCount: fontFiles.length,
@@ -1169,8 +1333,18 @@ muxBtn.addEventListener('click', async () => {
       },
       warnings: {
         fontDependencyWarningCount: dependencyWarningCount,
+        externalAudioCount: runtimeExternalAudio.length,
+        originalAttachmentSelectionCount: originalAttachments.length,
       },
     });
+    report.externalAudio = runtimeExternalAudio.map((track) => ({
+      name: track.file.name,
+      codec: track.codec,
+      language: normalizeTrackLanguage(track.language),
+      title: track.title || '',
+      default: track.default,
+    }));
+
     reportURL = URL.createObjectURL(
       new Blob([serializeMuxReport(report)], { type: 'application/json' })
     );
@@ -1190,16 +1364,20 @@ muxBtn.addEventListener('click', async () => {
 
     bar.style.width = '100%';
     const modeText = mode === 'force'
-      ? `已强制统一字体并附加 ${attachments.length} 个字体文件`
-      : `已保留 ASS 字体并附加 ${attachments.length} 个字体文件`;
-    status.textContent = `完成。ASS 已按 ${assEncoding} 正确读取；${modeText}${completionNote}；视频/音频未重新编码。`;
+      ? `已强制统一 ${runtimeSubtitles.length} 条 ASS 的字体并附加 ${attachments.length} 个字体文件`
+      : `已保留 ${runtimeSubtitles.length} 条 ASS 的字体并附加 ${attachments.length} 个字体文件`;
+    status.textContent = `完成。${modeText}${completionNote}；共新增 ${runtimeExternalAudio.length} 条外部音频；视频/音频未重新编码。`;
 
     if (dependencyWarningCount) {
       logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体 face / 字形覆盖警告。请在发布前检查日志。\n`;
     }
 
     videoInput.value = '';
+    audioInput.value = '';
     subInput.value = '';
+    externalAudioState = [];
+    newSubtitleState = [];
+    renderNewTrackLists();
     resetTrackState();
   } catch (err) {
     console.error(err);
@@ -1214,8 +1392,10 @@ muxBtn.addEventListener('click', async () => {
   } finally {
     if (loaded) {
       await removeQuietly(videoPath);
-      await removeQuietly(subPath);
+      for (const path of audioPaths) await removeQuietly(path);
+      for (const path of subtitlePaths) await removeQuietly(path);
       for (const path of fontPaths) await removeQuietly(path);
+      for (const path of extraProbePaths) await removeQuietly(path);
       await removeQuietly(outputPath);
       await removeQuietly(probePath);
       await removeQuietly(auditPath);
