@@ -1,7 +1,7 @@
 export const PROBE_STREAM_ENTRIES = [
   'stream=index,codec_type,codec_name',
   'stream_tags=language,title,filename,mimetype',
-  'stream_disposition=default,forced',
+  'stream_disposition=default,forced,original,comment,hearing_impaired',
 ].join(':');
 
 export const PROBE_CHAPTER_ENTRIES = [
