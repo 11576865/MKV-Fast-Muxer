@@ -2,35 +2,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-test('expanded desktop uses a bounded adaptive preview-detail-supporting layout', async () => {
+test('expanded desktop top-aligns Review & Mux beside Input and gives preview the larger pane', async () => {
   const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
-  assert.match(css, /Adaptive pane layout v4/);
-  assert.match(
-    css,
-    /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/
-  );
-  assert.match(css, /width: min\(calc\(100% - 40px\), 1520px\);/);
-  assert.match(css, /max-width: 1520px;/);
-  assert.match(
-    css,
-    /grid-template-columns: minmax\(0, 1fr\) clamp\(340px, 22vw, 410px\);/
-  );
-  assert.match(
-    css,
-    /grid-template-areas:\n      "head head"\n      "preview editors"\n      "logs logs";/
-  );
-  assert.match(css, /\.editor-column > \.subtitle-preview-card \{\n    grid-area: preview;/);
-  assert.match(css, /\.editor-column > \.editor-grid \{\n    grid-area: editors;\n    grid-template-columns: minmax\(0, 1fr\);/);
+  assert.match(css, /Adaptive pane layout v5/);
+  assert.match(css, /\.workspace \{\n    display: grid;\n    grid-template-columns: minmax\(0, 1fr\) clamp\(340px, 22vw, 410px\);/);
+  assert.match(css, /\.workspace > \.stage-input \{\n    grid-column: 1;\n    grid-row: 1;/);
+  assert.match(css, /\.workspace > \.workbench-grid \{\n    display: contents;/);
+  assert.match(css, /\.workspace > \.workbench-grid > \.editor-column \{\n    grid-column: 1;\n    grid-row: 2;/);
+  assert.match(css, /\.workspace > \.workbench-grid > \.output-hub \{\n    grid-column: 2;\n    grid-row: 1 \/ span 2;/);
+  assert.match(css, /grid-template-columns: minmax\(500px, 1\.2fr\) minmax\(340px, \.8fr\);/);
   assert.match(css, /aspect-ratio: 16 \/ 9;/);
 
-  assert.match(html, /class="flow-rail"/);
-  assert.match(html, />输入<\/span>/);
-  assert.match(html, />调整<\/span>/);
-  assert.match(html, />检查并封装<\/span>/);
+  assert.match(html, /class="stage stage-input"/);
   assert.match(html, /class="editor-column"/);
-  assert.match(html, /class="subtitle-preview-card"/);
   assert.match(html, /class="output-hub"/);
 });
 
