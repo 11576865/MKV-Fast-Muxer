@@ -1,10 +1,38 @@
 // ASS font helpers: OpenType name/cmap parsing, font dependency analysis,
 // face matching (weight/italic), forced-font rewriting, and glyph coverage.
 
-export async function readFontDescriptor(file) {
+export async function readFontDescriptors(file) {
   const view = new DataView(await file.arrayBuffer());
-  validateSfnt(view);
-  const table = findTable(view, 'name');
+  const tag = view.byteLength >= 4 ? readTag(view, 0) : '';
+  const offsets = [];
+
+  if (tag === 'ttcf') {
+    if (view.byteLength < 12) throw new Error('字体集合文件过小');
+    const count = view.getUint32(8, false);
+    if (!count || count > 512 || 12 + count * 4 > view.byteLength) {
+      throw new Error('TTC / OTC 字体集合目录损坏');
+    }
+    for (let i = 0; i < count; i += 1) {
+      const offset = view.getUint32(12 + i * 4, false);
+      if (offset + 12 > view.byteLength) throw new Error('TTC / OTC 字体集合 face 偏移损坏');
+      offsets.push(offset);
+    }
+  } else {
+    offsets.push(0);
+  }
+
+  return offsets.map((baseOffset, collectionIndex) => (
+    readFontDescriptorFromView(view, baseOffset, offsets.length > 1 ? collectionIndex : null)
+  ));
+}
+
+export async function readFontDescriptor(file) {
+  return (await readFontDescriptors(file))[0];
+}
+
+function readFontDescriptorFromView(view, baseOffset, collectionIndex) {
+  validateSfnt(view, baseOffset);
+  const table = findTable(view, 'name', baseOffset);
   if (!table || table.offset + 6 > view.byteLength) {
     throw new Error('字体缺少可读取的内部名称');
   }
@@ -49,7 +77,7 @@ export async function readFontDescriptor(file) {
   if (!family) throw new Error('字体缺少 Family Name / Full Name');
 
   const subfamily = best.get(17)?.text || best.get(2)?.text || '';
-  const traits = readFaceTraits(view, subfamily);
+  const traits = readFaceTraits(view, subfamily, baseOffset);
 
   aliases.add(family);
   familyAliases.add(family);
@@ -64,6 +92,8 @@ export async function readFontDescriptor(file) {
     weight: traits.weight,
     bold: traits.bold,
     italic: traits.italic,
+    collectionIndex,
+    baseOffset,
   };
 }
 
@@ -333,10 +363,11 @@ export function analyzeAssFontUsage(text) {
   };
 }
 
-export async function checkFontCharacters(file, characters) {
+export async function checkFontCharacters(file, characters, collectionIndex = null) {
   const view = new DataView(await file.arrayBuffer());
-  validateSfnt(view);
-  const cmap = findTable(view, 'cmap');
+  const baseOffset = resolveCollectionBaseOffset(view, collectionIndex);
+  validateSfnt(view, baseOffset);
+  const cmap = findTable(view, 'cmap', baseOffset);
   if (!cmap || cmap.offset + 4 > view.byteLength) {
     throw new Error('字体缺少 Unicode cmap，无法检查缺字');
   }
@@ -480,12 +511,12 @@ function applyFaceOverrides(payload, seedFace, currentStyleFace, baseFace, style
   return { face: normalizeFace(face), changed };
 }
 
-function readFaceTraits(view, subfamily) {
+function readFaceTraits(view, subfamily, baseOffset = 0) {
   let weight = inferWeightFromSubfamily(subfamily);
   let bold = /\b(bold|semibold|demibold|extrabold|ultrabold|black|heavy)\b/i.test(subfamily);
   let italic = /\b(italic|oblique|slanted)\b/i.test(subfamily);
 
-  const os2 = findTable(view, 'OS/2');
+  const os2 = findTable(view, 'OS/2', baseOffset);
   if (os2) {
     if (os2.length >= 8) {
       const value = view.getUint16(os2.offset + 4, false);
@@ -498,7 +529,7 @@ function readFaceTraits(view, subfamily) {
     }
   }
 
-  const head = findTable(view, 'head');
+  const head = findTable(view, 'head', baseOffset);
   if (head && head.length >= 46) {
     const macStyle = view.getUint16(head.offset + 44, false);
     bold ||= Boolean(macStyle & 0x0001);
@@ -589,23 +620,38 @@ function normalizeStyleName(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
-function validateSfnt(view) {
-  if (view.byteLength < 12) throw new Error('字体文件过小');
-  const tag = readTag(view, 0);
-  const signature = view.getUint32(0, false);
+function resolveCollectionBaseOffset(view, collectionIndex = null) {
+  if (view.byteLength < 4 || readTag(view, 0) !== 'ttcf') return 0;
+  if (view.byteLength < 12) throw new Error('字体集合文件过小');
+  const count = view.getUint32(8, false);
+  const index = collectionIndex == null ? 0 : Number(collectionIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= count || 12 + count * 4 > view.byteLength) {
+    throw new Error('TTC / OTC 字体集合 face 索引无效');
+  }
+  const offset = view.getUint32(12 + index * 4, false);
+  if (offset + 12 > view.byteLength) throw new Error('TTC / OTC 字体集合 face 偏移损坏');
+  return offset;
+}
+
+function validateSfnt(view, baseOffset = 0) {
+  if (view.byteLength < baseOffset + 12) throw new Error('字体文件过小');
+  const tag = readTag(view, baseOffset);
+  const signature = view.getUint32(baseOffset, false);
   if (!(signature === 0x00010000 || tag === 'OTTO' || tag === 'true' || tag === 'typ1')) {
-    throw new Error('字体不是有效的 TTF 或 OTF 文件');
+    throw new Error('字体不是有效的 TTF / OTF / TTC / OTC 文件');
   }
 }
 
-function findTable(view, wantedTag) {
-  const tableCount = view.getUint16(4, false);
+function findTable(view, wantedTag, baseOffset = 0) {
+  const tableCount = view.getUint16(baseOffset + 4, false);
 
   for (let i = 0; i < tableCount; i++) {
-    const p = 12 + i * 16;
+    const p = baseOffset + 12 + i * 16;
     if (p + 16 > view.byteLength) break;
     if (readTag(view, p) !== wantedTag) continue;
 
+    // SFNT table offsets are relative to the beginning of the containing
+    // font resource, including faces inside TTC/OTC collections.
     const offset = view.getUint32(p + 8, false);
     const length = view.getUint32(p + 12, false);
     if (offset + length > view.byteLength) return null;
