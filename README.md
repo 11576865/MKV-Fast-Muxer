@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer-v3/  
-**Package version:** 0.4.0
+**Package version:** 0.5.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -24,7 +24,7 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench for combining exi
       +
 ASS 字幕
       +
-TTF / OTF 字体
+TTF / OTF / TTC / OTC 字体
       ↓
 轨道与字体检查
       ↓
@@ -98,10 +98,11 @@ MKV
 
 可设置：
 
-- language
+- language（可直接输入 ISO 639 或 BCP 47，例如 `zho`、`eng`、`zh-Hans`）
 - title
 - Default
 - Forced
+- 高级属性：Original、Commentary、Hearing impaired
 
 内置语言项：
 
@@ -130,7 +131,7 @@ MKV
 
 ### 4. 多字体附件
 
-支持一次选择多个 TTF / OTF。
+支持一次选择多个 TTF / OTF / TTC / OTC。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次。
 
 默认模式是：
 
@@ -206,6 +207,7 @@ MKV
 - title
 - 输出顺序
 - Default
+- 高级属性：Original、Commentary、Hearing impaired
 
 ### 字幕轨
 
@@ -215,6 +217,7 @@ MKV
 - 输出顺序
 - Default
 - Forced
+- 高级属性：Original、Commentary、Hearing impaired
 
 ### 原附件
 
@@ -263,6 +266,7 @@ Attachments
 - language；
 - title；
 - Default / Forced；
+- Original / Commentary / Hearing impaired；
 - 附件数量与被选择保留的原附件文件名；
 - 新字体文件名；
 - Chapter 数量与容器 title。
@@ -410,6 +414,7 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 - UTF-16 ASS 安全解码；
 - 字幕语言元数据；
 - 多字体依赖分析；
+- TTC / OTC 字体集合 face 解析；
 - glyph coverage；
 - 字体 face 匹配；
 - 原 MKV 轨道管理；
