@@ -1174,7 +1174,10 @@ muxBtn.addEventListener('click', async () => {
     bar.style.width = '10%';
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
-    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique);
+    const initialReservedAttachmentNames = scanned
+      ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
+      : [];
+    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames);
     const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
       const faces = await readFontDescriptors(item.file);
       return faces.map((descriptor, faceIndex) => ({
@@ -1285,6 +1288,19 @@ muxBtn.addEventListener('click', async () => {
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
     const originalAttachments = scanned ? selectedOriginalAttachments() : [];
 
+    const reservedAttachmentNames = scanned
+      ? originalAttachments.map((item) => item.filename).filter(Boolean)
+      : (preserveAllOriginalAttachments
+          ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+          : []);
+    const renamedFontItems = assignUniqueAttachmentNames(uniqueFontItems, reservedAttachmentNames);
+    renamedFontItems.forEach((named, index) => {
+      if (uniqueFontItems[index].attachmentName !== named.attachmentName) {
+        logEl.textContent += `INFO: 新字体附件与原附件重名，“${uniqueFontItems[index].attachmentName}”自动改为“${named.attachmentName}”。\n`;
+      }
+      uniqueFontItems[index].attachmentName = named.attachmentName;
+    });
+
     const runtimeExternalAudio = [];
     for (let index = 0; index < externalAudioTracks.length; index += 1) {
       const probeOutput = `${prefix}-audio-${index}-probe.json`;
@@ -1376,11 +1392,24 @@ muxBtn.addEventListener('click', async () => {
       })),
     ];
 
-    const expectedOriginalAttachmentNames = scanned
-      ? originalAttachments.map((item) => item.filename).filter(Boolean)
+    const expectedOriginalAttachments = scanned
+      ? originalAttachments.map((item) => ({
+          filename: item.filename || '',
+          mimetype: item.mimetype || '',
+        }))
       : (preserveAllOriginalAttachments
-          ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+          ? sourceAttachments.map((stream) => ({
+              filename: String(stream.tags?.filename || ''),
+              mimetype: String(stream.tags?.mimetype || ''),
+            }))
           : []);
+    const expectedOriginalAttachmentNames = expectedOriginalAttachments
+      .map((item) => item.filename)
+      .filter(Boolean);
+    const expectedFontAttachments = attachments.map((item) => ({
+      filename: item.attachmentName,
+      mimetype: mimeForFont(item.file),
+    }));
 
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
@@ -1409,11 +1438,9 @@ muxBtn.addEventListener('click', async () => {
       ],
       chapterCount: inputProbe.chapters.length,
       formatTitle: inputProbe.format?.tags?.title || '',
-      attachmentCount:
-        (scanned
-          ? originalAttachments.length
-          : (preserveAllOriginalAttachments ? originalAttachmentCount : 0))
-        + attachments.length,
+      formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
+      attachmentCount: expectedOriginalAttachments.length + expectedFontAttachments.length,
+      attachments: [...expectedOriginalAttachments, ...expectedFontAttachments],
       attachmentFilenames: expectedOriginalAttachmentNames,
       newFontFilenames: attachments.map((item) => item.attachmentName),
     };
@@ -1466,16 +1493,25 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.5.0',
+      appVersion: '0.6.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
         format: inputProbe.format?.format_name || '',
         formatTitle: inputProbe.format?.tags?.title || '',
+        formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
         videoCodecs: sourceVideos.map((stream) => stream.codec_name || 'unknown'),
         audioCodecs: sourceAudios.map((stream) => stream.codec_name || 'unknown'),
         chapterCount: inputProbe.chapters.length,
+        chapters: inputProbe.chapters.map((chapter) => ({
+          id: chapter.id,
+          startTime: chapter.start_time,
+          endTime: chapter.end_time,
+          title: chapter.tags?.title || '',
+          language: chapter.tags?.language || '',
+        })),
         attachmentCount: originalAttachmentCount,
+        selectedOriginalAttachments: expectedOriginalAttachments,
       },
       subtitle: {
         tracks: runtimeSubtitles.map((track) => ({
