@@ -339,6 +339,177 @@ async function scenarioSameNameFonts(browser) {
   }
 }
 
+
+async function scenarioInputSwitchReset(browser) {
+  console.log('E2E scenario 7: scanned MKV state resets when main input changes');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    assert.equal(await page.locator('.track-row.track-audio').count(), 2);
+    assert.equal(await page.locator('.track-row.track-subtitle').count(), 1);
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+
+    assert.equal(await page.locator('.track-row').count(), 0);
+    assert.match(await page.locator('#trackList').textContent(), /选择 MKV 后可扫描轨道/);
+    assert.match(await page.locator('#attachmentList').textContent(), /扫描 MKV 后显示附件列表/);
+    assert.equal(await page.locator('#preserveAttachments').isChecked(), false);
+
+    const plan = await page.locator('#muxPlan').textContent();
+    assert.match(plan, /base\.mp4/);
+    assert.doesNotMatch(plan, /Japanese AAC|English Opus|Original Signs/);
+    console.log('Scenario 7 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioDefaultWarnings(browser) {
+  console.log('E2E scenario 8: duplicate Default flags surface a plan warning');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#audioInput', path.join(root, 'external.flac'));
+    await page.setInputFiles('#subInput', [
+      path.join(root, 'zh.ass'),
+      path.join(root, 'en.ass'),
+    ]);
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    await page.locator('input[data-new-audio-field="default"][data-index="0"]').check();
+    await page.locator('input[data-new-sub-field="default"][data-index="1"]').check();
+
+    const warning = page.locator('#planWarnings');
+    await warning.waitFor({ state: 'visible' });
+    const text = await warning.textContent();
+    assert.match(text, /Default 音频轨/);
+    assert.match(text, /Default 字幕轨/);
+    console.log('Scenario 8 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioInvalidAudioRecovery(browser) {
+  console.log('E2E scenario 9: invalid external audio fails cleanly, then next task succeeds');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#audioInput', path.join(root, 'not-audio.wav'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#muxBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#status')?.textContent || '';
+      return value.startsWith('失败：');
+    }, null, { timeout: 180_000 });
+
+    const failedStatus = await page.locator('#status').textContent();
+    assert.match(failedStatus, /外部音频|ffprobe|音频/);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), false);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+
+    await page.setInputFiles('#audioInput', path.join(root, 'external.flac'));
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'recovered-after-invalid-audio.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    assert.deepEqual(streams(out, 'audio').map((stream) => stream.codec_name), ['aac', 'flac']);
+    console.log('Scenario 9 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioCancelAndRestart(browser) {
+  console.log('E2E scenario 10: cancel active task and immediately recover on a new task');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'cancel-medium.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#muxBtn').click();
+    await page.locator('#cancelBtn').waitFor({ state: 'visible' });
+    await page.locator('#cancelBtn').click();
+
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#status')?.textContent || '';
+      return value.includes('取消');
+    }, null, { timeout: 60_000 });
+
+    await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'en.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'recovered-after-cancel.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    assert.equal(streams(out, 'subtitle').length, 1);
+    assert.equal(streams(out, 'video').length, 1);
+    console.log('Scenario 10 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioSequentialTasks(browser) {
+  console.log('E2E scenario 11: two consecutive successful tasks do not leak prior metadata');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
+    await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('First Task');
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const first = path.join(outDir, 'sequential-first.mkv');
+    await saveDownload(page, '#downloadLink', first);
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'en.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('eng');
+    await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Second Task');
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const second = path.join(outDir, 'sequential-second.mkv');
+    await saveDownload(page, '#downloadLink', second);
+
+    const firstSub = streams(probe(first), 'subtitle')[0];
+    const secondSub = streams(probe(second), 'subtitle')[0];
+    assert.equal(firstSub.tags?.language, 'zho');
+    assert.equal(firstSub.tags?.title, 'First Task');
+    assert.equal(secondSub.tags?.language, 'eng');
+    assert.equal(secondSub.tags?.title, 'Second Task');
+    assert.notEqual(secondSub.tags?.title, firstSub.tags?.title);
+    console.log('Scenario 11 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -387,6 +558,11 @@ try {
   await scenarioUtf16(browser);
   await scenarioSameNameFonts(browser);
   await scenarioAv1(browser);
+  await scenarioInputSwitchReset(browser);
+  await scenarioDefaultWarnings(browser);
+  await scenarioInvalidAudioRecovery(browser);
+  await scenarioCancelAndRestart(browser);
+  await scenarioSequentialTasks(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
