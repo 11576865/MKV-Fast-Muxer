@@ -32,22 +32,6 @@
         "codeRepository": "https://github.com/11576865/MKV-Fast-Muxer"
       }
     </script>
-    <script>
-      (() => {
-        try {
-          const stored = localStorage.getItem('mkv-muxer-theme-v1');
-          const pref = stored === 'dark' || stored === 'system' ? stored : 'system';
-          const resolved = pref === 'system'
-            ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : 'dark';
-          document.documentElement.dataset.theme = resolved;
-          document.documentElement.dataset.themePreference = pref;
-        } catch {
-          document.documentElement.dataset.theme = 'dark';
-          document.documentElement.dataset.themePreference = 'system';
-        }
-      })();
-    </script>
   </head>
   <body>
     <div class="app-shell">
@@ -69,10 +53,6 @@
         </nav>
 
         <div class="topbar-tools">
-          <div class="theme-control" id="themeControl" aria-label="界面主题">
-            <button type="button" data-theme-choice="dark" aria-pressed="false">夜间</button>
-            <button type="button" data-theme-choice="system" aria-pressed="false">跟随系统</button>
-          </div>
           <div class="runtime-note">
             <span class="runtime-dot" aria-hidden="true"></span>
             本地处理
