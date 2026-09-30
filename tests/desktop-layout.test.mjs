@@ -71,3 +71,32 @@ test('left preview column keeps diagnostics directly below preview instead of wa
   assert.match(css, /\.editor-column > \.diagnostics-panel \{\n    grid-area: logs;/);
   assert.match(css, /\.editor-column > \.editor-grid \{\n    grid-area: editors;/);
 });
+
+
+test('1.2.1 redraw keeps batch visible but below the main 01-02-03 workflow', async () => {
+  const [css, html] = await Promise.all([
+    readFile(new URL('../src/style.css', import.meta.url), 'utf8'),
+    readFile(new URL('../index.html', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(html, /class="stage stage-batch batch-workspace"/);
+  assert.match(html, /class="batch-layout"/);
+  assert.match(css, /1\.2\.1 workbench redraw/);
+  assert.match(css, /\.workspace > \.batch-workspace \{\n    grid-column: 1 \/ -1;\n    grid-row: 3;/);
+  assert.match(css, /\.batch-layout \{\n  display: grid;\n  grid-template-columns: minmax\(0, 1\.08fr\) minmax\(360px, \.92fr\);/);
+});
+
+test('1.2.1 source strip gives video and subtitle primary visual weight', async () => {
+  const [css, html] = await Promise.all([
+    readFile(new URL('../src/style.css', import.meta.url), 'utf8'),
+    readFile(new URL('../index.html', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(html, /source-video source-primary/);
+  assert.match(html, /source-subtitle source-primary/);
+  assert.match(html, /source-font source-secondary/);
+  assert.match(html, /source-audio source-secondary/);
+  assert.match(css, /\.source-strip \{/);
+  assert.match(css, /\.source-strip \.source-primary \{/);
+  assert.match(css, /\.source-strip \.source-secondary \{/);
+});
