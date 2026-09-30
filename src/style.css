@@ -917,7 +917,27 @@ pre {
   color: #fff;
 }
 
-.download:not(.hidden) + .actions {
+.report-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  margin: -2px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+  font-size: .72rem;
+  font-weight: 650;
+}
+
+.report-download:hover {
+  border-color: var(--accent);
+  background: var(--surface-3);
+}
+
+.download:not(.hidden) ~ .actions {
   margin-top: 2px;
 }
 

@@ -3,6 +3,8 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
+import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
+import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -34,6 +36,7 @@ const status = $('status');
 const logEl = $('log');
 const bar = $('bar');
 const downloadLink = $('downloadLink');
+const reportLink = $('reportLink');
 const auditResult = $('auditResult');
 
 const THEME_KEY = 'mkv-muxer-theme-v1';
@@ -87,6 +90,7 @@ let running = false;
 let scanning = false;
 let cancelRequested = false;
 let outputURL = null;
+let reportURL = null;
 let trackState = null;
 
 ffmpeg.on('log', ({ message }) => {
@@ -306,6 +310,8 @@ async function runProbe(path, probePath, { decodeStreams = false } = {}) {
 
   return {
     streams,
+    chapters: Array.isArray(json.chapters) ? json.chapters : [],
+    format: json.format || {},
     attachmentCount: streams.filter((stream) => stream.codec_type === 'attachment').length,
     probeMode: decodeStreams ? 'decoded' : 'container',
   };
@@ -821,6 +827,7 @@ muxBtn.addEventListener('click', async () => {
   cancelRequested = false;
   updateUI();
   downloadLink.classList.add('hidden');
+  reportLink.classList.add('hidden');
   auditResult.className = 'audit-result hidden';
   auditResult.textContent = '';
   logEl.textContent = '';
@@ -829,6 +836,10 @@ muxBtn.addEventListener('click', async () => {
   if (outputURL) {
     URL.revokeObjectURL(outputURL);
     outputURL = null;
+  }
+  if (reportURL) {
+    URL.revokeObjectURL(reportURL);
+    reportURL = null;
   }
 
   const prefix = taskPrefix();
@@ -844,19 +855,25 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '正在解析 ASS 与字体 face……';
     bar.style.width = '10%';
 
+    const fontDedupe = await dedupeFilesBySha256(fontFiles);
+    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique);
     const [{ text: sourceAss, encoding: assEncoding }, descriptors] = await Promise.all([
       readAssText(sub),
-      Promise.all(fontFiles.map(async (file, index) => ({
+      Promise.all(uniqueFontItems.map(async (item, index) => ({
+        ...item,
         index,
-        file,
-        descriptor: await readFontDescriptor(file),
+        descriptor: await readFontDescriptor(item.file),
       }))),
     ]);
     if (cancelRequested) return;
 
     logEl.textContent += `ASS 编码：${assEncoding}\n`;
+    if (fontDedupe.duplicates.length) {
+      logEl.textContent += `INFO: 检测到 ${fontDedupe.duplicates.length} 个内容完全相同的重复字体，按 SHA-256 去重，不重复写入 MKV：${fontDedupe.duplicates.map((item) => item.file.name).join('、')}\n`;
+    }
     for (const item of descriptors) {
-      logEl.textContent += `上传字体：${item.file.name} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}\n`;
+      const attachmentRename = item.attachmentName !== item.file.name ? ` -> attachment “${item.attachmentName}”` : '';
+      logEl.textContent += `上传字体：${item.file.name}${attachmentRename} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}\n`;
     }
     reportFontFamilyCompleteness(descriptors);
 
@@ -926,11 +943,9 @@ muxBtn.addEventListener('click', async () => {
     }
     if (cancelRequested) return;
 
-    let originalAttachmentCount = scanned?.attachmentCount ?? 0;
-    if (keepOriginalAttachments && !scanned) {
-      status.textContent = '正在读取原 MKV 附件信息……';
-      originalAttachmentCount = (await probeInput(videoPath, probePath)).attachmentCount;
-    }
+    status.textContent = '正在读取输入容器结构……';
+    const inputProbe = await probeInput(videoPath, probePath);
+    const originalAttachmentCount = inputProbe.attachmentCount;
 
     const selectedAudio = scanned ? selectedTracks('audio') : null;
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
@@ -998,7 +1013,7 @@ muxBtn.addEventListener('click', async () => {
       args.push(
         '-attach', fontPaths[index],
         `-metadata:s:t:${attachmentIndex}`, `mimetype=${mimeForFont(item.file)}`,
-        `-metadata:s:t:${attachmentIndex}`, `filename=${item.file.name}`,
+        `-metadata:s:t:${attachmentIndex}`, `filename=${item.attachmentName}`,
       );
     });
 
@@ -1011,8 +1026,14 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = '正在审计输出 MKV……';
     bar.style.width = '94%';
 
+    const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
+    const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
+    const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
+
     const expectedAudit = {
-      videoMin: 1,
+      video: sourceVideos.map((stream) => ({
+        codec: stream.codec_name || '',
+      })),
       audio: selectedAudio
         ? selectedAudio.map((track) => ({
             codec: track.stream.codec_name || '',
@@ -1020,7 +1041,12 @@ muxBtn.addEventListener('click', async () => {
             title: track.title || '',
             default: track.default,
           }))
-        : null,
+        : sourceAudios.map((stream) => ({
+            codec: stream.codec_name || '',
+            language: normalizeTrackLanguage(stream.tags?.language),
+            title: stream.tags?.title || '',
+            default: Boolean(stream.disposition?.default),
+          })),
       subtitles: [
         {
           codec: 'ass',
@@ -1037,9 +1063,16 @@ muxBtn.addEventListener('click', async () => {
           forced: track.forced,
         })),
       ],
+      chapterCount: inputProbe.chapters.length,
+      formatTitle: inputProbe.format?.tags?.title || '',
       attachmentCount: (keepOriginalAttachments ? originalAttachmentCount : 0) + attachments.length,
-      newFontFilenames: attachments.map((item) => item.file.name),
+      attachmentFilenames: keepOriginalAttachments
+        ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
+        : [],
+      newFontFilenames: attachments.map((item) => item.attachmentName),
     };
+
+    let finalAudit = null;
 
     try {
       // Post-mux audit must never require decoding the media payload. The
@@ -1049,6 +1082,10 @@ muxBtn.addEventListener('click', async () => {
         allowDecodeFallback: false,
       });
       const audit = auditMuxProbe(auditProbe, expectedAudit);
+      finalAudit = {
+        status: audit.ok ? 'pass' : 'warning',
+        ...audit,
+      };
       if (audit.ok) {
         const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
@@ -1068,14 +1105,74 @@ muxBtn.addEventListener('click', async () => {
       auditResult.textContent = auditText;
       auditResult.className = 'audit-result warn';
       completionNote += '；封装后审计未完成（不影响已生成 MKV）';
+      finalAudit = {
+        status: 'unavailable',
+        reason,
+        ok: false,
+        issues: [reason],
+      };
     }
 
     status.textContent = '正在准备保存……';
     bar.style.width = '96%';
 
     const data = await ffmpeg.readFile(outputPath);
+    const outputSha256 = await sha256Hex(data);
     outputURL = URL.createObjectURL(
       new Blob([data.buffer], { type: 'video/x-matroska' })
+    );
+
+    const report = createMuxReport({
+      appVersion: '0.3.0',
+      input: {
+        name: video.name,
+        sizeBytes: video.size,
+        format: inputProbe.format?.format_name || '',
+        formatTitle: inputProbe.format?.tags?.title || '',
+        videoCodecs: sourceVideos.map((stream) => stream.codec_name || 'unknown'),
+        audioCodecs: sourceAudios.map((stream) => stream.codec_name || 'unknown'),
+        chapterCount: inputProbe.chapters.length,
+        attachmentCount: originalAttachmentCount,
+      },
+      subtitle: {
+        name: sub.name,
+        encoding: assEncoding,
+        language,
+        title: newSubTitle.value.trim() || languageTitles[language] || 'ASS 字幕',
+        default: newSubDefault.checked,
+        forced: newSubForced.checked,
+      },
+      fonts: {
+        selectedCount: fontFiles.length,
+        uniqueCount: descriptors.length,
+        duplicateCount: fontDedupe.duplicates.length,
+        attachments: attachments.map((item) => ({
+          sourceName: item.file.name,
+          attachmentName: item.attachmentName,
+          sizeBytes: item.file.size,
+          sha256: item.sha256,
+          family: item.descriptor.family,
+          subfamily: item.descriptor.subfamily || '',
+          weight: item.descriptor.weight,
+          italic: Boolean(item.descriptor.italic),
+        })),
+      },
+      plan: buildMuxPlan(),
+      expectedAudit,
+      audit: finalAudit,
+      output: {
+        name: outputName,
+        sizeBytes: data.byteLength,
+        sha256: outputSha256,
+        container: 'matroska',
+        streamCopy: true,
+      },
+      warnings: {
+        fontDependencyWarningCount: dependencyWarningCount,
+      },
+    });
+    reportURL = URL.createObjectURL(
+      new Blob([serializeMuxReport(report)], { type: 'application/json' })
     );
 
     downloadLink.href = outputURL;
@@ -1083,6 +1180,13 @@ muxBtn.addEventListener('click', async () => {
     downloadLink.textContent = `保存成品 · ${outputName}`;
     downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
     downloadLink.classList.remove('hidden');
+
+    reportLink.href = reportURL;
+    reportLink.download = reportFilename(outputName);
+    reportLink.textContent = '保存封装报告';
+    reportLink.classList.remove('hidden');
+
+    logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
 
     bar.style.width = '100%';
     const modeText = mode === 'force'
