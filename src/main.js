@@ -60,6 +60,7 @@ const batchPlan = $('batchPlan');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
 const batchPreserveAttachments = $('batchPreserveAttachments');
+const batchFontSubsetEnabled = $('batchFontSubsetEnabled');
 const batchSubsetScope = $('batchSubsetScope');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
@@ -382,7 +383,8 @@ function setInputsDisabled(disabled) {
   if (batchFontInput) batchFontInput.disabled = disabled || batchRunning;
   if (batchFontFolderInput) batchFontFolderInput.disabled = disabled || batchRunning;
   if (batchPreserveAttachments) batchPreserveAttachments.disabled = disabled || batchRunning;
-  if (batchSubsetScope) batchSubsetScope.disabled = disabled || batchRunning;
+  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = disabled || batchRunning;
+  if (batchSubsetScope) batchSubsetScope.disabled = disabled || batchRunning || !batchFontSubsetEnabled?.checked;
   if (batchOutputDirBtn) batchOutputDirBtn.disabled = disabled || batchRunning;
 }
 
