@@ -1854,6 +1854,14 @@ scanTracksBtn.addEventListener('click', async () => {
   const video = videoInput.files[0];
   if (!video || ext(video.name) !== '.mkv' || isBusy()) return;
 
+  // Explicitly scanning the source means the user wants manual source-track
+  // control rather than the zero-configuration "preserve everything + append" preset.
+  if (appendPreserveAll) {
+    appendPreserveAll.checked = false;
+    appendPreserveAll.dataset.userTouched = '1';
+  }
+  preserveAttachments.disabled = false;
+
   scanning = true;
   cancelRequested = false;
   updateUI();
