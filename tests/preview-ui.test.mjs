@@ -72,8 +72,8 @@ test('preview extraction clamps time and retries seek strategy', async () => {
 
   assert.match(main, /function clampPreviewTime/);
   assert.match(main, /durationSeconds - 0\.08/);
-  assert.match(main, /label: '快速定位'/);
-  assert.match(main, /label: '兼容定位'/);
+  assert.match(main, /label: 'FFmpeg 快速定位'/);
+  assert.match(main, /label: 'FFmpeg 兼容定位'/);
   assert.match(main, /execWithCapturedLogs/);
   assert.match(main, /usefulLogTail/);
   assert.match(main, /编码：\$\{codec\}/);
