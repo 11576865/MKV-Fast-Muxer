@@ -124,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.0.3');
+    assert.equal(report.application.version, '1.0.4');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -970,6 +970,39 @@ async function scenarioAv1(browser) {
   }
 }
 
+async function scenarioAv1PreviewFrame(browser) {
+  const av1Path = path.join(root, 'av1.mp4');
+  try {
+    await fs.access(av1Path);
+  } catch {
+    console.log('E2E scenario 25: AV1 preview skipped (fixture unavailable)');
+    return;
+  }
+
+  console.log('E2E scenario 25: AV1 fixed preview frame');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', av1Path);
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      if (status.startsWith('无法生成预览帧：')) throw new Error(status);
+      const image = document.querySelector('#previewImage');
+      return status.startsWith('预览帧：') && image?.naturalWidth > 0 && image?.naturalHeight > 0;
+    }, null, { timeout: 180_000 });
+
+    const status = await page.locator('#previewStatus').textContent();
+    assert.match(status, /FFmpeg\/libass/);
+    console.log('Scenario 25 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioPreviewTimeClamp(browser) {
   console.log('E2E scenario 24: preview time clamps to source duration');
   const { context, page } = await openApp(browser);
@@ -1050,6 +1083,7 @@ try {
   await scenarioWorkbenchEfficiency(browser);
   await scenarioPreviewFrame(browser);
   await scenarioPreviewTimeClamp(browser);
+  await scenarioAv1PreviewFrame(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
