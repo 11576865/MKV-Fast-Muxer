@@ -825,6 +825,7 @@ async function scenarioBulkTrackMetadata(browser) {
     await waitForStatus(page, '轨道扫描完成：');
 
     await page.locator('.track-row.track-subtitle input[data-track-action="include"]').check();
+    await page.locator('#trackBulkTools > summary').click();
     await page.locator('#bulkLanguage').fill('zho');
     await page.locator('#applyAudioLanguage').click();
     await page.locator('#applySubtitleLanguage').click();
@@ -878,6 +879,7 @@ async function scenarioWorkbenchEfficiency(browser) {
 
     await page.locator('#keepAllAttachments').click();
     assert.equal(await page.locator('input[data-attachment-action="include"]:checked').count(), 2);
+    await page.locator('#trackBulkTools > summary').click();
 
     const firstAttachment = page.locator('.attachment-item').first();
     await firstAttachment.locator('input[data-attachment-field="filename"]').fill('renamed.ttf');
