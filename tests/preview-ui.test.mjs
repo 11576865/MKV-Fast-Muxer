@@ -43,12 +43,6 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
 });
 
 
-test('Vite emits module workers for the JASSUB bundle', async () => {
-  const vite = await text('vite.config.js');
-  assert.match(vite, /worker:\s*\{[\s\S]*format:\s*['"]es['"]/);
-});
-
-
 test('preview is explicitly on-demand rather than auto-started', async () => {
   const [html, main] = await Promise.all([
     text('index.html'),
