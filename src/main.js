@@ -9,14 +9,23 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
+  collectSubtitleInputs,
+  inferredSubtitleMetadata,
   isAssLikeSubtitle,
   isPreviewableSubtitle,
   isSupportedSubtitleFile,
+  isTextSubtitle,
   subtitleFormatInfo,
+  subtitleTrackKey,
   visibleTextForPlainSubtitle,
 } from './subtitle-format.js';
 import { subsetFontItems } from './font-subset.js';
-import { batchSubtitleSummary, buildBatchJobs } from './batch.js';
+import {
+  batchSubtitleSummary,
+  buildBatchJobs,
+  collectBatchFonts,
+  mergeFileSelections,
+} from './batch.js';
 import {
   analyzeAssFontUsage,
   checkFontCharacters,
@@ -36,18 +45,30 @@ const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const fontSubsetEnabled = $('fontSubsetEnabled');
 const batchVideoInput = $('batchVideoInput');
+const batchVideoFolderInput = $('batchVideoFolderInput');
 const batchSubtitleInput = $('batchSubtitleInput');
+const batchSubtitleFolderInput = $('batchSubtitleFolderInput');
+const batchFontInput = $('batchFontInput');
+const batchFontFolderInput = $('batchFontFolderInput');
 const batchVideoName = $('batchVideoName');
+const batchVideoFolderName = $('batchVideoFolderName');
 const batchSubtitleName = $('batchSubtitleName');
+const batchSubtitleFolderName = $('batchSubtitleFolderName');
+const batchFontName = $('batchFontName');
+const batchFontFolderName = $('batchFontFolderName');
 const batchPlan = $('batchPlan');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
 const batchPreserveAttachments = $('batchPreserveAttachments');
+const batchSubsetScope = $('batchSubsetScope');
+const batchOutputDirBtn = $('batchOutputDirBtn');
+const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
 const batchResults = $('batchResults');
 const newAudioList = $('newAudioList');
 const newSubtitleList = $('newSubtitleList');
 const preserveAttachments = $('preserveAttachments');
+const appendPreserveAll = $('appendPreserveAll');
 const attachmentList = $('attachmentList');
 const scanTracksBtn = $('scanTracksBtn');
 const trackList = $('trackList');
@@ -85,6 +106,9 @@ const previewEmpty = $('previewEmpty');
 const previewStatus = $('previewStatus');
 const previewSubtitleSelect = $('previewSubtitleSelect');
 const previewRefreshBtn = $('previewRefreshBtn');
+const previewTimeInput = $('previewTimeInput');
+const previewPrevCueBtn = $('previewPrevCueBtn');
+const previewNextCueBtn = $('previewNextCueBtn');
 const previewDialog = $('previewDialog');
 const previewDialogImage = $('previewDialogImage');
 const previewDialogClose = $('previewDialogClose');
@@ -146,6 +170,9 @@ let previewGeneration = 0;
 let previewing = false;
 let batchRunning = false;
 let batchCancelRequested = false;
+let batchOutputDirectoryHandle = null;
+let previewCueTimes = [];
+let previewCueIndex = -1;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -175,8 +202,16 @@ function selectedExternalAudioFiles() {
   return Array.from(audioInput.files || []);
 }
 
-function selectedSubtitleFiles() {
+function selectedSubtitleRawFiles() {
   return Array.from(subInput.files || []);
+}
+
+function selectedSubtitleTrackInputs() {
+  return collectSubtitleInputs(selectedSubtitleRawFiles());
+}
+
+function selectedSubtitleFiles() {
+  return selectedSubtitleTrackInputs().tracks.map((track) => track.file);
 }
 
 function stripExtension(name) {
@@ -198,15 +233,27 @@ function syncNewTrackState() {
     };
   });
 
-  const oldSubs = new Map(newSubtitleState.map((item) => [fileKey(item.file), item]));
-  newSubtitleState = selectedSubtitleFiles().map((file, index) => {
-    const old = oldSubs.get(fileKey(file));
-    const format = subtitleFormatInfo(file.name);
-    return old || {
-      file,
+  const oldSubs = new Map(newSubtitleState.map((item) => [subtitleTrackKey(item), item]));
+  const collected = selectedSubtitleTrackInputs();
+  newSubtitleState = collected.tracks.map((trackInput, index) => {
+    const key = subtitleTrackKey(trackInput);
+    const old = oldSubs.get(key);
+    if (old) {
+      old.file = trackInput.file;
+      old.sidecarFile = trackInput.sidecarFile || null;
+      old.format = trackInput.format;
+      old.displayName = trackInput.displayName || trackInput.file.name;
+      return old;
+    }
+    const format = trackInput.format || subtitleFormatInfo(trackInput.file.name);
+    const inferred = inferredSubtitleMetadata(trackInput.file, format);
+    return {
+      file: trackInput.file,
+      sidecarFile: trackInput.sidecarFile || null,
+      displayName: trackInput.displayName || trackInput.file.name,
       format,
-      language: 'und',
-      title: stripExtension(file.name) || languageTitles.und,
+      language: inferred.language,
+      title: inferred.title || stripExtension(trackInput.file.name) || languageTitles.und,
       default: index === 0,
       forced: false,
       original: false,
@@ -243,7 +290,7 @@ function renderNewTrackLists() {
     ? newSubtitleState.map((item, index) => `
       <div class="new-track-row is-subtitle">
         <div class="new-track-main">
-          <strong class="new-track-name">${escapeHtml(item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || subtitleFormatInfo(item.file.name)?.label || 'SUB')}</span></strong>
+          <strong class="new-track-name">${escapeHtml(item.displayName || item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || subtitleFormatInfo(item.file.name)?.label || 'SUB')}</span></strong>
           <div class="new-track-fields">
             <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
@@ -278,7 +325,7 @@ function selectedInputFiles() {
   return [
     ...Array.from(videoInput.files || []),
     ...selectedExternalAudioFiles(),
-    ...selectedSubtitleFiles(),
+    ...selectedSubtitleRawFiles(),
     ...selectedFonts(),
   ];
 }
