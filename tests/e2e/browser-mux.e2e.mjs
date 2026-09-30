@@ -1057,6 +1057,119 @@ async function scenarioPreviewFrame(browser) {
   }
 }
 
+
+async function scenarioAdditionalSubtitleFormats(browser) {
+  console.log('E2E scenario 26: SSA + SRT + WebVTT without uploaded fonts');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', [
+      path.join(root, 'sample.ssa'),
+      path.join(root, 'sample.srt'),
+      path.join(root, 'sample.vtt'),
+    ]);
+
+    assert.equal(await page.locator('#muxBtn').isDisabled(), false, 'fonts must be optional');
+    const formatLabels = await page.locator('#newSubtitleList .track-meta').allTextContents();
+    assert.ok(formatLabels.some((value) => value.includes('SSA')));
+    assert.ok(formatLabels.some((value) => value.includes('SRT')));
+    assert.ok(formatLabels.some((value) => value.includes('WebVTT')));
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'additional-formats.mkv');
+    const reportPath = path.join(outDir, 'additional-formats.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const subtitles = streams(probe(output), 'subtitle');
+    assert.deepEqual(subtitles.map((stream) => stream.codec_name), ['ass', 'subrip', 'subrip']);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.deepEqual(report.subtitle.tracks.map((track) => track.format), ['SSA', 'SRT', 'WebVTT']);
+    assert.equal(report.fonts.selectedCount, 0);
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 26 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioFontSubsetting(browser) {
+  console.log('E2E scenario 27: optional HarfBuzz font subsetting');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#fontSubsetEnabled').check();
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成.');
+
+    const output = path.join(outDir, 'font-subset.mkv');
+    const reportPath = path.join(outDir, 'font-subset.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const attachments = streams(probe(output), 'attachment');
+    assert.equal(attachments.length, 1);
+    assert.match(attachments[0].tags?.filename || '', /\.subset\.ttf$/i);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    const font = report.fonts.attachments[0];
+    assert.equal(font.subset?.enabled, true);
+    assert.equal(font.subset?.applied, true);
+    assert.ok(Number(font.subset?.subsetSize) < Number(font.subset?.originalSize));
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 27 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioBatchQueue(browser) {
+  console.log('E2E scenario 28: two-job batch queue with filename pairing');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#batchVideoInput', [
+      path.join(root, 'Batch S01E01.mp4'),
+      path.join(root, 'Batch S01E02.mp4'),
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', [
+      path.join(root, 'Batch S01E01.zh-Hans.ass'),
+      path.join(root, 'Batch S01E02.en.srt'),
+    ]);
+
+    const plan = await page.locator('#batchPlan').textContent();
+    assert.match(plan, /Batch S01E01\.mp4/);
+    assert.match(plan, /Batch S01E02\.mp4/);
+    assert.match(plan, /1 ASS/);
+    assert.match(plan, /1 SRT/);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#batchStatus')?.textContent || '';
+      return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
+    }, null, { timeout: 360_000 });
+
+    const batchStatus = await page.locator('#batchStatus').textContent();
+    assert.match(batchStatus, /成功 2，失败 0/);
+    const resultRows = page.locator('#batchResults .new-track-row');
+    assert.equal(await resultRows.count(), 2);
+    assert.equal(await page.locator('#batchResults a.download').count(), 2);
+    assert.equal(await page.locator('#batchResults a.report-download').count(), 2);
+    console.log('Scenario 28 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   await scenarioMultiTrack(browser);
@@ -1084,6 +1197,9 @@ try {
   await scenarioPreviewFrame(browser);
   await scenarioPreviewTimeClamp(browser);
   await scenarioAv1PreviewFrame(browser);
+  await scenarioAdditionalSubtitleFormats(browser);
+  await scenarioFontSubsetting(browser);
+  await scenarioBatchQueue(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
