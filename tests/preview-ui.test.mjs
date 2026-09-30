@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.1.0');
+  assert.equal(pkg.version, '1.2.0');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -158,4 +158,15 @@ test('empty preview image stays hidden until a PNG exists', async () => {
   assert.match(html, /id="previewImage" class="preview-image-trigger hidden"/);
   assert.match(main, /previewImage\?\.classList\.add\('hidden'\)/);
   assert.match(main, /previewImage\.classList\.remove\('hidden'\)/);
+});
+
+
+test('preview accepts arbitrary timestamps and previous-next cue navigation', async () => {
+  const [html, main] = await Promise.all([text('index.html'), text('src/main.js')]);
+  assert.match(html, /id="previewTimeInput"/);
+  assert.match(html, /id="previewPrevCueBtn"/);
+  assert.match(html, /id="previewNextCueBtn"/);
+  assert.match(main, /function parsePreviewTime/);
+  assert.match(main, /function extractPreviewCueTimes/);
+  assert.match(main, /navigatePreviewCue/);
 });
