@@ -1108,7 +1108,7 @@ async function scenarioFontSubsetting(browser) {
     await page.locator('#fontSubsetEnabled').check();
 
     await page.locator('#muxBtn').click();
-    await waitForStatus(page, '完成.');
+    await waitForStatus(page, '完成。');
 
     const output = path.join(outDir, 'font-subset.mkv');
     const reportPath = path.join(outDir, 'font-subset.mux-report.json');
