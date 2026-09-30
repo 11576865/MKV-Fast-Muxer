@@ -95,6 +95,14 @@ ffmpeg -hide_banner -loglevel error -y \
   -c:a aac -b:a 128k \
   "$ROOT/cancel-medium.mp4"
 
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$ROOT/cancel-medium.mp4" -map 0 -c copy \
+  "$ROOT/cancel-scan.mkv"
+
+cp "$ROOT/base.mp4" "$ROOT/视频 空格 😀.mp4"
+cp "$ROOT/zh.ass" "$ROOT/字幕 空格 😀.ass"
+cp "$ROOT/DejaVuSans.ttf" "$ROOT/字体 空格 😀.ttf"
+
 printf 'this is not an audio file\n' > "$ROOT/not-audio.wav"
 printf '[Script Info]\nthis is broken ASS\n' > "$ROOT/broken.ass"
 : > "$ROOT/empty.ass"
