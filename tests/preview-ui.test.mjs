@@ -119,7 +119,7 @@ test('visual polish adds preview zoom and clamps long desktop names', async () =
     text('src/main.js'),
   ]);
 
-  assert.match(html, /ASS PREVIEW FRAME/);
+  assert.match(html, /SUBTITLE PREVIEW/);
   assert.doesNotMatch(html, /PREVIEW FRAME · LIBASS/);
   assert.match(html, /id="previewDialog"/);
   assert.match(html, /id="previewDialogImage"/);
