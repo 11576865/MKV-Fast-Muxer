@@ -149,6 +149,7 @@ async function scenarioSelectiveAttachments(browser) {
 
     await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('.attachment-manager > summary').click();
 
     const attachmentRows = page.locator('.attachment-item');
     assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
@@ -884,6 +885,7 @@ async function scenarioWorkbenchEfficiency(browser) {
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
     await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('.attachment-manager > summary').click();
 
     await page.locator('#keepAllAttachments').click();
     assert.equal(await page.locator('input[data-attachment-action="include"]:checked').count(), 2);
