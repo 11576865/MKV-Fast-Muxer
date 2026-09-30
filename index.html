@@ -100,6 +100,10 @@
               <span class="source-action">选择</span>
             </label>
           </div>
+          <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
+            <strong>输入规模：—</strong>
+            <span>选择文件后显示浏览器内处理规模提示。</span>
+          </div>
         </section>
 
         <div class="workbench-grid">
@@ -142,6 +146,21 @@
                   <h2 id="tracks-title">原 MKV 轨道</h2>
                 </div>
                 <button id="scanTracksBtn" class="button button-small" type="button" disabled>扫描轨道</button>
+              </div>
+
+              <div id="trackBulkTools" class="bulk-tools hidden">
+                <div class="bulk-tool">
+                  <span>批量语言</span>
+                  <input id="bulkLanguage" type="text" list="languageSuggestions" maxlength="35" placeholder="例如 zho / eng / zh-Hans">
+                  <button id="applyAudioLanguage" class="button button-small" type="button">应用到保留音频</button>
+                  <button id="applySubtitleLanguage" class="button button-small" type="button">应用到保留字幕</button>
+                </div>
+                <div class="bulk-tool">
+                  <span>Default 快捷设置</span>
+                  <button id="firstAudioDefault" class="button button-small" type="button">仅第一音频 Default</button>
+                  <button id="firstSubtitleDefault" class="button button-small" type="button">仅第一字幕 Default</button>
+                  <button id="clearAllDefaults" class="button button-small" type="button">全部关闭</button>
+                </div>
               </div>
 
               <div id="trackList" class="track-list">
