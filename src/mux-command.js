@@ -123,6 +123,17 @@ export function buildMuxCommand({
     ? Number(originalAttachmentCount || 0)
     : originalAttachments.length;
 
+  if (!preserveAllOriginalAttachments) {
+    originalAttachments.forEach((item, outputIndex) => {
+      if (Object.prototype.hasOwnProperty.call(item, 'filename')) {
+        args.push(`-metadata:s:t:${outputIndex}`, `filename=${item.filename || ''}`);
+      }
+      if (Object.prototype.hasOwnProperty.call(item, 'mimetype')) {
+        args.push(`-metadata:s:t:${outputIndex}`, `mimetype=${item.mimetype || ''}`);
+      }
+    });
+  }
+
   fontAttachments.forEach((item, index) => {
     const attachmentIndex = mappedOriginalAttachmentCount + index;
     args.push(
