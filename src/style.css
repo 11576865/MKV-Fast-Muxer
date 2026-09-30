@@ -1065,6 +1065,7 @@ pre {
 .hidden { display: none !important; }
 
 @media (max-width: 1040px) {
+  .source-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workbench-grid { grid-template-columns: 1fr; }
 
   .workbench-side {
