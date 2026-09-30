@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.0.6
+**Package version:** 1.0.7
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -206,6 +206,8 @@ MKV
 - ASS transform 中潜在的动态字体依赖。
 
 ### 7. 强制统一字体模式
+
+强制模式会优先选择字体内部可被 libass 稳定识别的 Family / Full / PostScript 别名，而不是简单把上传文件名当作 ASS Fontname。这样可以降低中文字体、带本地化 Family Name 的字体在预览和最终软封装中出现“附件存在但字幕不显示”的概率。
 
 兼容旧式工作流。
 

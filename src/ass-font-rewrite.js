@@ -65,15 +65,20 @@ function readFontDescriptorFromView(view, baseOffset, collectionIndex) {
     if ([1, 4, 6, 16].includes(nameId)) aliases.add(text);
     if ([1, 16].includes(nameId)) familyAliases.add(text);
 
+    const languageScore =
+      language === 0x0409 ? 5 :
+      [0x0804, 0x0404, 0x0411, 0x0412].includes(language) ? 2 : 0;
     const score =
       (platform === 3 ? 10 : platform === 0 ? 8 : 0) +
-      ([0x0409, 0x0804, 0x0404, 0x0411, 0x0412].includes(language) ? 2 : 0);
+      languageScore;
 
     const old = best.get(nameId);
     if (!old || score > old.score) best.set(nameId, { text, score });
   }
 
-  const family = best.get(16)?.text || best.get(1)?.text || best.get(4)?.text || best.get(6)?.text;
+  const legacyFamily = best.get(1)?.text || '';
+  const typographicFamily = best.get(16)?.text || '';
+  const family = typographicFamily || legacyFamily || best.get(4)?.text || best.get(6)?.text;
   if (!family) throw new Error('字体缺少 Family Name / Full Name');
 
   const subfamily = best.get(17)?.text || best.get(2)?.text || '';
@@ -84,6 +89,8 @@ function readFontDescriptorFromView(view, baseOffset, collectionIndex) {
 
   return {
     family,
+    legacyFamily,
+    typographicFamily,
     subfamily,
     fullName: best.get(4)?.text || '',
     postScriptName: best.get(6)?.text || '',
@@ -99,6 +106,29 @@ function readFontDescriptorFromView(view, baseOffset, collectionIndex) {
 
 export async function readFontFamily(file) {
   return (await readFontDescriptor(file)).family;
+}
+
+export function preferredAssFontFamily(descriptor) {
+  if (!descriptor) return '';
+
+  const candidates = [
+    descriptor.legacyFamily,
+    descriptor.typographicFamily,
+    descriptor.family,
+    descriptor.fullName,
+    descriptor.postScriptName,
+    ...(descriptor.familyAliases || []),
+    ...(descriptor.aliases || []),
+  ]
+    .map((name) => String(name || '').trim())
+    .filter(Boolean)
+    .filter((name) => !/[\r\n,]/.test(name));
+
+  const unique = [...new Set(candidates)];
+  if (!unique.length) return String(descriptor.family || '').trim();
+
+  const ascii = unique.find((name) => /^[\x20-\x7E]+$/.test(name));
+  return ascii || unique[0];
 }
 
 export function fontNameMatches(requestedName, descriptor) {
