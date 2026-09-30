@@ -514,7 +514,9 @@ const VOLATILE_FORMAT_TAGS = new Set([
 
 function preservableFormatTags(tags) {
   return Object.fromEntries(
-    Object.entries(tags || {}).filter(([key]) => !VOLATILE_FORMAT_TAGS.has(String(key).toLowerCase()))
+    Object.entries(tags || {})
+      .filter(([key]) => !VOLATILE_FORMAT_TAGS.has(String(key).toLowerCase()))
+      .map(([key, value]) => [String(key).toLowerCase(), value])
   );
 }
 
