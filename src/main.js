@@ -42,6 +42,7 @@ const batchSubtitleName = $('batchSubtitleName');
 const batchPlan = $('batchPlan');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
+const batchPreserveAttachments = $('batchPreserveAttachments');
 const batchStatus = $('batchStatus');
 const batchResults = $('batchResults');
 const newAudioList = $('newAudioList');
@@ -325,6 +326,7 @@ function setInputsDisabled(disabled) {
   });
   if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
   if (batchSubtitleInput) batchSubtitleInput.disabled = disabled || batchRunning;
+  if (batchPreserveAttachments) batchPreserveAttachments.disabled = disabled || batchRunning;
 }
 
 function resetTrackState() {
@@ -387,6 +389,7 @@ function updateUI() {
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
+  if (!batchRunning) syncBatchPlan();
 }
 
 function bindNewTrackEditor(container, selector, getState) {
@@ -1936,7 +1939,8 @@ muxBtn.addEventListener('click', async () => {
     const initialReservedAttachmentNames = scanned
       ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
       : [];
-    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames);
+    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames)
+      .map((item, sourceIndex) => ({ ...item, sourceIndex }));
     const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
       const faces = await readFontDescriptors(item.file);
       return faces.map((descriptor, faceIndex) => ({
@@ -2332,7 +2336,7 @@ muxBtn.addEventListener('click', async () => {
           mimeType: mimeForFont(item.file),
           subset: item.subset || { enabled: false, applied: false },
           faces: descriptors
-            .filter((face) => face.attachmentIndex === uniqueFontItems.indexOf(item))
+            .filter((face) => face.attachmentIndex === (item.sourceIndex ?? uniqueFontItems.indexOf(item)))
             .map((face) => ({
               family: face.descriptor.family,
               subfamily: face.descriptor.subfamily || '',
@@ -2491,10 +2495,20 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
         try {
           const response = await fetch(downloadLink.href);
           const blob = await response.blob();
+          let reportBlob = null;
+          let reportName = '';
+          if (!reportLink.classList.contains('hidden') && reportLink.href) {
+            try {
+              const reportResponse = await fetch(reportLink.href);
+              reportBlob = await reportResponse.blob();
+              reportName = reportLink.download || `${downloadLink.download || 'output.mkv'}.mux-report.json`;
+            } catch {}
+          }
           resolve({
             blob,
             outputName: downloadLink.download || 'output.mkv',
-            reportHref: reportLink.classList.contains('hidden') ? '' : reportLink.href,
+            reportBlob,
+            reportName,
           });
         } catch (error) {
           reject(error);
@@ -2531,8 +2545,11 @@ batchStartBtn?.addEventListener('click', async () => {
   syncBatchPlan();
 
   const originalVideoFiles = Array.from(videoInput.files || []);
+  const originalAudioFiles = Array.from(audioInput.files || []);
   const originalSubtitleFiles = Array.from(subInput.files || []);
+  const originalPreserveAttachments = preserveAttachments.checked;
   const results = [];
+  setInputFiles(audioInput, []);
 
   try {
     for (let index = 0; index < pairing.jobs.length; index += 1) {
@@ -2543,21 +2560,29 @@ batchStartBtn?.addEventListener('click', async () => {
       setInputFiles(videoInput, [job.video]);
       setInputFiles(subInput, job.subtitles);
       resetTrackState();
-      preserveAttachments.checked = false;
+      preserveAttachments.checked = Boolean(batchPreserveAttachments?.checked && ext(job.video.name) === '.mkv');
       updateUI();
 
       muxBtn.click();
       try {
         const result = await waitForSingleMuxCompletion();
         const url = URL.createObjectURL(result.blob);
-        results.push({ job, ok: true, url, outputName: result.outputName });
+        const reportUrl = result.reportBlob ? URL.createObjectURL(result.reportBlob) : '';
+        results.push({
+          job,
+          ok: true,
+          url,
+          outputName: result.outputName,
+          reportUrl,
+          reportName: result.reportName,
+        });
       } catch (error) {
         if (String(error?.message || error) === 'batch-cancelled') break;
         results.push({ job, ok: false, error: error?.message || String(error) });
       }
 
       batchResults.innerHTML = results.map((item) => item.ok
-        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成</small></div><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 ${escapeHtml(item.outputName)}</a></div>`
+        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
         : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
       ).join('');
     }
@@ -2570,7 +2595,9 @@ batchStartBtn?.addEventListener('click', async () => {
       : `批量完成：成功 ${done}，失败 ${failed}。`;
     batchCancelRequested = false;
     setInputFiles(videoInput, originalVideoFiles);
+    setInputFiles(audioInput, originalAudioFiles);
     setInputFiles(subInput, originalSubtitleFiles);
+    preserveAttachments.checked = originalPreserveAttachments;
     syncNewTrackState();
     updateUI();
     syncBatchPlan();
