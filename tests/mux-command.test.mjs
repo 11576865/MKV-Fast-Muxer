@@ -148,3 +148,22 @@ test('rewrites selected original attachment filename and MIME metadata', () => {
   assert.ok(args.includes('mimetype=text/x-notes'));
   assert.ok(args.includes('-metadata:s:t:1'));
 });
+
+
+test('subtitle codec override only transcodes the requested subtitle stream', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mp4',
+    outputPath: 'out.mkv',
+    sourceAudioCount: 1,
+    newSubtitleTracks: [
+      { path: 'a.ass', inputIndex: 1, language: 'eng', title: 'ASS', default: true },
+      { path: 'b.vtt', inputIndex: 2, language: 'zho', title: 'VTT', default: false, codecOverride: 'srt' },
+    ],
+  });
+
+  assert.equal(args.includes('-c'), true);
+  const overrideIndex = args.indexOf('-c:s:1');
+  assert.notEqual(overrideIndex, -1);
+  assert.equal(args[overrideIndex + 1], 'srt');
+  assert.equal(args.includes('-c:s:0'), false);
+});
