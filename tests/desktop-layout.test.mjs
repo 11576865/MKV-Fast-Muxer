@@ -58,3 +58,16 @@ test('touch layouts keep compact controls usable without desktop sizing', async 
   assert.match(css, /\.track-order button \{\n    width: 36px;\n    min-height: 36px;/);
   assert.match(css, /\.diagnostics-panel pre \{\n    max-height: 190px;/);
 });
+
+
+test('left preview column keeps diagnostics directly below preview instead of waiting for the editor column', async () => {
+  const css = await readFile(new URL('../src/style.css', import.meta.url), 'utf8');
+
+  assert.match(css, /Adaptive pane layout v6/);
+  assert.match(
+    css,
+    /grid-template-areas:\n      "head head"\n      "preview editors"\n      "logs editors";/
+  );
+  assert.match(css, /\.editor-column > \.diagnostics-panel \{\n    grid-area: logs;/);
+  assert.match(css, /\.editor-column > \.editor-grid \{\n    grid-area: editors;/);
+});

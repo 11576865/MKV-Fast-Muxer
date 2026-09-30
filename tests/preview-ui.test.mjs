@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.8');
+  assert.equal(pkg.version, '1.0.9');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -146,4 +146,16 @@ test('Review & Mux pane uses a quieter summary-plan-action hierarchy', async () 
   assert.match(css, /\.output-summary \.manifest > div \{[\s\S]*border-radius: 4px/);
   assert.match(css, /\.output-section \.plan-row \{[\s\S]*border-left: 2px solid/);
   assert.match(css, /\.execution-panel \{[\s\S]*var\(--success\) 5%/);
+});
+
+
+test('empty preview image stays hidden until a PNG exists', async () => {
+  const [html, main] = await Promise.all([
+    text('index.html'),
+    text('src/main.js'),
+  ]);
+
+  assert.match(html, /id="previewImage" class="preview-image-trigger hidden"/);
+  assert.match(main, /previewImage\?\.classList\.add\('hidden'\)/);
+  assert.match(main, /previewImage\.classList\.remove\('hidden'\)/);
 });
