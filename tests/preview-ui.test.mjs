@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.2');
+  assert.equal(pkg.version, '1.0.3');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -64,4 +64,17 @@ test('desktop output plan expands naturally instead of using nested scrolling', 
   assert.match(css, /Desktop output panel should use available page space/);
   assert.match(css, /\.output-hub \{\s*position: static;\s*max-height: none;\s*overflow: visible;/);
   assert.match(css, /\.output-section \.mux-plan \{\s*max-height: none;\s*overflow: visible;/);
+});
+
+
+test('preview extraction clamps time and retries seek strategy', async () => {
+  const main = await text('src/main.js');
+
+  assert.match(main, /function clampPreviewTime/);
+  assert.match(main, /durationSeconds - 0\.08/);
+  assert.match(main, /label: '快速定位'/);
+  assert.match(main, /label: '兼容定位'/);
+  assert.match(main, /execWithCapturedLogs/);
+  assert.match(main, /usefulLogTail/);
+  assert.match(main, /编码：\$\{codec\}/);
 });
