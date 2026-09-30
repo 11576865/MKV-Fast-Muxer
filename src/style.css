@@ -1612,3 +1612,653 @@ pre {
     grid-template-columns: clamp(380px, 26%, 600px) minmax(0, 1fr);
   }
 }
+
+
+/* Workbench UI reorganization v3 ------------------------------------------
+   Three-stage hierarchy: Input → Adjust → Review & Mux.
+   This block is intentionally last so it is the layout authority. */
+
+.stage,
+.editor-column,
+.output-hub {
+  min-width: 0;
+}
+
+.stage-input {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--video) 4%, transparent), transparent 140px),
+    var(--surface-0);
+}
+
+.stage-head,
+.column-head,
+.output-hub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.stage-title {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.stage-title > div {
+  min-width: 0;
+}
+
+.stage-title h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1rem;
+  font-weight: 660;
+  letter-spacing: -.018em;
+}
+
+.stage-title p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: .71rem;
+  line-height: 1.45;
+}
+
+.flow-rail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .68rem;
+  white-space: nowrap;
+}
+
+.flow-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.flow-step b {
+  width: 19px;
+  height: 19px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--accent);
+  font: 700 .59rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.flow-arrow {
+  color: var(--muted-2);
+  opacity: .65;
+}
+
+.stage-input .source-grid {
+  margin-top: 14px;
+}
+
+.stage-input .source-item {
+  min-height: 84px;
+  padding: 13px 15px;
+  gap: 11px;
+  background: color-mix(in srgb, var(--source-accent) 5%, var(--surface-1));
+}
+
+.stage-input .source-item::before {
+  top: 11px;
+  bottom: 11px;
+}
+
+.stage-input .source-body {
+  gap: 2px;
+}
+
+.stage-input .source-body strong {
+  font-size: .82rem;
+}
+
+.stage-input .source-body small {
+  font-size: .67rem;
+}
+
+.stage-input .filename {
+  margin-top: 2px;
+  font-size: .7rem;
+  line-height: 1.35;
+}
+
+.stage-input .workload-notice {
+  flex: 0 1 570px;
+  margin: 0;
+  padding: 7px 9px;
+  border-color: transparent;
+  background: transparent;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.workbench-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+  gap: 18px;
+  align-items: start;
+}
+
+.editor-column {
+  padding: 16px 18px 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+}
+
+.column-head {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.editor-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.card-head {
+  min-height: 34px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.card-head h3 {
+  margin: 2px 0 0;
+  color: var(--text-strong);
+  font-size: .86rem;
+  font-weight: 650;
+}
+
+.card-kicker,
+.attachment-summary-note {
+  color: var(--muted-2);
+  font: 700 .56rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+}
+
+.compact-control {
+  margin-top: 12px;
+}
+
+.compact-control .field-hint {
+  min-height: 0;
+}
+
+.track-stack {
+  display: grid;
+  gap: 13px;
+  margin-top: 14px;
+}
+
+.subsection-label {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.editor-card .new-track-row,
+.editor-card .track-row,
+.editor-card .attachment-item {
+  padding: 9px 10px;
+}
+
+.editor-card .new-track-fields,
+.editor-card .track-edit-grid,
+.editor-card .attachment-fields {
+  gap: 6px;
+}
+
+.editor-card .new-track-fields input,
+.editor-card .track-edit-grid input,
+.editor-card .attachment-fields input {
+  min-height: 30px;
+}
+
+.tool-drawer,
+.attachment-manager,
+.diagnostics-panel {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+}
+
+.tool-drawer > summary,
+.attachment-manager > summary,
+.diagnostics-panel > summary {
+  padding: 9px 10px;
+}
+
+.tool-drawer > summary,
+.attachment-manager-head {
+  justify-content: space-between;
+}
+
+.tool-drawer > summary::after,
+.attachment-manager > summary::after,
+.diagnostics-panel > summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform .14s ease;
+}
+
+.tool-drawer[open] > summary::after,
+.attachment-manager[open] > summary::after,
+.diagnostics-panel[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.tool-drawer > summary span,
+.attachment-manager-head strong,
+.diagnostics-panel > summary span {
+  font-size: .73rem;
+  font-weight: 650;
+}
+
+.tool-drawer > summary small,
+.attachment-manager-head small,
+.diagnostics-panel > summary small {
+  font-size: .64rem;
+}
+
+.tool-drawer .bulk-tools {
+  margin: 0;
+  padding: 9px;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.bulk-tool {
+  gap: 5px;
+}
+
+.bulk-tool > span {
+  min-width: 74px;
+  font-size: .64rem;
+}
+
+.bulk-tool input {
+  min-height: 29px;
+  font-size: .69rem;
+}
+
+.tool-drawer .button-small,
+.attachment-bulk-tools .button-small {
+  min-height: 29px;
+  padding-inline: 8px;
+  font-size: .68rem;
+}
+
+.source-track-card .track-list {
+  margin-top: 10px;
+}
+
+.attachment-manager {
+  display: block;
+}
+
+.attachment-manager-head {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  cursor: pointer;
+}
+
+.attachment-manager-head > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.attachment-manager-body {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.attachment-manager .attachment-toggle {
+  margin-top: 9px;
+}
+
+.diagnostics-panel {
+  margin-top: 14px;
+  background: transparent;
+}
+
+.diagnostics-panel pre {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  max-height: 240px;
+}
+
+.output-hub {
+  position: sticky;
+  top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
+}
+
+.output-hub-head {
+  padding: 14px 15px;
+  border-top: 3px solid var(--accent);
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 100px),
+    var(--surface-1);
+}
+
+.output-summary {
+  padding: 0 15px 10px;
+}
+
+.output-summary .manifest {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  margin-top: 0;
+  border-top: 0;
+}
+
+.output-summary .manifest > div {
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 0;
+}
+
+.output-summary .manifest-output {
+  grid-column: 1 / -1;
+}
+
+.output-section {
+  padding: 13px 15px;
+  border-top: 1px solid var(--line);
+}
+
+.output-section.plan-panel,
+.output-section.execution-panel {
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.output-section .side-panel-head {
+  margin-bottom: 8px;
+}
+
+.output-section .side-panel-head h3 {
+  font-size: .82rem;
+}
+
+.output-section .mux-plan {
+  max-height: min(42vh, 430px);
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-gutter: stable;
+}
+
+.output-section .plan-group + .plan-group {
+  margin-top: 8px;
+}
+
+.output-section .plan-row {
+  padding: 7px 8px;
+  grid-template-columns: 56px minmax(0, 1fr);
+}
+
+.output-section .plan-main strong {
+  font-size: .7rem;
+}
+
+.output-section .plan-main small,
+.output-section .plan-flags {
+  font-size: .62rem;
+}
+
+.execution-panel {
+  background:
+    linear-gradient(180deg, var(--success-soft), transparent 150px),
+    var(--surface-1) !important;
+}
+
+.execution-status {
+  gap: 4px;
+}
+
+.status {
+  min-height: 31px;
+  font-size: .72rem;
+}
+
+.progress {
+  margin: 7px 0 10px;
+}
+
+.actions {
+  grid-template-columns: minmax(0, 1fr) 76px;
+}
+
+.button-primary,
+.button-secondary {
+  min-height: 40px;
+}
+
+.download {
+  min-height: 46px;
+  margin: 10px 0 7px;
+  font-size: .78rem;
+}
+
+.report-download {
+  min-height: 32px;
+  margin: 0 0 8px;
+}
+
+.execution-note {
+  margin-top: 8px;
+}
+
+@media (min-width: 1280px) and (hover: hover) and (pointer: fine) {
+  .topbar,
+  .workspace {
+    width: calc(100% - clamp(24px, 2vw, 42px));
+    max-width: none;
+  }
+
+  .topbar {
+    min-height: 68px;
+  }
+
+  .workspace {
+    padding-top: 16px;
+    padding-bottom: 32px;
+  }
+
+  .workbench-grid {
+    grid-template-columns: minmax(0, 1fr) clamp(370px, 24vw, 470px);
+    gap: 18px;
+  }
+
+  .editor-grid {
+    grid-template-columns: clamp(310px, 34%, 430px) minmax(0, 1fr);
+  }
+
+  .output-hub {
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+@media (min-width: 1800px) and (hover: hover) and (pointer: fine) {
+  .workbench-grid {
+    grid-template-columns: minmax(0, 1fr) clamp(410px, 22vw, 520px);
+  }
+
+  .editor-grid {
+    grid-template-columns: clamp(340px, 31%, 470px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1120px) {
+  .flow-rail {
+    display: none;
+  }
+
+  .stage-head {
+    align-items: flex-start;
+  }
+
+  .stage-input .workload-notice {
+    flex: 0 1 420px;
+  }
+
+  .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .output-hub {
+    position: static;
+  }
+
+  .editor-grid {
+    grid-template-columns: minmax(280px, .75fr) minmax(0, 1.25fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    min-height: 62px;
+  }
+
+  .workspace {
+    padding-top: 10px;
+  }
+
+  .stage-input,
+  .editor-column {
+    padding: 12px;
+  }
+
+  .stage-head,
+  .column-head,
+  .output-hub-head {
+    align-items: flex-start;
+  }
+
+  .stage-head {
+    display: grid;
+  }
+
+  .stage-input .workload-notice {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .source-grid,
+  .editor-grid,
+  .output-summary .manifest {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-input .source-item {
+    min-height: 69px;
+    padding: 10px 12px;
+  }
+
+  .stage-input .source-body small {
+    display: none;
+  }
+
+  .editor-card {
+    padding: 11px;
+  }
+
+  .output-summary .manifest-output {
+    grid-column: auto;
+  }
+
+  .output-section .mux-plan {
+    max-height: none;
+  }
+
+  .attachment-summary-note {
+    display: none;
+  }
+}
+
+@media (max-width: 460px) {
+  .stage-title p,
+  .runtime-note,
+  .brand p {
+    display: none;
+  }
+
+  .stage-input .source-item {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .stage-input .source-action {
+    display: none;
+  }
+
+  .new-track-row,
+  .track-row,
+  .attachment-item {
+    grid-template-columns: 1fr;
+  }
+
+  .new-track-flags,
+  .track-controls,
+  .attachment-select {
+    justify-content: flex-start;
+  }
+
+  .new-track-fields,
+  .track-edit-grid,
+  .attachment-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-tool {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-tool > span {
+    min-width: 0;
+  }
+
+  .actions {
+    grid-template-columns: 1fr 72px;
+  }
+}
