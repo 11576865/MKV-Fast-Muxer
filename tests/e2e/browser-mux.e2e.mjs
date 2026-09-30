@@ -124,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.0.9');
+    assert.equal(report.application.version, '1.1.0');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
