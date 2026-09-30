@@ -153,15 +153,15 @@
                 </div>
               </div>
               <div class="preview-stage" id="previewStage">
-                <video id="previewVideo" playsinline preload="metadata" muted></video>
+                <img id="previewImage" alt="ASS 字幕预览帧" />
                 <div id="previewEmpty" class="preview-empty">
                   <strong>选择视频与 ASS 后生成预览帧</strong>
-                  <span>自动定位到一条字幕出现的时间点并暂停渲染；浏览器无法解码某些视频 codec 时，封装仍不受影响。</span>
+                  <span>自动定位到一条字幕出现的时间点，由 FFmpeg 提取源帧并用 libass 渲染成 PNG；不依赖浏览器直接播放源视频。</span>
                 </div>
               </div>
               <div class="preview-footer">
                 <span id="previewStatus" aria-live="polite">等待视频与 ASS；不会自动加载预览。</span>
-                <span>按需生成 · 本地预览 · 不上传媒体 · 不查询在线字体</span>
+                <span>按需生成 · FFmpeg/libass · 本地处理 · 不上传媒体</span>
               </div>
             </section>
 
