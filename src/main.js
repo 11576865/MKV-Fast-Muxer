@@ -77,6 +77,36 @@ const languageTitles = {
   mul: '多语言 ASS',
 };
 
+const trackLanguageChoices = [
+  ['und', '未指定'],
+  ['zho', '中文'],
+  ['zh-Hans', '简体中文 · BCP 47'],
+  ['zh-Hant', '繁体中文 · BCP 47'],
+  ['eng', 'English'],
+  ['jpn', '日本語'],
+  ['kor', '한국어'],
+  ['rus', 'Русский'],
+  ['deu', 'Deutsch'],
+  ['fra', 'Français'],
+  ['spa', 'Español'],
+  ['por', 'Português'],
+  ['ita', 'Italiano'],
+  ['ara', 'العربية'],
+  ['hin', 'हिन्दी'],
+  ['mul', '多语言'],
+];
+
+function languageSelectOptions(current = 'und') {
+  const value = String(current || 'und');
+  const known = new Set(trackLanguageChoices.map(([code]) => code));
+  const choices = known.has(value)
+    ? trackLanguageChoices
+    : [[value, `${value} · 自定义`], ...trackLanguageChoices];
+  return choices.map(([code, label]) =>
+    `<option value="${escapeHtml(code)}" ${code === value ? 'selected' : ''}>${escapeHtml(label)} (${escapeHtml(code)})</option>`
+  ).join('');
+}
+
 const ffmpeg = new FFmpeg();
 let loaded = false;
 let running = false;
@@ -165,7 +195,7 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <input data-new-audio-field="language" data-index="${index}" value="${escapeHtml(item.language)}" list="languageSuggestions" maxlength="35" aria-label="外部音频语言">
+            <select data-new-audio-field="language" data-index="${index}" aria-label="外部音频语言">${languageSelectOptions(item.language)}</select>
             <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
           </div>
         </div>
@@ -187,7 +217,7 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <input data-new-sub-field="language" data-index="${index}" value="${escapeHtml(item.language)}" list="languageSuggestions" maxlength="35" aria-label="字幕语言">
+            <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
           </div>
         </div>
@@ -370,8 +400,8 @@ preserveAttachments.addEventListener('change', () => {
   renderMuxPlan();
 });
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
-bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', () => externalAudioState);
-bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', () => newSubtitleState);
+bindNewTrackEditor(newAudioList, '[data-new-audio-field]', () => externalAudioState);
+bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleState);
 
 function applyLanguageToSelectedTracks(type) {
   if (!trackState) return;
@@ -532,6 +562,90 @@ function clampPreviewTime(timeSeconds, durationSeconds) {
   const value = Math.max(0, Number(timeSeconds) || 0);
   if (!(durationSeconds > 0)) return value;
   return Math.min(value, Math.max(0, durationSeconds - 0.08));
+}
+
+function waitForMedia(video, eventName, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`浏览器等待 ${eventName} 超时`));
+    }, timeoutMs);
+    const cleanup = () => {
+      clearTimeout(timer);
+      video.removeEventListener(eventName, onReady);
+      video.removeEventListener('error', onError);
+    };
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      const mediaError = video.error;
+      cleanup();
+      reject(new Error(mediaError?.message || `浏览器无法解码该视频（MediaError ${mediaError?.code || 'unknown'}）`));
+    };
+    video.addEventListener(eventName, onReady, { once: true });
+    video.addEventListener('error', onError, { once: true });
+  });
+}
+
+async function captureBrowserFramePng(file, timeSeconds) {
+  const video = document.createElement('video');
+  const url = URL.createObjectURL(file);
+  video.preload = 'auto';
+  video.muted = true;
+  video.playsInline = true;
+
+  try {
+    video.src = url;
+    video.load();
+    if (video.readyState < 1) await waitForMedia(video, 'loadedmetadata');
+
+    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+    const target = clampPreviewTime(timeSeconds, duration);
+    if (target > 0.001) {
+      video.currentTime = target;
+      await waitForMedia(video, 'seeked', 20000);
+    } else if (video.readyState < 2) {
+      await waitForMedia(video, 'loadeddata', 20000);
+    }
+
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 1000);
+        video.requestVideoFrameCallback(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    if (!(sourceWidth > 0 && sourceHeight > 0)) {
+      throw new Error('浏览器没有取得可绘制的视频帧。');
+    }
+
+    const maxWidth = 1280;
+    const scale = Math.min(1, maxWidth / sourceWidth);
+    const width = Math.max(2, Math.round(sourceWidth * scale));
+    const height = Math.max(2, Math.round(sourceHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new Error('浏览器 Canvas 不可用。');
+    context.drawImage(video, 0, 0, width, height);
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error('浏览器无法编码预览 PNG。')), 'image/png');
+    });
+    return new Uint8Array(await blob.arrayBuffer());
+  } finally {
+    video.pause();
+    video.removeAttribute('src');
+    URL.revokeObjectURL(url);
+  }
 }
 
 function taskPrefix() {
@@ -818,7 +932,7 @@ async function refreshSubtitlePreview() {
 
     const extractionAttempts = [
       {
-        label: '快速定位',
+        label: 'FFmpeg 快速定位',
         args: [
           '-hide_banner', '-loglevel', 'error', '-y',
           '-ss', previewTime.toFixed(3),
@@ -830,7 +944,7 @@ async function refreshSubtitlePreview() {
         ],
       },
       {
-        label: '兼容定位',
+        label: 'FFmpeg 兼容定位',
         args: [
           '-hide_banner', '-loglevel', 'error', '-y',
           '-i', inputPath,
@@ -844,21 +958,52 @@ async function refreshSubtitlePreview() {
     ];
 
     let extracted = false;
+    let extractionMethod = '';
     const extractErrors = [];
-    for (const attempt of extractionAttempts) {
-      await removeQuietly(basePath);
-      const result = await execWithCapturedLogs(attempt.args);
-      if (result.code === 0) {
-        try {
-          const bytes = await ffmpeg.readFile(basePath);
-          if (bytes instanceof Uint8Array && bytes.byteLength > 0) {
-            extracted = true;
-            break;
-          }
-        } catch {}
+
+    const tryBrowserFrame = async () => {
+      try {
+        previewStatus.textContent = `正在用浏览器解码 ${codec} 预览帧……`;
+        const bytes = await captureBrowserFramePng(video, previewTime);
+        if (!(bytes instanceof Uint8Array) || !bytes.byteLength) throw new Error('浏览器返回了空预览帧。');
+        await ffmpeg.writeFile(basePath, bytes);
+        extracted = true;
+        extractionMethod = 'browser';
+        return true;
+      } catch (error) {
+        extractErrors.push(`浏览器解码：${error?.message || error}`);
+        return false;
       }
-      const detail = usefulLogTail(result.logs);
-      extractErrors.push(`${attempt.label}：返回 ${result.code}${detail ? ` · ${detail}` : ''}`);
+    };
+
+    // ffmpeg.wasm 5.1.x 的内置 AV1 解码器对部分 MP4 AV1 bitstream
+    // 会报 Missing Sequence Header。现代 Chromium 通常能直接解码 AV1，
+    // 因此 AV1 优先用浏览器抽一帧，再交给 FFmpeg/libass 烧字幕。
+    if (codec === 'av1') {
+      await tryBrowserFrame();
+    }
+
+    if (!extracted) {
+      for (const attempt of extractionAttempts) {
+        await removeQuietly(basePath);
+        const result = await execWithCapturedLogs(attempt.args);
+        if (result.code === 0) {
+          try {
+            const bytes = await ffmpeg.readFile(basePath);
+            if (bytes instanceof Uint8Array && bytes.byteLength > 0) {
+              extracted = true;
+              extractionMethod = 'ffmpeg';
+              break;
+            }
+          } catch {}
+        }
+        const detail = usefulLogTail(result.logs);
+        extractErrors.push(`${attempt.label}：返回 ${result.code}${detail ? ` · ${detail}` : ''}`);
+      }
+    }
+
+    if (!extracted) {
+      await tryBrowserFrame();
     }
 
     if (!extracted) {
@@ -887,7 +1032,7 @@ async function refreshSubtitlePreview() {
     previewImageURL = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
     previewImage.src = previewImageURL;
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();
@@ -2034,7 +2179,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.3',
+      appVersion: '1.0.4',
       input: {
         name: video.name,
         sizeBytes: video.size,
