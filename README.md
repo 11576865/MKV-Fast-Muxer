@@ -2,10 +2,10 @@
 
 一个在浏览器本地运行的 **MKV 快速封装工作台**。
 
-它面向“已有视频 + ASS 字幕 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
+它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer-v3/  
-**Package version:** 0.3.0
+**Package version:** 0.4.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -51,7 +51,8 @@ ffprobe 审计
 典型使用场景：
 
 - MP4 / MKV / WebM / MOV / M4V 已经是最终视频；
-- ASS 字幕已经完成时间轴和排版；
+- 一条或多条 ASS 字幕已经完成时间轴和排版；
+- 可选加入 FLAC / AAC / Opus 等外部音频轨；
 - 字幕使用一个或多个外部字体；
 - 希望把视频、字幕、字体一次性封装进 MKV；
 - 希望保留原视频 / 音频码流，不做二次压缩；
@@ -91,9 +92,9 @@ MP4 / MKV / WebM / MOV / M4V
 MKV
 ```
 
-### 2. ASS 软字幕
+### 2. 多 ASS 软字幕
 
-新字幕以 ASS 轨道写入 MKV。
+支持一次选择多条 ASS。每条新增字幕独立写入 MKV，并可分别设置 language、title、Default 与 Forced。
 
 可设置：
 
@@ -217,9 +218,13 @@ MKV
 
 ### 原附件
 
-通过独立开关控制是否保留。
+扫描 MKV 后会列出原附件，可逐项选择保留；也可以使用“全部保留”。未扫描时仍保留兼容性的整体开关。
 
-新加入的 ASS 与原字幕分开配置。
+### 外部音频
+
+可一次加入多条外部音频，并分别设置 language、title 与 Default。外部音频与原音频一样使用 stream copy，不主动重编码。
+
+新加入的 ASS、外部音频与原容器轨道分开配置。
 
 如果没有扫描 MKV 轨道，则保持兼容行为：
 
@@ -253,13 +258,14 @@ Attachments
 
 生成 MKV 后，会再运行 ffprobe 检查实际结果，包括：
 
-- 视频 / 音频 / 字幕轨数量；
+- 视频 / 音频 / 字幕轨数量与 codec 保真；
 - 轨道相关元数据；
 - language；
 - title；
 - Default / Forced；
-- 附件数量；
-- 新字体文件名。
+- 附件数量与被选择保留的原附件文件名；
+- 新字体文件名；
+- Chapter 数量与容器 title。
 
 审计使用偏向 **容器元数据** 的探测策略，不要求完整解码视频。
 
@@ -417,7 +423,7 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 
 ## 已知边界
 
-当前新加入字幕只面向 ASS。
+当前新加入字幕只面向 ASS；外部音频以 stream copy 为目标，因此输入 codec 必须能被 Matroska 容器直接承载。
 
 字体静态分析不能完整证明任意复杂 ASS override / drawing / transform 在所有播放器中的最终渲染行为，因此字体检查被设计为辅助诊断，而不是完整 ASS renderer。
 
