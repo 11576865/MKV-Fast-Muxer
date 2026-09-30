@@ -42,6 +42,14 @@ export function describeOperationError(error, { phase = 'mux', logText = '' } = 
     );
   }
 
+  if (/^(?:字体|TTC \/ OTC)/.test(raw)) {
+    return result(
+      'invalid-font',
+      '至少一个字体文件无法被可靠解析，封装没有完成。',
+      `请重新选择有效的 TTF / OTF / TTC / OTC 字体文件后重试。底层信息：${raw}`
+    );
+  }
+
   if (includesAny(lower, [
     /out of memory/,
     /memory access out of bounds/,
