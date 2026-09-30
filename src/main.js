@@ -2058,17 +2058,20 @@ muxBtn.addEventListener('click', async () => {
   const invalidSubtitle = subtitleTracks.find((track) => !isSupportedSubtitleFile(track.file));
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
   const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
-  const scanned = getScannedSelection(video);
-  const preserveAllOriginalAttachments = !scanned
-    && preserveAttachments.checked
-    && videoExt === '.mkv';
+  const manualScanned = getScannedSelection(video);
+  const appendMode = Boolean(videoExt === '.mkv' && appendPreserveAll?.checked);
+  const scanned = appendMode ? null : manualScanned;
+  const preserveAllOriginalSubtitles = appendMode;
+  const preserveAllOriginalAttachments = videoExt === '.mkv' && (
+    appendMode || (!scanned && preserveAttachments.checked)
+  );
 
   if (!['.mp4', '.mkv', '.webm', '.mov', '.m4v'].includes(videoExt)) {
     status.textContent = '请选择 MP4 / MKV / WebM / MOV / M4V 视频文件。';
     return;
   }
   if (invalidSubtitle) {
-    status.textContent = `字幕“${invalidSubtitle.file.name}”不是支持的 ASS / SSA / SRT / WebVTT 文件。`;
+    status.textContent = `字幕“${invalidSubtitle.file.name}”不是支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub 文件。`;
     return;
   }
   if (invalidFont) {
@@ -2104,6 +2107,7 @@ muxBtn.addEventListener('click', async () => {
   const fontPaths = [];
   const audioPaths = [];
   const subtitlePaths = [];
+  const subtitlePrimaryPaths = [];
   const extraProbePaths = [];
 
   try {
@@ -2146,7 +2150,23 @@ muxBtn.addEventListener('click', async () => {
 
     for (let index = 0; index < subtitleTracks.length; index += 1) {
       const track = subtitleTracks[index];
-      const format = subtitleFormatInfo(track.file.name);
+      const format = track.format || subtitleFormatInfo(track.file.name);
+
+      if (!format?.text) {
+        logEl.textContent += `字幕 #${index + 1}：${track.displayName || track.file.name} · ${format?.label || 'BITMAP'} · 二进制 stream copy\n`;
+        preparedSubtitles.push({
+          ...track,
+          format,
+          encoding: 'binary',
+          outputText: null,
+          inputExtension: format?.inputExtension || ext(track.file.name) || '.bin',
+          codecOverride: null,
+          expectedCodec: format?.expectedCodec || '',
+          binary: true,
+        });
+        continue;
+      }
+
       const { text: sourceText, encoding } = await readAssText(track.file);
       let outputText = sourceText;
 
@@ -2193,6 +2213,7 @@ muxBtn.addEventListener('click', async () => {
         inputExtension: format?.inputExtension || ext(track.file.name) || '.txt',
         codecOverride: format?.ffmpegOutputCodec || null,
         expectedCodec: format?.expectedCodec || '',
+        binary: false,
       });
     }
 
@@ -2236,8 +2257,19 @@ muxBtn.addEventListener('click', async () => {
     for (let index = 0; index < preparedSubtitles.length; index += 1) {
       const item = preparedSubtitles[index];
       const path = `${prefix}-subtitle-${index}${item.inputExtension}`;
+      subtitlePrimaryPaths.push(path);
       subtitlePaths.push(path);
-      await ffmpeg.writeFile(path, new TextEncoder().encode(item.outputText));
+
+      if (item.binary) {
+        await ffmpeg.writeFile(path, await fetchFile(item.file));
+        if (item.format?.id === 'vobsub' && item.sidecarFile) {
+          const sidecarPath = `${prefix}-subtitle-${index}.sub`;
+          subtitlePaths.push(sidecarPath);
+          await ffmpeg.writeFile(sidecarPath, await fetchFile(item.sidecarFile));
+        }
+      } else {
+        await ffmpeg.writeFile(path, new TextEncoder().encode(item.outputText));
+      }
     }
 
     for (let index = 0; index < attachments.length; index += 1) {
@@ -2253,6 +2285,7 @@ muxBtn.addEventListener('click', async () => {
     const originalAttachmentCount = inputProbe.attachmentCount;
     const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
     const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
+    const sourceSubtitles = inputProbe.streams.filter((stream) => stream.codec_type === 'subtitle');
     const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
 
     const selectedAudio = scanned ? selectedTracks('audio') : null;
@@ -2292,14 +2325,16 @@ muxBtn.addEventListener('click', async () => {
     const subtitleInputOffset = 1 + runtimeExternalAudio.length;
     const runtimeSubtitles = preparedSubtitles.map((track, index) => ({
       ...track,
-      path: subtitlePaths[index],
+      path: subtitlePrimaryPaths[index],
       inputIndex: subtitleInputOffset + index,
     }));
 
     if (scanned) {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (videoExt === '.mkv') {
-      logEl.textContent += `INFO: 未扫描轨道，按兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
+      logEl.textContent += appendMode
+        ? `INFO: 完整保留并追加模式：保留全部原音频、原字幕、附件、Chapters 与 metadata。\n`
+        : `INFO: 未扫描轨道，兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
 
     status.textContent = '正在无损封装 MKV……';
@@ -2319,6 +2354,7 @@ muxBtn.addEventListener('click', async () => {
       externalAudioTracks: runtimeExternalAudio,
       newSubtitleTracks: runtimeSubtitles,
       originalSubtitleTracks: selectedSubtitles,
+      preserveAllOriginalSubtitles,
       originalAttachments,
       preserveAllOriginalAttachments,
       originalAttachmentCount,
@@ -2396,16 +2432,27 @@ muxBtn.addEventListener('click', async () => {
           commentary: track.commentary,
           hearingImpaired: track.hearingImpaired,
         })),
-        ...selectedSubtitles.map((track) => ({
-          codec: track.stream.codec_name || '',
-          language: normalizeTrackLanguage(track.language),
-          title: track.title || '',
-          default: track.default,
-          forced: track.forced,
-          original: track.original,
-          commentary: track.commentary,
-          hearingImpaired: track.hearingImpaired,
-        })),
+        ...(preserveAllOriginalSubtitles
+          ? sourceSubtitles.map((stream) => ({
+              codec: stream.codec_name || '',
+              language: normalizeTrackLanguage(stream.tags?.language),
+              title: stream.tags?.title || '',
+              default: Boolean(stream.disposition?.default),
+              forced: Boolean(stream.disposition?.forced),
+              original: Boolean(stream.disposition?.original),
+              commentary: Boolean(stream.disposition?.comment),
+              hearingImpaired: Boolean(stream.disposition?.hearing_impaired),
+            }))
+          : selectedSubtitles.map((track) => ({
+              codec: track.stream.codec_name || '',
+              language: normalizeTrackLanguage(track.language),
+              title: track.title || '',
+              default: track.default,
+              forced: track.forced,
+              original: track.original,
+              commentary: track.commentary,
+              hearingImpaired: track.hearingImpaired,
+            }))),
       ],
       chapterCount: inputProbe.chapters.length,
       formatTitle: inputProbe.format?.tags?.title || '',
@@ -2464,7 +2511,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.1.0',
+      appVersion: '1.2.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
