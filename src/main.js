@@ -512,9 +512,18 @@ fontMode.addEventListener('change', () => {
   previewStatus.textContent = '字体模式已更换；点击“生成预览帧”重新检查。';
 });
 previewSubtitleSelect?.addEventListener('change', () => {
+  previewCueTimes = [];
+  previewCueIndex = -1;
+  if (previewTimeInput) previewTimeInput.value = '';
   destroySubtitlePreview();
-  previewStatus.textContent = '预览字幕已切换；点击“生成预览帧”。';
+  previewStatus.textContent = '预览字幕已切换；可输入任意时间点，或使用上一条 / 下一条。';
 });
+previewTimeInput?.addEventListener('change', () => {
+  const value = parsePreviewTime(previewTimeInput.value);
+  previewTimeInput.setCustomValidity(Number.isFinite(value) ? '' : '请输入秒数或 HH:MM:SS.mmm');
+});
+previewPrevCueBtn?.addEventListener('click', () => navigatePreviewCue(-1));
+previewNextCueBtn?.addEventListener('click', () => navigatePreviewCue(1));
 previewRefreshBtn?.addEventListener('click', refreshSubtitlePreview);
 previewImage?.addEventListener('click', openPreviewDialog);
 previewImage?.addEventListener('keydown', (event) => {
@@ -921,7 +930,7 @@ function shiftAssForPreview(text, offsetSeconds) {
   }).join('\n');
 }
 
-function choosePreviewFrameTime(assText) {
+function extractPreviewCueTimes(assText) {
   const lines = String(assText || '').replace(/^\uFEFF/, '').split(/\r?\n/);
   let section = '';
   let format = [];
@@ -956,11 +965,77 @@ function choosePreviewFrameTime(assText) {
     candidates.push(Math.max(0, midpoint));
   }
 
+  return candidates;
+}
+
+function choosePreviewFrameTime(assText) {
+  const candidates = extractPreviewCueTimes(assText);
   if (!candidates.length) return 0;
   const firstVisible = candidates.find((value) => value >= 0.25);
   return firstVisible ?? candidates[0];
 }
 
+function parsePreviewTime(value) {
+  const text = String(value || '').trim();
+  if (!text) return NaN;
+  if (/^\d+(?:\.\d+)?$/.test(text)) return Number(text);
+  const match = text.match(/^(?:(\d+):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+  if (!match) return NaN;
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  const fraction = Number(`0.${String(match[4] || '0').padEnd(3, '0')}`);
+  return hours * 3600 + minutes * 60 + seconds + fraction;
+}
+
+function formatPreviewTime(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const secs = Math.floor(value % 60);
+  const millis = Math.round((value - Math.floor(value)) * 1000);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
+}
+
+async function loadPreviewCueTimes() {
+  const subs = selectedSubtitleFiles();
+  const selectedIndex = Number(previewSubtitleSelect?.value || 0);
+  const file = subs[selectedIndex];
+  if (!file || !isPreviewableSubtitle(file)) {
+    previewCueTimes = [];
+    previewCueIndex = -1;
+    return [];
+  }
+  const { text } = await readAssText(file);
+  previewCueTimes = extractPreviewCueTimes(text);
+  const current = parsePreviewTime(previewTimeInput?.value);
+  if (Number.isFinite(current) && previewCueTimes.length) {
+    let nearest = 0;
+    let distance = Infinity;
+    previewCueTimes.forEach((value, index) => {
+      const delta = Math.abs(value - current);
+      if (delta < distance) {
+        nearest = index;
+        distance = delta;
+      }
+    });
+    previewCueIndex = nearest;
+  } else {
+    previewCueIndex = previewCueTimes.length ? 0 : -1;
+  }
+  return previewCueTimes;
+}
+
+async function navigatePreviewCue(delta) {
+  if (isBusy()) return;
+  await loadPreviewCueTimes();
+  if (!previewCueTimes.length) return;
+  if (previewCueIndex < 0) previewCueIndex = 0;
+  else previewCueIndex = Math.max(0, Math.min(previewCueTimes.length - 1, previewCueIndex + delta));
+  const target = previewCueTimes[previewCueIndex];
+  if (previewTimeInput) previewTimeInput.value = formatPreviewTime(target);
+  await refreshSubtitlePreview();
+}
 
 async function destroySubtitlePreview() {
   previewGeneration += 1;
@@ -1007,6 +1082,9 @@ function syncPreviewControls() {
 
   previewSubtitleSelect.disabled = !previewable.length;
   previewRefreshBtn.disabled = !(videoInput.files[0] && previewable.length);
+  if (previewTimeInput) previewTimeInput.disabled = !previewable.length;
+  if (previewPrevCueBtn) previewPrevCueBtn.disabled = !previewable.length;
+  if (previewNextCueBtn) previewNextCueBtn.disabled = !previewable.length;
 }
 
 async function buildPreviewAss(track, fontFiles) {
@@ -1070,9 +1148,26 @@ async function refreshSubtitlePreview() {
     });
     await removeQuietly(previewProbePath);
 
-    const requestedPreviewTime = choosePreviewFrameTime(sourceAss);
+    previewCueTimes = extractPreviewCueTimes(sourceAss);
+    const manualPreviewTime = parsePreviewTime(previewTimeInput?.value);
+    const requestedPreviewTime = Number.isFinite(manualPreviewTime)
+      ? manualPreviewTime
+      : choosePreviewFrameTime(sourceAss);
     const duration = previewSourceDuration(sourceProbe);
     const previewTime = clampPreviewTime(requestedPreviewTime, duration);
+    if (previewTimeInput) previewTimeInput.value = formatPreviewTime(previewTime);
+    if (previewCueTimes.length) {
+      let nearest = 0;
+      let distance = Infinity;
+      previewCueTimes.forEach((value, index) => {
+        const delta = Math.abs(value - previewTime);
+        if (delta < distance) {
+          nearest = index;
+          distance = delta;
+        }
+      });
+      previewCueIndex = nearest;
+    }
     const previewCenter = 0.5;
     const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
