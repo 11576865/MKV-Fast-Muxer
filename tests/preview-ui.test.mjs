@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.6');
+  assert.equal(pkg.version, '1.0.7');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -136,4 +136,14 @@ test('language dropdown keeps codes as values but shows concise labels', async (
   assert.match(main, /<option value="\$\{escapeHtml\(code\)\}"[^>]*>\$\{escapeHtml\(label\)\}<\/option>/);
   assert.doesNotMatch(main, />\$\{escapeHtml\(label\)\} \(\$\{escapeHtml\(code\)\}\)<\/option>/);
   assert.match(main, /title="语言代码：\$\{escapeHtml\(item\.language\)\}"/);
+});
+
+
+test('Review & Mux pane uses a quieter summary-plan-action hierarchy', async () => {
+  const css = await text('src/style.css');
+
+  assert.match(css, /1\.0\.7 output pane refinement/);
+  assert.match(css, /\.output-summary \.manifest > div \{[\s\S]*border-radius: 4px/);
+  assert.match(css, /\.output-section \.plan-row \{[\s\S]*border-left: 2px solid/);
+  assert.match(css, /\.execution-panel \{[\s\S]*var\(--success\) 5%/);
 });
