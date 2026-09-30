@@ -1,12 +1,29 @@
 export function normalizeTrackLanguage(value) {
-  const trimmed = String(value || '').trim().toLowerCase();
-  return trimmed || 'und';
+  const trimmed = String(value || '').trim().replace(/_/g, '-');
+  if (!trimmed) return 'und';
+
+  const parts = trimmed.split('-').filter(Boolean);
+  if (parts.length === 1) return parts[0].toLowerCase();
+
+  return parts.map((part, index) => {
+    if (index === 0) return part.toLowerCase();
+    if (/^[A-Za-z]{4}$/.test(part)) {
+      return part[0].toUpperCase() + part.slice(1).toLowerCase();
+    }
+    if (/^[A-Za-z]{2}$/.test(part) || /^\d{3}$/.test(part)) {
+      return part.toUpperCase();
+    }
+    return part.toLowerCase();
+  }).join('-');
 }
 
-export function dispositionValue(isDefault, isForced = false) {
+export function dispositionValue(isDefault, isForced = false, extra = {}) {
   const values = [];
   if (isDefault) values.push('default');
   if (isForced) values.push('forced');
+  if (extra.original) values.push('original');
+  if (extra.commentary) values.push('comment');
+  if (extra.hearingImpaired) values.push('hearing_impaired');
   return values.length ? values.join('+') : '0';
 }
 
@@ -71,7 +88,7 @@ export function buildMuxCommand({
       args.push(
         `-metadata:s:a:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
         `-metadata:s:a:${outputIndex}`, `title=${track.title || ''}`,
-        `-disposition:a:${outputIndex}`, dispositionValue(track.default, false),
+        `-disposition:a:${outputIndex}`, dispositionValue(track.default, false, track),
       );
     });
   }
@@ -81,7 +98,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:a:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:a:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:a:${outputIndex}`, dispositionValue(track.default, false),
+      `-disposition:a:${outputIndex}`, dispositionValue(track.default, false, track),
     );
   });
 
@@ -89,7 +106,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced),
+      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
     );
   });
 
@@ -98,7 +115,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced),
+      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
     );
   });
 

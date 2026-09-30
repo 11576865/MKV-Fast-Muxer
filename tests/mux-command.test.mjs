@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildMuxCommand } from '../src/mux-command.js';
+import { buildMuxCommand, normalizeTrackLanguage } from '../src/mux-command.js';
 
 test('builds deterministic multi-audio multi-subtitle mux command', () => {
   const args = buildMuxCommand({
@@ -84,4 +84,48 @@ test('can preserve all original attachments without enumerating them', () => {
 
   assert.ok(args.includes('0:t?'));
   assert.ok(args.includes('-metadata:s:t:3'));
+});
+
+test('writes Original, Commentary and Hearing impaired dispositions', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mp4',
+    outputPath: 'out.mkv',
+    sourceAudioCount: 1,
+    externalAudioTracks: [
+      {
+        path: 'commentary.flac',
+        inputIndex: 1,
+        language: 'eng',
+        title: 'Commentary',
+        default: false,
+        original: true,
+        commentary: true,
+        hearingImpaired: false,
+      },
+    ],
+    newSubtitleTracks: [
+      {
+        path: 'sub.ass',
+        inputIndex: 2,
+        language: 'zh-Hans',
+        title: '简体中文',
+        default: true,
+        forced: false,
+        hearingImpaired: true,
+      },
+    ],
+  });
+
+  const audioDisposition = args[args.indexOf('-disposition:a:1') + 1];
+  const subtitleDisposition = args[args.indexOf('-disposition:s:0') + 1];
+  assert.equal(audioDisposition, 'original+comment');
+  assert.equal(subtitleDisposition, 'default+hearing_impaired');
+});
+
+test('normalizes ISO codes and canonicalizes common BCP47 casing', () => {
+  assert.equal(normalizeTrackLanguage(' ZHO '), 'zho');
+  assert.equal(normalizeTrackLanguage('zh-hans'), 'zh-Hans');
+  assert.equal(normalizeTrackLanguage('pt_br'), 'pt-BR');
+  assert.equal(normalizeTrackLanguage('sr-latn-rs'), 'sr-Latn-RS');
+  assert.equal(normalizeTrackLanguage(''), 'und');
 });

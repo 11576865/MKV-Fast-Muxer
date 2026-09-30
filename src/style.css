@@ -667,6 +667,37 @@ input[type="checkbox"] { accent-color: var(--accent); }
   font-size: .68rem;
 }
 
+.track-advanced {
+  width: 100%;
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+}
+
+.track-advanced summary {
+  color: var(--muted);
+  font-size: .66rem;
+}
+
+.track-advanced[open] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.track-advanced[open] summary {
+  flex-basis: 100%;
+  margin-bottom: 2px;
+}
+
+.track-advanced label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .66rem;
+}
+
 .attachment-manager {
   margin-top: 12px;
   display: grid;

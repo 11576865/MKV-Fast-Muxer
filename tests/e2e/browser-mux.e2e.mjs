@@ -122,7 +122,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '0.4.0');
+    assert.equal(report.application.version, '0.5.0');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -748,6 +748,63 @@ async function scenarioTenSequential(browser) {
   }
 }
 
+async function scenarioFontCollectionAndAdvancedFlags(browser) {
+  console.log('E2E scenario 20: TTC collection + BCP47 language + advanced dispositions');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#audioInput', path.join(root, 'external.flac'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuCollection.ttc'));
+
+    await page.locator('input[data-new-audio-field="language"][data-index="0"]').fill('eng');
+    await page.locator('input[data-new-audio-field="title"][data-index="0"]').fill('Director Commentary');
+    await page.locator('#newAudioList details.track-advanced summary').click();
+    await page.locator('input[data-new-audio-field="original"][data-index="0"]').check();
+    await page.locator('input[data-new-audio-field="commentary"][data-index="0"]').check();
+
+    await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zh-Hans');
+    await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('简体中文字幕');
+    await page.locator('#newSubtitleList details.track-advanced summary').click();
+    await page.locator('input[data-new-sub-field="hearingImpaired"][data-index="0"]').check();
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'font-collection-flags.mkv');
+    const reportPath = path.join(outDir, 'font-collection-flags.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const out = probe(output);
+    const audio = streams(out, 'audio');
+    const subtitles = streams(out, 'subtitle');
+    const attachments = streams(out, 'attachment');
+
+    assert.equal(audio.at(-1).tags?.title, 'Director Commentary');
+    assert.equal(Boolean(audio.at(-1).disposition?.original), true);
+    assert.equal(Boolean(audio.at(-1).disposition?.comment), true);
+    assert.equal(subtitles[0].tags?.language, 'zh-Hans');
+    assert.equal(Boolean(subtitles[0].disposition?.hearing_impaired), true);
+    assert.equal(attachments.length, 1);
+    assert.equal(attachments[0].tags?.filename, 'DejaVuCollection.ttc');
+    assert.equal(attachments[0].tags?.mimetype, 'font/collection');
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.fonts.uniqueCount, 1);
+    assert.equal(report.fonts.faceCount, 2);
+    assert.equal(report.fonts.attachments[0].faces.length, 2);
+    assert.equal(report.externalAudio[0].original, true);
+    assert.equal(report.externalAudio[0].commentary, true);
+    assert.equal(report.subtitle.tracks[0].hearingImpaired, true);
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    console.log('Scenario 20 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -809,6 +866,7 @@ try {
   await scenarioCancelScan(browser);
   await scenarioUnicodeNamesAndLongTitle(browser);
   await scenarioTenSequential(browser);
+  await scenarioFontCollectionAndAdvancedFlags(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();

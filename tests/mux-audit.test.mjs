@@ -55,3 +55,53 @@ test('audit detects stream-copy codec drift and lost chapter/attachment', () => 
   assert.ok(result.issues.some((issue) => issue.includes('附件数量')));
   assert.ok(result.issues.some((issue) => issue.includes('font.ttf')));
 });
+
+test('audit validates advanced track dispositions', () => {
+  const result = auditMuxProbe({
+    streams: [
+      {
+        codec_type: 'video',
+        codec_name: 'h264',
+        tags: {},
+        disposition: {},
+      },
+      {
+        codec_type: 'audio',
+        codec_name: 'flac',
+        tags: { language: 'eng', title: 'Commentary' },
+        disposition: { default: 0, original: 1, comment: 1, hearing_impaired: 0 },
+      },
+      {
+        codec_type: 'subtitle',
+        codec_name: 'ass',
+        tags: { language: 'zh-Hans', title: '简体中文' },
+        disposition: { default: 1, forced: 0, original: 0, comment: 0, hearing_impaired: 1 },
+      },
+    ],
+    chapters: [],
+    format: { tags: {} },
+  }, {
+    video: [{ codec: 'h264' }],
+    audio: [{
+      codec: 'flac',
+      language: 'eng',
+      title: 'Commentary',
+      default: false,
+      original: true,
+      commentary: true,
+      hearingImpaired: false,
+    }],
+    subtitles: [{
+      codec: 'ass',
+      language: 'zh-Hans',
+      title: '简体中文',
+      default: true,
+      forced: false,
+      original: false,
+      commentary: false,
+      hearingImpaired: true,
+    }],
+  });
+
+  assert.equal(result.ok, true);
+});
