@@ -2943,3 +2943,170 @@ pre {
     grid-template-columns: minmax(420px, .95fr) minmax(500px, 1.05fr);
   }
 }
+
+
+/* 1.0.7 output pane refinement -------------------------------------------------
+   Keep Review & Mux visually quieter than the editing surface: summary first,
+   structure second, action last. Avoid a stack of equally strong outlined boxes. */
+.output-hub {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+  background: color-mix(in srgb, var(--surface-1) 94%, black);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .16);
+}
+
+.output-hub-head {
+  padding: 13px 14px 11px;
+  border-top-width: 2px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 88px),
+    var(--surface-1);
+}
+
+.output-hub-head .stage-title p {
+  max-width: 270px;
+}
+
+.output-summary {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.output-summary .manifest {
+  gap: 7px;
+  border: 0;
+}
+
+.output-summary .manifest > div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  min-height: 54px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+
+.output-summary .manifest > div span {
+  font-size: .58rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  opacity: .82;
+}
+
+.output-summary .manifest > div strong {
+  font-size: .76rem;
+  line-height: 1.35;
+}
+
+.output-summary .manifest-output {
+  min-height: 0 !important;
+  padding: 9px 10px !important;
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--line)) !important;
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface-2)) !important;
+}
+
+.output-section.plan-panel {
+  padding-top: 12px;
+  padding-bottom: 10px;
+}
+
+.output-section .side-panel-head {
+  margin-bottom: 6px;
+}
+
+.output-section .side-panel-head .panel-kicker {
+  margin-bottom: 2px;
+  opacity: .7;
+}
+
+.output-section .mux-plan {
+  display: grid;
+  gap: 8px;
+}
+
+.output-section .plan-group {
+  gap: 4px;
+}
+
+.output-section .plan-group + .plan-group {
+  margin-top: 5px;
+}
+
+.output-section .plan-group-head {
+  padding: 5px 1px 4px;
+  border-bottom-color: color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.output-section .plan-row {
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+  border: 0;
+  border-left: 2px solid color-mix(in srgb, var(--plan-accent) 68%, transparent);
+  border-radius: 0 3px 3px 0;
+  background: color-mix(in srgb, var(--plan-accent) 3%, var(--surface-0));
+}
+
+.output-section .plan-kind {
+  font-size: .61rem;
+}
+
+.output-section .plan-main strong {
+  font-size: .69rem;
+}
+
+.output-section .plan-main small,
+.output-section .plan-flags {
+  font-size: .6rem;
+}
+
+.execution-panel {
+  padding-top: 12px !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--success) 5%, transparent), transparent 120px),
+    var(--surface-1) !important;
+}
+
+.execution-status {
+  padding: 0;
+}
+
+.execution-panel .status-label {
+  opacity: .82;
+}
+
+.execution-panel .status {
+  font-size: .69rem;
+  color: var(--muted);
+}
+
+.execution-panel .actions {
+  margin-top: 2px;
+}
+
+.execution-panel .button-primary {
+  min-height: 38px;
+}
+
+.execution-panel .button-secondary {
+  min-height: 38px;
+}
+
+.execution-note {
+  opacity: .78;
+}
+
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+  .output-hub {
+    align-self: start;
+  }
+
+  .output-summary .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-summary .manifest-output {
+    grid-column: 1 / -1;
+  }
+}
