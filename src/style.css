@@ -3268,3 +3268,48 @@ pre {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* 1.2 container workflow expansion */
+.preview-time-control {
+  display: grid;
+  gap: 4px;
+  min-width: 170px;
+}
+
+.preview-time-control input {
+  width: 170px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface-0);
+  color: var(--text);
+}
+
+.append-mode-toggle {
+  margin: 10px 0 12px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-1));
+}
+
+.batch-output-tool {
+  min-width: min(100%, 320px);
+}
+
+.batch-output-tool small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .preview-tools {
+    flex-wrap: wrap;
+  }
+
+  .preview-time-control,
+  .preview-time-control input {
+    width: 100%;
+  }
+}

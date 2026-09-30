@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.0 — 2026-09-30
+
+### Added
+
+- 新增 PGS / SUP 图形字幕软封装。
+- 新增 VobSub `.idx + .sub` 配对输入，作为一条 DVD bitmap subtitle 轨处理。
+- 新增“完整保留原容器结构，仅追加”预设：MKV 默认保留全部原音频、原字幕、附件、Chapters、metadata 与 disposition；扫描源 MKV 时自动切换到手动轨道控制。
+- 新增字幕文件名语言推断，支持常见 `zh-Hans` / `chs` / `cht` / `en` / `ja` / `ko` 等后缀并自动填写 language/title。
+- 新增 ASS / SSA 任意时间点预览，以及上一条 / 下一条 Dialogue 导航。
+- 批处理新增视频目录、字幕目录与字体目录输入。
+- 批处理新增 File System Access API 输出目录，可直接写入 MKV 与审计报告；不支持时继续提供下载链接。
+- 批量字体子集化新增 Group 模式：汇总整个批次字幕字符后只生成一次 HarfBuzz subset 并复用。
+
+### Changed
+
+- 批量 MKV 的默认保留策略从“只保留原附件”提升为“完整保留原容器结构，仅追加”。
+- 字幕输入、封装计划与 UI 文案扩展到文本字幕与 bitmap 字幕两类。
+- Browser E2E 增加语言推断、完整保留并追加与 Group subset 场景。
+
+
 ## 1.1.0 — 2026-09-30
 
 ### Added

@@ -67,7 +67,7 @@
               <span class="section-index">01</span>
               <div>
                 <h2 id="source-title">输入素材</h2>
-                <p>主视频必选；外部音频可选；至少选择一条字幕；ASS / SSA 可附加字体，SRT / WebVTT 可直接软封装。</p>
+                <p>主视频必选；外部音频可选；至少选择一条字幕；支持 ASS / SSA / SRT / WebVTT / PGS(SUP) / VobSub(IDX+SUB)。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -100,11 +100,11 @@
             </label>
 
             <label class="source-item source-subtitle">
-              <input id="subInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,text/plain,text/vtt,application/x-subrip" />
+              <input id="subInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,.sup,.idx,.sub,text/plain,text/vtt,application/x-subrip" />
               <span class="source-type">SUB</span>
               <span class="source-body">
                 <strong>字幕</strong>
-                <small>ASS / SSA / SRT / WebVTT · UTF-8 / UTF-16</small>
+                <small>ASS / SSA / SRT / WebVTT / PGS / VobSub</small>
                 <span id="subName" class="filename">未选择</span>
               </span>
               <span class="source-action">选择</span>
@@ -137,13 +137,37 @@
             <label class="source-item source-video">
               <input id="batchVideoInput" type="file" multiple accept=".mp4,.mkv,.webm,.mov,.m4v,video/*" />
               <span class="source-type">VIDEOS</span>
-              <span class="source-body"><strong>批量视频</strong><small>按文件名或集数配对</small><span id="batchVideoName" class="filename">未选择</span></span>
+              <span class="source-body"><strong>批量视频</strong><small>可多选，也可直接选择视频文件夹</small><span id="batchVideoName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+            <label class="source-item source-video">
+              <input id="batchVideoFolderInput" type="file" multiple webkitdirectory directory />
+              <span class="source-type">VIDEO DIR</span>
+              <span class="source-body"><strong>视频文件夹</strong><small>自动过滤支持的视频容器</small><span id="batchVideoFolderName" class="filename">未选择</span></span>
               <span class="source-action">选择</span>
             </label>
             <label class="source-item source-subtitle">
-              <input id="batchSubtitleInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,text/plain,text/vtt,application/x-subrip" />
+              <input id="batchSubtitleInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,.sup,.idx,.sub,text/plain,text/vtt,application/x-subrip" />
               <span class="source-type">SUBS</span>
               <span class="source-body"><strong>批量字幕</strong><small>同名 / SxxExx / EPxx 自动匹配</small><span id="batchSubtitleName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+            <label class="source-item source-subtitle">
+              <input id="batchSubtitleFolderInput" type="file" multiple webkitdirectory directory />
+              <span class="source-type">SUB DIR</span>
+              <span class="source-body"><strong>字幕文件夹</strong><small>文本字幕、PGS、VobSub 均可扫描</small><span id="batchSubtitleFolderName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+            <label class="source-item source-font">
+              <input id="batchFontInput" type="file" multiple accept=".ttf,.otf,.ttc,.otc,font/ttf,font/otf,font/collection" />
+              <span class="source-type">FONTS</span>
+              <span class="source-body"><strong>批量字体</strong><small>可选 · 所有任务共享</small><span id="batchFontName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+            <label class="source-item source-font">
+              <input id="batchFontFolderInput" type="file" multiple webkitdirectory directory />
+              <span class="source-type">FONT DIR</span>
+              <span class="source-body"><strong>字体文件夹</strong><small>自动过滤 TTF / OTF / TTC / OTC</small><span id="batchFontFolderName" class="filename">未选择</span></span>
               <span class="source-action">选择</span>
             </label>
           </div>
@@ -151,8 +175,25 @@
           <div class="bulk-tools batch-options">
             <label class="attachment-toggle">
               <input id="batchPreserveAttachments" type="checkbox" checked />
-              <span><strong>保留原 MKV 附件</strong><small>批量 MKV 默认保留已有字体 / 封面等 attachment</small></span>
+              <span><strong>原 MKV 完整保留并追加</strong><small>批量 MKV 保留原音频 / 字幕 / 附件 / Chapters / metadata，只追加新轨道</small></span>
             </label>
+            <label class="attachment-toggle">
+              <input id="batchFontSubsetEnabled" type="checkbox" />
+              <span><strong>批量字体子集化</strong><small>可选；关闭时附加完整字体，开启后再选择每任务或全批次 Group 模式。</small></span>
+            </label>
+            <label class="control-group compact-control">
+              <span class="control-label">批量字体子集范围</span>
+              <select id="batchSubsetScope">
+                <option value="job" selected>每个任务独立子集</option>
+                <option value="group">整个批次共用字体子集</option>
+              </select>
+              <small class="field-hint">Group 模式先汇总全批次字幕字符，再生成一次字体子集并复用。</small>
+            </label>
+            <div class="bulk-tool batch-output-tool">
+              <span>输出目录</span>
+              <button id="batchOutputDirBtn" class="button button-small" type="button">选择输出文件夹</button>
+              <small id="batchOutputDirStatus">未选择；默认仍提供逐项保存按钮。</small>
+            </div>
             <label class="attachment-toggle">
               <input type="checkbox" checked disabled />
               <span><strong>单项失败后继续</strong><small>固定开启；失败项单独记录，不阻断后续任务</small></span>
@@ -192,6 +233,12 @@
                       <option value="">未选择 ASS</option>
                     </select>
                   </label>
+                  <label class="preview-time-control">
+                    <span>时间点</span>
+                    <input id="previewTimeInput" type="text" inputmode="decimal" placeholder="12.500 / 00:00:12.500" aria-label="预览时间点" />
+                  </label>
+                  <button id="previewPrevCueBtn" class="button button-small" type="button" disabled>上一条</button>
+                  <button id="previewNextCueBtn" class="button button-small" type="button" disabled>下一条</button>
                   <button id="previewRefreshBtn" class="button button-small" type="button" disabled>生成预览帧</button>
                 </div>
               </div>
@@ -270,6 +317,13 @@
                   </div>
                   <button id="scanTracksBtn" class="button button-small" type="button" disabled>扫描轨道</button>
                 </div>
+                <label class="attachment-toggle append-mode-toggle">
+                  <input id="appendPreserveAll" type="checkbox" checked />
+                  <span>
+                    <strong>完整保留原容器结构，仅追加</strong>
+                    <small>对 MKV 默认保留所有原音频、字幕、附件、Chapters 与 metadata；关闭后才按扫描后的手动选择执行。</small>
+                  </span>
+                </label>
 
                 <details id="trackBulkTools" class="tool-drawer hidden">
                   <summary>
@@ -365,7 +419,7 @@
               <div class="manifest">
                 <div><span>视频</span><strong>Copy</strong></div>
                 <div><span>音频</span><strong>Copy</strong></div>
-                <div><span>字幕</span><strong>ASS / SSA / SRT / VTT</strong></div>
+                <div><span>字幕</span><strong>ASS / SSA / SRT / VTT / PGS / VobSub</strong></div>
                 <div><span>字体</span><strong id="fontSummary">—</strong></div>
                 <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
               </div>

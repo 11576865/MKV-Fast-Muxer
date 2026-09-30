@@ -124,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.1.0');
+    assert.equal(report.application.version, '1.2.0');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -1170,6 +1170,99 @@ async function scenarioBatchQueue(browser) {
   }
 }
 
+
+async function scenarioAutoLanguageInference(browser) {
+  console.log('E2E scenario 29: subtitle filename language inference');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+
+    assert.equal(
+      await page.locator('select[data-new-sub-field="language"][data-index="0"]').inputValue(),
+      'zh-Hans',
+    );
+    assert.match(
+      await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue(),
+      /简体中文/,
+    );
+    console.log('Scenario 29 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioPreserveAllAppend(browser) {
+  console.log('E2E scenario 30: preserve-all source MKV and append new subtitle');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'preserve-all-append.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    const audio = streams(out, 'audio');
+    const subtitles = streams(out, 'subtitle');
+
+    assert.deepEqual(audio.map((stream) => stream.codec_name), ['aac', 'opus']);
+    assert.equal(subtitles.length, 2);
+    assert.equal(subtitles[0].codec_name, 'ass');
+    assert.equal(subtitles[1].tags?.title, 'Original Signs');
+    assert.equal(Boolean(subtitles[1].disposition?.forced), true);
+    console.log('Scenario 30 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioBatchGroupSubset(browser) {
+  console.log('E2E scenario 31: batch group font subset reused across jobs');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#batchVideoInput', [
+      path.join(root, 'Batch S01E01.mp4'),
+      path.join(root, 'Batch S01E02.mp4'),
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', [
+      path.join(root, 'Batch S01E01.zh-Hans.ass'),
+      path.join(root, 'Batch S01E02.en.srt'),
+    ]);
+    await page.setInputFiles('#batchFontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#batchFontSubsetEnabled').check();
+    await page.locator('#batchSubsetScope').selectOption('group');
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#batchStatus')?.textContent || '';
+      return value.startsWith('批量完成：');
+    }, null, { timeout: 360_000 });
+
+    assert.match(await page.locator('#batchStatus').textContent(), /成功 2，失败 0/);
+    const first = path.join(outDir, 'batch-group-subset-first.mkv');
+    const firstLink = page.locator('#batchResults a.download').first();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      firstLink.click(),
+    ]);
+    await download.saveAs(first);
+
+    const attachments = streams(probe(first), 'attachment');
+    assert.equal(attachments.length, 1);
+    assert.match(attachments[0].tags?.filename || '', /\.subset\.ttf$/i);
+    console.log('Scenario 31 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   await scenarioMultiTrack(browser);
@@ -1200,6 +1293,9 @@ try {
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
   await scenarioBatchQueue(browser);
+  await scenarioAutoLanguageInference(browser);
+  await scenarioPreserveAllAppend(browser);
+  await scenarioBatchGroupSubset(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
