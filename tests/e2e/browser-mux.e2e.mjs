@@ -970,6 +970,35 @@ async function scenarioAv1(browser) {
   }
 }
 
+async function scenarioPreviewFrame(browser) {
+  console.log('E2E scenario 23: FFmpeg/libass fixed preview frame from MKV source');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      const image = document.querySelector('#previewImage');
+      if (status.startsWith('无法生成预览帧：')) throw new Error(status);
+      return status.startsWith('预览帧：') &&
+        image?.src?.startsWith('blob:') &&
+        image.naturalWidth > 0 &&
+        image.naturalHeight > 0;
+    }, null, { timeout: 180_000 });
+
+    const status = await page.locator('#previewStatus').textContent();
+    assert.match(status, /FFmpeg\/libass/);
+    assert.equal(await page.locator('#previewEmpty').evaluate((el) => el.classList.contains('hidden')), true);
+    console.log('Scenario 23 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({ headless: true });
 try {
   await scenarioMultiTrack(browser);
@@ -994,6 +1023,7 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioWorkbenchEfficiency(browser);
+  await scenarioPreviewFrame(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
