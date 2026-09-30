@@ -4,7 +4,7 @@
 
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
-**Web App:** https://11576865.github.io/MKV-Fast-Muxer-v3/  
+**Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
 **Package version:** 0.8.1
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
@@ -373,7 +373,7 @@ ffmpeg.wasm 需要把输入和处理中间数据放进浏览器可用内存，�
 
 GitHub Pages：
 
-https://11576865.github.io/MKV-Fast-Muxer-v3/
+https://11576865.github.io/MKV-Fast-Muxer/
 
 打开页面后直接选择本地文件即可。
 
@@ -384,8 +384,8 @@ https://11576865.github.io/MKV-Fast-Muxer-v3/
 需要 Node.js 与 npm。
 
 ```bash
-git clone https://github.com/11576865/MKV-Fast-Muxer-v3.git
-cd MKV-Fast-Muxer-v3
+git clone https://github.com/11576865/MKV-Fast-Muxer.git
+cd MKV-Fast-Muxer
 npm install
 npm run dev -- --host 127.0.0.1
 ```
