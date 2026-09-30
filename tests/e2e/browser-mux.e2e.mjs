@@ -152,7 +152,9 @@ async function scenarioSelectiveAttachments(browser) {
     assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
 
     const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
-    await notesRow.locator('input[data-attachment-index]').check();
+    await notesRow.locator('input[data-attachment-action="include"]').check();
+    await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
+    await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
 
     await page.locator('input[data-new-sub-field="language"][data-index="0"]').fill('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Fixture Subtitle');
@@ -171,13 +173,17 @@ async function scenarioSelectiveAttachments(browser) {
 
     assert.equal((outputProbe.chapters || []).length, 2, 'chapters must be preserved');
     assert.equal(outputProbe.format?.tags?.title, 'Fixture Container');
-    assert.deepEqual(filenames, ['DejaVuSans.ttf', 'notes.txt']);
+    assert.equal(outputProbe.format?.tags?.comment, 'Fixture global comment');
+    assert.deepEqual(filenames, ['DejaVuSans.ttf', 'notes-renamed.txt']);
     assert.equal(filenames.includes('fixture-original.ttf'), false, 'unselected original font attachment must be removed');
+    const renamedNotes = attachments.find((stream) => stream.tags?.filename === 'notes-renamed.txt');
+    assert.equal(renamedNotes?.tags?.mimetype, 'text/x-notes');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
     assert.equal(report.expectedAudit.chapterCount, 2);
+    assert.equal(report.expectedAudit.formatTags.comment, 'Fixture global comment');
     assert.equal(report.warnings.originalAttachmentSelectionCount, 1);
-    assert.deepEqual(report.expectedAudit.attachmentFilenames, ['notes.txt']);
+    assert.deepEqual(report.expectedAudit.attachmentFilenames, ['notes-renamed.txt']);
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
 
     console.log('Scenario 2 PASS');
