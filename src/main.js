@@ -785,15 +785,28 @@ scanTracksBtn.addEventListener('click', async () => {
         originalForced: Boolean(stream.disposition?.forced),
       }));
 
+    const attachments = probe.streams
+      .filter((stream) => stream.codec_type === 'attachment')
+      .map((stream) => ({
+        index: stream.index,
+        stream,
+        filename: stream.tags?.filename || '',
+        mimetype: stream.tags?.mimetype || '',
+        include: false,
+      }));
+
     trackState = {
       fileKey: fileKey(video),
       tracks,
+      attachments,
       attachmentCount: probe.attachmentCount,
     };
 
+    preserveAttachments.checked = false;
     renderTrackList();
+    renderAttachmentList();
     bar.style.width = '0%';
-    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕。`;
+    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕，${attachments.length} 个附件。`;
   } catch (err) {
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
       status.textContent = '轨道扫描已取消。';
