@@ -108,6 +108,12 @@ export function buildMuxCommand({
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
       `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
     );
+    // WebVTT is normalized to SubRip for compatibility with the bundled
+    // FFmpeg/Matroska writer. This overrides only the relevant subtitle
+    // stream; video and audio remain under the global -c copy policy.
+    if (track.codecOverride) {
+      args.push(`-c:s:${outputIndex}`, track.codecOverride);
+    }
   });
 
   originalSubtitleTracks.forEach((track, index) => {
