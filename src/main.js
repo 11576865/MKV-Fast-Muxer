@@ -64,6 +64,9 @@ const previewEmpty = $('previewEmpty');
 const previewStatus = $('previewStatus');
 const previewSubtitleSelect = $('previewSubtitleSelect');
 const previewRefreshBtn = $('previewRefreshBtn');
+const previewDialog = $('previewDialog');
+const previewDialogImage = $('previewDialogImage');
+const previewDialogClose = $('previewDialogClose');
 
 document.documentElement.dataset.theme = 'dark';
 document.documentElement.dataset.themePreference = 'dark';
@@ -103,7 +106,7 @@ function languageSelectOptions(current = 'und') {
     ? trackLanguageChoices
     : [[value, `${value} · 自定义`], ...trackLanguageChoices];
   return choices.map(([code, label]) =>
-    `<option value="${escapeHtml(code)}" ${code === value ? 'selected' : ''}>${escapeHtml(label)} (${escapeHtml(code)})</option>`
+    `<option value="${escapeHtml(code)}" ${code === value ? 'selected' : ''}>${escapeHtml(label)}</option>`
   ).join('');
 }
 
@@ -195,7 +198,7 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <select data-new-audio-field="language" data-index="${index}" aria-label="外部音频语言">${languageSelectOptions(item.language)}</select>
+            <select data-new-audio-field="language" data-index="${index}" aria-label="外部音频语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
           </div>
         </div>
@@ -217,7 +220,7 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言">${languageSelectOptions(item.language)}</select>
+            <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
           </div>
         </div>
@@ -314,12 +317,24 @@ function updateUI() {
   const mode = fontMode.value || 'preserve';
   const busy = isBusy();
 
-  $('videoName').textContent = video?.name ?? '未选择';
-  $('audioName').textContent = formatFontSelection(selectedExternalAudioFiles()).replace(/字体/g, '音频');
-  $('subName').textContent = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 个 ASS`) : '未选择';
-  $('fontName').textContent = formatFontSelection(fonts);
+  const videoLabel = video?.name ?? '未选择';
+  const audioFiles = selectedExternalAudioFiles();
+  const audioLabel = formatFontSelection(audioFiles).replace(/字体/g, '音频');
+  const subtitleLabel = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 个 ASS`) : '未选择';
+  const fontLabel = formatFontSelection(fonts);
+  const outputLabel = video ? safeOutputName(video.name) : '—';
+
+  $('videoName').textContent = videoLabel;
+  $('videoName').title = video?.name || '';
+  $('audioName').textContent = audioLabel;
+  $('audioName').title = audioFiles.map((file) => file.name).join('\n');
+  $('subName').textContent = subtitleLabel;
+  $('subName').title = subs.map((file) => file.name).join('\n');
+  $('fontName').textContent = fontLabel;
+  $('fontName').title = fonts.map((file) => file.name).join('\n');
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
-  $('outputName').textContent = video ? safeOutputName(video.name) : '—';
+  $('outputName').textContent = outputLabel;
+  $('outputName').title = outputLabel === '—' ? '' : outputLabel;
   renderWorkloadNotice();
   syncPreviewControls();
 
@@ -391,6 +406,16 @@ previewSubtitleSelect?.addEventListener('change', () => {
   previewStatus.textContent = '预览字幕已切换；点击“生成预览帧”。';
 });
 previewRefreshBtn?.addEventListener('click', refreshSubtitlePreview);
+previewImage?.addEventListener('click', openPreviewDialog);
+previewImage?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  openPreviewDialog();
+});
+previewDialogClose?.addEventListener('click', () => previewDialog?.close());
+previewDialog?.addEventListener('click', (event) => {
+  if (event.target === previewDialog) previewDialog.close();
+});
 
 preserveAttachments.addEventListener('change', () => {
   if (trackState) {
@@ -835,6 +860,14 @@ function clearPreviewImage() {
     previewImageURL = null;
   }
   previewImage?.removeAttribute('src');
+  previewDialogImage?.removeAttribute('src');
+  if (previewDialog?.open) previewDialog.close();
+}
+
+function openPreviewDialog() {
+  if (!previewImage?.src || !previewDialog || !previewDialogImage) return;
+  previewDialogImage.src = previewImage.src;
+  if (!previewDialog.open) previewDialog.showModal();
 }
 
 function syncPreviewControls() {
@@ -2179,7 +2212,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.4',
+      appVersion: '1.0.5',
       input: {
         name: video.name,
         sizeBytes: video.size,
