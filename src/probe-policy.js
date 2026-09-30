@@ -23,7 +23,12 @@ export const PROBE_ENTRIES = [
 export function buildProbeArgs(inputPath, outputPath, { decodeStreams = false } = {}) {
   const args = ['-v', 'error'];
 
-  if (!decodeStreams) args.push('-no_find_stream_info');
+  // The ffprobe build shipped with @ffmpeg/core does not expose
+  // -no_find_stream_info. Passing that flag aborts the wasm worker before a
+  // fallback probe can run. Keep the probe metadata-only through
+  // -show_entries instead of relying on an unsupported private/boolean flag.
+  // decodeStreams is retained in the API for compatibility and diagnostics.
+  void decodeStreams;
 
   args.push(
     '-show_streams',
