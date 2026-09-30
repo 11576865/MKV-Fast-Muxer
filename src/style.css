@@ -772,6 +772,13 @@ input[type="checkbox"] { accent-color: var(--accent); }
   font-size: .66rem;
 }
 
+.attachment-bulk-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 8px 0 2px;
+}
+
 .attachment-manager {
   margin-top: 12px;
   display: grid;
@@ -975,6 +982,41 @@ pre {
   display: grid;
   gap: 5px;
   margin-top: 10px;
+}
+
+.plan-group {
+  display: grid;
+  gap: 5px;
+}
+
+.plan-group + .plan-group {
+  margin-top: 10px;
+}
+
+.plan-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.plan-group-head strong {
+  color: var(--text);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.plan-group-head span {
+  color: var(--muted);
+  font-size: .65rem;
+}
+
+.plan-group-body {
+  display: grid;
+  gap: 5px;
 }
 
 .plan-row {

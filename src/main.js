@@ -48,6 +48,16 @@ const applySubtitleLanguage = $('applySubtitleLanguage');
 const firstAudioDefault = $('firstAudioDefault');
 const firstSubtitleDefault = $('firstSubtitleDefault');
 const clearAllDefaults = $('clearAllDefaults');
+const keepAllAudio = $('keepAllAudio');
+const dropAllAudio = $('dropAllAudio');
+const keepAllSubtitles = $('keepAllSubtitles');
+const dropAllSubtitles = $('dropAllSubtitles');
+const resetAudioMetadata = $('resetAudioMetadata');
+const resetSubtitleMetadata = $('resetSubtitleMetadata');
+const attachmentBulkTools = $('attachmentBulkTools');
+const keepAllAttachments = $('keepAllAttachments');
+const dropAllAttachments = $('dropAllAttachments');
+const resetAttachmentMetadata = $('resetAttachmentMetadata');
 
 const THEME_KEY = 'mkv-muxer-theme-v1';
 const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -276,6 +286,9 @@ function setInputsDisabled(disabled) {
   newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   setBulkToolsDisabled(disabled || !trackState);
+  attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
+    button.disabled = disabled || !trackState;
+  });
 }
 
 function resetTrackState() {
@@ -283,6 +296,7 @@ function resetTrackState() {
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
   attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
   trackBulkTools?.classList.add('hidden');
+  attachmentBulkTools?.classList.add('hidden');
   renderMuxPlan();
 }
 
@@ -316,6 +330,7 @@ function updateUI() {
   muxBtn.disabled = busy || !(video && subs.length && fonts.length);
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
+  attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
   renderNewTrackLists();
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
@@ -388,6 +403,66 @@ clearAllDefaults?.addEventListener('click', () => {
   newSubtitleState.forEach((track) => { track.default = false; });
   renderTrackList();
   renderNewTrackLists();
+  renderMuxPlan();
+});
+
+function setTrackInclusion(type, include) {
+  if (!trackState) return;
+  trackState.tracks
+    .filter((track) => track.type === type)
+    .forEach((track) => {
+      track.include = include;
+      if (!include) {
+        track.default = false;
+        track.forced = false;
+        track.original = false;
+        track.commentary = false;
+        track.hearingImpaired = false;
+      }
+    });
+  renderTrackList();
+}
+
+function restoreTrackMetadata(type) {
+  if (!trackState) return;
+  trackState.tracks
+    .filter((track) => track.type === type)
+    .forEach((track) => {
+      track.language = track.originalLanguage;
+      track.title = track.originalTitle;
+      track.default = track.originalDefault;
+      track.forced = track.originalForced;
+      track.original = track.originalOriginal;
+      track.commentary = track.originalCommentary;
+      track.hearingImpaired = track.originalHearingImpaired;
+    });
+  renderTrackList();
+}
+
+keepAllAudio?.addEventListener('click', () => setTrackInclusion('audio', true));
+dropAllAudio?.addEventListener('click', () => setTrackInclusion('audio', false));
+keepAllSubtitles?.addEventListener('click', () => setTrackInclusion('subtitle', true));
+dropAllSubtitles?.addEventListener('click', () => setTrackInclusion('subtitle', false));
+resetAudioMetadata?.addEventListener('click', () => restoreTrackMetadata('audio'));
+resetSubtitleMetadata?.addEventListener('click', () => restoreTrackMetadata('subtitle'));
+
+function setAttachmentInclusion(include) {
+  if (!trackState) return;
+  trackState.attachments.forEach((item) => { item.include = include; });
+  preserveAttachments.checked = include && trackState.attachments.length > 0;
+  renderAttachmentList();
+  renderMuxPlan();
+}
+
+keepAllAttachments?.addEventListener('click', () => setAttachmentInclusion(true));
+dropAllAttachments?.addEventListener('click', () => setAttachmentInclusion(false));
+resetAttachmentMetadata?.addEventListener('click', () => {
+  if (!trackState) return;
+  trackState.attachments.forEach((item) => {
+    item.filename = item.originalFilename;
+    item.mimetype = item.originalMimetype;
+  });
+  renderAttachmentList();
   renderMuxPlan();
 });
 
@@ -775,20 +850,49 @@ function planKindClass(kind) {
   return '';
 }
 
+function planGroupForKind(kind) {
+  const label = String(kind || '');
+  if (['容器', '章节', '元数据'].some((prefix) => label.startsWith(prefix))) return '容器';
+  if (label.startsWith('视频')) return '视频';
+  if (label.includes('音频')) return '音频';
+  if (label.includes('字幕')) return '字幕';
+  if (label.startsWith('附件') || label.startsWith('字体')) return '附件';
+  return '其他';
+}
+
+function groupedPlanEntries(entries) {
+  const order = ['容器', '视频', '音频', '字幕', '附件', '其他'];
+  const groups = new Map(order.map((name) => [name, []]));
+  entries.forEach((entry) => groups.get(planGroupForKind(entry.kind))?.push(entry));
+  return order
+    .map((name) => ({ name, entries: groups.get(name) || [] }))
+    .filter((group) => group.entries.length);
+}
+
 function renderMuxPlan() {
   if (!muxPlan || !planWarnings) return;
   const { entries, warnings } = buildMuxPlan();
+  const groups = groupedPlanEntries(entries);
 
-  muxPlan.innerHTML = entries.length
-    ? entries.map((entry) => `
-      <div class="plan-row ${planKindClass(entry.kind)}">
-        <span class="plan-kind">${escapeHtml(entry.kind)}</span>
-        <span class="plan-main">
-          <strong>${escapeHtml(entry.title)}</strong>
-          <small>${escapeHtml(entry.meta)}</small>
-        </span>
-        <span class="plan-flags">${escapeHtml(entry.flags === '0' ? '—' : entry.flags)}</span>
-      </div>`).join('')
+  muxPlan.innerHTML = groups.length
+    ? groups.map((group) => `
+      <section class="plan-group" data-plan-group="${escapeHtml(group.name)}">
+        <div class="plan-group-head">
+          <strong>${escapeHtml(group.name)}</strong>
+          <span>${group.entries.length}</span>
+        </div>
+        <div class="plan-group-body">
+          ${group.entries.map((entry) => `
+            <div class="plan-row ${planKindClass(entry.kind)}">
+              <span class="plan-kind">${escapeHtml(entry.kind)}</span>
+              <span class="plan-main">
+                <strong>${escapeHtml(entry.title)}</strong>
+                <small>${escapeHtml(entry.meta)}</small>
+              </span>
+              <span class="plan-flags">${escapeHtml(entry.flags === '0' ? '—' : entry.flags)}</span>
+            </div>`).join('')}
+        </div>
+      </section>`).join('')
     : '<div class="track-empty">选择文件后可预览最终 MKV 结构。</div>';
 
   if (warnings.length) {
@@ -1010,8 +1114,13 @@ scanTracksBtn.addEventListener('click', async () => {
         original: Boolean(stream.disposition?.original),
         commentary: Boolean(stream.disposition?.comment),
         hearingImpaired: Boolean(stream.disposition?.hearing_impaired),
+        originalLanguage: stream.tags?.language || 'und',
+        originalTitle: stream.tags?.title || '',
         originalDefault: Boolean(stream.disposition?.default),
         originalForced: Boolean(stream.disposition?.forced),
+        originalOriginal: Boolean(stream.disposition?.original),
+        originalCommentary: Boolean(stream.disposition?.comment),
+        originalHearingImpaired: Boolean(stream.disposition?.hearing_impaired),
       }));
 
     const attachments = probe.streams
@@ -1037,6 +1146,7 @@ scanTracksBtn.addEventListener('click', async () => {
 
     preserveAttachments.checked = false;
     trackBulkTools?.classList.remove('hidden');
+    attachmentBulkTools?.classList.toggle('hidden', !attachments.length);
     renderTrackList();
     renderAttachmentList();
     bar.style.width = '0%';
@@ -1569,7 +1679,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.7.0',
+      appVersion: '0.8.0',
       input: {
         name: video.name,
         sizeBytes: video.size,

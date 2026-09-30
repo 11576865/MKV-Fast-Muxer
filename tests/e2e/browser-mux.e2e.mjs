@@ -122,7 +122,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '0.7.0');
+    assert.equal(report.application.version, '0.8.0');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -865,6 +865,59 @@ async function scenarioBulkTrackMetadata(browser) {
   }
 }
 
+async function scenarioWorkbenchEfficiency(browser) {
+  console.log('E2E scenario 22: bulk include/reset controls + grouped mux plan');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
+    await page.locator('#keepAllAttachments').click();
+    assert.equal(await page.locator('input[data-attachment-action="include"]:checked').count(), 2);
+
+    const firstAttachment = page.locator('.attachment-item').first();
+    await firstAttachment.locator('input[data-attachment-field="filename"]').fill('renamed.ttf');
+    await firstAttachment.locator('input[data-attachment-field="mimetype"]').fill('application/x-test');
+    await page.locator('#resetAttachmentMetadata').click();
+    assert.equal(await firstAttachment.locator('input[data-attachment-field="filename"]').inputValue(), 'fixture-original.ttf');
+    assert.equal(await firstAttachment.locator('input[data-attachment-field="mimetype"]').inputValue(), 'application/x-truetype-font');
+
+    await page.locator('#dropAllAudio').click();
+    assert.equal(await page.locator('.track-row.track-audio input[data-track-action="include"]:checked').count(), 0);
+    await page.locator('#keepAllAudio').click();
+    assert.equal(await page.locator('.track-row.track-audio input[data-track-action="include"]:checked').count(), 1);
+
+    await page.locator('.track-row.track-audio input[data-track-field="language"]').fill('eng');
+    await page.locator('.track-row.track-audio input[data-track-field="title"]').fill('Changed');
+    await page.locator('#resetAudioMetadata').click();
+    assert.equal(await page.locator('.track-row.track-audio input[data-track-field="language"]').inputValue(), 'und');
+    assert.equal(await page.locator('.track-row.track-audio input[data-track-field="title"]').inputValue(), '');
+
+    const groupNames = await page.locator('.plan-group-head strong').allTextContents();
+    assert.ok(groupNames.includes('容器'));
+    assert.ok(groupNames.includes('视频'));
+    assert.ok(groupNames.includes('音频'));
+    assert.ok(groupNames.includes('字幕'));
+    assert.ok(groupNames.includes('附件'));
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'workbench-efficiency.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const out = probe(output);
+    assert.equal(streams(out, 'audio').length, 1);
+    assert.equal(streams(out, 'attachment').length, 3);
+    console.log('Scenario 22 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -928,6 +981,7 @@ try {
   await scenarioTenSequential(browser);
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
+  await scenarioWorkbenchEfficiency(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
