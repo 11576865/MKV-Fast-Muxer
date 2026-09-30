@@ -177,8 +177,12 @@
               <input id="batchPreserveAttachments" type="checkbox" checked />
               <span><strong>原 MKV 完整保留并追加</strong><small>批量 MKV 保留原音频 / 字幕 / 附件 / Chapters / metadata，只追加新轨道</small></span>
             </label>
+            <label class="attachment-toggle">
+              <input id="batchFontSubsetEnabled" type="checkbox" />
+              <span><strong>批量字体子集化</strong><small>可选；关闭时附加完整字体，开启后再选择每任务或全批次 Group 模式。</small></span>
+            </label>
             <label class="control-group compact-control">
-              <span class="control-label">批量字体子集</span>
+              <span class="control-label">批量字体子集范围</span>
               <select id="batchSubsetScope">
                 <option value="job" selected>每个任务独立子集</option>
                 <option value="group">整个批次共用字体子集</option>
