@@ -115,8 +115,11 @@ function compareAttachments(issues, expected, actual) {
 
 function compareFormatTags(issues, expected, actual) {
   if (!expected || typeof expected !== 'object') return;
+  const actualByKey = new Map(
+    Object.entries(actual || {}).map(([key, value]) => [String(key).toLowerCase(), value])
+  );
   for (const [key, value] of Object.entries(expected)) {
-    const actualValue = actual?.[key];
+    const actualValue = actualByKey.get(String(key).toLowerCase());
     if (String(actualValue ?? '') !== String(value ?? '')) {
       pushMismatch(issues, `全局 metadata ${key}`, value || '(空)', actualValue || '(空)');
     }
