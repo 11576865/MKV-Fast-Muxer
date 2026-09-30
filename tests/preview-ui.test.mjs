@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.7');
+  assert.equal(pkg.version, '1.0.8');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
@@ -93,13 +93,13 @@ test('subtitle language editor uses real select choices instead of a bare und te
   assert.doesNotMatch(main, /<input data-new-sub-field="language"/);
 });
 
-test('expanded desktop moves subtitle preview into a left visual pane', async () => {
+test('expanded desktop keeps the preview large and exactly 16:9', async () => {
   const css = await text('src/style.css');
 
-  assert.match(css, /Adaptive pane layout v4/);
-  assert.match(css, /"preview editors"/);
-  assert.match(css, /\.editor-column > \.subtitle-preview-card \{\s*grid-area: preview;/);
+  assert.match(css, /Adaptive pane layout v5/);
+  assert.match(css, /grid-template-columns: minmax\(500px, 1\.2fr\) minmax\(340px, \.8fr\);/);
   assert.match(css, /\.subtitle-preview-card \.preview-stage \{[\s\S]*aspect-ratio: 16 \/ 9;/);
+  assert.match(css, /\.subtitle-preview-card \.preview-stage img \{[\s\S]*width: 100%;[\s\S]*height: 100%;/);
 });
 
 test('AV1 preview can fall back to browser frame capture before libass rendering', async () => {
