@@ -222,6 +222,11 @@ async function scenarioOriginalTracks(browser) {
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('新增中文');
     await page.locator('input[data-new-sub-field="default"][data-index="0"]').check();
 
+    const planText = await page.locator('#muxPlan').textContent();
+    assert.match(planText, /保留的 Opus/);
+    assert.match(planText, /Original Signs Edited/);
+    assert.match(planText, /新增中文/);
+
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
 
@@ -229,6 +234,12 @@ async function scenarioOriginalTracks(browser) {
     const reportPath = path.join(outDir, 'original-track-selection.mux-report.json');
     await saveDownload(page, '#downloadLink', output);
     await saveDownload(page, '#reportLink', reportPath);
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.expectedAudit.audio[0].title, '保留的 Opus');
+    assert.equal(report.expectedAudit.audio[0].language, 'zho');
+    assert.equal(report.expectedAudit.subtitles[1].title, 'Original Signs Edited');
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
 
     const out = probe(output);
     const audio = streams(out, 'audio');
@@ -246,8 +257,6 @@ async function scenarioOriginalTracks(browser) {
     assert.equal(subtitles[1].tags?.title, 'Original Signs Edited');
     assert.equal(Boolean(subtitles[1].disposition?.forced), true);
 
-    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
     console.log('Scenario 3 PASS');
   } finally {
     await context.close();
