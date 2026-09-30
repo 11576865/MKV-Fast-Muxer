@@ -1,21 +1,35 @@
 export const PROBE_STREAM_ENTRIES = [
   'stream=index,codec_type,codec_name',
-  'stream_tags=language,title,filename',
+  'stream_tags=language,title,filename,mimetype',
   'stream_disposition=default,forced',
+].join(':');
+
+export const PROBE_CHAPTER_ENTRIES = [
+  'chapter=id,start_time,end_time',
+  'chapter_tags=title,language',
+].join(':');
+
+export const PROBE_FORMAT_ENTRIES = [
+  'format=format_name,duration',
+  'format_tags=title',
+].join(':');
+
+export const PROBE_ENTRIES = [
+  PROBE_STREAM_ENTRIES,
+  PROBE_CHAPTER_ENTRIES,
+  PROBE_FORMAT_ENTRIES,
 ].join(':');
 
 export function buildProbeArgs(inputPath, outputPath, { decodeStreams = false } = {}) {
   const args = ['-v', 'error'];
 
-  // ffprobe normally calls avformat_find_stream_info(), which may open and
-  // decode video streams merely to fill fields that this app never consumes.
-  // That is particularly fragile for AV1 in ffmpeg.wasm. Container metadata is
-  // sufficient for track selection, attachment counting and post-mux audit.
   if (!decodeStreams) args.push('-no_find_stream_info');
 
   args.push(
     '-show_streams',
-    '-show_entries', PROBE_STREAM_ENTRIES,
+    '-show_chapters',
+    '-show_format',
+    '-show_entries', PROBE_ENTRIES,
     '-of', 'json',
     inputPath,
     '-o', outputPath,
