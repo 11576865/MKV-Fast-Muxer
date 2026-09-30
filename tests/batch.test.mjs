@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { batchSubtitleSummary, buildBatchJobs, stem } from '../src/batch.js';
+import { batchSubtitleSummary, buildBatchJobs, mergeFileSelections, stem } from '../src/batch.js';
 
 function file(name) {
   return { name };
@@ -39,4 +39,26 @@ test('batch summary distinguishes subtitle formats', () => {
     '1 ASS · 1 SRT · 1 VTT'
   );
   assert.equal(stem(' Episode 01.MKV '), 'episode 01');
+});
+
+
+test('batch pairing carries VobSub sidecar files into the job', () => {
+  const result = buildBatchJobs(
+    [file('Show S01E03.mkv')],
+    [file('Show S01E03.en.idx'), file('Show S01E03.en.sub')],
+  );
+  assert.equal(result.jobs.length, 1);
+  assert.equal(result.jobs[0].subtitleTracks.length, 1);
+  assert.equal(result.jobs[0].subtitleTracks[0].format.id, 'vobsub');
+  assert.deepEqual(result.jobs[0].subtitleInputFiles.map((item) => item.name), [
+    'Show S01E03.en.idx',
+    'Show S01E03.en.sub',
+  ]);
+});
+
+test('folder and manual file selections merge without duplicate identities', () => {
+  const a = { name: 'a.mkv', size: 1, lastModified: 2, webkitRelativePath: 'video/a.mkv' };
+  const same = { ...a };
+  const b = { name: 'b.mkv', size: 2, lastModified: 3, webkitRelativePath: 'video/b.mkv' };
+  assert.deepEqual(mergeFileSelections([a], [same, b]).map((item) => item.name), ['a.mkv', 'b.mkv']);
 });
