@@ -3206,3 +3206,33 @@ pre {
     grid-template-columns: minmax(600px, 1.28fr) minmax(360px, .72fr);
   }
 }
+
+
+/* Adaptive pane layout v6 ------------------------------------------------------
+   Keep the two desktop detail columns independent vertically: preview + logs
+   flow down the left, while the taller editors occupy the right. */
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+  .editor-column {
+    grid-template-areas:
+      "head head"
+      "preview editors"
+      "logs editors";
+    grid-template-rows: auto auto auto;
+  }
+
+  .editor-column > .diagnostics-panel {
+    grid-area: logs;
+    align-self: start;
+    margin-top: 0;
+  }
+
+  .editor-column > .editor-grid {
+    grid-area: editors;
+    align-self: start;
+  }
+
+  .editor-column > .subtitle-preview-card {
+    grid-area: preview;
+    align-self: start;
+  }
+}
