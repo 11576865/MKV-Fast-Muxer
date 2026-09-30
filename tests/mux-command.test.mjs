@@ -129,3 +129,22 @@ test('normalizes ISO codes and canonicalizes common BCP47 casing', () => {
   assert.equal(normalizeTrackLanguage('sr-latn-rs'), 'sr-Latn-RS');
   assert.equal(normalizeTrackLanguage(''), 'und');
 });
+
+test('rewrites selected original attachment filename and MIME metadata', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mkv',
+    outputPath: 'out.mkv',
+    originalAttachments: [
+      { index: 7, filename: 'notes-renamed.txt', mimetype: 'text/x-notes' },
+    ],
+    fontAttachments: [
+      { path: 'font.ttf', filename: 'font.ttf', mimeType: 'font/ttf' },
+    ],
+  });
+
+  assert.ok(args.includes('0:7'));
+  assert.ok(args.includes('-metadata:s:t:0'));
+  assert.ok(args.includes('filename=notes-renamed.txt'));
+  assert.ok(args.includes('mimetype=text/x-notes'));
+  assert.ok(args.includes('-metadata:s:t:1'));
+});
