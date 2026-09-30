@@ -15,6 +15,14 @@ function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object || {}, key);
 }
 
+function tagValue(tags, key) {
+  const wanted = String(key || '').toLowerCase();
+  for (const [name, value] of Object.entries(tags || {})) {
+    if (String(name).toLowerCase() === wanted) return value;
+  }
+  return undefined;
+}
+
 function pushMismatch(issues, label, expected, actual) {
   issues.push(`${label}：期望“${expected}”，实际“${actual}”`);
 }
@@ -162,7 +170,7 @@ export function auditMuxProbe(probe, expected) {
   }
 
   if (hasOwn(expected, 'formatTitle')) {
-    const actualTitle = normTitle(probe?.format?.tags?.title);
+    const actualTitle = normTitle(tagValue(probe?.format?.tags, 'title'));
     const expectedTitle = normTitle(expected.formatTitle);
     if (actualTitle !== expectedTitle) {
       pushMismatch(issues, '容器 title', expectedTitle || '(空)', actualTitle || '(空)');
