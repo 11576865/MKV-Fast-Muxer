@@ -5,7 +5,7 @@
 它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 0.9.0
+**Package version:** 1.0.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
