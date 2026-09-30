@@ -853,6 +853,7 @@ async function destroySubtitlePreview() {
     previewImageURL = null;
   }
   previewImage?.removeAttribute('src');
+  previewImage?.classList.add('hidden');
 }
 
 function clearPreviewImage() {
@@ -861,6 +862,7 @@ function clearPreviewImage() {
     previewImageURL = null;
   }
   previewImage?.removeAttribute('src');
+  previewImage?.classList.add('hidden');
   previewDialogImage?.removeAttribute('src');
   if (previewDialog?.open) previewDialog.close();
 }
@@ -1066,6 +1068,7 @@ async function refreshSubtitlePreview() {
     clearPreviewImage();
     previewImageURL = URL.createObjectURL(new Blob([bytes], { type: 'image/png' }));
     previewImage.src = previewImageURL;
+    previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
     previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
   } catch (error) {
@@ -2216,7 +2219,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.8',
+      appVersion: '1.0.9',
       input: {
         name: video.name,
         sizeBytes: video.size,
