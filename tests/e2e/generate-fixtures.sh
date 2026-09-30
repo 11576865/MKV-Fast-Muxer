@@ -12,6 +12,18 @@ test -f "$FONT_BOLD"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans.ttf"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans-copy.ttf"
 
+python3 - "$FONT_REGULAR" "$FONT_BOLD" "$ROOT/DejaVuCollection.ttc" <<'PY'
+from fontTools.ttLib import TTCollection, TTFont
+import sys
+
+regular, bold, output = sys.argv[1:]
+collection = TTCollection()
+collection.fonts = [TTFont(regular), TTFont(bold)]
+collection.save(output)
+for font in collection.fonts:
+    font.close()
+PY
+
 mkdir -p "$ROOT/font-a" "$ROOT/font-b"
 cp "$FONT_REGULAR" "$ROOT/font-a/Same.ttf"
 cp "$FONT_BOLD" "$ROOT/font-b/Same.ttf"
