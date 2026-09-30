@@ -105,3 +105,28 @@ test('audit validates advanced track dispositions', () => {
 
   assert.equal(result.ok, true);
 });
+
+test('audit validates attachment MIME and global metadata preservation', () => {
+  const result = auditMuxProbe({
+    streams: [
+      { codec_type: 'video', codec_name: 'h264', tags: {}, disposition: {} },
+      { codec_type: 'attachment', codec_name: 'unknown', tags: { filename: 'notes-renamed.txt', mimetype: 'text/x-notes' }, disposition: {} },
+      { codec_type: 'attachment', codec_name: 'ttf', tags: { filename: 'Font-mkvfm-abcdef12.ttf', mimetype: 'font/ttf' }, disposition: {} },
+    ],
+    chapters: [{ id: 0 }],
+    format: { tags: { TITLE: 'Fixture Container', COMMENT: 'Keep me' } },
+  }, {
+    video: [{ codec: 'h264' }],
+    audio: [],
+    subtitles: [],
+    chapterCount: 1,
+    formatTitle: 'Fixture Container',
+    formatTags: { title: 'Fixture Container', comment: 'Keep me' },
+    attachments: [
+      { filename: 'notes-renamed.txt', mimetype: 'text/x-notes' },
+      { filename: 'Font-mkvfm-abcdef12.ttf', mimetype: 'font/ttf' },
+    ],
+  });
+
+  assert.equal(result.ok, true, JSON.stringify(result.issues));
+});
