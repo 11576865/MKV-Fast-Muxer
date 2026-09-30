@@ -124,7 +124,7 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.0.2');
+    assert.equal(report.application.version, '1.0.3');
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -970,6 +970,31 @@ async function scenarioAv1(browser) {
   }
 }
 
+async function scenarioPreviewTimeClamp(browser) {
+  console.log('E2E scenario 24: preview time clamps to source duration');
+  const { context, page } = await openApp(browser);
+
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'late-preview.ass'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      if (status.startsWith('无法生成预览帧：')) throw new Error(status);
+      const image = document.querySelector('#previewImage');
+      return status.startsWith('预览帧：') && image?.naturalWidth > 0 && image?.naturalHeight > 0;
+    }, null, { timeout: 180_000 });
+
+    const status = await page.locator('#previewStatus').textContent();
+    assert.match(status, /1\.9\d s|2\.0\d s/);
+    console.log('Scenario 24 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioPreviewFrame(browser) {
   console.log('E2E scenario 23: FFmpeg/libass fixed preview frame from MKV source');
   const { context, page } = await openApp(browser);
@@ -1024,6 +1049,7 @@ try {
   await scenarioBulkTrackMetadata(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioPreviewFrame(browser);
+  await scenarioPreviewTimeClamp(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
