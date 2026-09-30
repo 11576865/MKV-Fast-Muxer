@@ -58,6 +58,46 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:10.00,0:00:12.00,Default,,0,0,0,,Late subtitle beyond source duration
 ASS
 
+cat > "$ROOT/sample.srt" <<'SRT'
+1
+00:00:00,100 --> 00:00:01,500
+SRT subtitle
+
+2
+00:00:01,550 --> 00:00:01,900
+Second cue
+SRT
+
+cat > "$ROOT/sample.vtt" <<'VTT'
+WEBVTT
+
+00:00:00.100 --> 00:00:01.500
+WebVTT subtitle
+
+00:00:01.550 --> 00:00:01.900
+Second cue
+VTT
+
+cat > "$ROOT/sample.ssa" <<'SSA'
+[Script Info]
+ScriptType: v4.00
+PlayResX: 320
+PlayResY: 180
+
+[V4 Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, TertiaryColour, BackColour, Bold, Italic, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, AlphaLevel, Encoding
+Style: Default,DejaVu Sans,22,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,1,1,0,2,10,10,10,0,1
+
+[Events]
+Format: Marked, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: Marked=0,0:00:00.20,0:00:01.70,Default,,0,0,0,,SSA subtitle
+SSA
+
+cp "$ROOT/base.mp4" "$ROOT/Batch S01E01.mp4"
+cp "$ROOT/base.mp4" "$ROOT/Batch S01E02.mp4"
+cp "$ROOT/zh.ass" "$ROOT/Batch S01E01.zh-Hans.ass"
+cp "$ROOT/sample.srt" "$ROOT/Batch S01E02.en.srt"
+
 cat > "$ROOT/en.ass" <<'ASS'
 [Script Info]
 ScriptType: v4.00+
