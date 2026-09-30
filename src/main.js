@@ -397,13 +397,31 @@ async function runProbe(path, probePath, { decodeStreams = false } = {}) {
   const code = await ffmpeg.ffprobe(
     buildProbeArgs(path, probePath, { decodeStreams })
   );
-  if (code !== 0) {
-    const mode = decodeStreams ? '完整 stream-info' : '仅容器头';
-    throw new Error(`ffprobe 返回错误代码 ${code}（${mode}）`);
+
+  // @ffmpeg/core 0.12.10 is known to sometimes report ffprobe ret=-1 even
+  // when ffprobe successfully wrote the requested output file. Treat the
+  // generated JSON as the source of truth; only fail when it is missing or
+  // invalid. This also gives us a real E2E assertion instead of trusting the
+  // wrapper return code alone.
+  let raw;
+  try {
+    raw = await ffmpeg.readFile(probePath);
+  } catch (readError) {
+    const mode = decodeStreams ? '完整 stream-info' : '结构探测';
+    throw new Error(`ffprobe 未生成结果（返回 ${code}，${mode}）：${readError?.message || readError}`);
   }
 
-  const raw = await ffmpeg.readFile(probePath);
-  const json = JSON.parse(new TextDecoder().decode(raw));
+  let json;
+  try {
+    json = JSON.parse(new TextDecoder().decode(raw));
+  } catch (parseError) {
+    throw new Error(`ffprobe 结果不是有效 JSON（返回 ${code}）：${parseError?.message || parseError}`);
+  }
+
+  if (code !== 0) {
+    logEl.textContent += `INFO: ffprobe wrapper 返回 ${code}，但结构化结果文件有效，继续使用该结果。\n`;
+  }
+
   const streams = Array.isArray(json.streams) ? json.streams : [];
 
   return {
