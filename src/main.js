@@ -1679,7 +1679,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.8.0',
+      appVersion: '0.8.1',
       input: {
         name: video.name,
         sizeBytes: video.size,
