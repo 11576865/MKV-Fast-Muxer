@@ -4078,3 +4078,549 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     padding: 14px 12px;
   }
 }
+
+
+/* Desktop refinement: annotated 1920px pass -----------------------------------
+   Desktop only. Remove explanatory noise, reclaim horizontal space, make the
+   preview + final action dominant, and compact batch into a clear left/right flow. */
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+  :root {
+    --audio: #e0ae5d;
+    --success: #54d7a6;
+  }
+
+  .topbar,
+  .workspace {
+    width: min(calc(100% - 44px), 1760px);
+    max-width: 1760px;
+  }
+
+  .topbar {
+    min-height: 70px;
+  }
+
+  .workspace {
+    padding-top: 14px;
+    padding-bottom: 34px;
+    grid-template-columns: minmax(0, 1fr) clamp(330px, 20vw, 390px);
+    gap: 12px 16px;
+  }
+
+  /* 01: title + inputs, no prose competing with the files themselves. */
+  .stage-input .stage-head {
+    margin-bottom: 8px;
+    align-items: center;
+  }
+
+  .stage-input .stage-title p,
+  .stage-input .workload-notice {
+    display: none;
+  }
+
+  .stage-input .source-grid {
+    margin-top: 8px;
+  }
+
+  .stage-input .source-strip {
+    grid-template-columns:
+      minmax(0, 1.45fr)
+      minmax(0, 1.45fr)
+      minmax(0, .72fr)
+      minmax(0, .72fr);
+    gap: 8px;
+  }
+
+  .source-strip .source-item {
+    min-height: 82px;
+    padding: 12px 13px;
+    border-radius: 9px;
+    box-shadow: none;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--source-accent) 12%, var(--surface-1)),
+        color-mix(in srgb, var(--source-accent) 3%, var(--surface-1)) 72%);
+  }
+
+  .source-strip .source-primary {
+    border-color: color-mix(in srgb, var(--source-accent) 48%, var(--line));
+  }
+
+  .source-strip .source-secondary {
+    border-color: color-mix(in srgb, var(--source-accent) 26%, var(--line));
+  }
+
+  .source-strip .source-item::before {
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 3px;
+  }
+
+  .source-strip .source-body strong {
+    font-size: .86rem;
+  }
+
+  .source-strip .source-body small {
+    font-size: .62rem;
+    line-height: 1.25;
+  }
+
+  .source-strip .filename {
+    margin-top: 0;
+    font-size: .65rem;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .source-strip .source-action {
+    padding: 5px 7px;
+    border-color: color-mix(in srgb, var(--source-accent) 36%, var(--line));
+    background: color-mix(in srgb, var(--source-accent) 6%, transparent);
+    color: var(--source-accent);
+  }
+
+  /* 02: the frame is the visual object. Headline prose and the filter bar go away. */
+  .editor-column {
+    padding: 14px;
+    grid-template-columns: minmax(0, 1.55fr) minmax(310px, .65fr);
+    grid-template-areas:
+      "head head"
+      "preview editors"
+      "logs editors";
+    column-gap: 12px;
+    row-gap: 9px;
+  }
+
+  .column-head {
+    margin-bottom: 0;
+    padding-bottom: 7px;
+    border-bottom: 0;
+  }
+
+  .column-head .stage-title p {
+    display: none;
+  }
+
+  .subtitle-preview-card {
+    margin-top: 0;
+    border-radius: 10px;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, .20);
+  }
+
+  .subtitle-preview-card .preview-head {
+    display: none;
+  }
+
+  .subtitle-preview-card .preview-stage {
+    border: 1px solid color-mix(in srgb, var(--video) 20%, var(--line));
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background:
+      radial-gradient(circle at 50% 42%, #15263b 0, #080d15 70%);
+  }
+
+  .subtitle-preview-card .preview-tools {
+    padding: 8px 9px;
+    grid-template-columns: minmax(0, 1fr) 150px auto auto auto;
+    gap: 6px;
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface-1) 92%, black);
+  }
+
+  .preview-tools label {
+    gap: 3px;
+  }
+
+  .preview-tools label > span {
+    font-size: .58rem;
+  }
+
+  .preview-tools select,
+  .preview-time-control input,
+  .preview-tools .button {
+    min-height: 32px;
+  }
+
+  .preview-footer {
+    padding: 6px 9px;
+    font-size: .59rem;
+    background: color-mix(in srgb, var(--surface-1) 88%, black);
+  }
+
+  .preview-footer > span:last-child {
+    opacity: .62;
+  }
+
+  .object-editor-nav {
+    display: none;
+  }
+
+  .editor-grid {
+    gap: 9px;
+  }
+
+  .editor-card {
+    border-radius: 8px;
+  }
+
+  .editor-card .card-head {
+    min-height: 0;
+    padding: 10px 12px 8px;
+  }
+
+  .editor-card .card-kicker {
+    display: none;
+  }
+
+  .editor-card .card-head h3 {
+    margin: 0;
+    font-size: .84rem;
+  }
+
+  .config-card > :not(.card-head),
+  .source-track-card > :not(.card-head) {
+    margin-left: 11px;
+    margin-right: 11px;
+  }
+
+  .track-stack {
+    margin-top: 7px;
+    gap: 9px;
+  }
+
+  .subsection-label {
+    margin-bottom: 4px;
+    font-size: .61rem;
+  }
+
+  .track-empty {
+    padding: 8px 9px;
+    font-size: .64rem;
+    line-height: 1.35;
+  }
+
+  .font-editor {
+    padding: 9px 0;
+  }
+
+  .compact-control {
+    margin-top: 7px;
+  }
+
+  .attachment-toggle {
+    padding: 8px 9px;
+  }
+
+  .attachment-toggle strong {
+    font-size: .7rem;
+  }
+
+  .attachment-toggle small,
+  .field-hint {
+    font-size: .61rem;
+    line-height: 1.35;
+  }
+
+  .append-mode-toggle {
+    margin: 7px 0 8px;
+  }
+
+  .source-track-card .track-list,
+  .attachment-manager,
+  .tool-drawer {
+    margin-top: 7px;
+  }
+
+  .diagnostics-panel {
+    margin-top: 0;
+  }
+
+  /* 03: remove narration and make the final action unmistakable. */
+  .output-hub {
+    padding: 13px;
+    border-radius: 12px;
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, transparent), transparent 230px),
+      var(--surface-0);
+  }
+
+  .output-hub-head {
+    margin-bottom: 7px;
+    padding-bottom: 10px;
+  }
+
+  .output-hub-head .stage-title p {
+    display: none;
+  }
+
+  .output-hub-head .stage-title h2 {
+    font-size: 1.08rem;
+  }
+
+  .output-summary {
+    padding: 2px 0 6px;
+  }
+
+  .output-summary .manifest {
+    gap: 0 8px;
+  }
+
+  .output-summary .manifest > div {
+    min-height: 44px;
+    padding: 6px 7px;
+    border-bottom-color: color-mix(in srgb, var(--line) 60%, transparent);
+  }
+
+  .output-summary .manifest > div span {
+    font-size: .54rem;
+  }
+
+  .output-summary .manifest > div strong {
+    font-size: .71rem;
+  }
+
+  .output-section.plan-panel {
+    padding-top: 8px;
+    padding-bottom: 7px;
+  }
+
+  .output-section .side-panel-head {
+    margin: 6px 0 5px;
+  }
+
+  .output-section .side-panel-head .panel-kicker {
+    display: none;
+  }
+
+  .output-section .plan-row {
+    padding: 6px 7px 6px 9px;
+  }
+
+  .execution-panel {
+    margin-top: 10px;
+    padding: 11px !important;
+    border: 1px solid color-mix(in srgb, var(--success) 30%, var(--line)) !important;
+    border-radius: 10px;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--success) 10%, var(--surface-1)),
+        color-mix(in srgb, var(--accent) 4%, var(--surface-1))) !important;
+  }
+
+  .execution-panel .status-label,
+  .execution-note {
+    display: none;
+  }
+
+  .execution-panel .status {
+    min-height: 0;
+    margin-bottom: 7px;
+    color: var(--muted);
+    font-size: .64rem;
+  }
+
+  .execution-panel .progress {
+    margin: 5px 0 8px;
+  }
+
+  .execution-panel .actions {
+    grid-template-columns: minmax(0, 1fr) 70px;
+    gap: 7px;
+  }
+
+  .execution-panel .button-primary {
+    min-height: 48px;
+    border: 0;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--success), var(--accent));
+    color: #07131a;
+    font-size: .9rem;
+    font-weight: 760;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--success) 18%, transparent);
+  }
+
+  .execution-panel .button-secondary {
+    min-height: 48px;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  /* Batch: three inputs on the left, settings + queue on the right. */
+  .batch-workspace {
+    padding: 11px 13px 13px;
+    border-radius: 10px;
+  }
+
+  .batch-head {
+    align-items: center;
+  }
+
+  .batch-head .stage-title p {
+    display: none;
+  }
+
+  .batch-status-chip {
+    padding: 4px 7px;
+    border-color: color-mix(in srgb, var(--line) 70%, transparent);
+    background: transparent;
+  }
+
+  .batch-drawer {
+    margin-top: 6px;
+  }
+
+  .batch-drawer > summary {
+    min-width: 0;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: .68rem;
+  }
+
+  .batch-drawer > summary:hover,
+  .batch-drawer > summary:focus-visible,
+  .batch-drawer[open] > summary {
+    color: var(--accent);
+    border-color: transparent;
+  }
+
+  .batch-layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(400px, .65fr);
+    gap: 10px;
+    margin-top: 9px;
+  }
+
+  .batch-inputs {
+    gap: 7px;
+  }
+
+  .batch-source-cluster {
+    border-radius: 8px;
+    border-color: color-mix(in srgb, var(--source-accent, var(--line)) 24%, var(--line));
+  }
+
+  .batch-video-cluster { --source-accent: var(--video); }
+  .batch-subtitle-cluster { --source-accent: var(--subtitle); }
+  .batch-font-cluster { --source-accent: var(--font); }
+
+  .batch-cluster-head {
+    min-height: 38px;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--source-accent) 6%, var(--surface-1));
+  }
+
+  .batch-cluster-head small {
+    display: none;
+  }
+
+  .batch-picker {
+    min-height: 48px;
+    padding: 6px 8px;
+  }
+
+  .batch-picker > span {
+    font-size: .64rem;
+  }
+
+  .batch-picker .filename {
+    font-size: .56rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .batch-detail {
+    gap: 7px;
+  }
+
+  .batch-settings {
+    gap: 6px;
+  }
+
+  .batch-settings .attachment-toggle,
+  .batch-settings .compact-control,
+  .batch-settings .batch-output-tool {
+    padding: 7px 8px;
+    border-radius: 7px;
+  }
+
+  .batch-settings .attachment-toggle small,
+  .batch-settings .field-hint,
+  .batch-output-tool small {
+    display: none;
+  }
+
+  .batch-subset-control select {
+    min-height: 29px;
+  }
+
+  .batch-output-tool {
+    gap: 4px;
+  }
+
+  .batch-output-tool .button {
+    min-height: 30px;
+  }
+
+  .batch-queue {
+    border-radius: 8px;
+  }
+
+  .batch-queue-head {
+    padding: 7px 8px;
+  }
+
+  .batch-queue-head .panel-kicker,
+  .batch-queue-head > span {
+    display: none;
+  }
+
+  .batch-queue #batchPlan {
+    min-height: 62px;
+    max-height: 220px;
+    padding: 6px;
+  }
+
+  .batch-actions {
+    padding: 7px;
+  }
+
+  .batch-actions .button-primary,
+  .batch-actions .button-secondary {
+    min-height: 38px;
+  }
+
+  .batch-actions .button-primary {
+    background: linear-gradient(90deg, var(--success), var(--accent));
+    border: 0;
+    color: #07131a;
+  }
+}
+
+@media (min-width: 1560px) and (hover: hover) and (pointer: fine) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 19vw, 390px);
+  }
+
+  .editor-column {
+    grid-template-columns: minmax(0, 1.62fr) minmax(320px, .62fr);
+  }
+}
+
+@media (min-width: 1900px) and (hover: hover) and (pointer: fine) {
+  .topbar,
+  .workspace {
+    width: min(calc(100% - 56px), 1820px);
+    max-width: 1820px;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 390px;
+  }
+
+  .editor-column {
+    grid-template-columns: minmax(0, 1.7fr) 360px;
+  }
+}
