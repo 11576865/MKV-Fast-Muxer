@@ -3,6 +3,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
+import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import {
@@ -16,15 +17,15 @@ import {
 const $ = (id) => document.getElementById(id);
 
 const videoInput = $('videoInput');
+const audioInput = $('audioInput');
 const subInput = $('subInput');
 const fontInput = $('fontInput');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
-const subtitleLanguage = $('subtitleLanguage');
-const newSubTitle = $('newSubTitle');
-const newSubDefault = $('newSubDefault');
-const newSubForced = $('newSubForced');
+const newAudioList = $('newAudioList');
+const newSubtitleList = $('newSubtitleList');
 const preserveAttachments = $('preserveAttachments');
+const attachmentList = $('attachmentList');
 const scanTracksBtn = $('scanTracksBtn');
 const trackList = $('trackList');
 const refreshPlanBtn = $('refreshPlanBtn');
@@ -92,6 +93,8 @@ let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
 let trackState = null;
+let externalAudioState = [];
+let newSubtitleState = [];
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -117,6 +120,73 @@ function selectedFonts() {
   return Array.from(fontInput.files || []);
 }
 
+function selectedExternalAudioFiles() {
+  return Array.from(audioInput.files || []);
+}
+
+function selectedSubtitleFiles() {
+  return Array.from(subInput.files || []);
+}
+
+function stripExtension(name) {
+  return String(name || '').replace(/\.[^.]+$/, '');
+}
+
+function syncNewTrackState() {
+  const oldAudio = new Map(externalAudioState.map((item) => [fileKey(item.file), item]));
+  externalAudioState = selectedExternalAudioFiles().map((file) => {
+    const old = oldAudio.get(fileKey(file));
+    return old || { file, language: 'und', title: stripExtension(file.name), default: false };
+  });
+
+  const oldSubs = new Map(newSubtitleState.map((item) => [fileKey(item.file), item]));
+  newSubtitleState = selectedSubtitleFiles().map((file, index) => {
+    const old = oldSubs.get(fileKey(file));
+    return old || {
+      file,
+      language: 'und',
+      title: stripExtension(file.name) || languageTitles.und,
+      default: index === 0,
+      forced: false,
+    };
+  });
+}
+
+function renderNewTrackLists() {
+  newAudioList.innerHTML = externalAudioState.length
+    ? externalAudioState.map((item, index) => `
+      <div class="new-track-row is-audio">
+        <div class="new-track-main">
+          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <div class="new-track-fields">
+            <input data-new-audio-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="外部音频语言">
+            <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
+          </div>
+        </div>
+        <div class="new-track-flags">
+          <label><input type="checkbox" data-new-audio-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
+        </div>
+      </div>`).join('')
+    : '<div class="track-empty">未选择外部音频。</div>';
+
+  newSubtitleList.innerHTML = newSubtitleState.length
+    ? newSubtitleState.map((item, index) => `
+      <div class="new-track-row is-subtitle">
+        <div class="new-track-main">
+          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <div class="new-track-fields">
+            <input data-new-sub-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="字幕语言">
+            <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
+          </div>
+        </div>
+        <div class="new-track-flags">
+          <label><input type="checkbox" data-new-sub-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
+          <label><input type="checkbox" data-new-sub-field="forced" data-index="${index}" ${item.forced ? 'checked' : ''}> Forced</label>
+        </div>
+      </div>`).join('')
+    : '<div class="track-empty">未选择 ASS 字幕。</div>';
+}
+
 function fileKey(file) {
   return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
 }
@@ -134,39 +204,41 @@ function isBusy() {
 
 function setInputsDisabled(disabled) {
   videoInput.disabled = disabled;
+  audioInput.disabled = disabled;
   subInput.disabled = disabled;
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
-  subtitleLanguage.disabled = disabled;
-  newSubTitle.disabled = disabled;
-  newSubDefault.disabled = disabled;
-  newSubForced.disabled = disabled;
   preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
 }
 
 function resetTrackState() {
   trackState = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
+  attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
   renderMuxPlan();
 }
 
 function updateUI() {
   const video = videoInput.files[0];
-  const sub = subInput.files[0];
+  const subs = selectedSubtitleFiles();
   const fonts = selectedFonts();
   const inputIsMkv = ext(video?.name || '') === '.mkv';
   const mode = fontMode.value || 'preserve';
   const busy = isBusy();
 
   $('videoName').textContent = video?.name ?? '未选择';
-  $('subName').textContent = sub?.name ?? '未选择';
+  $('audioName').textContent = formatFontSelection(selectedExternalAudioFiles()).replace(/字体/g, '音频');
+  $('subName').textContent = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 个 ASS`) : '未选择';
   $('fontName').textContent = formatFontSelection(fonts);
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
 
   fontModeHint.textContent = mode === 'force'
-    ? '兼容旧行为：只使用并附加第一个上传字体；ASS 的 Style Fontname 与显式内联 \\fn 会统一改写。'
-    : '保留 ASS Fontname；按 Family、Weight/Bold、Italic 匹配具体字体 face，并检查实际字符覆盖。';
+    ? '兼容旧行为：只使用并附加第一个上传字体；所有新增 ASS 的 Fontname 与显式内联 \\fn 会统一改写。'
+    : '保留各 ASS Fontname；按 Family、Weight/Bold、Italic 匹配字体 face，并检查实际字符覆盖。';
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
@@ -175,11 +247,33 @@ function updateUI() {
 
   preserveAttachments.disabled = busy || !inputIsMkv;
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
-  muxBtn.disabled = busy || !(video && sub && fonts.length);
+  muxBtn.disabled = busy || !(video && subs.length && fonts.length);
   cancelBtn.disabled = !busy;
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
+  renderNewTrackLists();
   renderMuxPlan();
+}
+
+function bindNewTrackEditor(container, selector, state) {
+  container.addEventListener('input', (event) => {
+    const input = event.target.closest(selector);
+    if (!input) return;
+    const item = state[Number(input.dataset.index)];
+    if (!item) return;
+    const field = input.dataset.newAudioField || input.dataset.newSubField;
+    item[field] = input.type === 'checkbox' ? input.checked : input.value;
+    renderMuxPlan();
+  });
+  container.addEventListener('change', (event) => {
+    const input = event.target.closest(selector);
+    if (!input) return;
+    const item = state[Number(input.dataset.index)];
+    if (!item) return;
+    const field = input.dataset.newAudioField || input.dataset.newSubField;
+    item[field] = input.type === 'checkbox' ? input.checked : input.value;
+    renderMuxPlan();
+  });
 }
 
 videoInput.addEventListener('change', () => {
@@ -187,15 +281,26 @@ videoInput.addEventListener('change', () => {
   preserveAttachments.checked = false;
   updateUI();
 });
-subInput.addEventListener('change', updateUI);
+audioInput.addEventListener('change', () => {
+  syncNewTrackState();
+  updateUI();
+});
+subInput.addEventListener('change', () => {
+  syncNewTrackState();
+  updateUI();
+});
 fontInput.addEventListener('change', updateUI);
 fontMode.addEventListener('change', updateUI);
-subtitleLanguage.addEventListener('change', renderMuxPlan);
-newSubTitle.addEventListener('input', renderMuxPlan);
-newSubDefault.addEventListener('change', renderMuxPlan);
-newSubForced.addEventListener('change', renderMuxPlan);
-preserveAttachments.addEventListener('change', renderMuxPlan);
+preserveAttachments.addEventListener('change', () => {
+  if (trackState) {
+    trackState.attachments.forEach((item) => { item.include = preserveAttachments.checked; });
+    renderAttachmentList();
+  }
+  renderMuxPlan();
+});
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
+bindNewTrackEditor(newAudioList, 'input[data-new-audio-field]', externalAudioState);
+bindNewTrackEditor(newSubtitleList, 'input[data-new-sub-field]', newSubtitleState);
 
 async function loadFFmpeg() {
   if (loaded) return;
