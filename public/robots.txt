@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://11576865.github.io/MKV-Fast-Muxer-v3/sitemap.xml
+Sitemap: https://11576865.github.io/MKV-Fast-Muxer/sitemap.xml
