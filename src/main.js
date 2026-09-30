@@ -12,6 +12,7 @@ import {
   analyzeAssFontUsage,
   checkFontCharacters,
   forceAssFontFamily,
+  preferredAssFontFamily,
   readFontDescriptors,
   scoreFontFaceMatch,
 } from './ass-font-rewrite.js';
@@ -892,7 +893,8 @@ async function buildPreviewAss(track, fontFiles) {
   const { text } = await readAssText(track.file);
   if ((fontMode.value || 'preserve') !== 'force' || !fontFiles.length) return text;
   const descriptors = await readFontDescriptors(fontFiles[0]);
-  return forceAssFontFamily(text, descriptors[0].family);
+  const forcedFamily = preferredAssFontFamily(descriptors[0]);
+  return forceAssFontFamily(text, forcedFamily);
 }
 
 async function refreshSubtitlePreview() {
@@ -1933,8 +1935,10 @@ muxBtn.addEventListener('click', async () => {
 
       if (mode === 'force') {
         const primary = descriptors[0];
-        outputAss = forceAssFontFamily(sourceAss, primary.descriptor.family);
+        const forcedFamily = preferredAssFontFamily(primary.descriptor);
+        outputAss = forceAssFontFamily(sourceAss, forcedFamily);
         attachments = [uniqueFontItems[primary.attachmentIndex]];
+        logEl.textContent += `INFO: ASS #${index + 1} 强制字体使用 libass 兼容族名 “${forcedFamily}”${forcedFamily !== primary.descriptor.family ? `（字体首选族名：${primary.descriptor.family}）` : ''}\n`;
 
         try {
           const coverage = await checkFontCharacters(primary.file, analysis.allCharacters, primary.descriptor.collectionIndex);
@@ -2212,7 +2216,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.6',
+      appVersion: '1.0.7',
       input: {
         name: video.name,
         sizeBytes: video.size,
