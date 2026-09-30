@@ -11,7 +11,7 @@
 
 ## About
 
-MKV Fast Muxer v3 is a browser-local Matroska muxing workbench for combining existing video, ASS subtitles and font attachments without re-encoding the media streams. It includes ASS font dependency analysis, MKV track management, editable subtitle metadata, mux-plan preview and post-mux ffprobe auditing, while keeping all media processing on the user device.
+MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a visual-first soft-mux workflow. It previews selected ASS subtitles over local video with JASSUB/libass, keeps video and audio on Stream Copy, attaches subtitle fonts, manages MKV tracks and metadata, previews the final mux structure, and audits the generated container with ffprobe. Media stays on the user device.
 
 ## 项目定位
 
@@ -26,7 +26,9 @@ ASS 字幕
       +
 TTF / OTF / TTC / OTC 字体
       ↓
-轨道与字体检查
+视频 + ASS 可视化预览
+      ↓
+轨道、字体与元数据调整
       ↓
 封装计划
       ↓
@@ -52,6 +54,7 @@ ffprobe 审计
 
 - MP4 / MKV / WebM / MOV / M4V 已经是最终视频；
 - 一条或多条 ASS 字幕已经完成时间轴和排版；
+- 希望在软封装前直接看到 ASS 在视频画面中的实际渲染；
 - 可选加入 FLAC / AAC / Opus 等外部音频轨；
 - 字幕使用一个或多个外部字体；
 - 希望把视频、字幕、字体一次性封装进 MKV；
@@ -92,7 +95,29 @@ MP4 / MKV / WebM / MOV / M4V
 MKV
 ```
 
-### 2. 多 ASS 软字幕
+### 2. 本地 ASS 可视化预览
+
+1.0.0 起，主工作流加入视频 + ASS 预览。
+
+预览使用 **JASSUB / libass** 在浏览器本地渲染所选 ASS，并可直接使用用户上传的 TTF / OTF / TTC / OTC 字体。多条 ASS 可在预览区切换；“强制统一字体”模式也会同步反映到预览。
+
+预览不会：
+
+- 上传视频、字幕或字体；
+- 修改最终参与封装的原始 ASS；
+- 对视频进行转码；
+- 改变最终 Stream Copy 封装策略。
+
+为了保持本地性，预览关闭在线字体查询。
+
+需要区分两种兼容性：
+
+- **预览兼容性**取决于浏览器能否直接播放当前视频容器和 codec；
+- **封装兼容性**取决于 ffmpeg.wasm / Matroska 是否能完成 Stream Copy。
+
+因此浏览器无法直接播放某个 MKV、HEVC、AV1 或其他 codec 时，可能只影响预览，不代表最终 MKV 无法封装。
+
+### 3. 多 ASS 软字幕
 
 支持一次选择多条 ASS。每条新增字幕独立写入 MKV，并可分别设置 language、title、Default 与 Forced。
 
@@ -115,7 +140,7 @@ MKV
 
 默认使用 `und`，避免在无法可靠判断语言时写入错误元数据。
 
-### 3. ASS 编码处理
+### 4. ASS 编码处理
 
 支持：
 
@@ -129,7 +154,7 @@ MKV
 
 如果文本编码无法可靠判断，任务会中止，而不是继续生成乱码字幕。
 
-### 4. 多字体附件
+### 5. 多字体附件
 
 支持一次选择多个 TTF / OTF / TTC / OTC。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次。
 
@@ -161,7 +186,7 @@ MKV
 
 然后把 ASS 实际请求的 Family / Weight / Italic 映射到上传的具体 font face。
 
-### 5. 字体依赖与缺字检查
+### 6. 字体依赖与缺字检查
 
 程序不仅检查“有没有上传字体”，还会检查：
 
@@ -180,7 +205,7 @@ MKV
 - CJK / 特殊符号缺字；
 - ASS transform 中潜在的动态字体依赖。
 
-### 6. 强制统一字体模式
+### 7. 强制统一字体模式
 
 兼容旧式工作流。
 
@@ -354,20 +379,22 @@ ffmpeg.wasm 需要把输入和处理中间数据放进浏览器可用内存，�
 
 ## 界面
 
-当前 UI 已作为专用 muxing workbench 整理：
+当前 UI 已作为视觉优先的专用 muxing workbench 整理：
 
-- 白天 / 夜间 / 跟随系统；
+- 固定深色工作台；
 - 宽屏桌面布局；
+- 移动端 / 小平板响应式布局；
 - 输入区；
+- 视频 + ASS 可视化预览；
 - 字幕与字体控制；
 - MKV 轨道管理；
 - 输出工作台；
 - 封装计划；
 - 执行与校验；
-- 可展开运行日志；
+- 次级的可展开诊断日志；
 - 明确的成品保存入口。
 
-手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。新增的字幕预览使用 JASSUB/libass 在本机将所选 ASS 与上传字体叠加到浏览器视频预览；若浏览器本身无法直接播放某个 MKV 容器或 codec，最终 Stream Copy 封装仍可正常工作。
+手机 / Android 浏览器仍可使用，但超大媒体主要受浏览器内存约束。字幕预览使用 JASSUB/libass 在本机将所选 ASS 与上传字体叠加到浏览器视频预览；若浏览器本身无法直接播放某个 MKV 容器或 codec，最终 Stream Copy 封装仍可正常工作。
 
 ## 在线使用
 
@@ -402,7 +429,7 @@ http://127.0.0.1:5173/
 scripts/copy-core.mjs
 ```
 
-把 ffmpeg.wasm core 与 class worker 复制到 `public/`，避免运行时依赖外部 CDN。
+把 ffmpeg.wasm core / class worker，以及 JASSUB 的 worker、WASM 与 fallback font 复制到 `public/`，避免预览和封装运行时依赖外部 CDN。
 
 ## 测试
 
@@ -421,6 +448,7 @@ npm run test:e2e
 - 工作负载提示；
 - favicon；
 - 宽屏、移动端与小平板响应式布局；
+- ASS 可视化预览结构、JASSUB 本地资源与 ES module worker 构建配置；
 - 仓库改名后的 Pages / canonical / sitemap / clone URL 一致性。
 
 Browser E2E 当前覆盖 22 个编号场景，包括：
@@ -469,7 +497,8 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 - post-mux audit；
 - AV1 容器级探测策略；
 - 任务互斥与取消；
-- 深浅色和宽屏工作台。
+- 深色和宽屏工作台；
+- JASSUB / libass 视频字幕预览。
 
 因此当前 v3 已不只是“把三个文件拖进去”的最小封装页面，而是一套针对 ASS + font attachment 工作流的浏览器本地 MKV muxing 工具。
 
@@ -477,11 +506,13 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 
 当前新加入字幕只面向 ASS；外部音频以 stream copy 为目标，因此输入 codec 必须能被 Matroska 容器直接承载。
 
-字体静态分析不能完整证明任意复杂 ASS override / drawing / transform 在所有播放器中的最终渲染行为，因此字体检查被设计为辅助诊断，而不是完整 ASS renderer。
+字体静态分析仍不能单独证明任意复杂 ASS override / drawing / transform 在所有播放器中的最终行为，因此字体检查继续作为辅助诊断；1.0.0 的 JASSUB/libass 预览用于补上封装前的直接视觉检查。
+
+预览画面仍受浏览器原生视频解码能力约束。某些 MKV、HEVC、AV1 或特殊 codec 可能无法直接在浏览器 video 元素中播放，但这不等同于 Stream Copy 封装失败。
 
 浏览器端 ffmpeg.wasm 的性能和文件大小上限不能等同于原生 FFmpeg。
 
-项目只负责封装和容器审计，不负责证明每个播放器都会以完全相同方式渲染 ASS。
+项目负责封装、预览与容器审计，但不同播放器、libass 版本和渲染环境之间仍可能存在显示差异。
 
 ## 许可证
 
@@ -492,5 +523,6 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 - `@ffmpeg/ffmpeg` 0.12.15 — MIT
 - `@ffmpeg/util` 0.12.2 — MIT
 - `@ffmpeg/core` 0.12.10 — GPL-2.0-or-later
+- `jassub` 2.5.15 — 见其复合许可证与上游 libass 相关条款
 
 详细说明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
