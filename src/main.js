@@ -495,6 +495,45 @@ async function removeQuietly(path) {
   try { await ffmpeg.deleteFile(path); } catch {}
 }
 
+async function execWithCapturedLogs(args) {
+  const lines = [];
+  const listener = ({ message }) => {
+    const value = String(message || '').trim();
+    if (value) lines.push(value);
+  };
+  ffmpeg.on('log', listener);
+  try {
+    const code = await ffmpeg.exec(args);
+    return { code, logs: lines };
+  } finally {
+    ffmpeg.off('log', listener);
+  }
+}
+
+function usefulLogTail(lines, limit = 6) {
+  const cleaned = (lines || [])
+    .map((line) => String(line || '').trim())
+    .filter(Boolean)
+    .filter((line) => !/^frame=|^size=|^video:|^Input #|^Output #/.test(line));
+  return cleaned.slice(-limit).join(' | ');
+}
+
+function previewSourceDuration(probe) {
+  const values = [
+    Number(probe?.format?.duration),
+    ...(probe?.streams || [])
+      .filter((stream) => stream.codec_type === 'video')
+      .map((stream) => Number(stream.duration)),
+  ].filter((value) => Number.isFinite(value) && value > 0);
+  return values.length ? Math.max(...values) : 0;
+}
+
+function clampPreviewTime(timeSeconds, durationSeconds) {
+  const value = Math.max(0, Number(timeSeconds) || 0);
+  if (!(durationSeconds > 0)) return value;
+  return Math.min(value, Math.max(0, durationSeconds - 0.08));
+}
+
 function taskPrefix() {
   const random = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
   return `task-${Date.now()}-${random}`;
@@ -749,14 +788,24 @@ async function refreshSubtitlePreview() {
     if (cancelRequested || generation !== previewGeneration) return;
 
     const sourceAss = await buildPreviewAss({ file: track }, fontFiles);
-    const previewTime = choosePreviewFrameTime(sourceAss);
-    const previewCenter = 0.5;
-    const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
     await ffmpeg.createDir(mountPoint);
     await ffmpeg.mount(FFFSType.WORKERFS, { files: [video] }, mountPoint);
     mounted = true;
     await ffmpeg.createDir(fontDir);
+
+    const previewProbePath = `/${prefix}-preview-probe.json`;
+    const sourceProbe = await runProbe(inputPath, previewProbePath, { decodeStreams: false }).catch((error) => {
+      logEl.textContent += `PREVIEW PROBE WARNING: ${error?.message || error}\n`;
+      return null;
+    });
+    await removeQuietly(previewProbePath);
+
+    const requestedPreviewTime = choosePreviewFrameTime(sourceAss);
+    const duration = previewSourceDuration(sourceProbe);
+    const previewTime = clampPreviewTime(requestedPreviewTime, duration);
+    const previewCenter = 0.5;
+    const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
     await Promise.all(fontFiles.map(async (font, index) => {
       const suffix = ext(font.name) || '.font';
@@ -764,16 +813,57 @@ async function refreshSubtitlePreview() {
     }));
     await ffmpeg.writeFile(assPath, new TextEncoder().encode(shiftedAss));
 
-    previewStatus.textContent = `正在提取 ${previewTime.toFixed(2)} s 视频帧……`;
-    const extractCode = await ffmpeg.exec([
-      '-hide_banner', '-loglevel', 'error', '-y',
-      '-ss', previewTime.toFixed(3),
-      '-i', inputPath,
-      '-an', '-sn',
-      '-frames:v', '1',
-      basePath,
-    ]);
-    if (extractCode !== 0) throw new Error(`视频帧提取失败（FFmpeg 返回 ${extractCode}）`);
+    const codec = sourceProbe?.streams?.find((stream) => stream.codec_type === 'video')?.codec_name || 'unknown';
+    previewStatus.textContent = `正在提取 ${previewTime.toFixed(2)} s 视频帧（${codec}）……`;
+
+    const extractionAttempts = [
+      {
+        label: '快速定位',
+        args: [
+          '-hide_banner', '-loglevel', 'error', '-y',
+          '-ss', previewTime.toFixed(3),
+          '-i', inputPath,
+          '-map', '0:v:0',
+          '-an', '-sn',
+          '-frames:v', '1',
+          basePath,
+        ],
+      },
+      {
+        label: '兼容定位',
+        args: [
+          '-hide_banner', '-loglevel', 'error', '-y',
+          '-i', inputPath,
+          '-ss', previewTime.toFixed(3),
+          '-map', '0:v:0',
+          '-an', '-sn',
+          '-frames:v', '1',
+          basePath,
+        ],
+      },
+    ];
+
+    let extracted = false;
+    const extractErrors = [];
+    for (const attempt of extractionAttempts) {
+      await removeQuietly(basePath);
+      const result = await execWithCapturedLogs(attempt.args);
+      if (result.code === 0) {
+        try {
+          const bytes = await ffmpeg.readFile(basePath);
+          if (bytes instanceof Uint8Array && bytes.byteLength > 0) {
+            extracted = true;
+            break;
+          }
+        } catch {}
+      }
+      const detail = usefulLogTail(result.logs);
+      extractErrors.push(`${attempt.label}：返回 ${result.code}${detail ? ` · ${detail}` : ''}`);
+    }
+
+    if (!extracted) {
+      throw new Error(`视频帧提取失败。编码：${codec}；目标：${previewTime.toFixed(2)} s${duration > 0 ? ` / 时长 ${duration.toFixed(2)} s` : ''}。 ${extractErrors.join('；')}`);
+    }
 
     previewStatus.textContent = '正在用 libass 渲染字幕到预览帧……';
     const filter = `ass=${assPath}:fontsdir=${fontDir}`;
@@ -1944,7 +2034,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.2',
+      appVersion: '1.0.3',
       input: {
         name: video.name,
         sizeBytes: video.size,
