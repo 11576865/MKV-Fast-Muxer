@@ -36,7 +36,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.0.9');
+  assert.equal(pkg.version, '1.1.0');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);

@@ -60,3 +60,12 @@ When redistributing a modified or replacement FFmpeg WebAssembly core, review
 the exact build configuration and the corresponding source/license obligations
 for that build before distribution.
 
+
+## hb-subset-wasm 0.4.0
+
+- Purpose: browser-local OpenType font subsetting.
+- License: MIT.
+- Upstream: kyosuke/hb-subset-wasm.
+- The package wraps HarfBuzz's subset API in WebAssembly. HarfBuzz is distributed under its Old MIT-style license; see the upstream THIRD_PARTY_NOTICES for bundled license text and notices.
+
+The application uses this dependency only when the optional font-subsetting checkbox is enabled.

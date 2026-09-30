@@ -9,6 +9,15 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
+  isAssLikeSubtitle,
+  isPreviewableSubtitle,
+  isSupportedSubtitleFile,
+  subtitleFormatInfo,
+  visibleTextForPlainSubtitle,
+} from './subtitle-format.js';
+import { subsetFontItems } from './font-subset.js';
+import { batchSubtitleSummary, buildBatchJobs } from './batch.js';
+import {
   analyzeAssFontUsage,
   checkFontCharacters,
   forceAssFontFamily,
@@ -25,6 +34,17 @@ const subInput = $('subInput');
 const fontInput = $('fontInput');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
+const fontSubsetEnabled = $('fontSubsetEnabled');
+const batchVideoInput = $('batchVideoInput');
+const batchSubtitleInput = $('batchSubtitleInput');
+const batchVideoName = $('batchVideoName');
+const batchSubtitleName = $('batchSubtitleName');
+const batchPlan = $('batchPlan');
+const batchStartBtn = $('batchStartBtn');
+const batchCancelBtn = $('batchCancelBtn');
+const batchPreserveAttachments = $('batchPreserveAttachments');
+const batchStatus = $('batchStatus');
+const batchResults = $('batchResults');
 const newAudioList = $('newAudioList');
 const newSubtitleList = $('newSubtitleList');
 const preserveAttachments = $('preserveAttachments');
@@ -124,6 +144,8 @@ let newSubtitleState = [];
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
+let batchRunning = false;
+let batchCancelRequested = false;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -179,8 +201,10 @@ function syncNewTrackState() {
   const oldSubs = new Map(newSubtitleState.map((item) => [fileKey(item.file), item]));
   newSubtitleState = selectedSubtitleFiles().map((file, index) => {
     const old = oldSubs.get(fileKey(file));
+    const format = subtitleFormatInfo(file.name);
     return old || {
       file,
+      format,
       language: 'und',
       title: stripExtension(file.name) || languageTitles.und,
       default: index === 0,
@@ -219,7 +243,7 @@ function renderNewTrackLists() {
     ? newSubtitleState.map((item, index) => `
       <div class="new-track-row is-subtitle">
         <div class="new-track-main">
-          <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
+          <strong class="new-track-name">${escapeHtml(item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || subtitleFormatInfo(item.file.name)?.label || 'SUB')}</span></strong>
           <div class="new-track-fields">
             <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
@@ -236,7 +260,7 @@ function renderNewTrackLists() {
           </details>
         </div>
       </div>`).join('')
-    : '<div class="track-empty">未选择 ASS 字幕。</div>';
+    : '<div class="track-empty">未选择字幕。</div>';
 }
 
 function fileKey(file) {
@@ -291,6 +315,7 @@ function setInputsDisabled(disabled) {
   subInput.disabled = disabled;
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
+  if (fontSubsetEnabled) fontSubsetEnabled.disabled = disabled;
   preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
   newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
@@ -299,6 +324,9 @@ function setInputsDisabled(disabled) {
   attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
     button.disabled = disabled || !trackState;
   });
+  if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
+  if (batchSubtitleInput) batchSubtitleInput.disabled = disabled || batchRunning;
+  if (batchPreserveAttachments) batchPreserveAttachments.disabled = disabled || batchRunning;
 }
 
 function resetTrackState() {
@@ -308,6 +336,7 @@ function resetTrackState() {
   trackBulkTools?.classList.add('hidden');
   attachmentBulkTools?.classList.add('hidden');
   renderMuxPlan();
+  if (!batchRunning) syncBatchPlan?.();
 }
 
 function updateUI() {
@@ -321,7 +350,7 @@ function updateUI() {
   const videoLabel = video?.name ?? '未选择';
   const audioFiles = selectedExternalAudioFiles();
   const audioLabel = formatFontSelection(audioFiles).replace(/字体/g, '音频');
-  const subtitleLabel = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 个 ASS`) : '未选择';
+  const subtitleLabel = subs.length ? (subs.length === 1 ? subs[0].name : `${subs.length} 条字幕`) : '未选择';
   const fontLabel = formatFontSelection(fonts);
   const outputLabel = video ? safeOutputName(video.name) : '—';
 
@@ -333,15 +362,17 @@ function updateUI() {
   $('subName').title = subs.map((file) => file.name).join('\n');
   $('fontName').textContent = fontLabel;
   $('fontName').title = fonts.map((file) => file.name).join('\n');
-  $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
+  $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}${fontSubsetEnabled?.checked ? ' · subset' : ''}` : '—';
   $('outputName').textContent = outputLabel;
   $('outputName').title = outputLabel === '—' ? '' : outputLabel;
   renderWorkloadNotice();
   syncPreviewControls();
 
-  fontModeHint.textContent = mode === 'force'
-    ? '兼容旧行为：只使用并附加第一个上传字体；所有新增 ASS 的 Fontname 与显式内联 \\fn 会统一改写。'
-    : '保留各 ASS Fontname；按 Family、Weight/Bold、Italic 匹配字体 face，并检查实际字符覆盖。';
+  fontModeHint.textContent = !fonts.length
+    ? '未选择字体：字幕仍可软封装；ASS / SSA 预览将依赖可用 fallback。'
+    : mode === 'force'
+      ? '兼容旧行为：只使用并附加第一个上传字体；ASS / SSA 的 Fontname 与显式内联 \\fn 会统一改写。'
+      : '保留 ASS / SSA 原 Fontname；按 Family、Weight/Bold、Italic 匹配字体 face，并检查实际字符覆盖。';
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
@@ -350,7 +381,7 @@ function updateUI() {
 
   preserveAttachments.disabled = busy || !inputIsMkv;
   scanTracksBtn.disabled = busy || !inputIsMkv || !video;
-  muxBtn.disabled = busy || !(video && subs.length && fonts.length);
+  muxBtn.disabled = busy || !(video && subs.length);
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
@@ -358,6 +389,7 @@ function updateUI() {
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
+  if (!batchRunning) syncBatchPlan();
 }
 
 function bindNewTrackEditor(container, selector, getState) {
@@ -396,6 +428,10 @@ fontInput.addEventListener('change', () => {
   destroySubtitlePreview();
   updateUI();
   previewStatus.textContent = '字体已更换；点击“生成预览帧”重新检查。';
+});
+fontSubsetEnabled?.addEventListener('change', () => {
+  updateUI();
+  renderMuxPlan();
 });
 fontMode.addEventListener('change', () => {
   destroySubtitlePreview();
@@ -734,7 +770,7 @@ async function readAssText(file) {
       encoding: 'UTF-8',
     };
   } catch {
-    throw new Error('ASS 不是有效的 UTF-8 / UTF-16 文本。请先转换为 UTF-8、UTF-16LE 或 UTF-16BE。');
+    throw new Error('字幕文件不是有效的 UTF-8 / UTF-16 文本。请先转换为 UTF-8、UTF-16LE 或 UTF-16BE。');
   }
 }
 
@@ -876,20 +912,22 @@ function openPreviewDialog() {
 function syncPreviewControls() {
   if (!previewSubtitleSelect || !previewRefreshBtn) return;
   const subs = selectedSubtitleFiles();
+  const previewable = subs
+    .map((file, index) => ({ file, index }))
+    .filter(({ file }) => isPreviewableSubtitle(file));
   const previous = Number(previewSubtitleSelect.value);
-  previewSubtitleSelect.innerHTML = subs.length
-    ? subs.map((file, index) => `<option value="${index}">${escapeHtml(file.name)}</option>`).join('')
-    : '<option value="">未选择 ASS</option>';
+  previewSubtitleSelect.innerHTML = previewable.length
+    ? previewable.map(({ file, index }) => `<option value="${index}">${escapeHtml(file.name)}</option>`).join('')
+    : '<option value="">没有可预览的 ASS / SSA</option>';
 
-  if (subs.length) {
-    const next = Number.isInteger(previous) && previous >= 0 && previous < subs.length ? previous : 0;
-    previewSubtitleSelect.value = String(next);
+  if (previewable.length) {
+    const known = previewable.some((item) => item.index === previous);
+    previewSubtitleSelect.value = String(known ? previous : previewable[0].index);
   }
 
-  previewSubtitleSelect.disabled = !subs.length;
-  previewRefreshBtn.disabled = !(videoInput.files[0] && subs.length);
+  previewSubtitleSelect.disabled = !previewable.length;
+  previewRefreshBtn.disabled = !(videoInput.files[0] && previewable.length);
 }
-
 
 async function buildPreviewAss(track, fontFiles) {
   const { text } = await readAssText(track.file);
@@ -913,7 +951,7 @@ async function refreshSubtitlePreview() {
   syncPreviewControls();
 
   if (!video || !track) {
-    previewStatus.textContent = '等待视频与 ASS；不会自动加载预览。';
+    previewStatus.textContent = '等待视频与 ASS / SSA；不会自动加载预览。';
     previewEmpty?.classList.remove('hidden');
     return;
   }
@@ -1306,7 +1344,7 @@ function buildMuxPlan() {
     entries.push({
       kind: `字幕 ${index + 1}`,
       title: track.title || track.file.name,
-      meta: `ASS · ${normalizeTrackLanguage(track.language)} · 新增`,
+      meta: `${track.format?.label || subtitleFormatInfo(track.file.name)?.label || 'SUB'} · ${normalizeTrackLanguage(track.language)} · 新增`,
       flags: dispositionValue(track.default, track.forced, track),
     });
   });
@@ -1343,7 +1381,7 @@ function buildMuxPlan() {
     entries.push({
       kind: `字体 ${index + 1}`,
       title: file.name,
-      meta: 'Matroska attachment',
+      meta: `Matroska attachment${fontSubsetEnabled?.checked ? ' · subset 可选' : ''}`,
       flags: '',
     });
   });
@@ -1839,12 +1877,12 @@ muxBtn.addEventListener('click', async () => {
   const fontFiles = selectedFonts();
   const subtitleTracks = newSubtitleState;
   const externalAudioTracks = externalAudioState;
-  if (!video || !subtitleTracks.length || !fontFiles.length) return;
+  if (!video || !subtitleTracks.length) return;
 
   const videoExt = ext(video.name);
-  const invalidSubtitle = subtitleTracks.find((track) => ext(track.file.name) !== '.ass');
+  const invalidSubtitle = subtitleTracks.find((track) => !isSupportedSubtitleFile(track.file));
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
-  const mode = fontMode.value || 'preserve';
+  const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
   const scanned = getScannedSelection(video);
   const preserveAllOriginalAttachments = !scanned
     && preserveAttachments.checked
@@ -1855,7 +1893,7 @@ muxBtn.addEventListener('click', async () => {
     return;
   }
   if (invalidSubtitle) {
-    status.textContent = `字幕“${invalidSubtitle.file.name}”不是 .ass 文件。`;
+    status.textContent = `字幕“${invalidSubtitle.file.name}”不是支持的 ASS / SSA / SRT / WebVTT 文件。`;
     return;
   }
   if (invalidFont) {
@@ -1901,7 +1939,8 @@ muxBtn.addEventListener('click', async () => {
     const initialReservedAttachmentNames = scanned
       ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
       : [];
-    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames);
+    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames)
+      .map((item, sourceIndex) => ({ ...item, sourceIndex }));
     const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
       const faces = await readFontDescriptors(item.file);
       return faces.map((descriptor, faceIndex) => ({
@@ -1921,50 +1960,80 @@ muxBtn.addEventListener('click', async () => {
       const collectionFace = item.descriptor.collectionIndex == null ? '' : ` · collection face #${item.descriptor.collectionIndex}`;
       logEl.textContent += `上传字体：${item.file.name}${attachmentRename} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}${collectionFace}\n`;
     }
-    reportFontFamilyCompleteness(descriptors);
+    if (descriptors.length) reportFontFamilyCompleteness(descriptors);
 
     let attachments = uniqueFontItems;
     let completionNote = '';
     let dependencyWarningCount = 0;
     const preparedSubtitles = [];
 
+    let fontSubsetText = '';
+
     for (let index = 0; index < subtitleTracks.length; index += 1) {
       const track = subtitleTracks[index];
-      const { text: sourceAss, encoding } = await readAssText(track.file);
-      const analysis = analyzeAssFontUsage(sourceAss);
-      let outputAss = sourceAss;
+      const format = subtitleFormatInfo(track.file.name);
+      const { text: sourceText, encoding } = await readAssText(track.file);
+      let outputText = sourceText;
 
-      logEl.textContent += `ASS #${index + 1}：${track.file.name} · 编码 ${encoding}\n`;
+      logEl.textContent += `字幕 #${index + 1}：${track.file.name} · ${format?.label || 'SUB'} · 编码 ${encoding}\n`;
 
-      if (mode === 'force') {
-        const primary = descriptors[0];
-        const forcedFamily = preferredAssFontFamily(primary.descriptor);
-        outputAss = forceAssFontFamily(sourceAss, forcedFamily);
-        attachments = [uniqueFontItems[primary.attachmentIndex]];
-        logEl.textContent += `INFO: ASS #${index + 1} 强制字体使用 libass 兼容族名 “${forcedFamily}”${forcedFamily !== primary.descriptor.family ? `（字体首选族名：${primary.descriptor.family}）` : ''}\n`;
+      if (format?.assLike) {
+        const analysis = analyzeAssFontUsage(sourceText);
+        fontSubsetText += analysis.allCharacters.join('');
 
-        try {
-          const coverage = await checkFontCharacters(primary.file, analysis.allCharacters, primary.descriptor.collectionIndex);
-          if (coverage.missing.length) {
-            dependencyWarningCount += 1;
-            logEl.textContent += `WARNING: ASS #${index + 1} 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
+        if (descriptors.length && mode === 'force') {
+          const primary = descriptors[0];
+          const forcedFamily = preferredAssFontFamily(primary.descriptor);
+          outputText = forceAssFontFamily(sourceText, forcedFamily);
+          attachments = [uniqueFontItems[primary.attachmentIndex]];
+          logEl.textContent += `INFO: 字幕 #${index + 1} 强制字体使用 libass 兼容族名 “${forcedFamily}”${forcedFamily !== primary.descriptor.family ? `（字体首选族名：${primary.descriptor.family}）` : ''}\n`;
+
+          try {
+            const coverage = await checkFontCharacters(primary.file, analysis.allCharacters, primary.descriptor.collectionIndex);
+            if (coverage.missing.length) {
+              dependencyWarningCount += 1;
+              logEl.textContent += `WARNING: 字幕 #${index + 1} 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
+            }
+          } catch (coverageError) {
+            logEl.textContent += `WARNING: 字幕 #${index + 1} 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
           }
-        } catch (coverageError) {
-          logEl.textContent += `WARNING: ASS #${index + 1} 无法完成字体缺字检查：${coverageError?.message || coverageError}\n`;
+        } else if (descriptors.length) {
+          const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
+          dependencyWarningCount +=
+            dependencyResult.missingFamilies.length +
+            dependencyResult.faceFallbacks.length +
+            dependencyResult.missingGlyphGroups.length;
+        } else {
+          logEl.textContent += `INFO: 字幕 #${index + 1} 未选择字体附件，跳过字体依赖与 glyph coverage 检查。\n`;
         }
       } else {
-        const dependencyResult = await analyzePreservedFonts(analysis, descriptors);
-        dependencyWarningCount +=
-          dependencyResult.missingFamilies.length +
-          dependencyResult.faceFallbacks.length +
-          dependencyResult.missingGlyphGroups.length;
+        fontSubsetText += visibleTextForPlainSubtitle(sourceText, format?.id);
       }
 
       preparedSubtitles.push({
         ...track,
+        format,
         encoding,
-        outputAss,
+        outputText,
+        inputExtension: format?.inputExtension || ext(track.file.name) || '.txt',
+        codecOverride: format?.ffmpegOutputCodec || null,
+        expectedCodec: format?.expectedCodec || '',
       });
+    }
+
+    if (fontSubsetEnabled?.checked && attachments.length) {
+      status.textContent = '正在用 HarfBuzz 生成字体子集……';
+      const beforeBytes = attachments.reduce((sum, item) => sum + Number(item.file.size || 0), 0);
+      attachments = await subsetFontItems(attachments, fontSubsetText);
+      const applied = attachments.filter((item) => item.subset?.applied);
+      const skipped = attachments.filter((item) => item.subset?.enabled && !item.subset?.applied);
+      const afterBytes = attachments.reduce((sum, item) => sum + Number(item.file.size || 0), 0);
+      if (applied.length) {
+        logEl.textContent += `字体子集化：${applied.length} 个文件 · ${formatBytes(beforeBytes)} → ${formatBytes(afterBytes)}。HarfBuzz 保留 layout glyph closure。\n`;
+      }
+      if (skipped.length) {
+        logEl.textContent += `INFO: ${skipped.length} 个字体未子集化（TTC / OTC 集合或没有可提取字幕文本），保留原文件。\n`;
+      }
     }
 
     if (mode === 'force' && uniqueFontItems.length > 1) {
@@ -1990,9 +2059,10 @@ muxBtn.addEventListener('click', async () => {
     }
 
     for (let index = 0; index < preparedSubtitles.length; index += 1) {
-      const path = `${prefix}-subtitle-${index}.ass`;
+      const item = preparedSubtitles[index];
+      const path = `${prefix}-subtitle-${index}${item.inputExtension}`;
       subtitlePaths.push(path);
-      await ffmpeg.writeFile(path, new TextEncoder().encode(preparedSubtitles[index].outputAss));
+      await ffmpeg.writeFile(path, new TextEncoder().encode(item.outputText));
     }
 
     for (let index = 0; index < attachments.length; index += 1) {
@@ -2019,12 +2089,12 @@ muxBtn.addEventListener('click', async () => {
       : (preserveAllOriginalAttachments
           ? sourceAttachments.map((stream) => String(stream.tags?.filename || '')).filter(Boolean)
           : []);
-    const renamedFontItems = assignUniqueAttachmentNames(uniqueFontItems, reservedAttachmentNames);
+    const renamedFontItems = assignUniqueAttachmentNames(attachments, reservedAttachmentNames);
     renamedFontItems.forEach((named, index) => {
-      if (uniqueFontItems[index].attachmentName !== named.attachmentName) {
-        logEl.textContent += `INFO: 新字体附件与原附件重名，“${uniqueFontItems[index].attachmentName}”自动改为“${named.attachmentName}”。\n`;
+      if (attachments[index].attachmentName !== named.attachmentName) {
+        logEl.textContent += `INFO: 新字体附件与原附件重名，“${attachments[index].attachmentName}”自动改为“${named.attachmentName}”。\n`;
       }
-      uniqueFontItems[index].attachmentName = named.attachmentName;
+      attachments[index].attachmentName = named.attachmentName;
     });
 
     const runtimeExternalAudio = [];
@@ -2052,7 +2122,7 @@ muxBtn.addEventListener('click', async () => {
     }));
 
     if (scanned) {
-      logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增 ASS ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
+      logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (videoExt === '.mkv') {
       logEl.textContent += `INFO: 未扫描轨道，按兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
@@ -2142,7 +2212,7 @@ muxBtn.addEventListener('click', async () => {
       audio: expectedAudio,
       subtitles: [
         ...runtimeSubtitles.map((track) => ({
-          codec: 'ass',
+          codec: track.expectedCodec || track.codec || '',
           language: normalizeTrackLanguage(track.language),
           title: track.title || '',
           default: track.default,
@@ -2219,7 +2289,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.0.9',
+      appVersion: '1.1.0',
       input: {
         name: video.name,
         sizeBytes: video.size,
@@ -2242,6 +2312,7 @@ muxBtn.addEventListener('click', async () => {
       subtitle: {
         tracks: runtimeSubtitles.map((track) => ({
           name: track.file.name,
+          format: track.format?.label || '',
           encoding: track.encoding,
           language: normalizeTrackLanguage(track.language),
           title: track.title || '',
@@ -2263,8 +2334,9 @@ muxBtn.addEventListener('click', async () => {
           sizeBytes: item.file.size,
           sha256: item.sha256,
           mimeType: mimeForFont(item.file),
+          subset: item.subset || { enabled: false, applied: false },
           faces: descriptors
-            .filter((face) => face.attachmentIndex === uniqueFontItems.indexOf(item))
+            .filter((face) => face.attachmentIndex === (item.sourceIndex ?? uniqueFontItems.indexOf(item)))
             .map((face) => ({
               family: face.descriptor.family,
               subfamily: face.descriptor.subfamily || '',
@@ -2319,10 +2391,15 @@ muxBtn.addEventListener('click', async () => {
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
 
     bar.style.width = '100%';
-    const modeText = mode === 'force'
-      ? `已强制统一 ${runtimeSubtitles.length} 条 ASS 的字体并附加 ${attachments.length} 个字体文件`
-      : `已保留 ${runtimeSubtitles.length} 条 ASS 的字体并附加 ${attachments.length} 个字体文件`;
-    status.textContent = `完成。${modeText}${completionNote}；共新增 ${runtimeExternalAudio.length} 条外部音频；视频/音频未重新编码。`;
+    const assLikeCount = runtimeSubtitles.filter((track) => track.format?.assLike).length;
+    const webvttCount = runtimeSubtitles.filter((track) => track.format?.id === 'webvtt').length;
+    const modeText = attachments.length
+      ? (mode === 'force'
+          ? `已处理 ${assLikeCount} 条 ASS / SSA 并附加 ${attachments.length} 个字体文件`
+          : `已附加 ${attachments.length} 个字体文件`)
+      : '未附加字体';
+    const webvttNote = webvttCount ? `；${webvttCount} 条 WebVTT 已转换为 Matroska 兼容 SubRip 字幕流` : '';
+    status.textContent = `完成。共新增 ${runtimeSubtitles.length} 条字幕；${modeText}${webvttNote}${completionNote}；新增 ${runtimeExternalAudio.length} 条外部音频；视频/音频未重新编码。`;
 
     if (dependencyWarningCount) {
       logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体 face / 字形覆盖警告。请在发布前检查日志。\n`;
@@ -2362,6 +2439,168 @@ muxBtn.addEventListener('click', async () => {
     running = false;
     cancelRequested = false;
     updateUI();
+  }
+});
+
+function syncBatchPlan() {
+  if (!batchVideoInput || !batchSubtitleInput || !batchPlan) return;
+  const videos = Array.from(batchVideoInput.files || []);
+  const subtitles = Array.from(batchSubtitleInput.files || []);
+  batchVideoName.textContent = videos.length ? `${videos.length} 个视频` : '未选择';
+  batchSubtitleName.textContent = subtitles.length ? `${subtitles.length} 条字幕` : '未选择';
+  const pairing = buildBatchJobs(videos, subtitles);
+
+  const rows = pairing.jobs.map((job, index) => `
+    <div class="plan-row plan-video">
+      <span class="plan-kind">#${index + 1}</span>
+      <span class="plan-main">
+        <strong>${escapeHtml(job.video.name)}</strong>
+        <small>${escapeHtml(batchSubtitleSummary(job))} · ${job.subtitles.map((file) => escapeHtml(file.name)).join('、')}</small>
+      </span>
+      <span class="plan-flags">→ ${escapeHtml(job.outputName)}</span>
+    </div>`).join('');
+
+  const notes = [];
+  if (pairing.unmatchedVideos.length) notes.push(`${pairing.unmatchedVideos.length} 个视频没有匹配字幕`);
+  if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
+  batchPlan.innerHTML = rows || '<div class="track-empty">没有形成可执行配对。</div>';
+  if (notes.length) batchPlan.innerHTML += `<div class="track-empty">${escapeHtml(notes.join('；'))}</div>`;
+  batchStartBtn.disabled = batchRunning || isBusy() || !pairing.jobs.length;
+  batchCancelBtn.disabled = !batchRunning;
+  return pairing;
+}
+
+function setInputFiles(input, files) {
+  const transfer = new DataTransfer();
+  for (const file of files || []) transfer.items.add(file);
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const timer = setInterval(async () => {
+      if (batchCancelRequested) {
+        clearInterval(timer);
+        reject(new Error('batch-cancelled'));
+        return;
+      }
+      if (!running && !scanning && !previewing) {
+        clearInterval(timer);
+        if (downloadLink.classList.contains('hidden') || !downloadLink.href) {
+          reject(new Error(status.textContent || '单项封装失败'));
+          return;
+        }
+        try {
+          const response = await fetch(downloadLink.href);
+          const blob = await response.blob();
+          let reportBlob = null;
+          let reportName = '';
+          if (!reportLink.classList.contains('hidden') && reportLink.href) {
+            try {
+              const reportResponse = await fetch(reportLink.href);
+              reportBlob = await reportResponse.blob();
+              reportName = reportLink.download || `${downloadLink.download || 'output.mkv'}.mux-report.json`;
+            } catch {}
+          }
+          resolve({
+            blob,
+            outputName: downloadLink.download || 'output.mkv',
+            reportBlob,
+            reportName,
+          });
+        } catch (error) {
+          reject(error);
+        }
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        clearInterval(timer);
+        reject(new Error('单项封装超时'));
+      }
+    }, 150);
+  });
+}
+
+batchVideoInput?.addEventListener('change', syncBatchPlan);
+batchSubtitleInput?.addEventListener('change', syncBatchPlan);
+
+batchCancelBtn?.addEventListener('click', () => {
+  if (!batchRunning) return;
+  batchCancelRequested = true;
+  if (running || scanning || previewing) cancelBtn.click();
+  batchStatus.textContent = '正在取消批量任务……';
+});
+
+batchStartBtn?.addEventListener('click', async () => {
+  if (isBusy()) return;
+  const pairing = syncBatchPlan();
+  if (!pairing?.jobs?.length) return;
+
+  batchRunning = true;
+  batchCancelRequested = false;
+  batchResults.innerHTML = '';
+  batchStatus.textContent = `批量任务：0 / ${pairing.jobs.length}`;
+  syncBatchPlan();
+
+  const originalVideoFiles = Array.from(videoInput.files || []);
+  const originalAudioFiles = Array.from(audioInput.files || []);
+  const originalSubtitleFiles = Array.from(subInput.files || []);
+  const originalPreserveAttachments = preserveAttachments.checked;
+  const results = [];
+  setInputFiles(audioInput, []);
+
+  try {
+    for (let index = 0; index < pairing.jobs.length; index += 1) {
+      if (batchCancelRequested) break;
+      const job = pairing.jobs[index];
+      batchStatus.textContent = `批量任务：${index + 1} / ${pairing.jobs.length} · ${job.video.name}`;
+
+      setInputFiles(videoInput, [job.video]);
+      setInputFiles(subInput, job.subtitles);
+      resetTrackState();
+      preserveAttachments.checked = Boolean(batchPreserveAttachments?.checked && ext(job.video.name) === '.mkv');
+      updateUI();
+
+      muxBtn.click();
+      try {
+        const result = await waitForSingleMuxCompletion();
+        const url = URL.createObjectURL(result.blob);
+        const reportUrl = result.reportBlob ? URL.createObjectURL(result.reportBlob) : '';
+        results.push({
+          job,
+          ok: true,
+          url,
+          outputName: result.outputName,
+          reportUrl,
+          reportName: result.reportName,
+        });
+      } catch (error) {
+        if (String(error?.message || error) === 'batch-cancelled') break;
+        results.push({ job, ok: false, error: error?.message || String(error) });
+      }
+
+      batchResults.innerHTML = results.map((item) => item.ok
+        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+        : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
+      ).join('');
+    }
+  } finally {
+    batchRunning = false;
+    const done = results.filter((item) => item.ok).length;
+    const failed = results.filter((item) => !item.ok).length;
+    batchStatus.textContent = batchCancelRequested
+      ? `批量已取消：完成 ${done}，失败 ${failed}。`
+      : `批量完成：成功 ${done}，失败 ${failed}。`;
+    batchCancelRequested = false;
+    setInputFiles(videoInput, originalVideoFiles);
+    setInputFiles(audioInput, originalAudioFiles);
+    setInputFiles(subInput, originalSubtitleFiles);
+    preserveAttachments.checked = originalPreserveAttachments;
+    syncNewTrackState();
+    updateUI();
+    syncBatchPlan();
   }
 });
 

@@ -2,10 +2,10 @@
 
 一个在浏览器本地运行的 **MKV 快速封装工作台**。
 
-它面向“已有视频 / 原 MKV + 多条 ASS + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
+它面向“已有视频 / 原 MKV + 多条 ASS / SSA / SRT / WebVTT + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.0.9
+**Package version:** 1.1.0
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -53,7 +53,7 @@ ffprobe 审计
 典型使用场景：
 
 - MP4 / MKV / WebM / MOV / M4V 已经是最终视频；
-- 一条或多条 ASS 字幕已经完成时间轴和排版；
+- 一条或多条 ASS / SSA / SRT / WebVTT 字幕已经完成时间轴；ASS / SSA 可继续携带高级排版；
 - 希望在软封装前直接看到 ASS 在视频画面中的实际渲染；
 - 可选加入 FLAC / AAC / Opus 等外部音频轨；
 - 字幕使用一个或多个外部字体；
@@ -140,7 +140,26 @@ MKV
 
 默认使用 `und`，避免在无法可靠判断语言时写入错误元数据。
 
-### 4. ASS 编码处理
+### 4. 多字幕格式
+
+新增字幕支持：
+
+- ASS：完整高级路径（字体依赖、glyph coverage、libass 预览、可选强制字体）；
+- SSA：按 ASS-like 路径处理，可预览并保留样式；
+- SRT：直接作为 Matroska 文本字幕软封装；
+- WebVTT：输入支持；由于当前 ffmpeg.wasm / Matroska 写入兼容性边界，仅将该字幕流规范化为 SubRip，视频与音频仍保持 stream copy。
+
+字幕文件统一支持 UTF-8 / UTF-16 文本解码策略。
+
+### 5. 可选字体子集化
+
+“字体子集化”默认关闭。开启后使用 HarfBuzz WebAssembly 根据当前字幕实际字符生成 TTF / OTF 子集，并保留 OpenType layout glyph closure；TTC / OTC 集合目前保持原文件，以避免错误拆分 collection face。子集字体仍作为标准 Matroska attachment 写入。
+
+### 6. 批处理
+
+批量模式支持一次选择多段视频和字幕，按同名、语言后缀以及常见 SxxExx / EPxx 形式自动配对。任务按队列顺序逐项运行，共用既有 Stream Copy、字体、封装计划与 post-mux audit 路径；单项失败会记录并继续后续任务，可中途取消。每个成功任务分别提供 MKV 与审计报告保存入口。
+
+### 7. ASS 编码处理
 
 支持：
 
@@ -505,6 +524,9 @@ v3 最初是为了解决 Android / Termux + Vite 环境下 ffmpeg.wasm Worker �
 因此当前 v3 已不只是“把三个文件拖进去”的最小封装页面，而是一套针对 ASS + font attachment 工作流的浏览器本地 MKV muxing 工具。
 
 ## 已知边界
+
+WebVTT 当前不是以原生 WebVTT codec 写入 Matroska，而是只转换该字幕流为 SubRip；这不影响视频 / 音频的 Stream Copy。字体子集化当前只处理单文件 TTF / OTF，TTC / OTC 保留完整集合。批量模式优先解决常见剧集命名配对，不把模糊文件名强行配对。
+
 
 当前新加入字幕只面向 ASS；外部音频以 stream copy 为目标，因此输入 codec 必须能被 Matroska 容器直接承载。
 

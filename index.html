@@ -67,7 +67,7 @@
               <span class="section-index">01</span>
               <div>
                 <h2 id="source-title">输入素材</h2>
-                <p>主视频必选；外部音频可选；至少选择一条 ASS 与一个字体文件。</p>
+                <p>主视频必选；外部音频可选；至少选择一条字幕；ASS / SSA 可附加字体，SRT / WebVTT 可直接软封装。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -100,11 +100,11 @@
             </label>
 
             <label class="source-item source-subtitle">
-              <input id="subInput" type="file" multiple accept=".ass,text/plain" />
-              <span class="source-type">ASS</span>
+              <input id="subInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,text/plain,text/vtt,application/x-subrip" />
+              <span class="source-type">SUB</span>
               <span class="source-body">
                 <strong>字幕</strong>
-                <small>多 ASS · UTF-8 / UTF-16LE / UTF-16BE</small>
+                <small>ASS / SSA / SRT / WebVTT · UTF-8 / UTF-16</small>
                 <span id="subName" class="filename">未选择</span>
               </span>
               <span class="source-action">选择</span>
@@ -123,6 +123,49 @@
           </div>
         </section>
 
+        <section class="stage stage-batch" aria-labelledby="batch-title">
+          <header class="stage-head">
+            <div class="stage-title">
+              <span class="section-index">B</span>
+              <div>
+                <h2 id="batch-title">批量封装</h2>
+                <p>按文件名 / 集数自动配对视频与字幕，逐项复用同一套 Stream Copy 封装流程；单项失败不阻断后续任务。</p>
+              </div>
+            </div>
+          </header>
+          <div class="source-grid batch-source-grid">
+            <label class="source-item source-video">
+              <input id="batchVideoInput" type="file" multiple accept=".mp4,.mkv,.webm,.mov,.m4v,video/*" />
+              <span class="source-type">VIDEOS</span>
+              <span class="source-body"><strong>批量视频</strong><small>按文件名或集数配对</small><span id="batchVideoName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+            <label class="source-item source-subtitle">
+              <input id="batchSubtitleInput" type="file" multiple accept=".ass,.ssa,.srt,.vtt,.webvtt,text/plain,text/vtt,application/x-subrip" />
+              <span class="source-type">SUBS</span>
+              <span class="source-body"><strong>批量字幕</strong><small>同名 / SxxExx / EPxx 自动匹配</small><span id="batchSubtitleName" class="filename">未选择</span></span>
+              <span class="source-action">选择</span>
+            </label>
+          </div>
+          <div id="batchPlan" class="mux-plan"><div class="track-empty">选择批量视频和字幕后显示配对结果。</div></div>
+          <div class="bulk-tools batch-options">
+            <label class="attachment-toggle">
+              <input id="batchPreserveAttachments" type="checkbox" checked />
+              <span><strong>保留原 MKV 附件</strong><small>批量 MKV 默认保留已有字体 / 封面等 attachment</small></span>
+            </label>
+            <label class="attachment-toggle">
+              <input type="checkbox" checked disabled />
+              <span><strong>单项失败后继续</strong><small>固定开启；失败项单独记录，不阻断后续任务</small></span>
+            </label>
+          </div>
+          <div class="actions batch-actions">
+            <button id="batchStartBtn" class="button button-primary" type="button" disabled>开始批量封装</button>
+            <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消批量</button>
+          </div>
+          <div id="batchStatus" class="status" aria-live="polite">批量任务未开始。</div>
+          <div id="batchResults" class="new-track-list"></div>
+        </section>
+
         <div class="workbench-grid">
           <section class="editor-column" aria-label="调整工作区">
             <header class="column-head">
@@ -130,7 +173,7 @@
                 <span class="section-index">02</span>
                 <div>
                   <h2>预览与调整</h2>
-                  <p>先直接查看视频与 ASS 的实际渲染，再调整轨道、字体、原 MKV 轨道与附件。</p>
+                  <p>ASS / SSA 可生成 libass 预览帧；SRT / WebVTT 直接进入软封装。随后调整轨道、字体、原 MKV 轨道与附件。</p>
                 </div>
               </div>
             </header>
@@ -195,6 +238,14 @@
                   <small id="fontModeHint" class="field-hint"></small>
                 </label>
 
+                <label class="attachment-toggle font-subset-toggle">
+                  <input id="fontSubsetEnabled" type="checkbox" />
+                  <span>
+                    <strong>字体子集化</strong>
+                    <small>可选 · HarfBuzz glyph closure · 仅 TTF / OTF；TTC / OTC 保留完整集合</small>
+                  </span>
+                </label>
+
                 <div class="track-stack">
                   <div>
                     <div class="subsection-label">外部音频</div>
@@ -203,9 +254,9 @@
                     </div>
                   </div>
                   <div>
-                    <div class="subsection-label">新增 ASS</div>
+                    <div class="subsection-label">新增字幕</div>
                     <div id="newSubtitleList" class="new-track-list">
-                      <div class="track-empty">未选择 ASS 字幕。</div>
+                      <div class="track-empty">未选择字幕。</div>
                     </div>
                   </div>
                 </div>
@@ -314,7 +365,7 @@
               <div class="manifest">
                 <div><span>视频</span><strong>Copy</strong></div>
                 <div><span>音频</span><strong>Copy</strong></div>
-                <div><span>字幕</span><strong>ASS</strong></div>
+                <div><span>字幕</span><strong>ASS / SSA / SRT / VTT</strong></div>
                 <div><span>字体</span><strong id="fontSummary">—</strong></div>
                 <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
               </div>
@@ -338,7 +389,7 @@
               <div class="execution-status">
                 <div>
                   <span class="status-label">STATUS</span>
-                  <div id="status" class="status" aria-live="polite">选择视频、至少一个 ASS 和字体后即可开始；外部音频可选。</div>
+                  <div id="status" class="status" aria-live="polite">选择视频和至少一条字幕后即可开始；字体与外部音频可选。</div>
                 </div>
                 <div class="progress" aria-hidden="true"><div id="bar"></div></div>
               </div>
@@ -352,7 +403,7 @@
               <a id="reportLink" class="report-download hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告">保存封装报告</a>
               <div id="auditResult" class="audit-result hidden"></div>
 
-              <p class="execution-note">视频与音频不重新编码。完成后自动使用 ffprobe 核对实际输出与封装计划。</p>
+              <p class="execution-note">视频与音频不重新编码。WebVTT 在需要时只转换字幕流为 Matroska 兼容文本字幕；完成后自动使用 ffprobe 核对实际输出与封装计划。</p>
             </section>
           </aside>
         </div>

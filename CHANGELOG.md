@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 — 2026-09-30
+
+### Added
+
+- 新增 SRT、SSA 与 WebVTT 外部字幕输入；ASS / SSA 保留高级字体与预览路径，SRT 直接软封装，WebVTT 仅转换字幕流为 Matroska 兼容 SubRip。
+- 新增批量封装：多视频 / 多字幕自动配对、顺序队列、单项失败隔离、取消、逐项 MKV 与审计报告保存。
+- 新增可选“字体子集化”勾选项，使用 HarfBuzz WebAssembly 与 layout glyph closure 生成 TTF / OTF 子集；TTC / OTC 当前保留完整集合。
+- 字体附件改为可选；SRT / WebVTT 等无需字体即可直接封装。
+
+### Changed
+
+- 字幕入口与封装计划改为通用字幕格式展示，不再把新增字幕固定描述为 ASS。
+- WebVTT 的兼容转换只作用于对应字幕 stream，视频和音频仍使用 Stream Copy。
+
+
 ## 1.0.9 — 2026-09-30
 
 ### Fixed
