@@ -16,7 +16,7 @@ test('visual ASS preview is present and explicit light theme is removed', async 
   assert.match(html, /id="previewImage"/);
   assert.match(html, /id="previewSubtitleSelect"/);
   assert.match(html, /id="previewRefreshBtn"/);
-  assert.match(html, /PREVIEW FRAME · LIBASS/);
+  assert.match(html, /ASS PREVIEW FRAME/);
   assert.doesNotMatch(html, /data-theme-choice="light"/);
   assert.doesNotMatch(html, />白天</);
 
