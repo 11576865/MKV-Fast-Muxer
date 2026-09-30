@@ -1452,8 +1452,9 @@ function buildMuxPlan() {
   const video = videoInput.files[0];
   const fonts = selectedFonts();
   const mode = fontMode.value || 'preserve';
+  const appendMode = Boolean(video && ext(video.name) === '.mkv' && appendPreserveAll?.checked);
   const entries = [];
-  const warnings = defaultConflictWarnings();
+  const warnings = appendMode ? [] : defaultConflictWarnings();
 
   if (video) {
     entries.push({
@@ -1490,7 +1491,14 @@ function buildMuxPlan() {
     }
   }
 
-  if (trackState) {
+  if (appendMode && video) {
+    entries.push({
+      kind: '音频',
+      title: '全部原音频轨',
+      meta: '完整保留并追加 · 保持源顺序与原 metadata / dispositions',
+      flags: 'source',
+    });
+  } else if (trackState) {
     selectedTracks('audio').forEach((track, index) => {
       entries.push({
         kind: `音频 ${index + 1}`,
@@ -1526,16 +1534,32 @@ function buildMuxPlan() {
     });
   });
 
-  selectedTracks('subtitle').forEach((track, index) => {
+  if (appendMode && video) {
     entries.push({
-      kind: `原字幕 ${index + 1}`,
-      title: track.title || `Subtitle #${track.index}`,
-      meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
-      flags: dispositionValue(track.default, track.forced, track),
+      kind: '原字幕',
+      title: '全部原字幕轨',
+      meta: '完整保留并追加 · 保持原 codec / metadata / dispositions',
+      flags: 'source',
     });
-  });
+  } else {
+    selectedTracks('subtitle').forEach((track, index) => {
+      entries.push({
+        kind: `原字幕 ${index + 1}`,
+        title: track.title || `Subtitle #${track.index}`,
+        meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
+        flags: dispositionValue(track.default, track.forced, track),
+      });
+    });
+  }
 
-  if (trackState) {
+  if (appendMode && video) {
+    entries.push({
+      kind: '附件',
+      title: '全部原 MKV 附件',
+      meta: '完整保留并追加 · 封装时全部保留',
+      flags: 'source',
+    });
+  } else if (trackState) {
     selectedOriginalAttachments().forEach((item) => {
       entries.push({
         kind: '附件',
@@ -1563,11 +1587,11 @@ function buildMuxPlan() {
     });
   });
 
-  if (trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
+  if (!appendMode && trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
     warnings.push('扫描后没有选择原音频，也没有外部音频；输出将没有音频。');
   }
 
-  if (trackState) {
+  if (trackState && !appendMode) {
     const selectedAttachments = selectedOriginalAttachments();
     const duplicateNames = attachmentNameConflicts(selectedAttachments);
     if (duplicateNames.length) {
