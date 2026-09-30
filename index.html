@@ -32,21 +32,6 @@
         "codeRepository": "https://github.com/11576865/MKV-Fast-Muxer"
       }
     </script>
-    <script>
-      (() => {
-        try {
-          const pref = localStorage.getItem('mkv-muxer-theme-v1') || 'system';
-          const resolved = pref === 'system'
-            ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : pref;
-          document.documentElement.dataset.theme = resolved;
-          document.documentElement.dataset.themePreference = pref;
-        } catch {
-          document.documentElement.dataset.theme = 'dark';
-          document.documentElement.dataset.themePreference = 'system';
-        }
-      })();
-    </script>
   </head>
   <body>
     <div class="app-shell">
@@ -68,11 +53,6 @@
         </nav>
 
         <div class="topbar-tools">
-          <div class="theme-control" id="themeControl" aria-label="界面主题">
-            <button type="button" data-theme-choice="light" aria-pressed="false">白天</button>
-            <button type="button" data-theme-choice="dark" aria-pressed="false">夜间</button>
-            <button type="button" data-theme-choice="system" aria-pressed="false">系统</button>
-          </div>
           <div class="runtime-note">
             <span class="runtime-dot" aria-hidden="true"></span>
             本地处理
@@ -149,11 +129,41 @@
               <div class="stage-title">
                 <span class="section-index">02</span>
                 <div>
-                  <h2>调整</h2>
-                  <p>先处理新增轨道；如输入是 MKV，再扫描并调整原轨道与附件。</p>
+                  <h2>预览与调整</h2>
+                  <p>先直接查看视频与 ASS 的实际渲染，再调整轨道、字体、原 MKV 轨道与附件。</p>
                 </div>
               </div>
             </header>
+
+            <section class="subtitle-preview-card" aria-labelledby="preview-title">
+              <div class="preview-head">
+                <div>
+                  <span class="card-kicker">VISUAL PREVIEW · LIBASS</span>
+                  <h3 id="preview-title">字幕预览</h3>
+                  <p>直接使用所选视频、ASS 与上传字体在本机渲染；预览不改变最终封装内容。</p>
+                </div>
+                <div class="preview-tools">
+                  <label>
+                    <span>预览字幕</span>
+                    <select id="previewSubtitleSelect" disabled aria-label="选择预览 ASS">
+                      <option value="">未选择 ASS</option>
+                    </select>
+                  </label>
+                  <button id="previewRefreshBtn" class="button button-small" type="button" disabled>重新载入</button>
+                </div>
+              </div>
+              <div class="preview-stage" id="previewStage">
+                <video id="previewVideo" controls playsinline preload="metadata"></video>
+                <div id="previewEmpty" class="preview-empty">
+                  <strong>选择视频与 ASS 后显示画面</strong>
+                  <span>ASS 由 libass/JASSUB 渲染；浏览器无法直接播放某些 MKV codec 时，封装仍不受影响。</span>
+                </div>
+              </div>
+              <div class="preview-footer">
+                <span id="previewStatus" aria-live="polite">等待视频与 ASS。</span>
+                <span>本地预览 · 不上传媒体 · 不查询在线字体</span>
+              </div>
+            </section>
 
             <div class="editor-grid">
               <section class="editor-card config-card" aria-labelledby="config-title">
@@ -269,8 +279,8 @@
 
             <details class="diagnostics-panel">
               <summary>
-                <span>运行日志与诊断</span>
-                <small>字体依赖、缺字、FFmpeg 输出与审计详情</small>
+                <span>诊断与日志</span>
+                <small>仅排错时展开 · 字体、FFmpeg 与审计详情</small>
               </summary>
               <pre id="log"></pre>
             </details>

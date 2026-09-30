@@ -1,5 +1,6 @@
 import './style.css';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
+import JASSUB from 'jassub';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
@@ -59,42 +60,14 @@ const attachmentBulkTools = $('attachmentBulkTools');
 const keepAllAttachments = $('keepAllAttachments');
 const dropAllAttachments = $('dropAllAttachments');
 const resetAttachmentMetadata = $('resetAttachmentMetadata');
+const previewVideo = $('previewVideo');
+const previewEmpty = $('previewEmpty');
+const previewStatus = $('previewStatus');
+const previewSubtitleSelect = $('previewSubtitleSelect');
+const previewRefreshBtn = $('previewRefreshBtn');
 
-const THEME_KEY = 'mkv-muxer-theme-v1';
-const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-let themePreference = localStorage.getItem(THEME_KEY)
-  || document.documentElement.dataset.themePreference
-  || 'system';
-
-function resolvedTheme(preference = themePreference) {
-  if (preference === 'system') return systemThemeQuery.matches ? 'dark' : 'light';
-  return preference === 'light' ? 'light' : 'dark';
-}
-
-function updateThemeButtons() {
-  document.documentElement.dataset.themePreference = themePreference;
-  document.querySelectorAll('[data-theme-choice]').forEach((button) => {
-    button.setAttribute('aria-pressed', button.dataset.themeChoice === themePreference ? 'true' : 'false');
-  });
-}
-
-function applyTheme(preference, { persist = true } = {}) {
-  themePreference = ['light', 'dark', 'system'].includes(preference) ? preference : 'system';
-  if (persist) localStorage.setItem(THEME_KEY, themePreference);
-  document.documentElement.dataset.theme = resolvedTheme(themePreference);
-  updateThemeButtons();
-}
-
-document.querySelectorAll('[data-theme-choice]').forEach((button) => {
-  button.addEventListener('click', () => applyTheme(button.dataset.themeChoice));
-});
-
-const onSystemThemeChange = () => {
-  if (themePreference === 'system') applyTheme('system', { persist: false });
-};
-if (systemThemeQuery.addEventListener) systemThemeQuery.addEventListener('change', onSystemThemeChange);
-else if (systemThemeQuery.addListener) systemThemeQuery.addListener(onSystemThemeChange);
-applyTheme(themePreference, { persist: false });
+document.documentElement.dataset.theme = 'dark';
+document.documentElement.dataset.themePreference = 'dark';
 
 const languageTitles = {
   und: 'ASS 字幕',
@@ -115,6 +88,11 @@ let reportURL = null;
 let trackState = null;
 let externalAudioState = [];
 let newSubtitleState = [];
+let previewRenderer = null;
+let previewVideoURL = null;
+let previewVideoKey = '';
+let previewGeneration = 0;
+let previewTimer = null;
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -316,6 +294,7 @@ function updateUI() {
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}` : '—';
   $('outputName').textContent = video ? safeOutputName(video.name) : '—';
   renderWorkloadNotice();
+  syncPreviewControls();
 
   fontModeHint.textContent = mode === 'force'
     ? '兼容旧行为：只使用并附加第一个上传字体；所有新增 ASS 的 Fontname 与显式内联 \\fn 会统一改写。'
@@ -355,7 +334,9 @@ function bindNewTrackEditor(container, selector, getState) {
 videoInput.addEventListener('change', () => {
   resetTrackState();
   preserveAttachments.checked = false;
+  clearPreviewVideo();
   updateUI();
+  scheduleSubtitlePreview(0);
 });
 audioInput.addEventListener('change', () => {
   syncNewTrackState();
@@ -364,9 +345,23 @@ audioInput.addEventListener('change', () => {
 subInput.addEventListener('change', () => {
   syncNewTrackState();
   updateUI();
+  scheduleSubtitlePreview(0);
 });
-fontInput.addEventListener('change', updateUI);
-fontMode.addEventListener('change', updateUI);
+fontInput.addEventListener('change', () => {
+  updateUI();
+  scheduleSubtitlePreview();
+});
+fontMode.addEventListener('change', () => {
+  updateUI();
+  scheduleSubtitlePreview();
+});
+previewSubtitleSelect?.addEventListener('change', () => scheduleSubtitlePreview(0));
+previewRefreshBtn?.addEventListener('click', () => scheduleSubtitlePreview(0));
+previewVideo?.addEventListener('error', () => {
+  if (!previewVideo.src) return;
+  previewStatus.textContent = '当前浏览器无法直接播放这个视频容器 / codec；最终 Stream Copy 封装不受此限制。';
+  previewEmpty?.classList.remove('hidden');
+});
 preserveAttachments.addEventListener('change', () => {
   if (trackState) {
     trackState.attachments.forEach((item) => { item.include = preserveAttachments.checked; });
@@ -562,6 +557,124 @@ async function readAssText(file) {
   } catch {
     throw new Error('ASS 不是有效的 UTF-8 / UTF-16 文本。请先转换为 UTF-8、UTF-16LE 或 UTF-16BE。');
   }
+}
+
+async function destroySubtitlePreview() {
+  previewGeneration += 1;
+  if (previewRenderer) {
+    try { await previewRenderer.destroy(); } catch {}
+    previewRenderer = null;
+  }
+}
+
+function clearPreviewVideo() {
+  if (previewVideoURL) {
+    URL.revokeObjectURL(previewVideoURL);
+    previewVideoURL = null;
+  }
+  previewVideoKey = '';
+  previewVideo.removeAttribute('src');
+  previewVideo.load();
+}
+
+function syncPreviewControls() {
+  if (!previewSubtitleSelect || !previewRefreshBtn) return;
+  const subs = selectedSubtitleFiles();
+  const previous = Number(previewSubtitleSelect.value);
+  previewSubtitleSelect.innerHTML = subs.length
+    ? subs.map((file, index) => `<option value="${index}">${escapeHtml(file.name)}</option>`).join('')
+    : '<option value="">未选择 ASS</option>';
+
+  if (subs.length) {
+    const next = Number.isInteger(previous) && previous >= 0 && previous < subs.length ? previous : 0;
+    previewSubtitleSelect.value = String(next);
+  }
+
+  previewSubtitleSelect.disabled = !subs.length;
+  previewRefreshBtn.disabled = !(videoInput.files[0] && subs.length);
+}
+
+function ensurePreviewVideoSource(video) {
+  const key = fileKey(video);
+  if (previewVideoKey === key && previewVideoURL) return;
+  clearPreviewVideo();
+  previewVideoURL = URL.createObjectURL(video);
+  previewVideoKey = key;
+  previewVideo.src = previewVideoURL;
+  previewVideo.load();
+}
+
+async function buildPreviewAss(track, fontFiles) {
+  const { text } = await readAssText(track.file);
+  if ((fontMode.value || 'preserve') !== 'force' || !fontFiles.length) return text;
+  const descriptors = await readFontDescriptors(fontFiles[0]);
+  return forceAssFontFamily(text, descriptors[0].family);
+}
+
+async function refreshSubtitlePreview() {
+  const video = videoInput.files[0];
+  const subs = selectedSubtitleFiles();
+  const selectedIndex = Number(previewSubtitleSelect?.value || 0);
+  const track = subs[selectedIndex];
+  const fontFiles = selectedFonts();
+
+  await destroySubtitlePreview();
+  const generation = previewGeneration;
+
+  syncPreviewControls();
+
+  if (!video || !track) {
+    previewStatus.textContent = '等待视频与 ASS。';
+    previewEmpty?.classList.remove('hidden');
+    if (!video) clearPreviewVideo();
+    return;
+  }
+
+  try {
+    previewStatus.textContent = '正在载入本地视频、ASS 与字体……';
+    previewEmpty?.classList.add('hidden');
+    ensurePreviewVideoSource(video);
+
+    const [subContent, fonts] = await Promise.all([
+      buildPreviewAss({ file: track }, fontFiles),
+      Promise.all(fontFiles.map(async (file) => new Uint8Array(await file.arrayBuffer()))),
+    ]);
+
+    const assetBase = new URL('jassub/', window.location.href).href;
+    const renderer = new JASSUB({
+      video: previewVideo,
+      subContent,
+      fonts,
+      workerUrl: `${assetBase}worker/worker.js`,
+      wasmUrl: `${assetBase}wasm/jassub-worker.wasm`,
+      modernWasmUrl: `${assetBase}wasm/jassub-worker-modern.wasm`,
+      availableFonts: {
+        'liberation sans': `${assetBase}default.woff2`,
+      },
+      queryFonts: false,
+    });
+
+    await renderer.ready;
+    if (generation !== previewGeneration) {
+      try { await renderer.destroy(); } catch {}
+      return;
+    }
+
+    previewRenderer = renderer;
+    previewStatus.textContent = `正在预览：${track.name} · ${fontFiles.length} 个上传字体`;
+  } catch (error) {
+    if (generation !== previewGeneration) return;
+    previewEmpty?.classList.remove('hidden');
+    previewStatus.textContent = `预览不可用：${error?.message || error}`;
+  }
+}
+
+function scheduleSubtitlePreview(delay = 120) {
+  if (previewTimer) clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    previewTimer = null;
+    refreshSubtitlePreview();
+  }, delay);
 }
 
 async function runProbe(path, probePath, { decodeStreams = false } = {}) {
@@ -1683,7 +1796,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '0.8.2',
+      appVersion: '1.0.0',
       input: {
         name: video.name,
         sizeBytes: video.size,

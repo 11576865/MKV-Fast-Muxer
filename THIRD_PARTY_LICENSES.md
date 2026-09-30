@@ -59,3 +59,19 @@ license.
 When redistributing a modified or replacement FFmpeg WebAssembly core, review
 the exact build configuration and the corresponding source/license obligations
 for that build before distribution.
+
+
+## JASSUB / libass subtitle preview
+
+The in-browser ASS preview uses:
+
+- `jassub` 2.5.15 — package metadata declares a compound license:
+  LGPL-2.1-or-later AND (FTL OR GPL-2.0-or-later) AND MIT AND
+  MIT-Modern-Variant AND ISC AND NTP AND Zlib.
+
+Upstream project and complete license information:
+https://github.com/ThaUnknown/jassub
+
+JASSUB embeds / uses libass and related rendering dependencies. Their upstream
+license terms remain applicable; they are not relicensed under this repository's
+MIT license.

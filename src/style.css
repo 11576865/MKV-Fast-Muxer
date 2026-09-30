@@ -2513,3 +2513,199 @@ pre {
     min-height: 40px;
   }
 }
+
+
+/* Visual preview / ASS editor density v2 ---------------------------------------- */
+.subtitle-preview-card {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+}
+
+.preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+.preview-head > div:first-child {
+  min-width: 0;
+}
+
+.preview-head h3 {
+  margin: 3px 0 0;
+  color: var(--text-strong);
+  font-size: .92rem;
+}
+
+.preview-head p {
+  margin: 5px 0 0;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.5;
+}
+
+.preview-tools {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.preview-tools label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: .62rem;
+}
+
+.preview-tools select {
+  min-width: 190px;
+  max-width: 320px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  color: var(--text);
+  padding: 5px 8px;
+}
+
+.preview-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  overflow: hidden;
+  background: #05080d;
+}
+
+.preview-stage video {
+  display: block;
+  width: 100%;
+  max-height: 58vh;
+  background: #000;
+}
+
+.preview-stage > canvas.JASSUB {
+  z-index: 2;
+}
+
+.preview-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  padding: 24px;
+  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(5, 8, 13, .78), rgba(5, 8, 13, .9));
+}
+
+.preview-empty strong {
+  color: var(--text);
+  font-size: .82rem;
+}
+
+.preview-empty span {
+  max-width: 620px;
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.5;
+}
+
+.preview-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: .63rem;
+}
+
+.preview-footer span:first-child {
+  color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Track metadata should never compete horizontally with state flags. */
+.editor-card .new-track-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.editor-card .new-track-flags {
+  justify-content: flex-start;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line);
+}
+
+.editor-card .track-advanced {
+  width: auto;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.editor-card .track-advanced[open] {
+  flex-basis: 100%;
+  width: 100%;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line);
+}
+
+@media (max-width: 760px) {
+  .preview-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  .preview-tools {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .preview-tools select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .preview-stage {
+    min-height: 190px;
+  }
+
+  .preview-stage video {
+    max-height: 52vh;
+  }
+
+  .preview-footer {
+    display: grid;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 559px) {
+  .preview-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-tools .button {
+    width: 100%;
+  }
+
+  .preview-stage {
+    min-height: 165px;
+  }
+
+  .editor-card .new-track-fields {
+    grid-template-columns: 1fr;
+  }
+}
