@@ -3,10 +3,13 @@ export function normalizeTrackLanguage(value) {
   return trimmed || 'und';
 }
 
-export function dispositionValue(isDefault, isForced = false) {
+export function dispositionValue(isDefault, isForced = false, extra = {}) {
   const values = [];
   if (isDefault) values.push('default');
   if (isForced) values.push('forced');
+  if (extra.original) values.push('original');
+  if (extra.commentary) values.push('comment');
+  if (extra.hearingImpaired) values.push('hearing_impaired');
   return values.length ? values.join('+') : '0';
 }
 
@@ -71,7 +74,7 @@ export function buildMuxCommand({
       args.push(
         `-metadata:s:a:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
         `-metadata:s:a:${outputIndex}`, `title=${track.title || ''}`,
-        `-disposition:a:${outputIndex}`, dispositionValue(track.default, false),
+        `-disposition:a:${outputIndex}`, dispositionValue(track.default, false, track),
       );
     });
   }
@@ -81,7 +84,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:a:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:a:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:a:${outputIndex}`, dispositionValue(track.default, false),
+      `-disposition:a:${outputIndex}`, dispositionValue(track.default, false, track),
     );
   });
 
@@ -89,7 +92,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced),
+      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
     );
   });
 
@@ -98,7 +101,7 @@ export function buildMuxCommand({
     args.push(
       `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced),
+      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
     );
   });
 
