@@ -10,7 +10,7 @@ import {
   analyzeAssFontUsage,
   checkFontCharacters,
   forceAssFontFamily,
-  readFontDescriptor,
+  readFontDescriptors,
   scoreFontFaceMatch,
 } from './ass-font-rewrite.js';
 
@@ -136,7 +136,15 @@ function syncNewTrackState() {
   const oldAudio = new Map(externalAudioState.map((item) => [fileKey(item.file), item]));
   externalAudioState = selectedExternalAudioFiles().map((file) => {
     const old = oldAudio.get(fileKey(file));
-    return old || { file, language: 'und', title: stripExtension(file.name), default: false };
+    return old || {
+      file,
+      language: 'und',
+      title: stripExtension(file.name),
+      default: false,
+      original: false,
+      commentary: false,
+      hearingImpaired: false,
+    };
   });
 
   const oldSubs = new Map(newSubtitleState.map((item) => [fileKey(item.file), item]));
@@ -148,6 +156,9 @@ function syncNewTrackState() {
       title: stripExtension(file.name) || languageTitles.und,
       default: index === 0,
       forced: false,
+      original: false,
+      commentary: false,
+      hearingImpaired: false,
     };
   });
 }
@@ -159,12 +170,18 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <input data-new-audio-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="外部音频语言">
+            <input data-new-audio-field="language" data-index="${index}" value="${escapeHtml(item.language)}" list="languageSuggestions" maxlength="35" aria-label="外部音频语言">
             <input data-new-audio-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="外部音频标题">
           </div>
         </div>
         <div class="new-track-flags">
           <label><input type="checkbox" data-new-audio-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
+          <details class="track-advanced">
+            <summary>高级属性</summary>
+            <label><input type="checkbox" data-new-audio-field="original" data-index="${index}" ${item.original ? 'checked' : ''}> Original</label>
+            <label><input type="checkbox" data-new-audio-field="commentary" data-index="${index}" ${item.commentary ? 'checked' : ''}> Commentary</label>
+            <label><input type="checkbox" data-new-audio-field="hearingImpaired" data-index="${index}" ${item.hearingImpaired ? 'checked' : ''}> Hearing impaired</label>
+          </details>
         </div>
       </div>`).join('')
     : '<div class="track-empty">未选择外部音频。</div>';
@@ -175,13 +192,19 @@ function renderNewTrackLists() {
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.file.name)}</strong>
           <div class="new-track-fields">
-            <input data-new-sub-field="language" data-index="${index}" value="${escapeHtml(item.language)}" maxlength="16" aria-label="字幕语言">
+            <input data-new-sub-field="language" data-index="${index}" value="${escapeHtml(item.language)}" list="languageSuggestions" maxlength="35" aria-label="字幕语言">
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
           </div>
         </div>
         <div class="new-track-flags">
           <label><input type="checkbox" data-new-sub-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
           <label><input type="checkbox" data-new-sub-field="forced" data-index="${index}" ${item.forced ? 'checked' : ''}> Forced</label>
+          <details class="track-advanced">
+            <summary>高级属性</summary>
+            <label><input type="checkbox" data-new-sub-field="original" data-index="${index}" ${item.original ? 'checked' : ''}> Original</label>
+            <label><input type="checkbox" data-new-sub-field="commentary" data-index="${index}" ${item.commentary ? 'checked' : ''}> Commentary</label>
+            <label><input type="checkbox" data-new-sub-field="hearingImpaired" data-index="${index}" ${item.hearingImpaired ? 'checked' : ''}> Hearing impaired</label>
+          </details>
         </div>
       </div>`).join('')
     : '<div class="track-empty">未选择 ASS 字幕。</div>';
@@ -523,7 +546,7 @@ function buildMuxPlan() {
         kind: `音频 ${index + 1}`,
         title: track.title || `Audio #${track.index}`,
         meta: `${track.stream.codec_name || 'unknown'} · ${normalizeTrackLanguage(track.language)} · source #${track.index}`,
-        flags: dispositionValue(track.default, false),
+        flags: dispositionValue(track.default, false, track),
       });
     });
   } else if (video) {
@@ -549,7 +572,7 @@ function buildMuxPlan() {
       kind: `字幕 ${index + 1}`,
       title: track.title || track.file.name,
       meta: `ASS · ${normalizeTrackLanguage(track.language)} · 新增`,
-      flags: dispositionValue(track.default, track.forced),
+      flags: dispositionValue(track.default, track.forced, track),
     });
   });
 
@@ -656,7 +679,7 @@ function renderTrackList() {
           <span class="track-meta">原始 Default=${track.originalDefault ? '1' : '0'}${track.type === 'subtitle' ? ` · Forced=${track.originalForced ? '1' : '0'}` : ''}</span>
           <div class="track-edit-grid">
             <label>语言
-              <input type="text" data-track-field="language" data-track-index="${track.index}" value="${escapeHtml(track.language)}" maxlength="16" ${track.include ? '' : 'disabled'}>
+              <input type="text" data-track-field="language" data-track-index="${track.index}" value="${escapeHtml(track.language)}" list="languageSuggestions" maxlength="35" ${track.include ? '' : 'disabled'}>
             </label>
             <label>标题
               <input type="text" data-track-field="title" data-track-index="${track.index}" value="${escapeHtml(track.title)}" maxlength="160" ${track.include ? '' : 'disabled'}>
@@ -671,6 +694,12 @@ function renderTrackList() {
           <label><input type="checkbox" data-track-action="include" data-track-index="${track.index}" ${track.include ? 'checked' : ''}> 保留</label>
           <label><input type="checkbox" data-track-action="default" data-track-index="${track.index}" ${track.default ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Default</label>
           ${forced}
+          <details class="track-advanced">
+            <summary>高级属性</summary>
+            <label><input type="checkbox" data-track-action="original" data-track-index="${track.index}" ${track.original ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Original</label>
+            <label><input type="checkbox" data-track-action="commentary" data-track-index="${track.index}" ${track.commentary ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Commentary</label>
+            <label><input type="checkbox" data-track-action="hearingImpaired" data-track-index="${track.index}" ${track.hearingImpaired ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Hearing impaired</label>
+          </details>
         </div>
       </div>`;
   }).join('');
@@ -737,6 +766,9 @@ trackList.addEventListener('change', (event) => {
     if (action === 'include' && !actionInput.checked) {
       track.default = false;
       track.forced = false;
+      track.original = false;
+      track.commentary = false;
+      track.hearingImpaired = false;
     }
     renderTrackList();
     return;
@@ -803,6 +835,9 @@ scanTracksBtn.addEventListener('click', async () => {
         order: stream.index,
         default: Boolean(stream.disposition?.default),
         forced: Boolean(stream.disposition?.forced),
+        original: Boolean(stream.disposition?.original),
+        commentary: Boolean(stream.disposition?.comment),
+        hearingImpaired: Boolean(stream.disposition?.hearing_impaired),
         originalDefault: Boolean(stream.disposition?.default),
         originalForced: Boolean(stream.disposition?.forced),
       }));
@@ -849,7 +884,9 @@ scanTracksBtn.addEventListener('click', async () => {
 });
 
 function mimeForFont(file) {
-  return ext(file.name) === '.otf' ? 'font/otf' : 'font/ttf';
+  const suffix = ext(file.name);
+  if (suffix === '.ttc' || suffix === '.otc') return 'font/collection';
+  return suffix === '.otf' ? 'font/otf' : 'font/ttf';
 }
 
 function charPreview(chars, limit = 24) {
@@ -930,7 +967,7 @@ async function analyzePreservedFonts(analysis, uploadedFonts) {
     for (const entry of bestCandidates) {
       if (!remaining.length) break;
       try {
-        const result = await checkFontCharacters(entry.item.file, remaining);
+        const result = await checkFontCharacters(entry.item.file, remaining, entry.item.descriptor.collectionIndex);
         const missing = new Set(result.missing);
         remaining = remaining.filter((char) => missing.has(char));
         successfulChecks += 1;
@@ -981,7 +1018,7 @@ muxBtn.addEventListener('click', async () => {
 
   const videoExt = ext(video.name);
   const invalidSubtitle = subtitleTracks.find((track) => ext(track.file.name) !== '.ass');
-  const invalidFont = fontFiles.find((file) => !['.ttf', '.otf'].includes(ext(file.name)));
+  const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
   const mode = fontMode.value || 'preserve';
   const scanned = getScannedSelection(video);
   const preserveAllOriginalAttachments = !scanned
@@ -997,7 +1034,7 @@ muxBtn.addEventListener('click', async () => {
     return;
   }
   if (invalidFont) {
-    status.textContent = `字体“${invalidFont.name}”不是 .ttf 或 .otf 文件。`;
+    status.textContent = `字体“${invalidFont.name}”不是 .ttf / .otf / .ttc / .otc 文件。`;
     return;
   }
 
@@ -1037,22 +1074,28 @@ muxBtn.addEventListener('click', async () => {
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
     const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique);
-    const descriptors = await Promise.all(uniqueFontItems.map(async (item, index) => ({
-      ...item,
-      index,
-      descriptor: await readFontDescriptor(item.file),
-    })));
+    const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
+      const faces = await readFontDescriptors(item.file);
+      return faces.map((descriptor, faceIndex) => ({
+        ...item,
+        index: `${attachmentIndex}:${faceIndex}`,
+        attachmentIndex,
+        descriptor,
+      }));
+    }));
+    const descriptors = descriptorGroups.flat();
 
     if (fontDedupe.duplicates.length) {
       logEl.textContent += `INFO: 检测到 ${fontDedupe.duplicates.length} 个内容完全相同的重复字体，按 SHA-256 去重，不重复写入 MKV：${fontDedupe.duplicates.map((item) => item.file.name).join('、')}\n`;
     }
     for (const item of descriptors) {
       const attachmentRename = item.attachmentName !== item.file.name ? ` -> attachment “${item.attachmentName}”` : '';
-      logEl.textContent += `上传字体：${item.file.name}${attachmentRename} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}\n`;
+      const collectionFace = item.descriptor.collectionIndex == null ? '' : ` · collection face #${item.descriptor.collectionIndex}`;
+      logEl.textContent += `上传字体：${item.file.name}${attachmentRename} -> Family “${item.descriptor.family}” / ${item.descriptor.subfamily || 'Regular'} / weight ${item.descriptor.weight}${item.descriptor.italic ? ' / italic' : ''}${collectionFace}\n`;
     }
     reportFontFamilyCompleteness(descriptors);
 
-    let attachments = descriptors;
+    let attachments = uniqueFontItems;
     let completionNote = '';
     let dependencyWarningCount = 0;
     const preparedSubtitles = [];
@@ -1068,10 +1111,10 @@ muxBtn.addEventListener('click', async () => {
       if (mode === 'force') {
         const primary = descriptors[0];
         outputAss = forceAssFontFamily(sourceAss, primary.descriptor.family);
-        attachments = [primary];
+        attachments = [uniqueFontItems[primary.attachmentIndex]];
 
         try {
-          const coverage = await checkFontCharacters(primary.file, analysis.allCharacters);
+          const coverage = await checkFontCharacters(primary.file, analysis.allCharacters, primary.descriptor.collectionIndex);
           if (coverage.missing.length) {
             dependencyWarningCount += 1;
             logEl.textContent += `WARNING: ASS #${index + 1} 强制字体缺少 ${coverage.missing.length}/${coverage.checkedCount} 个唯一字幕字符：${charPreview(coverage.missing)}\n`;
@@ -1094,8 +1137,8 @@ muxBtn.addEventListener('click', async () => {
       });
     }
 
-    if (mode === 'force' && descriptors.length > 1) {
-      logEl.textContent += `INFO: 强制字体模式只使用第一个字体；其余 ${descriptors.length - 1} 个上传字体不会附加。\n`;
+    if (mode === 'force' && uniqueFontItems.length > 1) {
+      logEl.textContent += `INFO: 强制字体模式只使用第一个字体文件；其余 ${uniqueFontItems.length - 1} 个上传字体文件不会附加。\n`;
     }
     if (dependencyWarningCount) {
       completionNote = `；字体检查存在 ${dependencyWarningCount} 组警告`;
@@ -1208,6 +1251,9 @@ muxBtn.addEventListener('click', async () => {
             language: normalizeTrackLanguage(track.language),
             title: track.title || '',
             default: track.default,
+            original: track.original,
+            commentary: track.commentary,
+            hearingImpaired: track.hearingImpaired,
           }))
         : sourceAudios.map((stream) => ({
             codec: stream.codec_name || '',
@@ -1220,6 +1266,9 @@ muxBtn.addEventListener('click', async () => {
         language: normalizeTrackLanguage(track.language),
         title: track.title || '',
         default: track.default,
+        original: track.original,
+        commentary: track.commentary,
+        hearingImpaired: track.hearingImpaired,
       })),
     ];
 
@@ -1239,6 +1288,9 @@ muxBtn.addEventListener('click', async () => {
           title: track.title || '',
           default: track.default,
           forced: track.forced,
+          original: track.original,
+          commentary: track.commentary,
+          hearingImpaired: track.hearingImpaired,
         })),
         ...selectedSubtitles.map((track) => ({
           codec: track.stream.codec_name || '',
@@ -1330,17 +1382,24 @@ muxBtn.addEventListener('click', async () => {
       },
       fonts: {
         selectedCount: fontFiles.length,
-        uniqueCount: descriptors.length,
+        uniqueCount: uniqueFontItems.length,
+        faceCount: descriptors.length,
         duplicateCount: fontDedupe.duplicates.length,
         attachments: attachments.map((item) => ({
           sourceName: item.file.name,
           attachmentName: item.attachmentName,
           sizeBytes: item.file.size,
           sha256: item.sha256,
-          family: item.descriptor.family,
-          subfamily: item.descriptor.subfamily || '',
-          weight: item.descriptor.weight,
-          italic: Boolean(item.descriptor.italic),
+          mimeType: mimeForFont(item.file),
+          faces: descriptors
+            .filter((face) => face.attachmentIndex === uniqueFontItems.indexOf(item))
+            .map((face) => ({
+              family: face.descriptor.family,
+              subfamily: face.descriptor.subfamily || '',
+              weight: face.descriptor.weight,
+              italic: Boolean(face.descriptor.italic),
+              collectionIndex: face.descriptor.collectionIndex,
+            })),
         })),
       },
       plan: buildMuxPlan(),
@@ -1365,6 +1424,9 @@ muxBtn.addEventListener('click', async () => {
       language: normalizeTrackLanguage(track.language),
       title: track.title || '',
       default: track.default,
+      original: track.original,
+      commentary: track.commentary,
+      hearingImpaired: track.hearingImpaired,
     }));
 
     reportURL = URL.createObjectURL(
