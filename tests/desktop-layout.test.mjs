@@ -32,8 +32,8 @@ test('preview remains a 16:9 on-demand frame and an editor sits beside it on wid
   assert.match(css, /1\.2\.2 visual system/);
   assert.match(css, /\.subtitle-preview-card \.preview-stage \{[^}]*aspect-ratio: 16 \/ 9;/);
   assert.match(css, /@media \(min-width: 1360px\) \{/);
-  assert.match(css, /\.editor-column \{ grid-template-columns: minmax\(0, 1\.38fr\) minmax\(325px, \.62fr\)/);
-  assert.match(css, /@media \(min-width: 1360px\) and \(max-width: 1650px\)/);
+  assert.match(css, /\.editor-column \{[^}]*grid-template-columns: minmax\(0, 1\.38fr\) minmax\(325px, \.62fr\)/);
+  assert.match(css, /@media \(max-width: 1359px\)/);
 });
 
 test('narrow layouts stack controls and batch is a secondary expandable workspace', async () => {

@@ -1296,14 +1296,16 @@ async function scenarioResponsiveObjectEditor(browser) {
     for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput', '#batchSubsetScope', '#batchOutputDirBtn']) {
       assert.equal(await page.locator(selector).isVisible(), true, selector);
     }
-    for (const width of [1920, 1440, 900, 390]) {
+    for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
-        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height };
+        const editor = document.querySelector('.editor-grid').getBoundingClientRect();
+        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewRight: rect.right, editorLeft: editor.left };
       });
       assert.ok(layout.scroll <= layout.viewport, `horizontal overflow at ${width}: ${JSON.stringify(layout)}`);
       assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `preview ratio at ${width}: ${layout.ratio}`);
+      if (width >= 1360) assert.ok(layout.previewRight <= layout.editorLeft + 1, `object editor is beside preview at ${width}: ${JSON.stringify(layout)}`);
     }
     console.log('Scenario 32 PASS');
   } finally {
