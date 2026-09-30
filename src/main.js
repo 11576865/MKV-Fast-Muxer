@@ -1577,7 +1577,8 @@ function buildMuxPlan() {
     });
   }
 
-  const attachedFonts = mode === 'force' ? fonts.slice(0, 1) : fonts;
+  const hasAssLikeSubtitle = newSubtitleState.some((track) => track.format?.assLike);
+  const attachedFonts = mode === 'force' && hasAssLikeSubtitle ? fonts.slice(0, 1) : fonts;
   attachedFonts.forEach((file, index) => {
     entries.push({
       kind: `字体 ${index + 1}`,
@@ -2266,8 +2267,8 @@ muxBtn.addEventListener('click', async () => {
       }
     }
 
-    if (mode === 'force' && uniqueFontItems.length > 1) {
-      logEl.textContent += `INFO: 强制字体模式只使用第一个字体文件；其余 ${uniqueFontItems.length - 1} 个上传字体文件不会附加。\n`;
+    if (mode === 'force' && preparedSubtitles.some((track) => track.format?.assLike) && uniqueFontItems.length > 1) {
+      logEl.textContent += `INFO: 强制字体模式只对 ASS / SSA 生效，并只使用第一个字体文件；其余 ${uniqueFontItems.length - 1} 个上传字体文件不会附加。\n`;
     }
     if (dependencyWarningCount) {
       completionNote = `；字体检查存在 ${dependencyWarningCount} 组警告`;
