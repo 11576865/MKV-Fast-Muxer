@@ -408,15 +408,37 @@ scripts/copy-core.mjs
 
 ```bash
 npm test
+npm run test:e2e
 ```
 
-当前自动测试覆盖：
+当前自动测试分为单元 / 结构回归与 Chromium Browser E2E 两层。
+
+单元与结构回归覆盖：
 
 - AV1 / ffprobe 探测参数策略；
-- favicon 资源；
-- 宽屏桌面布局关键结构。
+- mux command / audit / report；
+- 文件去重与字体相关辅助逻辑；
+- 工作负载提示；
+- favicon；
+- 宽屏、移动端与小平板响应式布局；
+- 仓库改名后的 Pages / canonical / sitemap / clone URL 一致性。
 
-GitHub Actions 在 Pull Request 上执行测试和构建；向 `main` 推送后再部署 GitHub Pages。
+Browser E2E 当前覆盖 22 个编号场景，包括：
+
+- MP4 / MKV、多音轨、多 ASS、字体附件；
+- Chapter、全局 metadata 与原 MKV 附件保留；
+- UTF-16LE / UTF-16BE ASS；
+- 同名不同内容字体；
+- AV1 容器探测；
+- Default / Forced / advanced disposition；
+- 外部音频错误恢复、任务取消与连续任务；
+- malformed ASS、损坏 / 零字节字体；
+- video-only、无字幕 / 无附件 MKV；
+- 原音频排序、Unicode 文件名与长 title；
+- TTC collection、BCP 47、批量 metadata；
+- 10 次连续 mux 的状态隔离。
+
+GitHub Actions 在 Pull Request 与 `main` push 上执行测试和构建；`main` 通过后部署 GitHub Pages。
 
 ## 构建
 
