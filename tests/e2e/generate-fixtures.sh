@@ -5,14 +5,15 @@ ROOT="${1:-.e2e/fixtures}"
 rm -rf "$ROOT"
 mkdir -p "$ROOT"
 
-FONT_REGULAR="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-FONT_BOLD="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_REGULAR="${E2E_FONT_REGULAR:-/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf}"
+FONT_BOLD="${E2E_FONT_BOLD:-/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf}"
+PYTHON="${E2E_PYTHON:-python3}"
 test -f "$FONT_REGULAR"
 test -f "$FONT_BOLD"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans.ttf"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans-copy.ttf"
 
-python3 - "$FONT_REGULAR" "$FONT_BOLD" "$ROOT/DejaVuCollection.ttc" <<'PY'
+"$PYTHON" - "$FONT_REGULAR" "$FONT_BOLD" "$ROOT/DejaVuCollection.ttc" <<'PY'
 from fontTools.ttLib import TTCollection, TTFont
 import sys
 
@@ -108,7 +109,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.20,0:00:01.70,Default,,0,0,0,,Secondary subtitle
 ASS
 
-python3 - "$ROOT" <<'PY'
+"$PYTHON" - "$ROOT" <<'PY'
 from pathlib import Path
 import sys
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark light" />
+        <meta name="color-scheme" content="dark" />
     <meta name="description" content="浏览器本地 MKV 快速封装工作台：以 Stream Copy 保留视频与音频，添加 ASS 字幕、字体、外部音频，并管理原 MKV 轨道与附件。" />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://11576865.github.io/MKV-Fast-Muxer/" />
@@ -40,16 +40,16 @@
           <div class="brand-mark" aria-hidden="true">MKV</div>
           <div>
             <h1>Fast Muxer <span>v3</span></h1>
-            <p>浏览器本地 · 软封装 · 字幕 · 字体 · 原 MKV</p>
+            <p>本地 MKV 封装工作台</p>
           </div>
         </div>
 
         <nav class="flow-rail" aria-label="工作流程">
-          <span class="flow-step"><b>1</b>素材</span>
+          <span class="flow-step"><b>01</b>素材</span>
           <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>2</b>预览与调整</span>
+          <span class="flow-step"><b>02</b>预览与调整</span>
           <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>3</b>检查并封装</span>
+          <span class="flow-step"><b>03</b>封装输出</span>
         </nav>
 
         <div class="topbar-tools">
@@ -66,13 +66,13 @@
             <div class="stage-title">
               <span class="section-index">01</span>
               <div>
-                <h2 id="source-title">输入素材</h2>
-                <p>主视频必选；外部音频可选；至少选择一条字幕；支持 ASS / SSA / SRT / WebVTT / PGS(SUP) / VobSub(IDX+SUB)。</p>
+                <h2 id="source-title">素材</h2>
+                <p>视频 + 字幕开始。字体和外部音频按需添加。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
               <strong>输入规模：—</strong>
-              <span>选择文件后显示浏览器内处理规模提示。</span>
+              <span>等待素材</span>
             </div>
           </header>
 
@@ -130,7 +130,7 @@
                 <span class="section-index">02</span>
                 <div>
                   <h2>预览与调整</h2>
-                  <p>预览字幕在画面中的实际效果，并就地调整新增轨道、字体与原 MKV 结构。</p>
+                  <p>按需生成字幕帧，调整轨道与容器结构。</p>
                 </div>
               </div>
             </header>
@@ -138,36 +138,36 @@
             <section class="subtitle-preview-card" aria-labelledby="preview-title">
               <div class="preview-head">
                 <div>
-                  <span class="card-kicker">SUBTITLE PREVIEW</span>
+                  <span class="card-kicker">FRAME PREVIEW</span>
                   <h3 id="preview-title">字幕预览帧</h3>
-                  <p>ASS / SSA 使用实际渲染帧；可输入时间点，或在字幕之间前后跳转。</p>
-                </div>
-                <div class="preview-tools">
-                  <label>
-                    <span>预览字幕</span>
-                    <select id="previewSubtitleSelect" disabled aria-label="选择可预览字幕">
-                      <option value="">未选择可预览字幕</option>
-                    </select>
-                  </label>
-                  <label class="preview-time-control">
-                    <span>时间点</span>
-                    <input id="previewTimeInput" type="text" inputmode="decimal" placeholder="12.500 / 00:00:12.500" aria-label="预览时间点" />
-                  </label>
-                  <button id="previewPrevCueBtn" class="button button-small" type="button" disabled>上一条</button>
-                  <button id="previewNextCueBtn" class="button button-small" type="button" disabled>下一条</button>
-                  <button id="previewRefreshBtn" class="button button-small" type="button" disabled>生成预览帧</button>
+                  <p>按需抽帧，无连续播放。</p>
                 </div>
               </div>
               <div class="preview-stage" id="previewStage">
                 <img id="previewImage" class="preview-image-trigger hidden" alt="字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
                 <div id="previewEmpty" class="preview-empty">
                   <strong>选择视频与 ASS / SSA 后生成预览帧</strong>
-                  <span>默认定位到一条字幕，也可输入任意时间点；预览与最终软字幕使用同一套 libass 渲染语义。</span>
+                  <span>选择字幕与时间点，点击“生成预览帧”。</span>
                 </div>
               </div>
+              <div class="preview-tools">
+                <label>
+                  <span>预览字幕</span>
+                  <select id="previewSubtitleSelect" disabled aria-label="选择可预览字幕">
+                    <option value="">未选择可预览字幕</option>
+                  </select>
+                </label>
+                <label class="preview-time-control">
+                  <span>时间点</span>
+                  <input id="previewTimeInput" type="text" inputmode="decimal" placeholder="12.500 / 00:00:12.500" aria-label="预览时间点" />
+                </label>
+                <button id="previewPrevCueBtn" class="button button-small" type="button" disabled>上一条</button>
+                <button id="previewNextCueBtn" class="button button-small" type="button" disabled>下一条</button>
+                <button id="previewRefreshBtn" class="button button-small" type="button" disabled>生成预览帧</button>
+              </div>
               <div class="preview-footer">
-                <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA；不会自动加载预览。</span>
-                <span>按需生成 · FFmpeg/libass · 本地处理 · 不上传媒体</span>
+                <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA。</span>
+                <span>按需生成 · 本地处理</span>
               </div>
             </section>
 
@@ -183,15 +183,39 @@
               </div>
             </dialog>
 
-            <div class="editor-grid">
+            <div class="editor-grid" data-editor-focus="all">
+              <div class="object-editor-nav" role="group" aria-label="编辑对象">
+                <button type="button" data-editor-filter="all" aria-pressed="true">全部</button>
+                <button type="button" data-editor-filter="subtitle" aria-pressed="false">字幕</button>
+                <button type="button" data-editor-filter="audio" aria-pressed="false">音频</button>
+                <button type="button" data-editor-filter="font" aria-pressed="false">字体</button>
+                <button type="button" data-editor-filter="source" aria-pressed="false">原轨道</button>
+              </div>
               <section class="editor-card config-card" aria-labelledby="config-title">
                 <div class="card-head">
                   <div>
-                    <span class="card-kicker">NEW TRACKS</span>
-                    <h3 id="config-title">新增轨道与字体</h3>
+                    <span class="card-kicker">OBJECT EDITOR</span>
+                    <h3 id="config-title">对象属性</h3>
                   </div>
                 </div>
 
+                <div class="track-stack">
+                  <section data-object-panel="subtitle" aria-label="新增字幕属性">
+                    <div class="subsection-label">字幕</div>
+                    <div id="newSubtitleList" class="new-track-list">
+                      <div class="track-empty">添加字幕后编辑语言、标题与轨道标记。</div>
+                    </div>
+                  </section>
+                  <section data-object-panel="audio" aria-label="外部音频属性">
+                    <div class="subsection-label">外部音频</div>
+                    <div id="newAudioList" class="new-track-list">
+                      <div class="track-empty">未添加外部音频</div>
+                    </div>
+                  </section>
+                </div>
+
+                <section data-object-panel="font" class="font-editor" aria-label="字体属性">
+                <div class="subsection-label">字体</div>
                 <label class="control-group compact-control">
                   <span class="control-label">字体处理</span>
                   <select id="fontMode">
@@ -208,27 +232,13 @@
                     <small>可选 · 仅保留当前字幕需要的字形；TTC / OTC 暂保留完整字体</small>
                   </span>
                 </label>
-
-                <div class="track-stack">
-                  <div>
-                    <div class="subsection-label">外部音频</div>
-                    <div id="newAudioList" class="new-track-list">
-                      <div class="track-empty">未选择外部音频。</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div class="subsection-label">新增字幕</div>
-                    <div id="newSubtitleList" class="new-track-list">
-                      <div class="track-empty">未选择字幕。</div>
-                    </div>
-                  </div>
-                </div>
+                </section>
               </section>
 
-              <section class="editor-card source-track-card" aria-labelledby="tracks-title">
+              <section class="editor-card source-track-card" data-object-panel="source" aria-labelledby="tracks-title">
                 <div class="card-head">
                   <div>
-                    <span class="card-kicker">SOURCE MKV</span>
+                    <span class="card-kicker">SOURCE STRUCTURE</span>
                     <h3 id="tracks-title">原 MKV 轨道与附件</h3>
                   </div>
                   <button id="scanTracksBtn" class="button button-small" type="button" disabled>扫描轨道</button>
@@ -237,7 +247,7 @@
                   <input id="appendPreserveAll" type="checkbox" checked />
                   <span>
                     <strong>完整保留原容器结构，仅追加</strong>
-                    <small>默认原样保留音频、字幕、附件、章节与元数据；需要删改时再扫描轨道。</small>
+                    <small>原音频、字幕、附件、章节与元数据保持不动。</small>
                   </span>
                 </label>
 
@@ -275,7 +285,7 @@
                 </details>
 
                 <div id="trackList" class="track-list">
-                  <div class="track-empty">选择 MKV 后可扫描原音频与字幕轨。未扫描时默认保留全部音频、不保留原字幕。</div>
+                  <div class="track-empty">选择 MKV 后扫描原轨道；完整保留模式无需扫描。</div>
                 </div>
 
                 <details class="attachment-manager">
@@ -313,7 +323,7 @@
             <details class="diagnostics-panel">
               <summary>
                 <span>诊断与日志</span>
-                <small>仅排错时展开 · 原始日志、字体检查与封装审计</small>
+                <small>日志 · 字体检查 · 审计</small>
               </summary>
               <pre id="log"></pre>
             </details>
@@ -324,8 +334,8 @@
               <div class="stage-title">
                 <span class="section-index">03</span>
                 <div>
-                  <h2>检查并封装</h2>
-                  <p>先确认输出结构，再执行；完成后自动审计。</p>
+                  <h2>封装输出</h2>
+                  <p>确认结构并执行。</p>
                 </div>
               </div>
               <span class="output-mode">LOCAL MKV</span>
@@ -335,7 +345,7 @@
               <div class="manifest">
                 <div><span>视频</span><strong>Copy</strong></div>
                 <div><span>音频</span><strong>Copy</strong></div>
-                <div><span>字幕</span><strong>ASS / SSA / SRT / VTT / PGS / VobSub</strong></div>
+                <div><span>字幕</span><strong>软字幕轨</strong></div>
                 <div><span>字体</span><strong id="fontSummary">—</strong></div>
                 <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
               </div>
@@ -359,7 +369,7 @@
               <div class="execution-status">
                 <div>
                   <span class="status-label">STATUS</span>
-                  <div id="status" class="status" aria-live="polite">选择视频和至少一条字幕后即可开始；字体与外部音频可选。</div>
+                  <div id="status" class="status" aria-live="polite">选择视频和字幕后即可开始。</div>
                 </div>
                 <div class="progress" aria-hidden="true"><div id="bar"></div></div>
               </div>
@@ -373,7 +383,7 @@
               <a id="reportLink" class="report-download hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告">保存封装报告</a>
               <div id="auditResult" class="audit-result hidden"></div>
 
-              <p class="execution-note">视频与音频不重新编码。WebVTT 在需要时只转换字幕流为 Matroska 兼容文本字幕；完成后自动使用 ffprobe 核对实际输出与封装计划。</p>
+              <p class="execution-note">视频与音频使用 Stream Copy；完成后自动核对输出。</p>
             </section>
           </aside>
         </div>
@@ -384,7 +394,7 @@
               <span class="section-index">B</span>
               <div>
                 <h2 id="batch-title">批量封装</h2>
-                <p>把同一套封装流程应用到一组文件。批量是次级工作区，不改变上面的单次任务。</p>
+                <p>成组配对与输出。</p>
               </div>
             </div>
             <div class="batch-status-chip">
@@ -393,6 +403,8 @@
             </div>
           </header>
 
+          <details class="batch-drawer">
+            <summary>展开批量工作区 <span aria-hidden="true">↗</span></summary>
           <div class="batch-layout">
             <div class="batch-inputs" aria-label="批量素材">
               <section class="batch-source-cluster batch-video-cluster">
@@ -486,6 +498,7 @@
               </div>
             </div>
           </div>
+          </details>
         </section>
 
       </main>

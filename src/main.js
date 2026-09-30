@@ -1,4 +1,5 @@
 import './style.css';
+import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
@@ -36,6 +37,7 @@ import {
 } from './ass-font-rewrite.js';
 
 const $ = (id) => document.getElementById(id);
+setupObjectEditor(document.querySelector('.editor-grid'));
 
 const videoInput = $('videoInput');
 const audioInput = $('audioInput');
@@ -336,14 +338,14 @@ function renderWorkloadNotice() {
   const files = selectedInputFiles();
   if (!files.length) {
     workloadNotice.dataset.level = 'normal';
-    workloadNotice.innerHTML = '<strong>输入规模：—</strong><span>选择文件后显示浏览器内处理规模提示。</span>';
+    workloadNotice.innerHTML = '<strong>等待素材</strong>';
     return;
   }
 
   const totalBytes = sumFileSizes(files);
   const workload = classifyBrowserWorkload(totalBytes);
   workloadNotice.dataset.level = workload.level;
-  workloadNotice.innerHTML = `<strong>输入规模：${escapeHtml(formatBytes(totalBytes))} · ${escapeHtml(workload.label)}</strong><span>${escapeHtml(workload.message)}</span>`;
+  workloadNotice.innerHTML = `<strong>输入：${escapeHtml(formatBytes(totalBytes))}</strong>${workload.level === 'normal' ? '' : `<span>${escapeHtml(workload.message)}</span>`}`;
 }
 
 function setBulkToolsDisabled(disabled) {
@@ -431,10 +433,10 @@ function updateUI() {
   syncPreviewControls();
 
   fontModeHint.textContent = !fonts.length
-    ? '未选择字体：字幕仍可软封装；ASS / SSA 预览将依赖可用 fallback。'
+    ? '未附加字体；ASS / SSA 预览使用可用替代字体。'
     : mode === 'force'
-      ? '兼容旧行为：只使用并附加第一个上传字体；ASS / SSA 的 Fontname 与显式内联 \\fn 会统一改写。'
-      : '保留 ASS / SSA 原 Fontname；按 Family、Weight/Bold、Italic 匹配字体 face，并检查实际字符覆盖。';
+      ? '使用第一个上传字体，统一 ASS / SSA 字体名（含内联指定）。'
+      : '按原字幕字体匹配上传字体，并检查字符覆盖。';
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
@@ -1111,7 +1113,7 @@ async function refreshSubtitlePreview() {
   syncPreviewControls();
 
   if (!video || !track) {
-    previewStatus.textContent = '等待视频与 ASS / SSA；不会自动加载预览。';
+    previewStatus.textContent = '等待视频与 ASS / SSA。';
     previewEmpty?.classList.remove('hidden');
     return;
   }
