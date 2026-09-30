@@ -30,6 +30,9 @@ test('default probe requests structural metadata without unsupported wasm flags'
   assert.match(PROBE_STREAM_ENTRIES, /mimetype/);
   assert.match(PROBE_STREAM_ENTRIES, /default/);
   assert.match(PROBE_STREAM_ENTRIES, /forced/);
+  assert.match(PROBE_STREAM_ENTRIES, /original/);
+  assert.match(PROBE_STREAM_ENTRIES, /comment/);
+  assert.match(PROBE_STREAM_ENTRIES, /hearing_impaired/);
   assert.match(PROBE_CHAPTER_ENTRIES, /start_time/);
   assert.match(PROBE_FORMAT_ENTRIES, /duration/);
   assert.doesNotMatch(PROBE_STREAM_ENTRIES, /pix_fmt|width|height|profile/);
