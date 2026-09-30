@@ -115,7 +115,10 @@ export function preferredAssFontFamily(descriptor) {
     descriptor.legacyFamily,
     descriptor.typographicFamily,
     descriptor.family,
+    descriptor.fullName,
+    descriptor.postScriptName,
     ...(descriptor.familyAliases || []),
+    ...(descriptor.aliases || []),
   ]
     .map((name) => String(name || '').trim())
     .filter(Boolean)
