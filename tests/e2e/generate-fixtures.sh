@@ -88,6 +88,16 @@ ffmpeg -hide_banner -loglevel error -y \
   "$ROOT/external.flac"
 
 ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "testsrc2=size=960x540:rate=30:duration=8" \
+  -f lavfi -i "sine=frequency=330:sample_rate=48000:duration=8" \
+  -shortest \
+  -c:v mpeg4 -q:v 2 -pix_fmt yuv420p \
+  -c:a aac -b:a 128k \
+  "$ROOT/cancel-medium.mp4"
+
+printf 'this is not an audio file\n' > "$ROOT/not-audio.wav"
+
+ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i "sine=frequency=660:sample_rate=48000:duration=2" \
   -c:a libopus -b:a 64k \
   "$ROOT/original-second.opus"
