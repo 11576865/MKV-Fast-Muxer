@@ -45,3 +45,9 @@ test('JASSUB runtime assets are copied locally and dependency is pinned', async 
   assert.match(copyScript, /jassub-worker-modern\.wasm/);
   assert.match(copyScript, /default\.woff2/);
 });
+
+
+test('Vite emits module workers for the JASSUB bundle', async () => {
+  const vite = await text('vite.config.js');
+  assert.match(vite, /worker:\s*\{[\s\S]*format:\s*['"]es['"]/);
+});
