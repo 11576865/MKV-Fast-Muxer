@@ -35,6 +35,7 @@ export function buildMuxCommand({
   externalAudioTracks = [],
   newSubtitleTracks = [],
   originalSubtitleTracks = [],
+  preserveAllOriginalSubtitles = false,
   originalAttachments = [],
   preserveAllOriginalAttachments = false,
   originalAttachmentCount = 0,
@@ -65,8 +66,12 @@ export function buildMuxCommand({
     args.push('-map', `${track.inputIndex}:0`);
   }
 
-  for (const track of originalSubtitleTracks) {
-    args.push('-map', `0:${track.index}`);
+  if (preserveAllOriginalSubtitles) {
+    args.push('-map', '0:s?');
+  } else {
+    for (const track of originalSubtitleTracks) {
+      args.push('-map', `0:${track.index}`);
+    }
   }
 
   if (preserveAllOriginalAttachments) {
@@ -116,14 +121,16 @@ export function buildMuxCommand({
     }
   });
 
-  originalSubtitleTracks.forEach((track, index) => {
-    const outputIndex = newSubtitleTracks.length + index;
-    args.push(
-      `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
-      `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
-      `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
-    );
-  });
+  if (!preserveAllOriginalSubtitles) {
+    originalSubtitleTracks.forEach((track, index) => {
+      const outputIndex = newSubtitleTracks.length + index;
+      args.push(
+        `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
+        `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
+        `-disposition:s:${outputIndex}`, dispositionValue(track.default, track.forced, track),
+      );
+    });
+  }
 
   const mappedOriginalAttachmentCount = preserveAllOriginalAttachments
     ? Number(originalAttachmentCount || 0)
