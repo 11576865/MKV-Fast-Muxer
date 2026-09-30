@@ -68,3 +68,15 @@ test('unknown mux errors still state whether an output exists', () => {
   assert.match(text, /没有生成可保存的成品/);
   assert.match(text, /unexpected failure/);
 });
+
+
+test('classifies malformed font files with an actionable replacement step', () => {
+  const feedback = describeOperationError(
+    new Error('字体文件过小'),
+    { phase: 'mux' }
+  );
+  assert.equal(feedback.category, 'invalid-font');
+  assert.match(feedback.cause, /字体文件无法被可靠解析/);
+  assert.match(feedback.action, /重新选择有效的 TTF \/ OTF \/ TTC \/ OTC/);
+  assert.equal(feedback.canSave, false);
+});
