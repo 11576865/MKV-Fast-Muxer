@@ -1136,6 +1136,7 @@ async function scenarioBatchQueue(browser) {
   const { context, page } = await openApp(browser);
 
   try {
+    await page.locator('.batch-drawer > summary').click();
     await page.setInputFiles('#batchVideoInput', [
       path.join(root, 'Batch S01E01.mp4'),
       path.join(root, 'Batch S01E02.mp4'),
@@ -1227,6 +1228,7 @@ async function scenarioBatchGroupSubset(browser) {
   const { context, page } = await openApp(browser);
 
   try {
+    await page.locator('.batch-drawer > summary').click();
     await page.setInputFiles('#batchVideoInput', [
       path.join(root, 'Batch S01E01.mp4'),
       path.join(root, 'Batch S01E02.mp4'),
@@ -1263,8 +1265,58 @@ async function scenarioBatchGroupSubset(browser) {
   }
 }
 
-const browser = await chromium.launch({ headless: true });
+async function scenarioResponsiveObjectEditor(browser) {
+  console.log('E2E scenario 32: responsive frame and object editor preserve live metadata');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#audioInput', path.join(root, 'external.flac'));
+    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('[data-editor-filter="subtitle"]').click();
+    await page.locator('[data-new-sub-field="title"]').fill('字幕属性切换后保留');
+    assert.equal(await page.locator('#newAudioList').isVisible(), false);
+    await page.locator('[data-editor-filter="audio"]').click();
+    await page.locator('[data-new-audio-field="title"]').fill('External audio');
+    await page.locator('[data-editor-filter="font"]').click();
+    assert.equal(await page.locator('#fontMode').isVisible(), true);
+    await page.locator('[data-editor-filter="source"]').click();
+    assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
+    assert.equal(await page.locator('#fontMode').isVisible(), false);
+    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('.attachment-manager > summary').click();
+    await page.locator('[data-editor-filter="source"]').press('Home');
+    assert.equal(await page.locator('[data-editor-filter="all"]').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('[data-new-sub-field="title"]').inputValue(), '字幕属性切换后保留');
+    assert.equal(await page.locator('[data-new-audio-field="title"]').inputValue(), 'External audio');
+    assert.equal(await page.locator('.batch-drawer').getAttribute('open'), null);
+    await page.locator('.batch-drawer > summary').click();
+    for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput', '#batchSubsetScope', '#batchOutputDirBtn']) {
+      assert.equal(await page.locator(selector).isVisible(), true, selector);
+    }
+    for (const width of [1920, 1440, 900, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const layout = await page.evaluate(() => {
+        const rect = document.querySelector('#previewStage').getBoundingClientRect();
+        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height };
+      });
+      assert.ok(layout.scroll <= layout.viewport, `horizontal overflow at ${width}: ${JSON.stringify(layout)}`);
+      assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `preview ratio at ${width}: ${layout.ratio}`);
+    }
+    console.log('Scenario 32 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
+});
 try {
+  await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioSelectiveAttachments(browser);
   await scenarioOriginalTracks(browser);

@@ -5,7 +5,9 @@
 它面向“已有视频 / 原 MKV + ASS / SSA / SRT / WebVTT / PGS / VobSub + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 1.2.1
+**Package version:** 1.2.2
+
+主界面按 01 素材、02 预览与调整、03 封装输出组织。视频与字幕是主要输入；字体和外部音频按需添加。预览是本地 FFmpeg/libass 按需生成的 16:9 静态帧，可指定时间点或跳转字幕，不是连续播放器。02 的对象入口为「全部 / 字幕 / 音频 / 字体 / 原轨道」，默认全部可见，切换时保留已编辑属性；支持新增字幕与音频 metadata、字体模式与子集化、原 MKV 轨道和附件管理。03 显示封装结构、执行状态与审计结果。批量工作区从页面下方展开，仍支持文件和文件夹输入、Group 字体子集以及输出目录。
 
 > 媒体文件只进入当前浏览器会话和 ffmpeg.wasm 虚拟文件系统，不会上传到项目服务器。
 
@@ -462,6 +464,8 @@ npm run test:e2e
 
 当前自动测试分为单元 / 结构回归与 Chromium Browser E2E 两层。
 
+本地 E2E 可通过 `E2E_BROWSER_EXECUTABLE` 指定已有 Chromium / Edge 可执行文件；夹具生成脚本支持 `E2E_FONT_REGULAR`、`E2E_FONT_BOLD` 与 `E2E_PYTHON` 路径覆盖，便于使用 Git Bash 在 Windows 上生成同一套素材。需要可读取 Matroska 高级轨道标记的现代 `ffprobe`。
+
 单元与结构回归覆盖：
 
 - AV1 / ffprobe 探测参数策略；
@@ -474,6 +478,8 @@ npm run test:e2e
 - 仓库改名后的 Pages / canonical / sitemap / clone URL 一致性。
 
 Browser E2E 当前覆盖 30+ 个编号场景，包括：
+
+- 对象切换后保留编辑值，扫描后的真实轨道 / 附件在 1920、1440、900、390 像素窗口下可操作、无横向溢出且预览保持 16:9；
 
 - MP4 / MKV、多音轨、多 ASS、字体附件；
 - Chapter、全局 metadata 与原 MKV 附件保留；
