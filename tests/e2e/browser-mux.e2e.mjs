@@ -1350,10 +1350,10 @@ async function scenarioResponsiveObjectEditor(browser) {
 
 
 async function scenarioTabletDesktopUi(browser) {
-  console.log('E2E scenario 33: tablet reuses desktop UI and preview defaults collapsed');
+  console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
   const context = await browser.newContext({
     acceptDownloads: true,
-    viewport: { width: 900, height: 1200 },
+    viewport: { width: 1180, height: 900 },
     hasTouch: true,
   });
   const page = await context.newPage();
@@ -1373,22 +1373,37 @@ async function scenarioTabletDesktopUi(browser) {
     assert.equal(await page.locator('.object-editor-nav').isVisible(), false);
     assert.equal(await page.locator('#previewStage').isVisible(), false);
     assert.equal(await page.locator('#mobilePreviewToggle').isVisible(), true);
-    await page.locator('#mobilePreviewToggle').click();
-    assert.equal(await page.locator('#previewStage').isVisible(), true);
 
-    const layout = await page.evaluate(() => {
-      const preview = document.querySelector('#previewStage').getBoundingClientRect();
+    const collapsedLayout = await page.evaluate(() => {
+      const editor = document.querySelector('.editor-column').getBoundingClientRect();
+      const output = document.querySelector('.output-hub').getBoundingClientRect();
+      const config = document.querySelector('.config-card').getBoundingClientRect();
+      const source = document.querySelector('.source-track-card').getBoundingClientRect();
       const sourceGrid = getComputedStyle(document.querySelector('.source-strip')).gridTemplateColumns;
       return {
         scroll: document.documentElement.scrollWidth,
         viewport: innerWidth,
-        ratio: preview.width / preview.height,
+        editorRight: editor.right,
+        outputLeft: output.left,
+        outputWidth: output.width,
+        configWidth: config.width,
+        sourceWidth: source.width,
         sourceGrid,
       };
     });
-    assert.ok(layout.scroll <= layout.viewport, `tablet horizontal overflow: ${JSON.stringify(layout)}`);
-    assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `tablet preview ratio: ${layout.ratio}`);
-    assert.ok(layout.sourceGrid.split(' ').length >= 4, `tablet source strip should reuse desktop four-column UI: ${layout.sourceGrid}`);
+    assert.ok(collapsedLayout.scroll <= collapsedLayout.viewport, `tablet horizontal overflow: ${JSON.stringify(collapsedLayout)}`);
+    assert.ok(collapsedLayout.outputLeft >= collapsedLayout.editorRight - 1, `tablet output should sit beside editor: ${JSON.stringify(collapsedLayout)}`);
+    assert.ok(collapsedLayout.outputWidth >= 270, `tablet output is too narrow: ${JSON.stringify(collapsedLayout)}`);
+    assert.ok(collapsedLayout.configWidth >= 250 && collapsedLayout.sourceWidth >= 250, `tablet editor cards are too narrow: ${JSON.stringify(collapsedLayout)}`);
+    assert.ok(collapsedLayout.sourceGrid.split(' ').length >= 4, `tablet source strip should keep desktop four-column UI: ${collapsedLayout.sourceGrid}`);
+
+    await page.locator('#mobilePreviewToggle').click();
+    assert.equal(await page.locator('#previewStage').isVisible(), true);
+    const ratio = await page.locator('#previewStage').evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width / rect.height;
+    });
+    assert.ok(Math.abs(ratio - 16 / 9) < .01, `tablet preview ratio: ${ratio}`);
     console.log('Scenario 33 PASS');
   } finally {
     await context.close();

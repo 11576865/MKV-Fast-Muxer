@@ -4922,60 +4922,84 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 }
 
 
-/* Tablet desktop-style authority ---------------------------------------------
-   Touch tablets reuse desktop component styling. Only preview disclosure differs. */
+/* Tablet workbench v2 ---------------------------------------------------------
+   Keep the desktop visual language, but give tablets an intentional workbench:
+   sources span the top; editor and output sit side-by-side on wide tablets;
+   the preview is a compact disclosure that defaults collapsed. */
 @media (min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse) {
-  /* Keep tablet layout safe while reusing desktop component visuals. */
+  .topbar,
   .workspace {
-    display: block;
-    width: min(100% - 28px, 1180px);
-    max-width: 1180px;
+    width: min(calc(100% - 28px), 1320px);
+    max-width: 1320px;
+  }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(270px, 27vw, 340px);
+    gap: 12px 14px;
+    align-items: start;
+  }
+
+  .workspace > .stage-input {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .workspace > .workbench-grid {
+    display: contents;
+  }
+
+  .workspace > .workbench-grid > .editor-column {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0;
+  }
+
+  .workspace > .workbench-grid > .output-hub {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+  }
+
+  .workspace > .batch-workspace {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
 
   .workbench-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
+    gap: 0;
   }
 
   .editor-column {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(300px, .65fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "head head"
-      "preview editors"
-      "logs editors";
-    column-gap: 12px;
-    row-gap: 9px;
+      "head"
+      "preview"
+      "editors"
+      "logs";
+    gap: 9px;
+    padding: 13px;
   }
 
-  .output-hub {
-    position: static;
-    width: 100%;
-    max-height: none;
-    overflow: visible;
+  .subtitle-preview-card {
+    margin-top: 0;
   }
 
-  .stage-input .source-strip {
-    grid-template-columns:
-      minmax(0, 1.45fr)
-      minmax(0, 1.45fr)
-      minmax(0, .72fr)
-      minmax(0, .72fr);
-  }
-
-  .batch-layout {
-    grid-template-columns: 1fr;
-  }
-
-  /* Desktop hides the preview header; tablet needs only a compact disclosure row. */
   .subtitle-preview-card .preview-head {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 9px 10px;
+    min-height: 48px;
+    padding: 8px 10px;
+    border-bottom: 0;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--video) 8%, var(--surface-1)),
+        color-mix(in srgb, var(--video) 2%, var(--surface-1)));
   }
 
   .subtitle-preview-card .preview-head .card-kicker,
@@ -4985,21 +5009,21 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 
   .subtitle-preview-card .preview-head h3 {
     margin: 0;
-    font-size: .84rem;
+    font-size: .82rem;
   }
 
   .mobile-disclosure-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 32px;
+    min-height: 31px;
     padding: 4px 9px;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: transparent;
+    background: color-mix(in srgb, var(--video) 5%, transparent);
     color: var(--muted);
     font: inherit;
-    font-size: .66rem;
+    font-size: .64rem;
   }
 
   .subtitle-preview-card[data-mobile-collapsed="true"] .preview-stage,
@@ -5014,8 +5038,79 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     min-height: 0;
   }
 
-  /* Tablet inherits desktop object editor: no mobile two-mode switch. */
-  .object-editor-nav {
+  /* Editors use the desktop components, but receive equal usable width instead
+     of the former narrow nested columns shown in the tablet regression. */
+  .editor-column > .editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .editor-grid > .object-editor-nav {
     display: none;
+  }
+
+  .editor-grid > .config-card,
+  .editor-grid > .source-track-card {
+    min-width: 0;
+  }
+
+  .editor-card .card-head {
+    padding: 10px 11px 8px;
+  }
+
+  .config-card > :not(.card-head),
+  .source-track-card > :not(.card-head) {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .track-empty {
+    padding: 8px 9px;
+    min-height: 0;
+  }
+
+  .output-hub {
+    position: sticky;
+    top: 10px;
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .output-summary .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 8px;
+  }
+
+  .batch-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Portrait / narrow tablet: same desktop components, one safe column. */
+@media (min-width: 601px) and (max-width: 899px) and (hover: none) and (pointer: coarse) {
+  .workspace {
+    display: block;
+    width: min(calc(100% - 24px), 820px);
+  }
+
+  .workspace > .workbench-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .workspace > .workbench-grid > .output-hub {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .editor-column > .editor-grid {
+    grid-template-columns: 1fr;
   }
 }
