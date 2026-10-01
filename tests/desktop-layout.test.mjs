@@ -67,3 +67,14 @@ test('desktop refinement removes explanatory noise and prioritizes action withou
   assert.match(html, /id="previewRefreshBtn"/);
   assert.match(html, /id="batchStartBtn"/);
 });
+
+
+test('portrait tablet desktop-mode browser guard prevents squeezed desktop columns', async () => {
+  const css = await source('src/style.css');
+
+  assert.match(css, /Portrait tablet \/ desktop-mode browser guard/);
+  assert.match(css, /@media \(min-width: 601px\) and \(max-width: 1180px\) and \(orientation: portrait\)/);
+  assert.match(css, /\.stage-input \.source-strip \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.workspace > \.workbench-grid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(css, /\.output-hub \{[\s\S]*position: static;[\s\S]*max-height: none;[\s\S]*overflow: visible/);
+});
