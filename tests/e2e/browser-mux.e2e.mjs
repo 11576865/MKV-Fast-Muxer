@@ -1296,6 +1296,32 @@ async function scenarioResponsiveObjectEditor(browser) {
     for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput', '#batchSubsetScope', '#batchOutputDirBtn']) {
       assert.equal(await page.locator(selector).isVisible(), true, selector);
     }
+    // mobile two-mode editor and disclosure behavior
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
+    assert.equal(await page.locator('[data-editor-filter="source"]').isVisible(), true);
+    assert.equal(await page.locator('[data-editor-filter="subtitle"]').isVisible(), false);
+    assert.equal(await page.locator('[data-editor-filter="audio"]').isVisible(), false);
+    assert.equal(await page.locator('[data-editor-filter="font"]').isVisible(), false);
+    assert.equal(await page.locator('#previewStage').isVisible(), false);
+    await page.locator('#mobilePreviewToggle').click();
+    assert.equal(await page.locator('#previewStage').isVisible(), true);
+    const openPreviewRatio = await page.locator('#previewStage').evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width / rect.height;
+    });
+    assert.ok(Math.abs(openPreviewRatio - 16 / 9) < .01, `mobile preview ratio: ${openPreviewRatio}`);
+    assert.equal(await page.locator('#muxPlan').isVisible(), false);
+    await page.locator('#mobilePlanToggle').click();
+    assert.equal(await page.locator('#muxPlan').isVisible(), true);
+    await page.locator('[data-editor-filter="source"]').click();
+    assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
+    assert.equal(await page.locator('#fontMode').isVisible(), false);
+    await page.locator('[data-editor-filter="all"]').click();
+    assert.equal(await page.locator('#fontMode').isVisible(), true);
+    assert.equal(await page.locator('#newAudioList').isVisible(), true);
+    assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
+
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       const layout = await page.evaluate(() => {
