@@ -123,26 +123,39 @@ const planPanel = document.querySelector('.output-section.plan-panel');
 document.documentElement.dataset.theme = 'dark';
 document.documentElement.dataset.themePreference = 'dark';
 
-const mobileLayoutQuery = window.matchMedia('(max-width: 600px)');
+const phoneLayoutQuery = window.matchMedia('(max-width: 600px)');
+const tabletLayoutQuery = window.matchMedia('(min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse)');
 
-function applyMobileDisclosureState(isMobile = mobileLayoutQuery.matches) {
+function applyResponsiveDisclosureState() {
   if (!previewCard || !planPanel) return;
-  if (isMobile) {
+
+  const isPhone = phoneLayoutQuery.matches;
+  const isTablet = tabletLayoutQuery.matches;
+  const previewUsesDisclosure = isPhone || isTablet;
+
+  if (previewUsesDisclosure) {
     if (!previewCard.dataset.mobileDisclosureInitialized) {
       previewCard.dataset.mobileCollapsed = 'true';
       previewCard.dataset.mobileDisclosureInitialized = 'true';
     }
+  } else {
+    delete previewCard.dataset.mobileCollapsed;
+    delete previewCard.dataset.mobileDisclosureInitialized;
+  }
+
+  if (isPhone) {
     if (!planPanel.dataset.mobileDisclosureInitialized) {
       planPanel.dataset.mobileCollapsed = 'true';
       planPanel.dataset.mobileDisclosureInitialized = 'true';
     }
   } else {
-    delete previewCard.dataset.mobileCollapsed;
     delete planPanel.dataset.mobileCollapsed;
+    delete planPanel.dataset.mobileDisclosureInitialized;
   }
 
-  const previewCollapsed = isMobile && previewCard.dataset.mobileCollapsed === 'true';
-  const planCollapsed = isMobile && planPanel.dataset.mobileCollapsed === 'true';
+  const previewCollapsed = previewUsesDisclosure && previewCard.dataset.mobileCollapsed === 'true';
+  const planCollapsed = isPhone && planPanel.dataset.mobileCollapsed === 'true';
+
   mobilePreviewToggle?.setAttribute('aria-expanded', String(!previewCollapsed));
   mobilePlanToggle?.setAttribute('aria-expanded', String(!planCollapsed));
   if (mobilePreviewToggle) mobilePreviewToggle.textContent = previewCollapsed ? '展开' : '收起';
@@ -151,16 +164,17 @@ function applyMobileDisclosureState(isMobile = mobileLayoutQuery.matches) {
 
 mobilePreviewToggle?.addEventListener('click', () => {
   previewCard.dataset.mobileCollapsed = previewCard.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
-  applyMobileDisclosureState(true);
+  applyResponsiveDisclosureState();
 });
 
 mobilePlanToggle?.addEventListener('click', () => {
   planPanel.dataset.mobileCollapsed = planPanel.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
-  applyMobileDisclosureState(true);
+  applyResponsiveDisclosureState();
 });
 
-mobileLayoutQuery.addEventListener?.('change', (event) => applyMobileDisclosureState(event.matches));
-applyMobileDisclosureState();
+phoneLayoutQuery.addEventListener?.('change', applyResponsiveDisclosureState);
+tabletLayoutQuery.addEventListener?.('change', applyResponsiveDisclosureState);
+applyResponsiveDisclosureState();
 
 
 const languageTitles = {
