@@ -1330,6 +1330,9 @@ async function scenarioResponsiveObjectEditor(browser) {
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
+      if (width <= 600 && !(await page.locator('#previewStage').isVisible())) {
+        await page.locator('#mobilePreviewToggle').click();
+      }
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
