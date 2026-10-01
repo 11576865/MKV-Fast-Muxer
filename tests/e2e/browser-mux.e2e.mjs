@@ -1330,6 +1330,9 @@ async function scenarioResponsiveObjectEditor(browser) {
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
+      if (width <= 600 && !(await page.locator('#previewStage').isVisible())) {
+        await page.locator('#mobilePreviewToggle').click();
+      }
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
@@ -1345,11 +1348,59 @@ async function scenarioResponsiveObjectEditor(browser) {
   }
 }
 
+
+async function scenarioTabletDesktopUi(browser) {
+  console.log('E2E scenario 33: tablet reuses desktop UI and preview defaults collapsed');
+  const context = await browser.newContext({
+    acceptDownloads: true,
+    viewport: { width: 900, height: 1200 },
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
+  page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
+  try {
+    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    await page.locator('#muxBtn').waitFor();
+
+    const media = await page.evaluate(() => ({
+      coarse: matchMedia('(pointer: coarse)').matches,
+      tablet: matchMedia('(min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse)').matches,
+    }));
+    assert.equal(media.coarse, true);
+    assert.equal(media.tablet, true);
+
+    assert.equal(await page.locator('.object-editor-nav').isVisible(), false);
+    assert.equal(await page.locator('#previewStage').isVisible(), false);
+    assert.equal(await page.locator('#mobilePreviewToggle').isVisible(), true);
+    await page.locator('#mobilePreviewToggle').click();
+    assert.equal(await page.locator('#previewStage').isVisible(), true);
+
+    const layout = await page.evaluate(() => {
+      const preview = document.querySelector('#previewStage').getBoundingClientRect();
+      const sourceGrid = getComputedStyle(document.querySelector('.source-strip')).gridTemplateColumns;
+      return {
+        scroll: document.documentElement.scrollWidth,
+        viewport: innerWidth,
+        ratio: preview.width / preview.height,
+        sourceGrid,
+      };
+    });
+    assert.ok(layout.scroll <= layout.viewport, `tablet horizontal overflow: ${JSON.stringify(layout)}`);
+    assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `tablet preview ratio: ${layout.ratio}`);
+    assert.ok(layout.sourceGrid.split(' ').length >= 4, `tablet source strip should reuse desktop four-column UI: ${layout.sourceGrid}`);
+    console.log('Scenario 33 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioTabletDesktopUi(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioSelectiveAttachments(browser);
