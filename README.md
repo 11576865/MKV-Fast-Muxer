@@ -565,6 +565,13 @@ Copyright (c) 2026 11576865.
 
 项目来源与版权声明见 [NOTICE.md](./NOTICE.md)，第三方许可证见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
 
+
+### AI 辅助开发
+
+MKV Fast Muxer 的代码实现、调试、测试、文档及部分工程工作大量使用了 OpenAI ChatGPT 辅助完成。项目需求、功能取舍、设计方向、审查、集成、发布及维护由 11576865 负责。
+
+该说明用于记录项目的实际开发过程；ChatGPT 与 OpenAI 不列为本项目原创代码的版权持有人。
+
 ## 许可证
 
 本仓库原创代码采用 [MIT License](./LICENSE)。

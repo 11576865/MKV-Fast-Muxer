@@ -23,3 +23,16 @@ THIRD_PARTY_LICENSES.md for notices and license information.
 Forks, mirrors, modified distributions, and third-party deployments are not
 official versions of MKV Fast Muxer unless explicitly identified as such by the
 project maintainer.
+
+
+## AI-assisted development
+
+MKV Fast Muxer was developed with substantial assistance from OpenAI's ChatGPT
+for code generation, debugging, testing, documentation, and implementation
+work.
+
+Project requirements, design decisions, review, integration, release decisions,
+and maintenance are directed by 11576865.
+
+This acknowledgement describes the development process. ChatGPT and OpenAI are
+not listed as copyright holders of the project's original code.
