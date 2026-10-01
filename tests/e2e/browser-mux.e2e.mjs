@@ -1321,6 +1321,12 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#fontMode').isVisible(), true);
     assert.equal(await page.locator('#newAudioList').isVisible(), true);
     assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
+    // mobile all mode excludes source structure; source remains its own mode
+    assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
+    const mobileSourceHeights = await page.locator('.source-strip .source-item').evaluateAll((items) =>
+      items.map((el) => el.getBoundingClientRect().height)
+    );
+    assert.ok(Math.max(...mobileSourceHeights) <= 72, `mobile source cards are too tall: ${mobileSourceHeights.join(', ')}`);
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
