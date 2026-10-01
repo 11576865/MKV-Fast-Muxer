@@ -4624,3 +4624,43 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     grid-template-columns: minmax(0, 1.7fr) 360px;
   }
 }
+
+
+/* Project identity footer ----------------------------------------------------- */
+.project-footer {
+  width: min(calc(100% - 32px), 1820px);
+  margin: 0 auto;
+  padding: 14px 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--muted);
+  font-size: .66rem;
+  line-height: 1.4;
+}
+
+.project-footer a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+}
+
+.project-footer a:hover,
+.project-footer a:focus-visible {
+  color: var(--accent);
+  border-bottom-color: currentColor;
+}
+
+.project-footer-separator {
+  opacity: .5;
+}
+
+@media (max-width: 600px) {
+  .project-footer {
+    width: calc(100% - 24px);
+    padding: 12px 0 20px;
+    font-size: .64rem;
+  }
+}
