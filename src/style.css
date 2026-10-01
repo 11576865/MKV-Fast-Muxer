@@ -4664,3 +4664,160 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     font-size: .64rem;
   }
 }
+
+
+/* Mobile stable two-mode layout ----------------------------------------------
+   Mobile-only authority. Desktop/tablet-desktop rules above remain unchanged. */
+.mobile-disclosure-toggle {
+  display: none;
+}
+
+.plan-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  /* Preview is a disclosure on phones; its 16:9 geometry is stable once open. */
+  .subtitle-preview-card .preview-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 11px;
+  }
+
+  .subtitle-preview-card .preview-head .card-kicker,
+  .subtitle-preview-card .preview-head p {
+    display: none;
+  }
+
+  .subtitle-preview-card .preview-head h3 {
+    margin: 0;
+    font-size: .92rem;
+  }
+
+  .mobile-disclosure-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding: 5px 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: .68rem;
+  }
+
+  .mobile-disclosure-toggle:focus-visible,
+  .mobile-disclosure-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-stage,
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-tools,
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-footer {
+    display: none;
+  }
+
+  .subtitle-preview-card .preview-stage {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  /* Mobile object editor has exactly two modes:
+     全部 = subtitle + audio + font, 原轨道 = source structure. */
+  .object-editor-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .object-editor-nav button[data-editor-filter="subtitle"],
+  .object-editor-nav button[data-editor-filter="audio"],
+  .object-editor-nav button[data-editor-filter="font"] {
+    display: none;
+  }
+
+  .object-editor-nav button[data-editor-filter="all"]::after {
+    content: " · 字幕 / 音频 / 字体";
+    color: var(--muted-2);
+    font-size: .58rem;
+    font-weight: 500;
+  }
+
+  .editor-card .card-kicker,
+  .attachment-summary-note,
+  .output-section .panel-kicker,
+  .execution-panel .status-label {
+    display: none;
+  }
+
+  /* Flatten nested cards on phones: keep the stage boundary, remove box-in-box noise. */
+  .editor-card {
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  .editor-card .card-head {
+    padding: 10px 11px 8px;
+  }
+
+  .config-card > :not(.card-head),
+  .source-track-card > :not(.card-head) {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .track-empty {
+    padding: 8px 9px;
+    min-height: 0;
+  }
+
+  /* Keep output summary compact: 2 x 2, then output spans the row. */
+  .output-summary .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+  }
+
+  .output-summary .manifest-output {
+    grid-column: 1 / -1;
+  }
+
+  .output-summary .manifest > div {
+    min-height: 48px;
+    padding: 7px 2px;
+  }
+
+  /* Plan is a bounded disclosure on phones instead of an endlessly growing block. */
+  .plan-head-actions #refreshPlanBtn {
+    display: none;
+  }
+
+  .output-section.plan-panel[data-mobile-collapsed="true"] #planWarnings,
+  .output-section.plan-panel[data-mobile-collapsed="true"] #muxPlan {
+    display: none;
+  }
+
+  .output-section.plan-panel .side-panel-head {
+    margin: 0;
+    align-items: center;
+  }
+
+  .output-section.plan-panel .mux-plan {
+    max-height: min(38dvh, 320px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .execution-panel {
+    margin-top: 10px;
+  }
+}

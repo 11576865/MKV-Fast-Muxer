@@ -149,6 +149,7 @@
                   <h3 id="preview-title">字幕预览帧</h3>
                   <p>按需抽帧，无连续播放。</p>
                 </div>
+                <button id="mobilePreviewToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="previewStage previewControls previewFooter">展开</button>
               </div>
               <div class="preview-stage" id="previewStage">
                 <img id="previewImage" class="preview-image-trigger hidden" alt="字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
@@ -157,7 +158,7 @@
                   <span>选择字幕与时间点，点击“生成预览帧”。</span>
                 </div>
               </div>
-              <div class="preview-tools">
+              <div id="previewControls" class="preview-tools">
                 <label>
                   <span>预览字幕</span>
                   <select id="previewSubtitleSelect" disabled aria-label="选择可预览字幕">
@@ -172,7 +173,7 @@
                 <button id="previewNextCueBtn" class="button button-small" type="button" disabled>下一条</button>
                 <button id="previewRefreshBtn" class="button button-small" type="button" disabled>生成预览帧</button>
               </div>
-              <div class="preview-footer">
+              <div id="previewFooter" class="preview-footer">
                 <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA。</span>
                 <span>按需生成 · 本地处理</span>
               </div>
@@ -364,7 +365,10 @@
                   <span class="panel-kicker">STRUCTURE</span>
                   <h3>封装计划</h3>
                 </div>
-                <button id="refreshPlanBtn" class="button button-quiet" type="button">刷新</button>
+                <div class="plan-head-actions">
+                  <button id="refreshPlanBtn" class="button button-quiet" type="button">刷新</button>
+                  <button id="mobilePlanToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="planWarnings muxPlan">展开</button>
+                </div>
               </div>
               <div id="planWarnings" class="plan-warnings hidden"></div>
               <div id="muxPlan" class="mux-plan">

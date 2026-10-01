@@ -115,9 +115,53 @@ const previewNextCueBtn = $('previewNextCueBtn');
 const previewDialog = $('previewDialog');
 const previewDialogImage = $('previewDialogImage');
 const previewDialogClose = $('previewDialogClose');
+const mobilePreviewToggle = $('mobilePreviewToggle');
+const mobilePlanToggle = $('mobilePlanToggle');
+const previewCard = document.querySelector('.subtitle-preview-card');
+const planPanel = document.querySelector('.output-section.plan-panel');
 
 document.documentElement.dataset.theme = 'dark';
 document.documentElement.dataset.themePreference = 'dark';
+
+const mobileLayoutQuery = window.matchMedia('(max-width: 600px)');
+
+function applyMobileDisclosureState(isMobile = mobileLayoutQuery.matches) {
+  if (!previewCard || !planPanel) return;
+  if (isMobile) {
+    if (!previewCard.dataset.mobileDisclosureInitialized) {
+      previewCard.dataset.mobileCollapsed = 'true';
+      previewCard.dataset.mobileDisclosureInitialized = 'true';
+    }
+    if (!planPanel.dataset.mobileDisclosureInitialized) {
+      planPanel.dataset.mobileCollapsed = 'true';
+      planPanel.dataset.mobileDisclosureInitialized = 'true';
+    }
+  } else {
+    delete previewCard.dataset.mobileCollapsed;
+    delete planPanel.dataset.mobileCollapsed;
+  }
+
+  const previewCollapsed = isMobile && previewCard.dataset.mobileCollapsed === 'true';
+  const planCollapsed = isMobile && planPanel.dataset.mobileCollapsed === 'true';
+  mobilePreviewToggle?.setAttribute('aria-expanded', String(!previewCollapsed));
+  mobilePlanToggle?.setAttribute('aria-expanded', String(!planCollapsed));
+  if (mobilePreviewToggle) mobilePreviewToggle.textContent = previewCollapsed ? '展开' : '收起';
+  if (mobilePlanToggle) mobilePlanToggle.textContent = planCollapsed ? '展开' : '收起';
+}
+
+mobilePreviewToggle?.addEventListener('click', () => {
+  previewCard.dataset.mobileCollapsed = previewCard.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
+  applyMobileDisclosureState(true);
+});
+
+mobilePlanToggle?.addEventListener('click', () => {
+  planPanel.dataset.mobileCollapsed = planPanel.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
+  applyMobileDisclosureState(true);
+});
+
+mobileLayoutQuery.addEventListener?.('change', (event) => applyMobileDisclosureState(event.matches));
+applyMobileDisclosureState();
+
 
 const languageTitles = {
   und: 'ASS 字幕',
