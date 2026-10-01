@@ -5114,3 +5114,84 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Portrait tablet / desktop-mode browser guard ---------------------------------
+   Android/iPad browsers in "desktop site" mode can expose a ~900-1180px CSS
+   viewport while still being physically portrait. Do not squeeze the four
+   source cards and the output pane into desktop columns in that geometry. */
+@media (min-width: 601px) and (max-width: 1180px) and (orientation: portrait) {
+  .topbar,
+  .workspace {
+    width: min(calc(100% - 24px), 1120px);
+    max-width: 1120px;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .workspace > .stage-input {
+    width: 100%;
+    margin: 0;
+  }
+
+  .stage-input .source-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .source-strip .source-item,
+  .source-strip .source-primary {
+    min-width: 0;
+    min-height: 82px;
+  }
+
+  .source-strip .source-secondary {
+    min-height: 76px;
+  }
+
+  .workspace > .workbench-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .workspace > .workbench-grid > .editor-column,
+  .workspace > .workbench-grid > .output-hub {
+    width: 100%;
+    margin: 0;
+  }
+
+  .editor-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "preview"
+      "editors"
+      "logs";
+    gap: 10px;
+  }
+
+  .editor-column > .editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .output-hub {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .output-summary .manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-summary .manifest-output {
+    grid-column: 1 / -1;
+  }
+}
