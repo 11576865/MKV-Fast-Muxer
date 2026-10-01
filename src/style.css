@@ -4821,3 +4821,101 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     margin-top: 10px;
   }
 }
+
+
+/* Mobile density follow-up ----------------------------------------------------
+   Phone-only corrections after two-mode rollout. Desktop remains untouched. */
+@media (max-width: 600px) {
+  /* “全部” means only the integrated subtitle/audio/font editor on phones. */
+  .editor-grid[data-editor-focus="all"] .source-track-card {
+    display: none !important;
+  }
+
+  /* Input cards were visually oversized on phones. Keep the one-column model,
+     but reduce card height and internal chrome. */
+  .source-strip {
+    gap: 7px;
+  }
+
+  .source-strip .source-item,
+  .source-strip .source-primary {
+    min-height: 64px;
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+
+  .source-strip .source-secondary {
+    min-height: 58px;
+  }
+
+  .source-strip .source-item::before {
+    top: 8px;
+    bottom: 8px;
+  }
+
+  .source-strip .source-type {
+    font-size: .58rem;
+    letter-spacing: .06em;
+  }
+
+  .source-strip .source-body {
+    gap: 0;
+  }
+
+  .source-strip .source-body strong {
+    font-size: .78rem;
+  }
+
+  .source-strip .filename {
+    margin-top: 1px;
+    font-size: .63rem;
+    line-height: 1.25;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  /* The execution controls belong to the output section; remove the inset-card
+     treatment that made them look pasted in from another surface. */
+  .output-section.execution-panel {
+    margin-top: 8px;
+    padding: 10px 0 0 !important;
+    border: 0 !important;
+    border-top: 1px solid var(--line) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .execution-panel .execution-status {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .execution-panel .status {
+    min-height: 0;
+    margin: 0 0 7px;
+    padding: 0;
+    background: transparent;
+  }
+
+  .execution-panel .progress {
+    margin: 0 0 10px;
+  }
+
+  .execution-panel .actions {
+    gap: 8px;
+  }
+
+  .execution-panel .button-primary,
+  .execution-panel .button-secondary {
+    min-height: 46px;
+  }
+
+  .execution-note {
+    margin: 7px 0 0;
+    font-size: .62rem;
+    line-height: 1.35;
+  }
+}
