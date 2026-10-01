@@ -4083,7 +4083,8 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 /* Desktop refinement: annotated 1920px pass -----------------------------------
    Desktop only. Remove explanatory noise, reclaim horizontal space, make the
    preview + final action dominant, and compact batch into a clear left/right flow. */
-@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine),
+       (min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse) {
   :root {
     --audio: #e0ae5d;
     --success: #54d7a6;
@@ -4917,5 +4918,104 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     margin: 7px 0 0;
     font-size: .62rem;
     line-height: 1.35;
+  }
+}
+
+
+/* Tablet desktop-style authority ---------------------------------------------
+   Touch tablets reuse desktop component styling. Only preview disclosure differs. */
+@media (min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse) {
+  /* Keep tablet layout safe while reusing desktop component visuals. */
+  .workspace {
+    display: block;
+    width: min(100% - 28px, 1180px);
+    max-width: 1180px;
+  }
+
+  .workbench-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .editor-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(300px, .65fr);
+    grid-template-areas:
+      "head head"
+      "preview editors"
+      "logs editors";
+    column-gap: 12px;
+    row-gap: 9px;
+  }
+
+  .output-hub {
+    position: static;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .stage-input .source-strip {
+    grid-template-columns:
+      minmax(0, 1.45fr)
+      minmax(0, 1.45fr)
+      minmax(0, .72fr)
+      minmax(0, .72fr);
+  }
+
+  .batch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Desktop hides the preview header; tablet needs only a compact disclosure row. */
+  .subtitle-preview-card .preview-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 10px;
+  }
+
+  .subtitle-preview-card .preview-head .card-kicker,
+  .subtitle-preview-card .preview-head p {
+    display: none;
+  }
+
+  .subtitle-preview-card .preview-head h3 {
+    margin: 0;
+    font-size: .84rem;
+  }
+
+  .mobile-disclosure-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 4px 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: .66rem;
+  }
+
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-stage,
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-tools,
+  .subtitle-preview-card[data-mobile-collapsed="true"] .preview-footer {
+    display: none;
+  }
+
+  .subtitle-preview-card .preview-stage {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  /* Tablet inherits desktop object editor: no mobile two-mode switch. */
+  .object-editor-nav {
+    display: none;
   }
 }
