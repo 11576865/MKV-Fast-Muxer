@@ -60,6 +60,23 @@ When redistributing a modified or replacement FFmpeg WebAssembly core, review
 the exact build configuration and the corresponding source/license obligations
 for that build before distribution.
 
+### Source availability and redistribution note
+
+The deployed application copies the installed `@ffmpeg/core` 0.12.10 runtime
+artifacts into the static site during `postinstall`. Upstream identifies that
+package as `GPL-2.0-or-later` and publishes its source in the ffmpeg.wasm
+repository and release history:
+
+- Source repository: https://github.com/ffmpegwasm/ffmpeg.wasm
+- Releases: https://github.com/ffmpegwasm/ffmpeg.wasm/releases
+
+Because `ffmpeg-core.js` / `ffmpeg-core.wasm` are redistributed object-code
+artifacts, the applicable GPL source-availability obligations remain separate
+from this repository's MIT license. This notice records the upstream source
+location; it does not relicense the core or claim that a source link alone is
+sufficient for every redistribution scenario. A modified or replaced core must
+be accompanied by source that corresponds to the distributed binary.
+
 
 ## hb-subset-wasm 0.4.0
 

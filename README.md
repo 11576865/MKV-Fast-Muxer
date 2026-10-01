@@ -551,6 +551,20 @@ WebVTT 当前不是以原生 WebVTT codec 写入 Matroska，而是只转换该�
 
 项目负责封装、预览与容器审计，但不同播放器、libass 版本和渲染环境之间仍可能存在显示差异。
 
+## 官方来源与版权
+
+MKV Fast Muxer v3 的官方项目来源如下：
+
+- 官方仓库：https://github.com/11576865/MKV-Fast-Muxer
+- 官方 Web App：https://11576865.github.io/MKV-Fast-Muxer/
+- 问题反馈：https://github.com/11576865/MKV-Fast-Muxer/issues
+
+Copyright (c) 2026 11576865.
+
+本仓库原创代码采用 MIT License；第三方组件继续受各自许可证约束。Fork、镜像、修改版或重新部署版本，除非由项目维护者明确说明，否则不属于 MKV Fast Muxer 的官方版本。
+
+项目来源与版权声明见 [NOTICE.md](./NOTICE.md)，第三方许可证见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
+
 ## 许可证
 
 本仓库原创代码采用 [MIT License](./LICENSE)。

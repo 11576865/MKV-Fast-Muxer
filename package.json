@@ -20,5 +20,16 @@
   "devDependencies": {
     "vite": "^7.1.0",
     "playwright": "^1.55.0"
+  },
+  "description": "Browser-local Matroska muxing workbench for Stream Copy, subtitles, fonts, external audio, source-track management, preview and audit.",
+  "license": "MIT",
+  "author": "11576865",
+  "homepage": "https://11576865.github.io/MKV-Fast-Muxer/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/11576865/MKV-Fast-Muxer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/11576865/MKV-Fast-Muxer/issues"
   }
 }
