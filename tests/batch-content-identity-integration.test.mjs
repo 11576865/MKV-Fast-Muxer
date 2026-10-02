@@ -16,6 +16,7 @@ test('batch video picker does not use an extension allowlist as the source of tr
 test('batch planner identifies candidate files before filename pairing', () => {
   assert.match(batch, /identifyBatchVideos/);
   assert.match(batch, /sniffFileContainer/);
+  assert.doesNotMatch(batch, /VIDEO_EXTENSIONS|isSupportedBatchVideo/);
   assert.match(batch, /isSupportedVideoIdentity/);
   assert.match(main, /await identifyBatchVideos\(candidateVideos/);
   assert.match(main, /实际：\$\{job\.videoIdentity\.containerLabel\}/);
