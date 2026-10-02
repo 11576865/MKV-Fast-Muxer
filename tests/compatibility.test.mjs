@@ -7,6 +7,10 @@ import {
   resolveMuxCompatibility,
   summarizeCompatibility,
 } from '../src/compatibility.js';
+import {
+  COMPATIBILITY_EVIDENCE_STATUS,
+  compatibilityEvidenceFor,
+} from '../src/compatibility-evidence.js';
 
 test('known Matroska stream-copy combination resolves to DIRECT_COPY', () => {
   const result = resolveMuxCompatibility({
@@ -131,4 +135,48 @@ test('selection plan suppresses font relevance guesses when unscanned source sub
   });
 
   assert.deepEqual(messages, []);
+});
+
+
+test('DIRECT_COPY is backed by fixture evidence records', () => {
+  const result = resolveMuxCompatibility({
+    videoStreams: [{ codec_name: 'h264' }],
+    sourceAudioStreams: [{ codec_name: 'aac' }],
+    externalAudioTracks: [{ codec: 'flac' }],
+    newSubtitles: [{ format: { id: 'ass', assLike: true } }],
+  });
+
+  assert.equal(result.state, COMPATIBILITY_STATE.DIRECT_COPY);
+  assert.equal(result.evidence.length, 3);
+  assert.ok(result.evidence.every((item) => item.status === COMPATIBILITY_EVIDENCE_STATUS.VERIFIED_E2E));
+  assert.deepEqual(
+    result.evidence.map((item) => item.evidenceId),
+    ['mkv-copy-video-h264', 'mkv-copy-audio-aac', 'mkv-copy-audio-flac'],
+  );
+});
+
+test('documented but not browser-E2E-verified codec stays UNVERIFIED', () => {
+  const record = compatibilityEvidenceFor('audio', 'dts');
+  assert.equal(record?.status, COMPATIBILITY_EVIDENCE_STATUS.EXPECTED);
+
+  const result = resolveMuxCompatibility({
+    videoStreams: [{ codec_name: 'mpeg4' }],
+    sourceAudioStreams: [{ codec_name: 'dts' }],
+    newSubtitles: [{ format: { id: 'srt' } }],
+  });
+
+  assert.equal(result.state, COMPATIBILITY_STATE.UNVERIFIED);
+  assert.equal(result.issues[0].code, 'codec-not-e2e-verified');
+  assert.equal(result.issues[0].evidenceId, 'mkv-copy-audio-dts');
+});
+
+test('unrecorded codec exposes absence of evidence rather than pretending incompatibility', () => {
+  const result = resolveMuxCompatibility({
+    videoStreams: [{ codec_name: 'future_video_codec' }],
+    newSubtitles: [{ format: { id: 'srt' } }],
+  });
+
+  assert.equal(result.state, COMPATIBILITY_STATE.UNVERIFIED);
+  assert.equal(result.issues[0].code, 'codec-no-evidence-record');
+  assert.equal(result.evidence[0].status, 'unrecorded');
 });

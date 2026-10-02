@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
+import { verifiedCompatibilityEvidence } from '../../src/compatibility-evidence.js';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
@@ -1677,6 +1678,84 @@ async function scenarioRenamedFontIdentity(browser) {
   }
 }
 
+async function scenarioCompatibilityEvidenceMatrix(browser) {
+  console.log('E2E scenario 37: compatibility-evidence-matrix verifies declared Stream Copy codecs');
+  const { context, page } = await openApp(browser);
+
+  try {
+    const cases = verifiedCompatibilityEvidence();
+    let executed = 0;
+
+    for (const entry of cases) {
+      const sourcePath = path.join(root, entry.fixture);
+      try {
+        await fs.access(sourcePath);
+      } catch {
+        if (process.env.CI === 'true') {
+          throw new Error(`CI compatibility evidence fixture missing: ${entry.fixture}`);
+        }
+        console.log(`Scenario 37 local skip: ${entry.id} fixture unavailable`);
+        continue;
+      }
+
+      await page.setInputFiles('#videoInput', sourcePath);
+      await page.setInputFiles('#subInput', path.join(root, 'sample.srt'));
+      await page.waitForFunction(() => {
+        const button = document.querySelector('#muxBtn');
+        const status = document.querySelector('#status')?.textContent || '';
+        return button && !button.disabled && !/正在读取|正在识别/.test(status);
+      }, null, { timeout: 60_000 });
+
+      await page.locator('#muxBtn').click();
+      await waitForStatus(page, '完成。');
+
+      const output = path.join(outDir, entry.id + '.mkv');
+      const reportPath = path.join(outDir, entry.id + '.mux-report.json');
+      await saveDownload(page, '#downloadLink', output);
+      await saveDownload(page, '#reportLink', reportPath);
+
+      const sourceProbe = probe(sourcePath);
+      const outputProbe = probe(output);
+      const type = entry.dimension;
+      const sourceCodecs = streams(sourceProbe, type).map((stream) => stream.codec_name);
+      const outputCodecs = streams(outputProbe, type).map((stream) => stream.codec_name);
+      assert.ok(
+        sourceCodecs.includes(entry.expectedCodec),
+        `${entry.id}: source codec ${entry.expectedCodec} missing from ${JSON.stringify(sourceCodecs)}`,
+      );
+      assert.ok(
+        outputCodecs.includes(entry.expectedCodec),
+        `${entry.id}: output codec ${entry.expectedCodec} missing from ${JSON.stringify(outputCodecs)}`,
+      );
+
+      const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+      assert.equal(report.compatibility?.state, 'DIRECT_COPY', entry.id);
+      assert.equal(report.compatibility?.mediaPolicy?.silentTranscode, false, entry.id);
+      assert.equal(report.compatibility?.execution?.muxSucceeded, true, entry.id);
+      assert.equal(report.audit?.ok, true, `${entry.id}: ${JSON.stringify(report.audit?.issues || [])}`);
+
+      const evidence = Array.from(report.compatibility?.evidence || [])
+        .find((item) => item.evidenceId === entry.id);
+      assert.ok(evidence, `${entry.id}: evidence record missing from mux report`);
+      assert.equal(evidence.status, 'verified-e2e', entry.id);
+      assert.equal(evidence.fixture, entry.fixture, entry.id);
+
+      executed += 1;
+      console.log(`Scenario 37 PASS: ${entry.id}`);
+    }
+
+    if (process.env.CI === 'true') {
+      assert.equal(executed, cases.length, 'CI must execute every verified compatibility evidence case');
+    } else {
+      assert.ok(executed >= 1, 'at least one compatibility evidence fixture should execute locally');
+    }
+
+    console.log(`Scenario 37 PASS: ${executed}/${cases.length} evidence cases executed`);
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -1687,6 +1766,7 @@ try {
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
   await scenarioRenamedFontIdentity(browser);
+  await scenarioCompatibilityEvidenceMatrix(browser);
   await scenarioSelectiveAttachments(browser);
   await scenarioOriginalTracks(browser);
   await scenarioUtf16(browser);
