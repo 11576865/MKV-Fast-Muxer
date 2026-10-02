@@ -35,6 +35,15 @@ try {
   const page = await context.newPage();
   const targetUrl = new URL(capture.route ?? "/", baseUrl).toString();
   await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 60_000 });
+  const fixtureState = capture.fixture?.state ?? null;
+  if (fixtureState === "editor-all") {
+    await page.locator('[data-editor-filter="all"]').click();
+  } else if (fixtureState === "preview-dialog") {
+    await page.evaluate(() => {
+      const dialog = document.querySelector("#previewDialog");
+      if (dialog && !dialog.open) dialog.showModal();
+    });
+  }
   const ready = capture.ready ?? {};
   if (ready.selector) {
     await page.locator(ready.selector).waitFor({ state: ready.state ?? "visible", timeout: 30_000 });
