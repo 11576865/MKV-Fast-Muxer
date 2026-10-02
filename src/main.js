@@ -35,6 +35,7 @@ import {
   batchSubtitleSummary,
   buildBatchJobs,
   collectBatchFonts,
+  identifyBatchVideos,
   mergeFileSelections,
 } from './batch.js';
 import {
@@ -243,6 +244,10 @@ let previewing = false;
 let batchRunning = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
+let batchPlanGeneration = 0;
+let batchPlanPromise = Promise.resolve(null);
+let latestBatchPairing = null;
+const batchVideoIdentityCache = new Map();
 let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
@@ -628,7 +633,7 @@ function updateUI() {
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
-  if (!batchRunning) syncBatchPlan();
+  if (!batchRunning) requestBatchPlanSync();
 }
 
 function bindNewTrackEditor(container, selector, getState) {
@@ -2914,14 +2919,16 @@ function batchFontFiles() {
   return selected.length ? selected : selectedFonts();
 }
 
-function syncBatchPlan() {
-  if (!batchVideoInput || !batchSubtitleInput || !batchPlan) return;
-  const videos = batchVideoFiles();
+async function syncBatchPlan() {
+  if (!batchVideoInput || !batchSubtitleInput || !batchPlan) return null;
+
+  const generation = ++batchPlanGeneration;
+  const candidateVideos = batchVideoFiles();
   const subtitles = batchSubtitleFiles();
   const fonts = batchFontFiles();
 
   batchVideoName.textContent = Array.from(batchVideoInput.files || []).length
-    ? `${Array.from(batchVideoInput.files || []).length} 个视频` : '未选择';
+    ? `${Array.from(batchVideoInput.files || []).length} 个文件` : '未选择';
   batchVideoFolderName.textContent = Array.from(batchVideoFolderInput?.files || []).length
     ? `${Array.from(batchVideoFolderInput.files).length} 个文件` : '未选择';
   batchSubtitleName.textContent = Array.from(batchSubtitleInput.files || []).length
@@ -2933,18 +2940,51 @@ function syncBatchPlan() {
   batchFontFolderName.textContent = Array.from(batchFontFolderInput?.files || []).length
     ? `${Array.from(batchFontFolderInput.files).length} 个文件` : '未选择';
 
+  batchStartBtn.disabled = true;
+  batchCancelBtn.disabled = !batchRunning;
+  if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
+
+  if (candidateVideos.length) {
+    batchPlan.innerHTML = '<div class="track-empty">正在读取视频文件头并识别实际容器…</div>';
+  }
+
+  const recognition = await identifyBatchVideos(candidateVideos, {
+    cache: batchVideoIdentityCache,
+    concurrency: 8,
+  });
+
+  if (generation !== batchPlanGeneration) return latestBatchPairing;
+
+  const videos = recognition.recognized.map((entry) => entry.file);
+  const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
   const pairing = buildBatchJobs(videos, subtitles);
-  const rows = pairing.jobs.map((job, index) => `
+  pairing.videoRecognition = recognition;
+  pairing.jobs.forEach((job) => {
+    const recognized = identityByVideo.get(job.video);
+    job.videoIdentity = recognized?.identity || null;
+    job.videoIdentityMismatch = recognized?.mismatch || '';
+  });
+  pairing.ignoredVideos = recognition.ignored.map((entry) => entry.file);
+
+  const rows = pairing.jobs.map((job, index) => {
+    const identityText = job.videoIdentity?.containerLabel
+      ? `实际：${job.videoIdentity.containerLabel}${job.videoIdentityMismatch ? ' · 扩展名不一致' : ''}`
+      : '实际容器：未识别';
+    return `
     <div class="plan-row plan-video">
       <span class="plan-kind">#${index + 1}</span>
       <span class="plan-main">
         <strong>${escapeHtml(job.video.name)}</strong>
-        <small>${escapeHtml(batchSubtitleSummary(job))} · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
+        <small>${escapeHtml(identityText)} · ${escapeHtml(batchSubtitleSummary(job))} · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
       <span class="plan-flags">→ ${escapeHtml(job.outputName)}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const notes = [];
+  const mismatchCount = recognition.recognized.filter((entry) => entry.mismatch).length;
+  if (mismatchCount) notes.push(`${mismatchCount} 个视频扩展名与实际内容不一致，已按实际容器识别`);
+  if (recognition.ignored.length) notes.push(`${recognition.ignored.length} 个文件未识别为支持的视频容器`);
   if (pairing.unmatchedVideos.length) notes.push(`${pairing.unmatchedVideos.length} 个视频没有匹配字幕`);
   if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
   if (pairing.orphanSidecars.length) notes.push(`${pairing.orphanSidecars.length} 个 VobSub .sub 缺少同名 .idx`);
@@ -2956,10 +2996,21 @@ function syncBatchPlan() {
 
   batchPlan.innerHTML = rows || '<div class="track-empty">没有形成可执行配对。</div>';
   if (notes.length) batchPlan.innerHTML += `<div class="track-empty">${escapeHtml(notes.join('；'))}</div>`;
-  batchStartBtn.disabled = batchRunning || isBusy() || !pairing.jobs.length || pairing.invalidSubtitles.length > 0;
+  batchStartBtn.disabled =
+    batchRunning ||
+    isBusy() ||
+    !pairing.jobs.length ||
+    pairing.invalidSubtitles.length > 0;
   batchCancelBtn.disabled = !batchRunning;
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
+
+  latestBatchPairing = pairing;
   return pairing;
+}
+
+function requestBatchPlanSync() {
+  batchPlanPromise = syncBatchPlan();
+  return batchPlanPromise;
 }
 
 function setInputFiles(input, files) {
@@ -2980,7 +3031,7 @@ async function chooseBatchOutputDirectory() {
     if (permission && permission !== 'granted') throw new Error('没有输出目录写入权限。');
     batchOutputDirectoryHandle = handle;
     batchOutputDirStatus.textContent = `已选择：${handle.name}`;
-    syncBatchPlan();
+    requestBatchPlanSync();
   } catch (error) {
     if (error?.name !== 'AbortError') {
       batchOutputDirStatus.textContent = `无法使用输出目录：${error?.message || error}`;
@@ -3082,9 +3133,15 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
   batchSubtitleFolderInput,
   batchFontInput,
   batchFontFolderInput,
-].forEach((input) => input?.addEventListener('change', syncBatchPlan));
-batchFontSubsetEnabled?.addEventListener('change', syncBatchPlan);
-batchSubsetScope?.addEventListener('change', syncBatchPlan);
+].forEach((input) => input?.addEventListener('change', () => {
+  requestBatchPlanSync();
+}));
+batchFontSubsetEnabled?.addEventListener('change', () => {
+  requestBatchPlanSync();
+});
+batchSubsetScope?.addEventListener('change', () => {
+  requestBatchPlanSync();
+});
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
 batchCancelBtn?.addEventListener('click', () => {
@@ -3096,14 +3153,14 @@ batchCancelBtn?.addEventListener('click', () => {
 
 batchStartBtn?.addEventListener('click', async () => {
   if (isBusy()) return;
-  const pairing = syncBatchPlan();
+  const pairing = await requestBatchPlanSync();
   if (!pairing?.jobs?.length) return;
 
   batchRunning = true;
   batchCancelRequested = false;
   batchResults.innerHTML = '';
   batchStatus.textContent = `批量任务：0 / ${pairing.jobs.length}`;
-  syncBatchPlan();
+  requestBatchPlanSync();
 
   const originalVideoFiles = Array.from(videoInput.files || []);
   const originalAudioFiles = Array.from(audioInput.files || []);
@@ -3140,7 +3197,7 @@ batchStartBtn?.addEventListener('click', async () => {
       setInputFiles(fontInput, jobFonts);
       resetTrackState();
 
-      const preserveAll = Boolean(batchPreserveAttachments?.checked && ext(job.video.name) === '.mkv');
+      const preserveAll = Boolean(batchPreserveAttachments?.checked && currentVideoIsMatroska(job.video));
       if (appendPreserveAll) {
         appendPreserveAll.dataset.userTouched = '1';
         appendPreserveAll.checked = preserveAll;
@@ -3210,7 +3267,7 @@ batchStartBtn?.addEventListener('click', async () => {
     if (fontSubsetEnabled) fontSubsetEnabled.checked = originalSubsetEnabled;
     syncNewTrackState();
     updateUI();
-    syncBatchPlan();
+    requestBatchPlanSync();
   }
 });
 
