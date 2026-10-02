@@ -1457,6 +1457,18 @@ async function scenarioRenamedMediaIdentity(browser) {
       return text.includes('ASS') && text.includes('扩展名 .mmmmm') && text.includes('已按实际内容识别');
     });
 
+    assert.equal(await page.locator('#previewRefreshBtn').isEnabled(), true);
+    assert.equal(await page.locator('#previewSubtitleSelect').isEnabled(), true);
+    assert.match(await page.locator('#previewSubtitleSelect').textContent(), /captions\.mmmmm · ASS/);
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const image = document.querySelector('#previewImage');
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      return Boolean(image?.getAttribute('src')) || /预览已生成|完成/.test(status);
+    }, null, { timeout: 180_000 });
+    assert.equal(await page.locator('#previewImage').isVisible(), true);
+
     assert.equal(await page.locator('#muxBtn').isEnabled(), true);
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
