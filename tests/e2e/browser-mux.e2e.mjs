@@ -1458,6 +1458,24 @@ async function scenarioRenamedMediaIdentity(browser) {
     assert.match(log, /扩展名 \.mmmmmm 与实际检测到的 ISO BMFF \/ MP4 不一致/);
     assert.match(log, /外部音频“external\.flac”.*实际检测到的 aac 不一致/);
 
+    const mkvBuffer = await fs.readFile(path.join(root, 'source-with-attachments.mkv'));
+    await page.setInputFiles('#videoInput', {
+      name: 'actually-matroska.mp4',
+      mimeType: 'video/mp4',
+      buffer: mkvBuffer,
+    });
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#videoIdentity')?.textContent || '';
+      return text.includes('Matroska / MKV') && text.includes('扩展名 .mp4');
+    });
+
+    assert.equal(await page.locator('#scanTracksBtn').isEnabled(), true);
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#scanTracksBtn').click();
+    await waitForStatus(page, '轨道扫描完成：');
+
     console.log('Scenario 34 PASS');
   } finally {
     await context.close();
