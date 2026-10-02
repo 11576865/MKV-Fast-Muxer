@@ -11,6 +11,7 @@ test('mux report is versioned, serializable and derives a stable sidecar name', 
     subtitle: { name: 'movie.ass' },
     fonts: { uniqueCount: 2 },
     plan: { entries: [], warnings: [] },
+    compatibility: { state: 'DIRECT_COPY', issues: [] },
     expectedAudit: { chapterCount: 0 },
     audit: { status: 'pass', ok: true, issues: [] },
     output: { name: 'movie.mkv', sha256: 'abc' },
@@ -18,6 +19,7 @@ test('mux report is versioned, serializable and derives a stable sidecar name', 
 
   assert.equal(report.schema, 1);
   assert.equal(report.application.processing, 'browser-local');
+  assert.equal(report.compatibility.state, 'DIRECT_COPY');
   assert.equal(JSON.parse(serializeMuxReport(report)).output.name, 'movie.mkv');
   assert.equal(reportFilename('movie.mkv'), 'movie.mux-report.json');
 });
