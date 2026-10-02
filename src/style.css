@@ -361,6 +361,24 @@ select:disabled {
   overflow-wrap: anywhere;
 }
 
+.source-diagnostic {
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.source-diagnostic[data-state="verified"] {
+  color: var(--text-soft, var(--text));
+}
+
+.source-diagnostic[data-state="warning"] {
+  color: var(--warning);
+}
+
+.source-diagnostic[data-state="unknown"] {
+  color: var(--muted);
+}
+
 .source-action {
   color: var(--source-accent);
   font-size: .72rem;
