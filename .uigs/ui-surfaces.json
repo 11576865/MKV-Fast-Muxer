@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "project": "MKV-Fast-Muxer",
+  "repository": "11576865/MKV-Fast-Muxer",
+  "platform": "web",
+  "authority": "this repository",
+  "surface_count": 12,
+  "surfaces": [
+    {
+      "id": "MKV.STAGE.INPUT",
+      "kind": "stage",
+      "name": "输入",
+      "group": "FLOW",
+      "status": "implemented",
+      "intent": "选择视频、字幕、字体等输入资源。",
+      "implementation_effect": "作为三阶段层级的第一阶段，输入资源与后续调整/封装分离。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".stage.stage-input"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.STAGE.ADJUST",
+      "kind": "stage",
+      "name": "调整",
+      "group": "FLOW",
+      "status": "implemented",
+      "intent": "在封装前完成字幕/轨道/字体相关调整与预览。",
+      "implementation_effect": "主要编辑区包含预览与编辑卡片，不与最终输出区混成一列。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".editor-column"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.PREVIEW.SUBTITLE",
+      "kind": "preview",
+      "name": "字幕预览",
+      "group": "ADJUST",
+      "status": "implemented",
+      "intent": "预览字幕相关视觉结果。",
+      "implementation_effect": "桌面限制预览高度以避免预览吞噬工作区；可点击进入独立大图 dialog。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".subtitle-preview-card"
+        },
+        {
+          "path": "src/style.css",
+          "anchor": ".subtitle-preview-card / .preview-stage"
+        }
+      ],
+      "patterns": [],
+      "tests": [
+        "tests/preview-ui.test.mjs"
+      ],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.EDITOR.CONFIG",
+      "kind": "editor",
+      "name": "配置编辑卡",
+      "group": "ADJUST",
+      "status": "implemented",
+      "intent": "承载主要封装/轨道配置。",
+      "implementation_effect": "与来源轨道、字体编辑和预览拆分成独立卡片。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".editor-card.config-card"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.EDITOR.SOURCE_TRACK",
+      "kind": "editor",
+      "name": "源轨道编辑卡",
+      "group": "ADJUST",
+      "status": "implemented",
+      "intent": "查看和调整源轨道相关设置。",
+      "implementation_effect": "源轨道设置保持独立语义区，避免与最终 mux plan 混杂。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".editor-card.source-track-card"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.EDITOR.FONT",
+      "kind": "editor",
+      "name": "字体编辑区",
+      "group": "ADJUST",
+      "status": "implemented",
+      "intent": "管理字幕字体相关封装选择与调整。",
+      "implementation_effect": "字体处理从其它轨道配置中分离，便于单独审查。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".font-editor"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.STAGE.OUTPUT_HUB",
+      "kind": "supporting-pane",
+      "name": "检查与封装",
+      "group": "OUTPUT",
+      "status": "implemented",
+      "intent": "汇总检查、计划与封装操作。",
+      "implementation_effect": "根据 viewport/pointer 条件在 sticky bounded pane 与 static normal-flow 之间切换；宽桌面避免嵌套滚动。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".output-hub"
+        },
+        {
+          "path": "src/style.css",
+          "anchor": ".output-hub"
+        }
+      ],
+      "patterns": [
+        "UIGS.WORKSPACE.STICKY_SUPPORTING_PANE"
+      ],
+      "tests": [
+        "tests/preview-ui.test.mjs",
+        "tests/desktop-layout.test.mjs"
+      ],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.OUTPUT.SUMMARY",
+      "kind": "summary",
+      "name": "输出摘要",
+      "group": "OUTPUT",
+      "status": "implemented",
+      "intent": "汇总最终输出对象和关键状态。",
+      "implementation_effect": "输出身份和计划摘要在执行前可见。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".output-summary"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.OUTPUT.MUX_PLAN",
+      "kind": "plan",
+      "name": "封装计划",
+      "group": "OUTPUT",
+      "status": "implemented",
+      "intent": "在执行前展示 mux plan。",
+      "implementation_effect": "宽桌面允许自然展开而不是强制内部滚动。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".output-section.plan-panel"
+        },
+        {
+          "path": "src/style.css",
+          "anchor": ".output-section .mux-plan"
+        }
+      ],
+      "patterns": [],
+      "tests": [
+        "tests/preview-ui.test.mjs"
+      ],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.OUTPUT.EXECUTION",
+      "kind": "execution",
+      "name": "封装执行区",
+      "group": "OUTPUT",
+      "status": "implemented",
+      "intent": "启动并观察封装执行。",
+      "implementation_effect": "执行动作与计划/摘要保持同一输出阶段但分区呈现。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".output-section.execution-panel"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.DIALOG.PREVIEW",
+      "kind": "dialog",
+      "name": "大图预览对话框",
+      "group": "PREVIEW",
+      "status": "implemented",
+      "intent": "在不改变主工作区布局的情况下放大预览图。",
+      "implementation_effect": "dialog backdrop 使用真实半透明背景与 backdrop-filter blur；与 output-hub 的 sticky/层级效果无关。",
+      "source_refs": [
+        {
+          "path": "src/style.css",
+          "anchor": ".preview-dialog / .preview-dialog::backdrop"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    },
+    {
+      "id": "MKV.STAGE.BATCH",
+      "kind": "stage",
+      "name": "批量工作区",
+      "group": "BATCH",
+      "status": "implemented",
+      "intent": "对多输入执行批量封装。",
+      "implementation_effect": "批量来源按视频、字幕、字体分 cluster，和单任务三阶段流分离。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".stage.stage-batch.batch-workspace"
+        }
+      ],
+      "patterns": [],
+      "visual_evidence": []
+    }
+  ]
+}
