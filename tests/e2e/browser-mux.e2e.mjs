@@ -1541,6 +1541,7 @@ async function scenarioBatchContentIdentity(browser) {
     const mkvBuffer = await fs.readFile(path.join(root, 'source-with-attachments.mkv'));
     const zhBuffer = await fs.readFile(path.join(root, 'zh.ass'));
     const enBuffer = await fs.readFile(path.join(root, 'en.ass'));
+    const fontBuffer = await fs.readFile(path.join(root, 'DejaVuSans.ttf'));
 
     await page.locator('.batch-drawer > summary').click();
     await page.setInputFiles('#batchVideoInput', [
@@ -1555,6 +1556,11 @@ async function scenarioBatchContentIdentity(browser) {
         buffer: mkvBuffer,
       },
     ]);
+    await page.setInputFiles('#batchFontInput', {
+      name: 'BatchSharedFont.asset',
+      mimeType: 'application/octet-stream',
+      buffer: fontBuffer,
+    });
     await page.setInputFiles('#batchSubtitleInput', [
       {
         name: 'Renamed S01E01.zh-Hans.captiondata',
@@ -1578,6 +1584,7 @@ async function scenarioBatchContentIdentity(browser) {
         text.includes('实际：Matroska / MKV') &&
         text.includes('2 个视频扩展名与实际内容不一致') &&
         text.includes('2 个字幕扩展名与实际内容不一致') &&
+        text.includes('1 个字体扩展名与实际内容不一致') &&
         start &&
         !start.disabled
       );
