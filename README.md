@@ -185,7 +185,7 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 
 ### 5. 多字体附件
 
-支持一次选择多个 TTF / OTF / TTC / OTC。字体身份以实际 SFNT / collection 结构和内部表解析为准，而不是扩展名：真实 TTF / OTF / TTC / OTC 即使改成未知后缀仍可被识别，伪造支持后缀但内部结构无效的文件会被拒绝。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次；写入 MKV 时的 attachment MIME 也由实际字体结构决定。扩展名与实际内容不一致会记录警告，不会覆盖内部证据。
+支持一次选择多个 TTF / OTF / TTC / OTC。字体身份以实际 SFNT / collection 结构和内部表解析为准，而不是扩展名：真实 TTF / OTF / TTC / OTC 即使改成未知后缀仍可被识别，伪造支持后缀但内部结构无效的文件会被拒绝。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次；写入 MKV 时的 attachment MIME 也由实际字体结构决定。扩展名与实际内容不一致会记录警告，并在生成的字体 attachment 名称中恢复与已验证结构一致的 `.ttf` / `.otf` / `.ttc` / `.otc` 后缀，避免错误文件名继续传播到播放器侧。
 
 默认模式是：
 
