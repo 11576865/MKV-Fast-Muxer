@@ -246,6 +246,7 @@ let batchOutputDirectoryHandle = null;
 let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
+let videoSniffPromise = Promise.resolve();
 let videoSniffState = {
   status: 'idle',
   fileKey: '',
@@ -659,7 +660,7 @@ videoInput.addEventListener('change', () => {
   preserveAttachments.checked = false;
   destroySubtitlePreview();
   clearPreviewImage();
-  inspectSelectedVideoHeader();
+  videoSniffPromise = inspectSelectedVideoHeader();
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
@@ -3134,6 +3135,7 @@ batchStartBtn?.addEventListener('click', async () => {
       batchStatus.textContent = `批量任务：${index + 1} / ${pairing.jobs.length} · ${job.video.name}`;
 
       setInputFiles(videoInput, [job.video]);
+      await videoSniffPromise;
       setInputFiles(subInput, job.subtitleInputFiles);
       setInputFiles(fontInput, jobFonts);
       resetTrackState();
@@ -3196,6 +3198,7 @@ batchStartBtn?.addEventListener('click', async () => {
       : `批量完成：成功 ${done}，失败 ${failed}。`;
     batchCancelRequested = false;
     setInputFiles(videoInput, originalVideoFiles);
+    await videoSniffPromise;
     setInputFiles(audioInput, originalAudioFiles);
     setInputFiles(subInput, originalSubtitleFiles);
     setInputFiles(fontInput, originalFontFiles);
