@@ -27,3 +27,11 @@ test('font subsetting can use font identity instead of renamed source extension'
   assert.match(subset, /fontVirtualSuffix\(identity\)/);
   assert.match(subset, /fontMimeType\(identity\)/);
 });
+
+
+test('font preflight is an explicit readiness dependency for interactive and batch mux', () => {
+  assert.match(main, /fontInspectPromise = inspectSelectedFonts\(\)/);
+  assert.match(main, /fontIdentityPending\(\)/);
+  assert.match(main, /await fontInspectPromise/);
+  assert.match(main, /fontRecognition\.ignored\.length > 0/);
+});
