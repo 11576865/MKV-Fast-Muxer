@@ -567,7 +567,7 @@ async function scenarioBrokenSubtitle(browser) {
 }
 
 async function scenarioBrokenFonts(browser) {
-  console.log('E2E scenario 13: broken and zero-byte fonts fail without stale output');
+  console.log('E2E scenario 13: broken and zero-byte fonts are blocked by content preflight without stale output');
   const { context, page } = await openApp(browser);
 
   try {
@@ -575,25 +575,27 @@ async function scenarioBrokenFonts(browser) {
       await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
       await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
       await page.setInputFiles('#fontInput', path.join(root, filename));
-      await page.locator('#muxBtn').click();
 
       await page.waitForFunction(() => {
-        const value = document.querySelector('#status')?.textContent || '';
-        return value.includes('字体文件无法被可靠解析') &&
-          value.includes('重新选择有效的 TTF / OTF / TTC / OTC');
-      }, null, { timeout: 180_000 });
+        const name = document.querySelector('#fontName')?.textContent || '';
+        const hint = document.querySelector('#fontModeHint')?.textContent || '';
+        const button = document.querySelector('#muxBtn');
+        return name.includes('字体内容无法识别') &&
+          hint.includes('存在无法解析的字体文件') &&
+          Boolean(button?.disabled);
+      });
 
-      const failedStatus = await page.locator('#status').textContent();
-      assert.match(failedStatus, /字体文件无法被可靠解析/);
-      assert.match(failedStatus, /重新选择有效的 TTF \/ OTF \/ TTC \/ OTC/);
+      assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+      assert.match(await page.locator('#fontName').textContent(), /字体内容无法识别/);
+      assert.match(await page.locator('#fontModeHint').textContent(), /存在无法解析的字体文件/);
       assert.equal(await page.locator('#downloadLink').isVisible(), false);
       assert.equal(await page.locator('#reportLink').isVisible(), false);
-      await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
     }
 
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     console.log('Scenario 13 PASS');
