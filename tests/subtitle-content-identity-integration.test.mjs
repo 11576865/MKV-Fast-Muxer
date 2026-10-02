@@ -25,6 +25,14 @@ test('single subtitle workflow waits for content identity before mux', () => {
   assert.doesNotMatch(main, /!isSupportedSubtitleFile\(track\.file\)/);
 });
 
+test('subtitle preview capability follows detected format instead of filename extension', () => {
+  assert.match(main, /selectedSubtitleTracks/);
+  assert.match(main, /track\.format\?\.previewable/);
+  assert.doesNotMatch(main, /selectedSubtitleFiles\(\)\.some\(isPreviewableSubtitle\)/);
+  assert.doesNotMatch(main, /filter\(\(\{ file \}\) => isPreviewableSubtitle\(file\)\)/);
+  assert.match(main, /buildPreviewAss\(track, fontFiles\)/);
+});
+
 test('batch subtitle pairing consumes content-derived subtitle collection', () => {
   assert.match(main, /buildBatchJobsFromCollected\(videos, subtitleRecognition\)/);
   assert.match(main, /batchSubtitleIdentityCache/);
