@@ -1429,6 +1429,7 @@ async function scenarioRenamedMediaIdentity(browser) {
   try {
     const videoBuffer = await fs.readFile(path.join(root, 'base.mp4'));
     const audioBuffer = await fs.readFile(path.join(root, 'external.aac'));
+    const subtitleBuffer = await fs.readFile(path.join(root, 'zh.ass'));
 
     await page.setInputFiles('#videoInput', {
       name: 'base.mmmmmm',
@@ -1440,11 +1441,20 @@ async function scenarioRenamedMediaIdentity(browser) {
       mimeType: 'application/octet-stream',
       buffer: audioBuffer,
     });
-    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#subInput', {
+      name: 'captions.mmmmm',
+      mimeType: 'application/octet-stream',
+      buffer: subtitleBuffer,
+    });
 
     await page.waitForFunction(() => {
       const text = document.querySelector('#videoIdentity')?.textContent || '';
       return text.includes('ISO BMFF') && text.includes('扩展名 .mmmmmm');
+    });
+
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#newSubtitleList')?.textContent || '';
+      return text.includes('ASS') && text.includes('扩展名 .mmmmm') && text.includes('已按实际内容识别');
     });
 
     assert.equal(await page.locator('#muxBtn').isEnabled(), true);
@@ -1519,13 +1529,13 @@ async function scenarioBatchContentIdentity(browser) {
     ]);
     await page.setInputFiles('#batchSubtitleInput', [
       {
-        name: 'Renamed S01E01.zh-Hans.ass',
-        mimeType: 'text/plain',
+        name: 'Renamed S01E01.zh-Hans.captiondata',
+        mimeType: 'application/octet-stream',
         buffer: zhBuffer,
       },
       {
-        name: 'Renamed S01E02.en.ass',
-        mimeType: 'text/plain',
+        name: 'Renamed S01E02.en.words',
+        mimeType: 'application/octet-stream',
         buffer: enBuffer,
       },
     ]);
@@ -1539,6 +1549,7 @@ async function scenarioBatchContentIdentity(browser) {
         text.includes('Renamed S01E02.mp4') &&
         text.includes('实际：Matroska / MKV') &&
         text.includes('2 个视频扩展名与实际内容不一致') &&
+        text.includes('2 个字幕扩展名与实际内容不一致') &&
         start &&
         !start.disabled
       );
