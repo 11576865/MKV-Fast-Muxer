@@ -7,7 +7,7 @@ const report = fs.readFileSync(new URL('../src/mux-report.js', import.meta.url),
 
 test('runtime mux path resolves compatibility after actual probes and before ffmpeg exec', () => {
   const resolver = main.indexOf('const compatibility = resolveMuxCompatibility({');
-  const exec = main.indexOf('const code = await ffmpeg.exec(args);');
+  const exec = main.indexOf('const code = await ffmpeg.exec(args);', resolver);
   assert.ok(resolver >= 0, 'compatibility resolver must be called');
   assert.ok(exec > resolver, 'compatibility must be resolved before the real mux');
   assert.match(main, /videoStreams: sourceVideos/);
