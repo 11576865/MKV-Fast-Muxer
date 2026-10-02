@@ -30,8 +30,7 @@ import {
   identifySubtitleInputs,
   inferredSubtitleMetadata,
   isAssLikeSubtitle,
-  isPreviewableSubtitle,
-  isSupportedSubtitleFile,
+   isSupportedSubtitleFile,
   isTextSubtitle,
   subtitleFormatInfo,
   subtitleTrackKey,
@@ -1425,7 +1424,7 @@ async function refreshSubtitlePreview() {
     await loadFFmpeg();
     if (cancelRequested || generation !== previewGeneration) return;
 
-    const sourceAss = await buildPreviewAss({ file: track }, fontFiles);
+    const sourceAss = await buildPreviewAss(track, fontFiles);
 
     await ffmpeg.createDir(mountPoint);
     await ffmpeg.mount(FFFSType.WORKERFS, { files: [video] }, mountPoint);
