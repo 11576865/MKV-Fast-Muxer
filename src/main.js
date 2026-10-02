@@ -1573,7 +1573,7 @@ async function refreshSubtitlePreview() {
     previewImage.src = previewImageURL;
     previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.name} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.file.name} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();
