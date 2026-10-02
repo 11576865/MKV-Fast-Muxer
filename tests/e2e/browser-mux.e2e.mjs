@@ -1506,7 +1506,8 @@ async function scenarioRenamedMediaIdentity(browser) {
     const log = await page.locator('#log').textContent();
     assert.match(log, /扩展名 \.mmmmmm 与实际检测到的 ISO BMFF \/ MP4 不一致/);
     assert.match(log, /外部音频“external\.flac”.*实际检测到的 aac 不一致/);
-    assert.match(log, /字体“DejaVuSans\.fontblob”.*扩展名 \.fontblob.*TrueType SFNT 字体不一致/);
+    assert.match(log, /字体“DejaVuSans\.fontblob”/);
+    assert.match(log, /扩展名 \.fontblob 与实际检测到的 TrueType SFNT 字体/);
 
     const mkvBuffer = await fs.readFile(path.join(root, 'source-with-attachments.mkv'));
     await page.setInputFiles('#videoInput', {
