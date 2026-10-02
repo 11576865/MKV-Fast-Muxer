@@ -606,3 +606,8 @@ MKV Fast Muxer 的代码实现、调试、测试、文档及部分工程工作�
 - `jassub` 2.5.15 — 见其复合许可证与上游 libass 相关条款
 
 详细说明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
+
+
+### 字体内容身份
+
+字体文件不以扩展名作为最终身份。程序检查 SFNT/OpenType/TrueType 内容并解析内部 face/name 结构；扩展名不一致只作为诊断，预览、批量发现、附件 MIME 和子集化都按实际字体内容处理。
