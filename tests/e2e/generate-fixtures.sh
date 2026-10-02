@@ -228,16 +228,81 @@ ffmpeg -hide_banner -loglevel error -y \
   -disposition:s:0 forced \
   "$ROOT/source-multitrack.mkv"
 
-if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q 'libaom-av1'; then
+has_encoder() {
+  local encoder="$1"
+  ffmpeg -hide_banner -encoders 2>/dev/null | grep -Eq "[[:space:]]${encoder}[[:space:]]"
+}
+
+require_matrix_encoder() {
+  local encoder="$1"
+  if has_encoder "$encoder"; then
+    return 0
+  fi
+  if [[ "${CI:-}" == "true" ]]; then
+    echo "Compatibility evidence requires FFmpeg encoder: $encoder" >&2
+    exit 1
+  fi
+  echo "Compatibility evidence fixture skipped locally; encoder unavailable: $encoder" >&2
+  return 1
+}
+
+generate_video_evidence_fixture() {
+  local encoder="$1"
+  local output="$2"
+  shift 2
+  if ! require_matrix_encoder "$encoder"; then
+    return 0
+  fi
   ffmpeg -hide_banner -loglevel error -y \
-    -f lavfi -i "testsrc2=size=160x90:rate=12:duration=1" \
-    -f lavfi -i "sine=frequency=520:sample_rate=48000:duration=1" \
-    -shortest \
-    -c:v libaom-av1 -cpu-used 8 -crf 45 -b:v 0 \
-    -c:a aac -b:a 64k \
+    -f lavfi -i "testsrc2=size=160x90:rate=12:duration=0.6" \
+    -an -pix_fmt yuv420p -c:v "$encoder" "$@" \
+    "$ROOT/$output"
+}
+
+generate_audio_evidence_fixture() {
+  local encoder="$1"
+  local output="$2"
+  shift 2
+  if ! require_matrix_encoder "$encoder"; then
+    return 0
+  fi
+  ffmpeg -hide_banner -loglevel error -y \
+    -i "$ROOT/compat-video-mpeg4.mp4" \
+    -f lavfi -i "sine=frequency=610:sample_rate=48000:duration=0.6" \
+    -map 0:v:0 -map 1:a:0 -shortest \
+    -c:v copy -c:a "$encoder" "$@" \
+    "$ROOT/$output"
+}
+
+# Fixture-backed Matroska Stream Copy evidence matrix.
+generate_video_evidence_fixture mpeg4 compat-video-mpeg4.mp4 -q:v 8
+generate_video_evidence_fixture libx264 compat-video-h264.mp4 -preset ultrafast -tune zerolatency -crf 35
+generate_video_evidence_fixture libx265 compat-video-hevc.mp4 -preset ultrafast -x265-params log-level=error -crf 40
+generate_video_evidence_fixture libaom-av1 compat-video-av1.mp4 -cpu-used 8 -row-mt 1 -crf 50 -b:v 0
+generate_video_evidence_fixture libvpx compat-video-vp8.webm -deadline realtime -cpu-used 8 -b:v 160k
+generate_video_evidence_fixture libvpx-vp9 compat-video-vp9.webm -deadline realtime -cpu-used 8 -crf 45 -b:v 0
+
+generate_audio_evidence_fixture aac compat-audio-aac.mkv -b:a 64k
+generate_audio_evidence_fixture flac compat-audio-flac.mkv
+generate_audio_evidence_fixture libmp3lame compat-audio-mp3.mkv -b:a 64k
+generate_audio_evidence_fixture libopus compat-audio-opus.mkv -b:a 64k
+generate_audio_evidence_fixture libvorbis compat-audio-vorbis.mkv -q:a 3
+generate_audio_evidence_fixture ac3 compat-audio-ac3.mkv -b:a 96k
+generate_audio_evidence_fixture eac3 compat-audio-eac3.mkv -b:a 96k
+generate_audio_evidence_fixture alac compat-audio-alac.mkv
+generate_audio_evidence_fixture pcm_s16le compat-audio-pcm_s16le.mkv
+generate_audio_evidence_fixture pcm_s24le compat-audio-pcm_s24le.mkv
+generate_audio_evidence_fixture pcm_s32le compat-audio-pcm_s32le.mkv
+generate_audio_evidence_fixture pcm_f32le compat-audio-pcm_f32le.mkv
+
+if [[ -f "$ROOT/compat-video-av1.mp4" ]]; then
+  ffmpeg -hide_banner -loglevel error -y \
+    -i "$ROOT/compat-video-av1.mp4" \
+    -f lavfi -i "sine=frequency=520:sample_rate=48000:duration=0.6" \
+    -map 0:v:0 -map 1:a:0 -shortest -c:v copy -c:a aac -b:a 64k \
     "$ROOT/av1.mp4"
 else
-  echo "libaom-av1 encoder unavailable; AV1 E2E scenario will be skipped."
+  echo "AV1 compatibility fixture unavailable; legacy AV1 scenarios will be skipped."
 fi
 
 echo "Generated E2E fixtures in $ROOT"
