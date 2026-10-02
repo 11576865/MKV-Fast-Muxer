@@ -120,3 +120,15 @@ test('summary includes conversion warning and unverified counts', () => {
   assert.match(summarizeCompatibility(result), /1 warning/);
   assert.match(summarizeCompatibility(result), /1 unverified/);
 });
+
+
+test('selection plan suppresses font relevance guesses when unscanned source subtitles are unknown', () => {
+  const messages = compatibilityPlanMessages({
+    newSubtitles: [{ format: { id: 'srt' } }],
+    fontCount: 1,
+    hasKnownAssLikeSource: false,
+    sourceSubtitleKnowledge: 'unknown',
+  });
+
+  assert.deepEqual(messages, []);
+});
