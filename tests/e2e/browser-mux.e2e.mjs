@@ -1362,9 +1362,22 @@ async function scenarioResponsiveObjectEditor(browser) {
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      if (width <= 600 && !(await page.locator('#previewStage').isVisible())) {
-        await page.locator('#mobilePreviewToggle').click();
+
+      if (width <= 600) {
+        await page.waitForFunction(() => {
+          const card = document.querySelector('.subtitle-preview-card');
+          return card?.dataset.mobileDisclosureInitialized === 'true';
+        });
+        if (await page.locator('#mobilePreviewToggle').getAttribute('aria-expanded') !== 'true') {
+          await page.locator('#mobilePreviewToggle').click();
+        }
       }
+
+      await page.waitForFunction(() => {
+        const rect = document.querySelector('#previewStage')?.getBoundingClientRect();
+        return Boolean(rect && rect.width > 0 && rect.height > 0);
+      });
+
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
