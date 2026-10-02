@@ -1424,6 +1424,7 @@ async function refreshSubtitlePreview() {
   const fontDir = `/${prefix}-preview-fonts`;
   const basePath = `/${prefix}-preview-base.png`;
   const outputPath = `/${prefix}-preview-sub.png`;
+  const previewFontPaths = [];
   let mounted = false;
 
   try {
@@ -1432,6 +1433,17 @@ async function refreshSubtitlePreview() {
     await loadFFmpeg();
     if (cancelRequested || generation !== previewGeneration) return;
 
+    const previewFonts = await Promise.all(fontFiles.map(async (font) => {
+      const identity = await identifyFontFile(font);
+      if (!isSupportedFontIdentity(identity)) {
+        throw new Error(`字体“${font.name}”的实际内容无法识别：${identity.parseError || '无有效字体结构'}`);
+      }
+      const mismatch = fontIdentityMismatchMessage(identity);
+      if (mismatch) {
+        logEl.textContent += `WARNING: 预览字体“${font.name}”：${mismatch}；按实际字体结构载入。\n`;
+      }
+      return { file: font, identity };
+    }));
     const sourceAss = await buildPreviewAss(track, fontFiles);
 
     await ffmpeg.createDir(mountPoint);
@@ -1469,9 +1481,10 @@ async function refreshSubtitlePreview() {
     const previewCenter = 0.5;
     const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
-    await Promise.all(fontFiles.map(async (font, index) => {
-      const suffix = ext(font.name) || '.font';
-      await ffmpeg.writeFile(`${fontDir}/font-${index}${suffix}`, await fetchFile(font));
+    await Promise.all(previewFonts.map(async (item, index) => {
+      const path = `${fontDir}/font-${index}${fontVirtualSuffix(item.identity)}`;
+      previewFontPaths.push(path);
+      await ffmpeg.writeFile(path, await fetchFile(item.file));
     }));
     await ffmpeg.writeFile(assPath, new TextEncoder().encode(shiftedAss));
 
@@ -1593,9 +1606,8 @@ async function refreshSubtitlePreview() {
     await removeQuietly(basePath);
     await removeQuietly(assPath);
     if (loaded) {
-      for (let index = 0; index < fontFiles.length; index += 1) {
-        const suffix = ext(fontFiles[index].name) || '.font';
-        await removeQuietly(`${fontDir}/font-${index}${suffix}`);
+      for (const path of previewFontPaths) {
+        await removeQuietly(path);
       }
       if (mounted) {
         try { await ffmpeg.unmount(mountPoint); } catch {}
@@ -2812,7 +2824,7 @@ muxBtn.addEventListener('click', async () => {
       .filter(Boolean);
     const expectedFontAttachments = attachments.map((item) => ({
       filename: item.attachmentName,
-      mimetype: mimeForFont(item.file),
+      mimetype: fontMimeType(item.fontIdentity),
     }));
 
     const expectedAudit = {
@@ -2952,7 +2964,7 @@ muxBtn.addEventListener('click', async () => {
           attachmentName: item.attachmentName,
           sizeBytes: item.file.size,
           sha256: item.sha256,
-          mimeType: mimeForFont(item.file),
+          mimeType: fontMimeType(item.fontIdentity),
           subset: item.subset || { enabled: false, applied: false },
           faces: descriptors
             .filter((face) => face.attachmentIndex === (item.sourceIndex ?? uniqueFontItems.indexOf(item)))
