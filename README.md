@@ -157,6 +157,8 @@ MKV
 
 ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / VobSub 按二进制字幕流处理，不经过文本解码。
 
+字幕格式同样以实际内容为准，而不是由文件扩展名决定。单次与批量模式都会先读取字幕内容特征：ASS / SSA 识别脚本结构与版本，SRT 识别时间轴语法，WebVTT 识别 `WEBVTT` 头，PGS 识别二进制 segment 标记，VobSub 则把 IDX 文本索引与 SUB MPEG program stream 作为一个配对资源处理。扩展名与检测结果不一致时会提示，但仍按实际字幕格式建立封装计划。
+
 ### 5. 可选字体子集化
 
 “字体子集化”默认关闭。开启后使用 HarfBuzz WebAssembly 根据当前字幕实际字符生成 TTF / OTF 子集，并保留 OpenType layout glyph closure；TTC / OTC 集合目前保持原文件，以避免错误拆分 collection face。子集字体仍作为标准 Matroska attachment 写入。
