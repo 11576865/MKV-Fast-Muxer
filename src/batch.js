@@ -138,10 +138,9 @@ function scorePair(video, subtitleFile) {
   return -1;
 }
 
-export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
+export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
   const videos = Array.from(videoFiles || []);
-  const collected = collectSubtitleInputs(subtitleFiles);
-  const subtitleTracks = collected.tracks;
+  const subtitleTracks = Array.from(collected.tracks || []);
   const assignments = new Map(videos.map((video) => [video, []]));
   const unmatchedSubtitleTracks = [];
 
@@ -183,10 +182,15 @@ export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
     unmatchedVideos,
     unmatchedSubtitleTracks,
     unmatchedSubtitles: unmatchedSubtitleTracks.map((track) => track.file),
-    orphanSidecars: collected.orphanSidecars,
-    invalidSubtitles: collected.invalid,
+    orphanSidecars: Array.from(collected.orphanSidecars || []),
+    invalidSubtitles: Array.from(collected.invalid || []),
+    subtitleMismatches: Array.from(collected.mismatches || []),
     ignoredVideos: [],
   };
+}
+
+export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
+  return buildBatchJobsFromCollected(videoFiles, collectSubtitleInputs(subtitleFiles));
 }
 
 export function collectBatchFonts(files = []) {
