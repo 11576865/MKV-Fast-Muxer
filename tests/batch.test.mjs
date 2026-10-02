@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   batchSubtitleSummary,
   buildBatchJobs,
+  identifyBatchFonts,
   identifyBatchVideos,
   mergeFileSelections,
   stem,
@@ -113,5 +114,66 @@ test('batch content recognition caches file identity and bounds repeated probing
 
   assert.equal(first.recognized.length, 1);
   assert.equal(second.recognized.length, 1);
+  assert.equal(calls, 1);
+});
+
+
+test('content-recognized font with an unknown extension can enter batch font set', async () => {
+  const renamed = { name: 'FixtureSans.mmmmmm', size: 10, lastModified: 1 };
+  const recognition = await identifyBatchFonts([renamed], {
+    identify: async () => ({
+      kind: 'font',
+      fileName: renamed.name,
+      extension: '.mmmmmm',
+      container: 'single',
+      flavor: 'truetype',
+      label: 'TrueType / OpenType TT',
+      valid: true,
+      extensionMatches: false,
+      descriptors: [{ family: 'Fixture Sans' }],
+    }),
+  });
+
+  assert.equal(recognition.recognized.length, 1);
+  assert.equal(recognition.recognized[0].identity.valid, true);
+  assert.match(recognition.recognized[0].mismatch, /\.mmmmmm/);
+});
+
+test('supported-looking font extension does not make invalid bytes a batch font', async () => {
+  const fake = { name: 'fake.ttf', size: 10, lastModified: 1 };
+  const recognition = await identifyBatchFonts([fake], {
+    identify: async () => ({
+      kind: 'font',
+      fileName: fake.name,
+      valid: false,
+      parseError: '字体 name 表损坏',
+    }),
+  });
+
+  assert.equal(recognition.recognized.length, 0);
+  assert.equal(recognition.ignored.length, 1);
+});
+
+test('batch font content recognition caches file identity', async () => {
+  let calls = 0;
+  const cache = new Map();
+  const font = { name: 'font.bin', size: 10, lastModified: 3 };
+  const identify = async () => {
+    calls += 1;
+    return {
+      kind: 'font',
+      fileName: font.name,
+      extension: '.bin',
+      container: 'single',
+      flavor: 'truetype',
+      label: 'TrueType / OpenType TT',
+      valid: true,
+      extensionMatches: false,
+      descriptors: [{ family: 'Fixture Sans' }],
+    };
+  };
+
+  await identifyBatchFonts([font], { identify, cache });
+  await identifyBatchFonts([font], { identify, cache });
   assert.equal(calls, 1);
 });

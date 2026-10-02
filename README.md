@@ -161,11 +161,11 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 
 ### 5. 可选字体子集化
 
-“字体子集化”默认关闭。开启后使用 HarfBuzz WebAssembly 根据当前字幕实际字符生成 TTF / OTF 子集，并保留 OpenType layout glyph closure；TTC / OTC 集合目前保持原文件，以避免错误拆分 collection face。子集字体仍作为标准 Matroska attachment 写入。
+“字体子集化”默认关闭。开启后使用 HarfBuzz WebAssembly 根据当前字幕实际字符生成单字体 SFNT 的子集，并保留 OpenType layout glyph closure；TTC / OTC 集合目前保持原文件，以避免错误拆分 collection face。是否可子集化由实际字体结构决定，不再由文件名后缀决定；例如真实 TTF 即使被改成未知后缀，仍会按 TrueType 结构生成 `.subset.ttf`。子集字体仍作为标准 Matroska attachment 写入。
 
 ### 6. 批处理
 
-批量模式支持多选文件，也支持直接选择视频目录、字幕目录与字体目录。视频候选先按实际文件头识别 MP4 / MOV / M4V / Matroska / WebM，再按同名、语言后缀以及常见 SxxExx / EPxx 形式自动配对；文件名扩展与实际容器不一致时会在任务计划中显示诊断，并以实际容器为准。字幕文件名中的 `zh-Hans` / `chs` / `cht` / `en` / `ja` / `ko` 等常见后缀会自动填入 language 与默认 title。任务按队列顺序逐项运行，共用既有 Stream Copy 与 post-mux audit 路径；单项失败会记录并继续后续任务，可中途取消。
+批量模式支持多选文件，也支持直接选择视频目录、字幕目录与字体目录。视频候选先按实际文件头识别 MP4 / MOV / M4V / Matroska / WebM，再按同名、语言后缀以及常见 SxxExx / EPxx 形式自动配对；文件名扩展与实际容器不一致时会在任务计划中显示诊断，并以实际容器为准。批量字体也会解析实际 SFNT / TTC collection 结构与内部 face；未知或错误字体后缀不会再决定是否进入字体集合，伪装成 `.ttf` 的无效文件则不会被接受。字幕文件名中的 `zh-Hans` / `chs` / `cht` / `en` / `ja` / `ko` 等常见后缀会自动填入 language 与默认 title。任务按队列顺序逐项运行，共用既有 Stream Copy 与 post-mux audit 路径；单项失败会记录并继续后续任务，可中途取消。
 
 批量字体子集化支持两种范围：每个任务独立 subset，或 **Group 模式**先汇总整个批次实际字幕字符，只生成一次 HarfBuzz 子集并复用。支持 File System Access API 的 Chromium 浏览器还可以选择输出目录，成功任务会直接把 MKV 与 JSON 报告写入该目录；不支持时保留逐项下载回退。
 
@@ -185,7 +185,7 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 
 ### 5. 多字体附件
 
-支持一次选择多个 TTF / OTF / TTC / OTC。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次。
+支持一次选择多个 TTF / OTF / TTC / OTC。字体身份以实际 SFNT / collection 结构和内部表解析为准，而不是扩展名：真实 TTF / OTF / TTC / OTC 即使改成未知后缀仍可被识别，伪造支持后缀但内部结构无效的文件会被拒绝。TTC / OTC 会按集合内的 face 解析 Family、Weight、Italic 与 Unicode `cmap`，但在 MKV 中仍只附加原始集合文件一次；写入 MKV 时的 attachment MIME 也由实际字体结构决定。扩展名与实际内容不一致会记录警告，并在生成的字体 attachment 名称中恢复与已验证结构一致的 `.ttf` / `.otf` / `.ttc` / `.otc` 后缀，避免错误文件名继续传播到播放器侧。
 
 默认模式是：
 

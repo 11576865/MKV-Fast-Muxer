@@ -567,7 +567,7 @@ async function scenarioBrokenSubtitle(browser) {
 }
 
 async function scenarioBrokenFonts(browser) {
-  console.log('E2E scenario 13: broken and zero-byte fonts fail without stale output');
+  console.log('E2E scenario 13: broken and zero-byte fonts are blocked by content preflight without stale output');
   const { context, page } = await openApp(browser);
 
   try {
@@ -575,25 +575,27 @@ async function scenarioBrokenFonts(browser) {
       await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
       await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
       await page.setInputFiles('#fontInput', path.join(root, filename));
-      await page.locator('#muxBtn').click();
 
       await page.waitForFunction(() => {
-        const value = document.querySelector('#status')?.textContent || '';
-        return value.includes('字体文件无法被可靠解析') &&
-          value.includes('重新选择有效的 TTF / OTF / TTC / OTC');
-      }, null, { timeout: 180_000 });
+        const name = document.querySelector('#fontName')?.textContent || '';
+        const hint = document.querySelector('#fontModeHint')?.textContent || '';
+        const button = document.querySelector('#muxBtn');
+        return name.includes('字体内容无法识别') &&
+          hint.includes('存在无法解析的字体文件') &&
+          Boolean(button?.disabled);
+      });
 
-      const failedStatus = await page.locator('#status').textContent();
-      assert.match(failedStatus, /字体文件无法被可靠解析/);
-      assert.match(failedStatus, /重新选择有效的 TTF \/ OTF \/ TTC \/ OTC/);
+      assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+      assert.match(await page.locator('#fontName').textContent(), /字体内容无法识别/);
+      assert.match(await page.locator('#fontModeHint').textContent(), /存在无法解析的字体文件/);
       assert.equal(await page.locator('#downloadLink').isVisible(), false);
       assert.equal(await page.locator('#reportLink').isVisible(), false);
-      await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
     }
 
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     console.log('Scenario 13 PASS');
@@ -1073,6 +1075,12 @@ async function scenarioAdditionalSubtitleFormats(browser) {
       path.join(root, 'sample.vtt'),
     ]);
 
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      const labels = Array.from(document.querySelectorAll('#newSubtitleList .track-meta'))
+        .map((item) => item.textContent || '');
+      return button && !button.disabled && labels.length === 3;
+    });
     assert.equal(await page.locator('#muxBtn').isDisabled(), false, 'fonts must be optional');
     const formatLabels = await page.locator('#newSubtitleList .track-meta').allTextContents();
     assert.ok(formatLabels.some((value) => value.includes('SSA')));
@@ -1249,9 +1257,20 @@ async function scenarioBatchGroupSubset(browser) {
       path.join(root, 'Batch S01E01.zh-Hans.ass'),
       path.join(root, 'Batch S01E02.en.srt'),
     ]);
-    await page.setInputFiles('#batchFontInput', path.join(root, 'DejaVuSans.ttf'));
+    const batchFontBuffer = await fs.readFile(path.join(root, 'DejaVuSans.ttf'));
+    await page.setInputFiles('#batchFontInput', {
+      name: 'BatchSharedFont.mmmmmm',
+      mimeType: 'application/octet-stream',
+      buffer: batchFontBuffer,
+    });
     await page.locator('#batchFontSubsetEnabled').check();
     await page.locator('#batchSubsetScope').selectOption('group');
+
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return text.includes('1 个字体扩展名与实际内容不一致') && start && !start.disabled;
+    });
 
     await page.locator('#batchStartBtn').click();
     await page.waitForFunction(() => {
@@ -1607,6 +1626,57 @@ async function scenarioBatchContentIdentity(browser) {
   }
 }
 
+async function scenarioRenamedFontIdentity(browser) {
+  console.log('E2E scenario 36: renamed font uses actual SFNT identity in preview, subset and mux');
+  const { context, page } = await openApp(browser);
+
+  try {
+    const fontBuffer = await fs.readFile(path.join(root, 'DejaVuSans.ttf'));
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.setInputFiles('#fontInput', {
+      name: 'DejaVuSans.mmmmmm',
+      mimeType: 'application/octet-stream',
+      buffer: fontBuffer,
+    });
+
+    await page.locator('#previewRefreshBtn').click();
+    await page.waitForFunction(() => {
+      const image = document.querySelector('#previewImage');
+      const status = document.querySelector('#previewStatus')?.textContent || '';
+      return Boolean(image?.getAttribute('src')) || /无法生成预览帧/.test(status);
+    }, null, { timeout: 180_000 });
+    assert.equal(await page.locator('#previewImage').isVisible(), true);
+
+    await page.locator('#fontSubsetEnabled').check();
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'renamed-font-identity.mkv');
+    const reportPath = path.join(outDir, 'renamed-font-identity.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const attachments = streams(probe(output), 'attachment');
+    assert.equal(attachments.length, 1);
+    assert.match(attachments[0].tags?.filename || '', /DejaVuSans\.subset\.ttf$/i);
+    assert.equal(attachments[0].tags?.mimetype, 'font/ttf');
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.fonts.attachments[0].mimeType, 'font/ttf');
+    assert.equal(report.fonts.attachments[0].subset?.applied, true);
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+
+    const log = await page.locator('#log').textContent();
+    assert.match(log, /字体“DejaVuSans\.mmmmmm”.*扩展名 \.mmmmmm 与实际检测到的 TrueType \/ OpenType TT 不一致/);
+
+    console.log('Scenario 36 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -1616,6 +1686,7 @@ try {
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
+  await scenarioRenamedFontIdentity(browser);
   await scenarioSelectiveAttachments(browser);
   await scenarioOriginalTracks(browser);
   await scenarioUtf16(browser);

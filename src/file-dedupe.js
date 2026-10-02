@@ -55,7 +55,7 @@ export function assignUniqueAttachmentNames(items, reservedNames = []) {
   );
 
   return items.map((item) => {
-    const originalName = String(item.file?.name || 'font');
+    const originalName = String(item.attachmentName || item.file?.name || 'font');
     const key = originalName.toLocaleLowerCase('en-US');
     let attachmentName = originalName;
 
