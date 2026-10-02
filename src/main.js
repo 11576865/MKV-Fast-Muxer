@@ -1491,7 +1491,11 @@ function syncPreviewControls() {
   }
 
   previewSubtitleSelect.disabled = !previewable.length;
-  previewRefreshBtn.disabled = !(videoInput.files[0] && previewable.length);
+  const fontRecognition = selectedFontRecognition();
+  previewRefreshBtn.disabled =
+    !(videoInput.files[0] && previewable.length) ||
+    fontIdentityPending() ||
+    fontRecognition.ignored.length > 0;
   if (previewTimeInput) previewTimeInput.disabled = !previewable.length;
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = !previewable.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = !previewable.length;
