@@ -38,10 +38,17 @@ import {
 } from './subtitle-format.js';
 import { subsetFontItems } from './font-subset.js';
 import {
+  fontIdentityMismatchMessage,
+  fontMimeType,
+  fontVirtualSuffix,
+  identifyFontFile,
+  isSupportedFontIdentity,
+} from './font-identity.js';
+import {
   batchSubtitleSummary,
   buildBatchJobs,
   buildBatchJobsFromCollected,
-  collectBatchFonts,
+  identifyBatchFonts,
   identifyBatchVideos,
   mergeFileSelections,
 } from './batch.js';
@@ -255,6 +262,7 @@ let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
 const batchVideoIdentityCache = new Map();
+const batchFontIdentityCache = new Map();
 let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
@@ -2269,12 +2277,6 @@ scanTracksBtn.addEventListener('click', async () => {
   }
 });
 
-function mimeForFont(file) {
-  const suffix = ext(file.name);
-  if (suffix === '.ttc' || suffix === '.otc') return 'font/collection';
-  return suffix === '.otf' ? 'font/otf' : 'font/ttf';
-}
-
 function charPreview(chars, limit = 24) {
   const values = chars.slice(0, limit).map((char) => (
     `${char}(U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')})`
@@ -2405,7 +2407,6 @@ muxBtn.addEventListener('click', async () => {
   const headerVideoIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
   const videoIsMatroska = isMatroskaIdentity(headerVideoIdentity);
   const invalidSubtitle = subtitleTracks.find((track) => !track.format);
-  const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
   const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
   const manualScanned = getScannedSelection(video);
   const appendMode = Boolean(videoIsMatroska && appendPreserveAll?.checked);
@@ -2418,11 +2419,6 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = `字幕“${invalidSubtitle.file.name}”的实际内容无法识别为支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub。`;
     return;
   }
-  if (invalidFont) {
-    status.textContent = `字体“${invalidFont.name}”不是 .ttf / .otf / .ttc / .otc 文件。`;
-    return;
-  }
-
   running = true;
   cancelRequested = false;
   updateUI();
@@ -2459,20 +2455,30 @@ muxBtn.addEventListener('click', async () => {
     bar.style.width = '10%';
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
+    const identifiedFontItems = await Promise.all(fontDedupe.unique.map(async (item) => {
+      const fontIdentity = await identifyFontFile(item.file);
+      if (!isSupportedFontIdentity(fontIdentity)) {
+        throw new Error(`字体“${item.file.name}”的实际内容无法识别为支持的 TTF / OTF / TTC / OTC：${fontIdentity.parseError || '无有效 SFNT / collection 结构'}`);
+      }
+      const mismatch = fontIdentityMismatchMessage(fontIdentity);
+      if (mismatch) {
+        logEl.textContent += `WARNING: 字体“${item.file.name}”：${mismatch}；按实际字体结构处理。\n`;
+      }
+      return { ...item, fontIdentity };
+    }));
     const initialReservedAttachmentNames = scanned
       ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
       : [];
-    const uniqueFontItems = assignUniqueAttachmentNames(fontDedupe.unique, initialReservedAttachmentNames)
+    const uniqueFontItems = assignUniqueAttachmentNames(identifiedFontItems, initialReservedAttachmentNames)
       .map((item, sourceIndex) => ({ ...item, sourceIndex }));
-    const descriptorGroups = await Promise.all(uniqueFontItems.map(async (item, attachmentIndex) => {
-      const faces = await readFontDescriptors(item.file);
-      return faces.map((descriptor, faceIndex) => ({
+    const descriptorGroups = uniqueFontItems.map((item, attachmentIndex) => (
+      item.fontIdentity.descriptors.map((descriptor, faceIndex) => ({
         ...item,
         index: `${attachmentIndex}:${faceIndex}`,
         attachmentIndex,
         descriptor,
-      }));
-    }));
+      }))
+    ));
     const descriptors = descriptorGroups.flat();
 
     if (fontDedupe.duplicates.length) {
@@ -2618,7 +2624,7 @@ muxBtn.addEventListener('click', async () => {
 
     for (let index = 0; index < attachments.length; index += 1) {
       const item = attachments[index];
-      const path = `${prefix}-font-${index}${ext(item.file.name)}`;
+      const path = `${prefix}-font-${index}${fontVirtualSuffix(item.fontIdentity)}`;
       fontPaths.push(path);
       await ffmpeg.writeFile(path, await fetchFile(item.file));
     }
@@ -2733,7 +2739,7 @@ muxBtn.addEventListener('click', async () => {
 
     const fontAttachments = attachments.map((item, index) => ({
       path: fontPaths[index],
-      mimeType: mimeForFont(item.file),
+      mimeType: fontMimeType(item.fontIdentity),
       filename: item.attachmentName,
     }));
 
@@ -3071,8 +3077,8 @@ function batchSubtitleFiles() {
   return mergeFileSelections(batchSubtitleInput?.files, batchSubtitleFolderInput?.files);
 }
 
-function batchFontFiles() {
-  const selected = collectBatchFonts(mergeFileSelections(batchFontInput?.files, batchFontFolderInput?.files));
+function batchFontCandidates() {
+  const selected = mergeFileSelections(batchFontInput?.files, batchFontFolderInput?.files);
   return selected.length ? selected : selectedFonts();
 }
 
@@ -3082,7 +3088,7 @@ async function syncBatchPlan() {
   const generation = ++batchPlanGeneration;
   const candidateVideos = batchVideoFiles();
   const subtitles = batchSubtitleFiles();
-  const fonts = batchFontFiles();
+  const fontCandidates = batchFontCandidates();
 
   batchVideoName.textContent = Array.from(batchVideoInput.files || []).length
     ? `${Array.from(batchVideoInput.files || []).length} 个文件` : '未选择';
@@ -3105,7 +3111,7 @@ async function syncBatchPlan() {
     batchPlan.innerHTML = '<div class="track-empty">正在读取实际视频容器与字幕格式…</div>';
   }
 
-  const [recognition, subtitleRecognition] = await Promise.all([
+  const [recognition, subtitleRecognition, fontRecognition] = await Promise.all([
     identifyBatchVideos(candidateVideos, {
       cache: batchVideoIdentityCache,
       concurrency: 8,
@@ -3114,15 +3120,22 @@ async function syncBatchPlan() {
       cache: batchSubtitleIdentityCache,
       concurrency: 8,
     }),
+    identifyBatchFonts(fontCandidates, {
+      cache: batchFontIdentityCache,
+      concurrency: 4,
+    }),
   ]);
 
   if (generation !== batchPlanGeneration) return latestBatchPairing;
 
   const videos = recognition.recognized.map((entry) => entry.file);
+  const fonts = fontRecognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
   const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition);
   pairing.videoRecognition = recognition;
   pairing.subtitleRecognition = subtitleRecognition;
+  pairing.fontRecognition = fontRecognition;
+  pairing.fonts = fonts;
   pairing.jobs.forEach((job) => {
     const recognized = identityByVideo.get(job.video);
     job.videoIdentity = recognized?.identity || null;
@@ -3155,6 +3168,9 @@ async function syncBatchPlan() {
   if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
   if (pairing.orphanSidecars.length) notes.push(`${pairing.orphanSidecars.length} 个 VobSub .sub 缺少同名 .idx`);
   if (pairing.invalidSubtitles.length) notes.push(`${pairing.invalidSubtitles.length} 个字幕输入无效或缺少配对文件`);
+  const fontMismatchCount = fontRecognition.recognized.filter((entry) => entry.mismatch).length;
+  if (fontMismatchCount) notes.push(`${fontMismatchCount} 个字体扩展名与实际内容不一致，已按实际字体结构识别`);
+  if (fontRecognition.ignored.length) notes.push(`${fontRecognition.ignored.length} 个文件未识别为支持的字体`);
   if (fonts.length) {
     notes.push(`批量字体：${fonts.length} 个${batchFontSubsetEnabled?.checked ? ` · ${batchSubsetScope?.value === 'group' ? 'Group 子集' : '逐任务子集'}` : ' · 完整字体'}`);
   }
@@ -3166,7 +3182,8 @@ async function syncBatchPlan() {
     batchRunning ||
     isBusy() ||
     !pairing.jobs.length ||
-    pairing.invalidSubtitles.length > 0;
+    pairing.invalidSubtitles.length > 0 ||
+    fontRecognition.ignored.length > 0;
   batchCancelBtn.disabled = !batchRunning;
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
 
@@ -3336,7 +3353,7 @@ batchStartBtn?.addEventListener('click', async () => {
   const originalAppendMode = appendPreserveAll?.checked;
   const originalAppendTouched = appendPreserveAll?.dataset.userTouched || '0';
   const originalSubsetEnabled = fontSubsetEnabled?.checked;
-  const requestedBatchFonts = batchFontFiles();
+  const requestedBatchFonts = pairing.fonts || [];
   const results = [];
   let jobFonts = requestedBatchFonts;
 
