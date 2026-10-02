@@ -3255,9 +3255,14 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
   if (!fonts.length) return [];
   const subsetText = await collectBatchSubsetText(pairing);
   const deduped = await dedupeFilesBySha256(fonts);
+  const identityByFile = new Map(
+    Array.from(pairing?.fontRecognition?.recognized || [])
+      .map((entry) => [entry.file, entry.identity])
+  );
   const items = deduped.unique.map((item) => ({
     ...item,
     attachmentName: item.file.name,
+    fontIdentity: identityByFile.get(item.file) || null,
   }));
   const subsetted = await subsetFontItems(items, subsetText);
   return subsetted.map((item) => item.file);
