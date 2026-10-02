@@ -37,7 +37,11 @@ try {
   await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 60_000 });
   const fixtureState = capture.fixture?.state ?? null;
   if (fixtureState === "editor-all") {
-    await page.locator('[data-editor-filter="all"]').click();
+    // The wide desktop refinement can intentionally hide the "all" filter
+    // button while the editor is already in its canonical all-objects state.
+    // Capture automation therefore asserts the state instead of interacting
+    // with a presentation-only control that may be hidden.
+    await page.locator('.editor-grid[data-editor-focus="all"]').waitFor({ state: "attached", timeout: 30_000 });
   } else if (fixtureState === "preview-dialog") {
     await page.evaluate(() => {
       const dialog = document.querySelector("#previewDialog");
