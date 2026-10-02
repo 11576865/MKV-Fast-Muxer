@@ -1468,6 +1468,7 @@ async function scenarioRenamedMediaIdentity(browser) {
       return Boolean(image?.getAttribute('src')) || /预览已生成|完成/.test(status);
     }, null, { timeout: 180_000 });
     assert.equal(await page.locator('#previewImage').isVisible(), true);
+    assert.match(await page.locator('#previewStatus').textContent(), /预览帧：captions\.mmmmm/);
 
     assert.equal(await page.locator('#muxBtn').isEnabled(), true);
     await page.locator('#muxBtn').click();
