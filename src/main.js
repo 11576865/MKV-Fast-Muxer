@@ -4,6 +4,16 @@ import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
+import {
+  audioIdentityFromProbe,
+  identityMismatchMessage,
+  isMatroskaIdentity,
+  isSupportedVideoIdentity,
+  sniffFileContainer,
+  sniffedVideoIdentity,
+  sourceVirtualSuffix,
+  videoIdentityFromProbe,
+} from './media-identity.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
@@ -40,6 +50,7 @@ const $ = (id) => document.getElementById(id);
 setupObjectEditor(document.querySelector('.editor-grid'));
 
 const videoInput = $('videoInput');
+const videoIdentityLabel = $('videoIdentity');
 const audioInput = $('audioInput');
 const subInput = $('subInput');
 const fontInput = $('fontInput');
@@ -234,6 +245,12 @@ let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
 let previewCueTimes = [];
 let previewCueIndex = -1;
+let videoSniffGeneration = 0;
+let videoSniffState = {
+  status: 'idle',
+  fileKey: '',
+  identity: null,
+};
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -375,6 +392,94 @@ function fileKey(file) {
   return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
 }
 
+function selectedVideoHeaderIdentity(video = videoInput.files[0]) {
+  if (!video) return null;
+  if (videoSniffState.fileKey !== fileKey(video)) return null;
+  return videoSniffState.identity;
+}
+
+function currentVideoIsMatroska(video = videoInput.files[0]) {
+  if (!video) return false;
+  const sameFile = videoSniffState.fileKey === fileKey(video);
+  if (sameFile && videoSniffState.status === 'ready') {
+    return isMatroskaIdentity(videoSniffState.identity);
+  }
+  if (sameFile && videoSniffState.status === 'pending') {
+    return ext(video.name) === '.mkv';
+  }
+  return ext(video.name) === '.mkv';
+}
+
+function renderVideoIdentityNotice() {
+  if (!videoIdentityLabel) return;
+  const video = videoInput.files[0];
+
+  if (!video) {
+    videoIdentityLabel.textContent = '实际内容：等待选择';
+    videoIdentityLabel.dataset.state = 'idle';
+    return;
+  }
+
+  const sameFile = videoSniffState.fileKey === fileKey(video);
+  if (sameFile && videoSniffState.status === 'pending') {
+    videoIdentityLabel.textContent = '实际内容：正在读取文件头…';
+    videoIdentityLabel.dataset.state = 'pending';
+    return;
+  }
+
+  const identity = selectedVideoHeaderIdentity(video);
+  if (!identity || identity.container === 'unknown') {
+    videoIdentityLabel.textContent = '实际内容：文件头未确认；封装时将由 ffprobe 验证';
+    videoIdentityLabel.dataset.state = 'unknown';
+    return;
+  }
+
+  const mismatch = identityMismatchMessage(identity);
+  videoIdentityLabel.textContent = mismatch
+    ? `实际内容：${identity.containerLabel} · ${mismatch}`
+    : `实际内容：${identity.containerLabel}`;
+  videoIdentityLabel.dataset.state = mismatch ? 'warning' : 'verified';
+}
+
+async function inspectSelectedVideoHeader() {
+  const video = videoInput.files[0];
+  const generation = ++videoSniffGeneration;
+
+  if (!video) {
+    videoSniffState = { status: 'idle', fileKey: '', identity: null };
+    updateUI();
+    return;
+  }
+
+  const key = fileKey(video);
+  videoSniffState = { status: 'pending', fileKey: key, identity: null };
+  updateUI();
+
+  try {
+    const sniffed = await sniffFileContainer(video);
+    if (generation !== videoSniffGeneration || fileKey(videoInput.files[0]) !== key) return;
+
+    const identity = sniffedVideoIdentity(video, sniffed);
+    videoSniffState = { status: 'ready', fileKey: key, identity };
+
+    const isMkv = isMatroskaIdentity(identity);
+    if (appendPreserveAll && appendPreserveAll.dataset.userTouched !== '1') {
+      appendPreserveAll.checked = isMkv;
+    }
+    preserveAttachments.checked = isMkv;
+  } catch (error) {
+    if (generation !== videoSniffGeneration || fileKey(videoInput.files[0]) !== key) return;
+    videoSniffState = {
+      status: 'ready',
+      fileKey: key,
+      identity: sniffedVideoIdentity(video, { container: 'unknown', evidence: 'read-error' }),
+    };
+    logEl.textContent += `WARNING: 无法读取视频文件头，将在执行时交给 ffprobe 验证：${error?.message || error}\n`;
+  }
+
+  updateUI();
+}
+
 function formatFontSelection(files) {
   if (!files.length) return '未选择';
   if (files.length === 1) return files[0].name;
@@ -424,7 +529,7 @@ function setInputsDisabled(disabled) {
   fontInput.disabled = disabled;
   fontMode.disabled = disabled;
   if (fontSubsetEnabled) fontSubsetEnabled.disabled = disabled;
-  preserveAttachments.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  preserveAttachments.disabled = disabled || !currentVideoIsMatroska();
   newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
@@ -432,7 +537,7 @@ function setInputsDisabled(disabled) {
   attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
     button.disabled = disabled || !trackState;
   });
-  if (appendPreserveAll) appendPreserveAll.disabled = disabled || ext(videoInput.files[0]?.name || '') !== '.mkv';
+  if (appendPreserveAll) appendPreserveAll.disabled = disabled || !currentVideoIsMatroska();
   if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleFiles().some(isPreviewableSubtitle);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
@@ -463,7 +568,12 @@ function updateUI() {
   const collectedSubs = selectedSubtitleTrackInputs();
   const subs = collectedSubs.tracks.map((track) => track.file);
   const fonts = selectedFonts();
-  const inputIsMkv = ext(video?.name || '') === '.mkv';
+  const inputIsMkv = currentVideoIsMatroska(video);
+  const identityPending = Boolean(
+    video &&
+    videoSniffState.fileKey === fileKey(video) &&
+    videoSniffState.status === 'pending'
+  );
   const mode = fontMode.value || 'preserve';
   const busy = isBusy();
 
@@ -487,6 +597,7 @@ function updateUI() {
   $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}${fontSubsetEnabled?.checked ? ' · subset' : ''}` : '—';
   $('outputName').textContent = outputLabel;
   $('outputName').title = outputLabel === '—' ? '' : outputLabel;
+  renderVideoIdentityNotice();
   renderWorkloadNotice();
   syncPreviewControls();
 
@@ -507,8 +618,8 @@ function updateUI() {
   const appendMode = Boolean(inputIsMkv && appendPreserveAll?.checked);
   preserveAttachments.checked = appendMode ? true : preserveAttachments.checked;
   preserveAttachments.disabled = busy || !inputIsMkv || appendMode;
-  scanTracksBtn.disabled = busy || !inputIsMkv || !video;
-  muxBtn.disabled = busy || !(video && subs.length) || collectedSubs.invalid.length > 0;
+  scanTracksBtn.disabled = busy || identityPending || !inputIsMkv || !video;
+  muxBtn.disabled = busy || identityPending || !(video && subs.length) || collectedSubs.invalid.length > 0;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
@@ -535,16 +646,21 @@ function bindNewTrackEditor(container, selector, getState) {
 
 videoInput.addEventListener('change', () => {
   resetTrackState();
-  const isMkv = ext(videoInput.files[0]?.name || '') === '.mkv';
+  videoSniffGeneration += 1;
+  videoSniffState = {
+    status: 'idle',
+    fileKey: '',
+    identity: null,
+  };
   if (appendPreserveAll) {
     appendPreserveAll.dataset.userTouched = '0';
-    appendPreserveAll.checked = isMkv;
+    appendPreserveAll.checked = false;
   }
-  preserveAttachments.checked = isMkv;
+  preserveAttachments.checked = false;
   destroySubtitlePreview();
   clearPreviewImage();
-  updateUI();
-  previewStatus.textContent = '视频已更换；点击“生成预览帧”按需检查字幕效果。';
+  inspectSelectedVideoHeader();
+  previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
   syncNewTrackState();
@@ -1512,7 +1628,7 @@ function buildMuxPlan() {
   const video = videoInput.files[0];
   const fonts = selectedFonts();
   const mode = fontMode.value || 'preserve';
-  const appendMode = Boolean(video && ext(video.name) === '.mkv' && appendPreserveAll?.checked);
+  const appendMode = Boolean(video && currentVideoIsMatroska(video) && appendPreserveAll?.checked);
   const entries = [];
   const warnings = appendMode ? [] : defaultConflictWarnings();
 
@@ -1913,7 +2029,7 @@ trackList.addEventListener('click', (event) => {
 
 scanTracksBtn.addEventListener('click', async () => {
   const video = videoInput.files[0];
-  if (!video || ext(video.name) !== '.mkv' || isBusy()) return;
+  if (!video || !currentVideoIsMatroska(video) || isBusy()) return;
 
   // Explicitly scanning the source means the user wants manual source-track
   // control rather than the zero-configuration "preserve everything + append" preset.
@@ -1941,6 +2057,16 @@ scanTracksBtn.addEventListener('click', async () => {
     await ffmpeg.writeFile(videoPath, await fetchFile(video));
     const probe = await probeInput(videoPath, probePath);
     if (cancelRequested) return;
+
+    const headerIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
+    const verifiedIdentity = videoIdentityFromProbe(video, probe, headerIdentity);
+    if (!isMatroskaIdentity(verifiedIdentity)) {
+      throw new Error(`实际检测到的容器为 ${verifiedIdentity.containerLabel}，不是 Matroska / MKV，不能进入 MKV 原轨扫描。`);
+    }
+    const identityMismatch = identityMismatchMessage(verifiedIdentity);
+    if (identityMismatch) {
+      logEl.textContent += `WARNING: ${identityMismatch}；轨道扫描以实际内容为准。\n`;
+    }
 
     const tracks = probe.streams
       .filter((stream) => ['audio', 'subtitle'].includes(stream.codec_type))
@@ -2149,22 +2275,18 @@ muxBtn.addEventListener('click', async () => {
   const externalAudioTracks = externalAudioState;
   if (!video || !subtitleTracks.length) return;
 
-  const videoExt = ext(video.name);
+  const headerVideoIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
+  const videoIsMatroska = isMatroskaIdentity(headerVideoIdentity);
   const invalidSubtitle = subtitleTracks.find((track) => !isSupportedSubtitleFile(track.file));
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
   const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
   const manualScanned = getScannedSelection(video);
-  const appendMode = Boolean(videoExt === '.mkv' && appendPreserveAll?.checked);
+  const appendMode = Boolean(videoIsMatroska && appendPreserveAll?.checked);
   const scanned = appendMode ? null : manualScanned;
   const preserveAllOriginalSubtitles = appendMode;
-  const preserveAllOriginalAttachments = videoExt === '.mkv' && (
+  const preserveAllOriginalAttachments = videoIsMatroska && (
     appendMode || (!scanned && preserveAttachments.checked)
   );
-
-  if (!['.mp4', '.mkv', '.webm', '.mov', '.m4v'].includes(videoExt)) {
-    status.textContent = '请选择 MP4 / MKV / WebM / MOV / M4V 视频文件。';
-    return;
-  }
   if (invalidSubtitle) {
     status.textContent = `字幕“${invalidSubtitle.file.name}”不是支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub 文件。`;
     return;
@@ -2194,7 +2316,7 @@ muxBtn.addEventListener('click', async () => {
   }
 
   const prefix = taskPrefix();
-  const videoPath = `${prefix}-input${videoExt}`;
+  const videoPath = `${prefix}-input${sourceVirtualSuffix(headerVideoIdentity)}`;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
   const auditPath = `${prefix}-audit.json`;
@@ -2344,7 +2466,7 @@ muxBtn.addEventListener('click', async () => {
 
     for (let index = 0; index < externalAudioTracks.length; index += 1) {
       const track = externalAudioTracks[index];
-      const path = `${prefix}-audio-${index}${ext(track.file.name) || '.bin'}`;
+      const path = `${prefix}-audio-${index}.source`;
       audioPaths.push(path);
       await ffmpeg.writeFile(path, await fetchFile(track.file));
     }
@@ -2377,6 +2499,20 @@ muxBtn.addEventListener('click', async () => {
 
     status.textContent = '正在读取输入容器结构……';
     const inputProbe = await probeInput(videoPath, probePath);
+    const inputIdentity = videoIdentityFromProbe(video, inputProbe, headerVideoIdentity);
+    if (!inputIdentity.hasVideo) {
+      throw new Error(`“${video.name}”没有检测到可用视频轨。`);
+    }
+    if (!isSupportedVideoIdentity(inputIdentity)) {
+      throw new Error(`实际检测到的媒体容器“${inputIdentity.containerLabel}”不在当前 MP4 / MOV / M4V / MKV / WebM Stream Copy 支持范围内。`);
+    }
+    const inputIdentityMismatch = identityMismatchMessage(inputIdentity);
+    if (inputIdentityMismatch) {
+      logEl.textContent += `WARNING: ${inputIdentityMismatch}；后续封装以 ffprobe 实际内容为准。\n`;
+    } else {
+      logEl.textContent += `INFO: 实际媒体身份：${inputIdentity.containerLabel} · ${inputIdentity.videoStreams.map((stream) => stream.codec_name || 'unknown').join(' / ')}。\n`;
+    }
+
     const originalAttachmentCount = inputProbe.attachmentCount;
     const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
     const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
@@ -2405,15 +2541,20 @@ muxBtn.addEventListener('click', async () => {
       const probeOutput = `${prefix}-audio-${index}-probe.json`;
       extraProbePaths.push(probeOutput);
       const probe = await probeInput(audioPaths[index], probeOutput);
-      const audioStream = probe.streams.find((stream) => stream.codec_type === 'audio');
-      if (!audioStream) {
+      const audioIdentity = audioIdentityFromProbe(externalAudioTracks[index].file, probe);
+      if (!audioIdentity.hasAudio) {
         throw new Error(`外部音频“${externalAudioTracks[index].file.name}”没有可用音频轨。`);
+      }
+      const audioMismatch = identityMismatchMessage(audioIdentity);
+      if (audioMismatch) {
+        logEl.textContent += `WARNING: 外部音频“${externalAudioTracks[index].file.name}”：${audioMismatch}；按实际 codec ${audioIdentity.codec || 'unknown'} 处理。\n`;
       }
       runtimeExternalAudio.push({
         ...externalAudioTracks[index],
         path: audioPaths[index],
         inputIndex: 1 + index,
-        codec: audioStream.codec_name || '',
+        codec: audioIdentity.codec,
+        identity: audioIdentity,
       });
     }
 
@@ -2426,7 +2567,7 @@ muxBtn.addEventListener('click', async () => {
 
     if (scanned) {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
-    } else if (videoExt === '.mkv') {
+    } else if (isMatroskaIdentity(inputIdentity)) {
       logEl.textContent += appendMode
         ? `INFO: 完整保留并追加模式：保留全部原音频、原字幕、附件、Chapters 与 metadata。\n`
         : `INFO: 未扫描轨道，兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
