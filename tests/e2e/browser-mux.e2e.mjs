@@ -1073,6 +1073,12 @@ async function scenarioAdditionalSubtitleFormats(browser) {
       path.join(root, 'sample.vtt'),
     ]);
 
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      const labels = Array.from(document.querySelectorAll('#newSubtitleList .track-meta'))
+        .map((item) => item.textContent || '');
+      return button && !button.disabled && labels.length === 3;
+    });
     assert.equal(await page.locator('#muxBtn').isDisabled(), false, 'fonts must be optional');
     const formatLabels = await page.locator('#newSubtitleList .track-meta').allTextContents();
     assert.ok(formatLabels.some((value) => value.includes('SSA')));
