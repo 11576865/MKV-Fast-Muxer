@@ -264,6 +264,13 @@ let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
 const batchVideoIdentityCache = new Map();
 const batchFontIdentityCache = new Map();
+let fontInspectGeneration = 0;
+let fontInspectPromise = Promise.resolve();
+let fontInspectState = {
+  status: 'idle',
+  selectionKey: '',
+  recognition: { recognized: [], ignored: [] },
+};
 let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
@@ -304,6 +311,78 @@ function safeOutputName(videoName) {
 
 function selectedFonts() {
   return Array.from(fontInput.files || []);
+}
+
+function fontSelectionKey(files = selectedFonts()) {
+  return Array.from(files || [])
+    .map((file) => fileKey(file))
+    .sort()
+    .join('\n');
+}
+
+function selectedFontRecognition() {
+  const files = selectedFonts();
+  if (!files.length) return { recognized: [], ignored: [] };
+  const key = fontSelectionKey(files);
+  if (
+    fontInspectState.status === 'ready' &&
+    fontInspectState.selectionKey === key &&
+    fontInspectState.recognition
+  ) {
+    return fontInspectState.recognition;
+  }
+  return { recognized: [], ignored: [] };
+}
+
+function fontIdentityPending() {
+  const files = selectedFonts();
+  if (!files.length) return false;
+  return (
+    fontInspectState.status === 'pending' &&
+    fontInspectState.selectionKey === fontSelectionKey(files)
+  );
+}
+
+async function inspectSelectedFonts() {
+  const files = selectedFonts();
+  const selectionKey = fontSelectionKey(files);
+  const generation = ++fontInspectGeneration;
+
+  if (!files.length) {
+    fontInspectState = {
+      status: 'idle',
+      selectionKey: '',
+      recognition: { recognized: [], ignored: [] },
+    };
+    updateUI();
+    return fontInspectState.recognition;
+  }
+
+  fontInspectState = {
+    status: 'pending',
+    selectionKey,
+    recognition: null,
+  };
+  updateUI();
+
+  const recognition = await identifyBatchFonts(files, {
+    cache: batchFontIdentityCache,
+    concurrency: 4,
+  });
+  if (
+    generation !== fontInspectGeneration ||
+    fontSelectionKey(selectedFonts()) !== selectionKey
+  ) {
+    return null;
+  }
+
+  fontInspectState = {
+    status: 'ready',
+    selectionKey,
+    recognition,
+  };
+  updateUI();
+  return recognition;
 }
 
 function selectedExternalAudioFiles() {
@@ -681,6 +760,8 @@ function updateUI() {
   const subs = collectedSubs.tracks.map((track) => track.file);
   const subtitlePending = subtitleIdentityPending();
   const fonts = selectedFonts();
+  const fontRecognition = selectedFontRecognition();
+  const fontPending = fontIdentityPending();
   const inputIsMkv = currentVideoIsMatroska(video);
   const identityPending = Boolean(
     video &&
@@ -698,7 +779,11 @@ function updateUI() {
     : subs.length
       ? (subs.length === 1 ? (collectedSubs.tracks[0].displayName || subs[0].name) : `${subs.length} 条字幕`)
       : (collectedSubs.invalid.length ? '字幕内容无法识别或配对不完整' : '未选择');
-  const fontLabel = formatFontSelection(fonts);
+  const fontLabel = fontPending
+    ? '正在识别实际字体结构…'
+    : fontRecognition.ignored.length
+      ? `${fontRecognition.ignored.length} 个字体内容无法识别`
+      : formatFontSelection(fonts);
   const outputLabel = video ? safeOutputName(video.name) : '—';
 
   $('videoName').textContent = videoLabel;
@@ -708,8 +793,17 @@ function updateUI() {
   $('subName').textContent = subtitleLabel;
   $('subName').title = collectedSubs.tracks.map((track) => track.displayName || track.file.name).join('\n');
   $('fontName').textContent = fontLabel;
-  $('fontName').title = fonts.map((file) => file.name).join('\n');
-  $('fontSummary').textContent = fonts.length ? `${fonts.length} file${fonts.length === 1 ? '' : 's'}${fontSubsetEnabled?.checked ? ' · subset' : ''}` : '—';
+  $('fontName').title = fontRecognition.recognized.length
+    ? fontRecognition.recognized.map((entry) => {
+        const suffix = entry.mismatch ? ` · ${entry.mismatch}` : '';
+        return `${entry.file.name} · ${entry.identity?.label || 'Font'}${suffix}`;
+      }).join('\n')
+    : fonts.map((file) => file.name).join('\n');
+  $('fontSummary').textContent = fontPending
+    ? 'checking…'
+    : fonts.length
+      ? `${fontRecognition.recognized.length}/${fonts.length} verified${fontSubsetEnabled?.checked ? ' · subset' : ''}`
+      : '—';
   $('outputName').textContent = outputLabel;
   $('outputName').title = outputLabel === '—' ? '' : outputLabel;
   renderVideoIdentityNotice();
@@ -718,9 +812,13 @@ function updateUI() {
 
   fontModeHint.textContent = !fonts.length
     ? '未附加字体；ASS / SSA 预览使用可用替代字体。'
-    : mode === 'force'
-      ? '使用第一个上传字体，统一 ASS / SSA 字体名（含内联指定）。'
-      : '按原字幕字体匹配上传字体，并检查字符覆盖。';
+    : fontPending
+      ? '正在解析字体内部结构与 face…'
+      : fontRecognition.ignored.length
+        ? '存在无法解析的字体文件；请移除或更换后再封装。'
+        : mode === 'force'
+          ? '使用第一个已验证字体，统一 ASS / SSA 字体名（含内联指定）。'
+          : '按已验证的字体内部 Family / face 匹配原字幕字体，并检查字符覆盖。';
 
   if (!inputIsMkv) {
     preserveAttachments.checked = false;
@@ -734,7 +832,14 @@ function updateUI() {
   preserveAttachments.checked = appendMode ? true : preserveAttachments.checked;
   preserveAttachments.disabled = busy || !inputIsMkv || appendMode;
   scanTracksBtn.disabled = busy || identityPending || !inputIsMkv || !video;
-  muxBtn.disabled = busy || identityPending || subtitlePending || !(video && subs.length) || collectedSubs.invalid.length > 0;
+  muxBtn.disabled =
+    busy ||
+    identityPending ||
+    subtitlePending ||
+    fontPending ||
+    !(video && subs.length) ||
+    collectedSubs.invalid.length > 0 ||
+    fontRecognition.ignored.length > 0;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
@@ -796,9 +901,15 @@ subInput.addEventListener('change', () => {
   previewStatus.textContent = '字幕已更换；正在识别实际字幕格式。';
 });
 fontInput.addEventListener('change', () => {
+  fontInspectGeneration += 1;
+  fontInspectState = {
+    status: 'idle',
+    selectionKey: '',
+    recognition: { recognized: [], ignored: [] },
+  };
   destroySubtitlePreview();
-  updateUI();
-  previewStatus.textContent = '字体已更换；点击“生成预览帧”重新检查。';
+  fontInspectPromise = inspectSelectedFonts();
+  previewStatus.textContent = '字体已更换；正在识别实际字体结构。';
 });
 fontSubsetEnabled?.addEventListener('change', () => {
   updateUI();
@@ -2412,7 +2523,17 @@ muxBtn.addEventListener('click', async () => {
 
   syncNewTrackState();
   const video = videoInput.files[0];
-  const fontFiles = selectedFonts();
+  const fontRecognition = selectedFontRecognition();
+  if (fontIdentityPending()) return;
+  if (selectedFonts().length && fontRecognition.ignored.length) {
+    const first = fontRecognition.ignored[0];
+    status.textContent = `字体“${first.file.name}”的实际内容无法识别：${first.identity?.parseError || '无有效字体结构'}`;
+    return;
+  }
+  const fontFiles = fontRecognition.recognized.map((entry) => entry.file);
+  const fontIdentityByKey = new Map(
+    fontRecognition.recognized.map((entry) => [fileKey(entry.file), entry.identity])
+  );
   const subtitleTracks = newSubtitleState;
   const externalAudioTracks = externalAudioState;
   if (!video || !subtitleTracks.length) return;
@@ -2469,7 +2590,7 @@ muxBtn.addEventListener('click', async () => {
 
     const fontDedupe = await dedupeFilesBySha256(fontFiles);
     const identifiedFontItems = await Promise.all(fontDedupe.unique.map(async (item) => {
-      const fontIdentity = await identifyFontFile(item.file);
+      const fontIdentity = fontIdentityByKey.get(fileKey(item.file)) || await identifyFontFile(item.file);
       if (!isSupportedFontIdentity(fontIdentity)) {
         throw new Error(`字体“${item.file.name}”的实际内容无法识别为支持的 TTF / OTF / TTC / OTC：${fontIdentity.parseError || '无有效 SFNT / collection 结构'}`);
       }
@@ -3404,6 +3525,7 @@ batchStartBtn?.addEventListener('click', async () => {
       setInputFiles(subInput, job.subtitleInputFiles);
       await subtitleInspectPromise;
       setInputFiles(fontInput, jobFonts);
+      await fontInspectPromise;
       resetTrackState();
 
       const preserveAll = Boolean(batchPreserveAttachments?.checked && currentVideoIsMatroska(job.video));
@@ -3469,6 +3591,7 @@ batchStartBtn?.addEventListener('click', async () => {
     setInputFiles(subInput, originalSubtitleFiles);
     await subtitleInspectPromise;
     setInputFiles(fontInput, originalFontFiles);
+    await fontInspectPromise;
     preserveAttachments.checked = originalPreserveAttachments;
     if (appendPreserveAll) {
       appendPreserveAll.checked = originalAppendMode;
