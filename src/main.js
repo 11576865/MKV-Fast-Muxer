@@ -383,8 +383,12 @@ async function inspectSelectedSubtitles() {
   return collected;
 }
 
+function selectedSubtitleTracks() {
+  return selectedSubtitleTrackInputs().tracks;
+}
+
 function selectedSubtitleFiles() {
-  return selectedSubtitleTrackInputs().tracks.map((track) => track.file);
+  return selectedSubtitleTracks().map((track) => track.file);
 }
 
 function stripExtension(name) {
@@ -638,7 +642,7 @@ function setInputsDisabled(disabled) {
     button.disabled = disabled || !trackState;
   });
   if (appendPreserveAll) appendPreserveAll.disabled = disabled || !currentVideoIsMatroska();
-  if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleFiles().some(isPreviewableSubtitle);
+  if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleTracks().some((track) => track.format?.previewable);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
   if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
@@ -1284,10 +1288,11 @@ function formatPreviewTime(seconds) {
 }
 
 async function loadPreviewCueTimes() {
-  const subs = selectedSubtitleFiles();
+  const tracks = selectedSubtitleTracks();
   const selectedIndex = Number(previewSubtitleSelect?.value || 0);
-  const file = subs[selectedIndex];
-  if (!file || !isPreviewableSubtitle(file)) {
+  const track = tracks[selectedIndex];
+  const file = track?.file;
+  if (!file || !track?.format?.previewable) {
     previewCueTimes = [];
     previewCueIndex = -1;
     return [];
@@ -1352,13 +1357,13 @@ function openPreviewDialog() {
 
 function syncPreviewControls() {
   if (!previewSubtitleSelect || !previewRefreshBtn) return;
-  const subs = selectedSubtitleFiles();
-  const previewable = subs
-    .map((file, index) => ({ file, index }))
-    .filter(({ file }) => isPreviewableSubtitle(file));
+  const tracks = selectedSubtitleTracks();
+  const previewable = tracks
+    .map((track, index) => ({ track, index }))
+    .filter(({ track }) => Boolean(track.format?.previewable));
   const previous = Number(previewSubtitleSelect.value);
   previewSubtitleSelect.innerHTML = previewable.length
-    ? previewable.map(({ file, index }) => `<option value="${index}">${escapeHtml(file.name)}</option>`).join('')
+    ? previewable.map(({ track, index }) => `<option value="${index}">${escapeHtml(track.file.name)} · ${escapeHtml(track.format?.label || 'ASS/SSA')}</option>`).join('')
     : '<option value="">没有可预览的 ASS / SSA</option>';
 
   if (previewable.length) {
@@ -1385,16 +1390,16 @@ async function refreshSubtitlePreview() {
   if (isBusy()) return;
 
   const video = videoInput.files[0];
-  const subs = selectedSubtitleFiles();
+  const tracks = selectedSubtitleTracks();
   const selectedIndex = Number(previewSubtitleSelect?.value || 0);
-  const track = subs[selectedIndex];
+  const track = tracks[selectedIndex];
   const fontFiles = selectedFonts();
 
   await destroySubtitlePreview();
   const generation = previewGeneration;
   syncPreviewControls();
 
-  if (!video || !track) {
+  if (!video || !track?.file || !track?.format?.previewable) {
     previewStatus.textContent = '等待视频与 ASS / SSA。';
     previewEmpty?.classList.remove('hidden');
     return;
