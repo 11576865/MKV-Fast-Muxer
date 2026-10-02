@@ -157,6 +157,11 @@ ffmpeg -hide_banner -loglevel error -y \
   "$ROOT/external.flac"
 
 ffmpeg -hide_banner -loglevel error -y \
+  -f lavfi -i "sine=frequency=550:sample_rate=48000:duration=2" \
+  -c:a aac -b:a 96k -f adts \
+  "$ROOT/external.aac"
+
+ffmpeg -hide_banner -loglevel error -y \
   -f lavfi -i "testsrc2=size=960x540:rate=30:duration=8" \
   -f lavfi -i "sine=frequency=330:sample_rate=48000:duration=8" \
   -shortest \
