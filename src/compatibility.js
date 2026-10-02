@@ -1,3 +1,8 @@
+import {
+  COMPATIBILITY_EVIDENCE_STATUS,
+  compatibilityEvidenceFor,
+} from './compatibility-evidence.js';
+
 export const COMPATIBILITY_STATE = Object.freeze({
   DIRECT_COPY: 'DIRECT_COPY',
   COMPATIBILITY_WARNING: 'COMPATIBILITY_WARNING',
@@ -5,31 +10,6 @@ export const COMPATIBILITY_STATE = Object.freeze({
   UNSUPPORTED: 'UNSUPPORTED',
   UNVERIFIED: 'UNVERIFIED',
 });
-
-const KNOWN_MATROSKA_VIDEO_COPY = new Set([
-  'h264',
-  'hevc',
-  'av1',
-  'vp8',
-  'vp9',
-  'mpeg4',
-]);
-
-const KNOWN_MATROSKA_AUDIO_COPY = new Set([
-  'aac',
-  'flac',
-  'mp3',
-  'opus',
-  'vorbis',
-  'ac3',
-  'eac3',
-  'dts',
-  'alac',
-  'pcm_s16le',
-  'pcm_s24le',
-  'pcm_s32le',
-  'pcm_f32le',
-]);
 
 const DIRECT_SUBTITLE_FORMATS = new Set([
   'ass',
@@ -76,7 +56,7 @@ function mostSignificantState(issues) {
   ), COMPATIBILITY_STATE.DIRECT_COPY);
 }
 
-function assessCodecList(streams, kind, knownSet, issues) {
+function assessCodecList(streams, kind, issues, evidence, origin) {
   for (const [index, stream] of Array.from(streams || []).entries()) {
     const codec = normalizedCodec(stream?.codec_name || stream?.codec);
     if (!codec) {
@@ -85,18 +65,54 @@ function assessCodecList(streams, kind, knownSet, issues) {
         `${kind}-codec`,
         'codec-missing',
         `${kind === 'video' ? '视频' : '音频'} #${index + 1} 没有可验证的 codec 名称；将由实际 FFmpeg mux 结果验证。`,
-        { index, codec: '' },
+        { index, codec: '', origin },
+      ));
+      evidence.push({
+        dimension: kind,
+        origin,
+        index,
+        codec: '',
+        evidenceId: null,
+        status: 'missing-codec',
+      });
+      continue;
+    }
+
+    const record = compatibilityEvidenceFor(kind, codec);
+    evidence.push({
+      dimension: kind,
+      origin,
+      index,
+      codec,
+      evidenceId: record?.id || null,
+      status: record?.status || 'unrecorded',
+      fixture: record?.fixture || null,
+    });
+
+    if (!record) {
+      issues.push(issue(
+        COMPATIBILITY_STATE.UNVERIFIED,
+        `${kind}-codec`,
+        'codec-no-evidence-record',
+        `${kind === 'video' ? '视频' : '音频'} codec “${codec}”没有当前运行时的 Matroska Stream Copy 证据记录；不会自动转码，将交给实际 mux 验证。`,
+        { index, codec, origin },
       ));
       continue;
     }
 
-    if (!knownSet.has(codec)) {
+    if (record.status !== COMPATIBILITY_EVIDENCE_STATUS.VERIFIED_E2E) {
       issues.push(issue(
         COMPATIBILITY_STATE.UNVERIFIED,
         `${kind}-codec`,
-        'codec-not-in-verified-set',
-        `${kind === 'video' ? '视频' : '音频'} codec “${codec}”不在当前已验证的 Matroska Stream Copy 集合中；不会自动转码，将交给实际 mux 验证。`,
-        { index, codec },
+        'codec-not-e2e-verified',
+        `${kind === 'video' ? '视频' : '音频'} codec “${codec}”目前只有 ${record.status} 证据，尚未由本项目浏览器 E2E + post-mux audit 验证；不会自动转码，将交给实际 mux 验证。`,
+        {
+          index,
+          codec,
+          origin,
+          evidenceId: record.id,
+          evidenceStatus: record.status,
+        },
       ));
     }
   }
@@ -126,6 +142,7 @@ export function resolveMuxCompatibility({
   playbackProfile = null,
 } = {}) {
   const issues = [];
+  const evidence = [];
   const normalizedTarget = String(targetContainer || '').toLowerCase();
 
   if (!['matroska', 'mkv'].includes(normalizedTarget)) {
@@ -145,17 +162,18 @@ export function resolveMuxCompatibility({
       '没有可用视频轨，不能按当前视频封装工作流执行。',
     ));
   } else {
-    assessCodecList(videoStreams, 'video', KNOWN_MATROSKA_VIDEO_COPY, issues);
+    assessCodecList(videoStreams, 'video', issues, evidence, 'source-video');
   }
 
-  assessCodecList(sourceAudioStreams, 'audio', KNOWN_MATROSKA_AUDIO_COPY, issues);
+  assessCodecList(sourceAudioStreams, 'audio', issues, evidence, 'source-audio');
   assessCodecList(
     Array.from(externalAudioTracks || []).map((track) => ({
       codec_name: track?.identity?.codec || track?.codec,
     })),
     'audio',
-    KNOWN_MATROSKA_AUDIO_COPY,
     issues,
+    evidence,
+    'external-audio',
   );
 
   for (const [index, track] of Array.from(newSubtitles || []).entries()) {
@@ -211,6 +229,7 @@ export function resolveMuxCompatibility({
     state,
     issues,
     counts,
+    evidence,
     mediaPolicy: {
       video: 'stream-copy-only',
       audio: 'stream-copy-only',
