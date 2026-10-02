@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   batchSubtitleSummary,
   buildBatchJobs,
+  identifyBatchFonts,
   identifyBatchVideos,
   mergeFileSelections,
   stem,
@@ -113,5 +114,63 @@ test('batch content recognition caches file identity and bounds repeated probing
 
   assert.equal(first.recognized.length, 1);
   assert.equal(second.recognized.length, 1);
+  assert.equal(calls, 1);
+});
+
+
+test('batch font recognition accepts parsed SFNT content with an unknown extension', async () => {
+  const renamed = { name: 'Font.mmmmmm', size: 20, lastModified: 3 };
+  const recognition = await identifyBatchFonts([renamed], {
+    inspect: async (file) => ({
+      kind: 'truetype-sfnt',
+      supported: true,
+      collection: false,
+      mimeType: 'font/ttf',
+      virtualExtension: '.ttf',
+      extension: '.mmmmmm',
+      extensionMatches: false,
+      fileName: file.name,
+      evidence: 'test',
+      descriptors: [{ family: 'Fixture' }],
+    }),
+  });
+  assert.equal(recognition.recognized.length, 1);
+  assert.equal(recognition.recognized[0].identity.kind, 'truetype-sfnt');
+  assert.match(recognition.recognized[0].mismatch, /\.mmmmmm/);
+});
+
+test('batch font recognition rejects invalid font content', async () => {
+  const fake = { name: 'fake.ttf', size: 20, lastModified: 4 };
+  const recognition = await identifyBatchFonts([fake], {
+    inspect: async () => ({
+      kind: 'truetype-sfnt',
+      supported: false,
+      evidence: 'sfnt-parse-failed',
+    }),
+  });
+  assert.equal(recognition.recognized.length, 0);
+  assert.equal(recognition.ignored.length, 1);
+});
+
+test('batch font recognition caches verified content identity', async () => {
+  let calls = 0;
+  const cache = new Map();
+  const font = { name: 'font.bin', size: 20, lastModified: 5 };
+  const inspect = async () => {
+    calls += 1;
+    return {
+      kind: 'opentype-cff',
+      supported: true,
+      collection: false,
+      mimeType: 'font/otf',
+      virtualExtension: '.otf',
+      extension: '.bin',
+      extensionMatches: false,
+      evidence: 'sfnt-parse',
+      descriptors: [{ family: 'Fixture' }],
+    };
+  };
+  await identifyBatchFonts([font], { inspect, cache });
+  await identifyBatchFonts([font], { inspect, cache });
   assert.equal(calls, 1);
 });
