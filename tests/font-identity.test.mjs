@@ -7,6 +7,7 @@ import {
   fontVirtualSuffix,
   identifyFontFile,
   isSupportedFontIdentity,
+  normalizedFontAttachmentName,
   sniffFontBytes,
 } from '../src/font-identity.js';
 
@@ -40,6 +41,7 @@ test('renamed valid TrueType is accepted and mismatch is explicit', async () => 
   assert.equal(identity.extensionMatches, false);
   assert.equal(fontMimeType(identity), 'font/ttf');
   assert.equal(fontVirtualSuffix(identity), '.ttf');
+  assert.equal(normalizedFontAttachmentName(file.name, identity), 'font.ttf');
   assert.match(fontIdentityMismatchMessage(identity), /\.mmmmmm/);
 });
 
@@ -60,4 +62,21 @@ test('collection identity drives attachment MIME and virtual suffix', async () =
   assert.equal(identity.faceCount, 2);
   assert.equal(fontMimeType(identity), 'font/collection');
   assert.equal(fontVirtualSuffix(identity), '.otc');
+});
+
+
+test('outline flavor determines extension mismatch and normalized attachment suffix', async () => {
+  const cff = await identifyFontFile({ name: 'font.ttf' }, {
+    sniff: async () => ({ container: 'single', flavor: 'opentype-cff', evidence: 'test' }),
+    parseDescriptors: async () => [{ family: 'Fixture CFF' }],
+  });
+  assert.equal(cff.extensionMatches, false);
+  assert.equal(normalizedFontAttachmentName('font.ttf', cff), 'font.otf');
+
+  const collection = await identifyFontFile({ name: 'collection.otc' }, {
+    sniff: async () => ({ container: 'collection', flavor: 'truetype', evidence: 'test' }),
+    parseDescriptors: async () => [{ family: 'Fixture Collection' }],
+  });
+  assert.equal(collection.extensionMatches, false);
+  assert.equal(normalizedFontAttachmentName('collection.otc', collection), 'collection.ttc');
 });
