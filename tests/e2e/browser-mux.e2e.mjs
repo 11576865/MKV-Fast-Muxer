@@ -1167,6 +1167,19 @@ async function scenarioBatchQueue(browser) {
       path.join(root, 'Batch S01E02.en.srt'),
     ]);
 
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return (
+        plan.includes('Batch S01E01.mp4') &&
+        plan.includes('Batch S01E02.mp4') &&
+        plan.includes('1 ASS') &&
+        plan.includes('1 SRT') &&
+        start &&
+        !start.disabled
+      );
+    });
+
     const plan = await page.locator('#batchPlan').textContent();
     assert.match(plan, /Batch S01E01\.mp4/);
     assert.match(plan, /Batch S01E02\.mp4/);
