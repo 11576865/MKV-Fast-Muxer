@@ -326,6 +326,16 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 
 视频和音频策略仍然是 `stream-copy-only`，不会因为组合不理想而静默重编码。
 
+### 兼容性证据矩阵
+
+`DIRECT_COPY` 不再由一组仅凭经验维护的 codec allowlist 决定。项目在 `src/compatibility-evidence.js` 中维护机器可读的 **Compatibility Evidence Matrix**：只有具备当前浏览器运行时的真实 fixture、ffmpeg.wasm Stream Copy、生成 MKV、系统 ffprobe codec 保真检查与 post-mux audit 证据的 codec 才标记为 `verified-e2e`。
+
+当前矩阵对 H.264 / HEVC / AV1 / VP8 / VP9 / MPEG-4 Part 2，以及 AAC / FLAC / MP3 / Opus / Vorbis / AC-3 / E-AC-3 / ALAC / 多种 PCM 建立独立实测案例。CI 会生成短小真实媒体 fixture，并逐项走浏览器封装路径；任一 `verified-e2e` fixture 缺失、mux 失败、输出 codec 改变或审计失败，Browser E2E 都会失败。
+
+如果某个 codec 只有容器/FFmpeg 层面的预期支持，但仓库还没有这条浏览器 E2E 证据，则保持 `expected` / `UNVERIFIED`。例如 DTS 目前不会因为静态知识而被标成已经验证。未知 codec 也保持 `UNVERIFIED`，继续交给实际 FFmpeg 执行验证，不会自动转码或被静态规则误判为必然失败。
+
+JSON 封装报告中的 `compatibility.evidence` 会记录本次视频/音频轨实际命中的 evidence id、状态与对应 fixture，使“规则声明”和“这项声明由哪条实测证据支持”可以追溯。
+
 ## 封装计划
 
 执行前，“封装计划”会按“容器 / 视频 / 音频 / 字幕 / 附件”分组显示预期结构：
