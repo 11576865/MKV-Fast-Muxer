@@ -1470,9 +1470,15 @@ async function refreshSubtitlePreview() {
     const previewCenter = 0.5;
     const shiftedAss = shiftAssForPreview(sourceAss, Math.max(0, previewTime - previewCenter));
 
+    const previewFontPaths = [];
     await Promise.all(fontFiles.map(async (font, index) => {
-      const suffix = ext(font.name) || '.font';
-      await ffmpeg.writeFile(`${fontDir}/font-${index}${suffix}`, await fetchFile(font));
+      const identity = await inspectFontFile(font);
+      if (!isSupportedFontIdentity(identity)) {
+        throw new Error(`字体“${font.name}”的实际内容不是受支持的 TTF / OTF / TTC / OTC SFNT 字体。`);
+      }
+      const path = `${fontDir}/font-${index}${fontVirtualExtension(identity)}`;
+      previewFontPaths[index] = path;
+      await ffmpeg.writeFile(path, await fetchFile(font));
     }));
     await ffmpeg.writeFile(assPath, new TextEncoder().encode(shiftedAss));
 
@@ -1594,10 +1600,11 @@ async function refreshSubtitlePreview() {
     await removeQuietly(basePath);
     await removeQuietly(assPath);
     if (loaded) {
-      for (let index = 0; index < fontFiles.length; index += 1) {
-        const suffix = ext(fontFiles[index].name) || '.font';
-        await removeQuietly(`${fontDir}/font-${index}${suffix}`);
-      }
+      const cleanupEntries = await Promise.all(fontFiles.map(async (font, index) => {
+        const identity = await inspectFontFile(font).catch(() => null);
+        return `${fontDir}/font-${index}${fontVirtualExtension(identity)}`;
+      }));
+      for (const path of cleanupEntries) await removeQuietly(path);
       if (mounted) {
         try { await ffmpeg.unmount(mountPoint); } catch {}
       }
