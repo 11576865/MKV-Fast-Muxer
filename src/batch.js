@@ -9,17 +9,11 @@ import {
   sniffedVideoIdentity,
 } from './media-identity.js';
 
-const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.webm', '.mov', '.m4v']);
 const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.ttc', '.otc']);
 
 function extension(name = '') {
   const match = String(name).toLowerCase().match(/\.[a-z0-9]+$/);
   return match ? match[0] : '';
-}
-
-export function isSupportedBatchVideo(fileOrName) {
-  const name = typeof fileOrName === 'string' ? fileOrName : fileOrName?.name;
-  return VIDEO_EXTENSIONS.has(extension(name));
 }
 
 export function isSupportedBatchFont(fileOrName) {
