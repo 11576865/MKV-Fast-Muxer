@@ -1,8 +1,5 @@
 import { readFontDescriptors } from './ass-font-rewrite.js';
 
-const SINGLE_EXTENSIONS = new Set(['.ttf', '.otf']);
-const COLLECTION_EXTENSIONS = new Set(['.ttc', '.otc']);
-
 function asciiTag(bytes, offset = 0) {
   if (offset < 0 || offset + 4 > bytes.length) return '';
   return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
@@ -67,11 +64,16 @@ export async function sniffFontFile(file, { maxBytes = 64 * 1024 } = {}) {
   return sniffFontBytes(new Uint8Array(buffer));
 }
 
-function extensionMatch(extension, container) {
+function extensionMatch(extension, container, flavor) {
   if (!extension || container === 'unknown') return null;
-  return container === 'collection'
-    ? COLLECTION_EXTENSIONS.has(extension)
-    : SINGLE_EXTENSIONS.has(extension);
+  if (container === 'collection') {
+    if (flavor === 'opentype-cff') return extension === '.otc';
+    if (flavor === 'truetype') return extension === '.ttc';
+    return ['.ttc', '.otc'].includes(extension);
+  }
+  if (flavor === 'opentype-cff') return extension === '.otf';
+  if (flavor === 'truetype') return extension === '.ttf';
+  return ['.ttf', '.otf'].includes(extension);
 }
 
 export function fontIdentityLabel(identity) {
@@ -130,7 +132,9 @@ export async function identifyFontFile(
     parseError,
   };
   identity.label = fontIdentityLabel(identity);
-  identity.extensionMatches = valid ? extensionMatch(extension, identity.container) : null;
+  identity.extensionMatches = valid
+    ? extensionMatch(extension, identity.container, identity.flavor)
+    : null;
   return identity;
 }
 
@@ -153,4 +157,15 @@ export function fontVirtualSuffix(identity) {
     return identity?.flavor === 'opentype-cff' ? '.otc' : '.ttc';
   }
   return identity?.flavor === 'opentype-cff' ? '.otf' : '.ttf';
+}
+
+
+export function normalizedFontAttachmentName(name = '', identity = null) {
+  const original = String(name || 'font');
+  if (!identity?.valid || identity.extensionMatches !== false) return original;
+
+  const suffix = fontVirtualSuffix(identity);
+  const extension = fontExtension(original);
+  const stem = extension ? original.slice(0, -extension.length) : original;
+  return `${stem || 'font'}${suffix}`;
 }
