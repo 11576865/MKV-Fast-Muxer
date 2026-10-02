@@ -43,6 +43,7 @@ import {
   fontVirtualSuffix,
   identifyFontFile,
   isSupportedFontIdentity,
+  normalizedFontAttachmentName,
 } from './font-identity.js';
 import {
   batchSubtitleSummary,
@@ -2476,7 +2477,11 @@ muxBtn.addEventListener('click', async () => {
       if (mismatch) {
         logEl.textContent += `WARNING: 字体“${item.file.name}”：${mismatch}；按实际字体结构处理。\n`;
       }
-      return { ...item, fontIdentity };
+      return {
+        ...item,
+        fontIdentity,
+        attachmentName: normalizedFontAttachmentName(item.file.name, fontIdentity),
+      };
     }));
     const initialReservedAttachmentNames = scanned
       ? selectedOriginalAttachments().map((item) => item.filename).filter(Boolean)
@@ -3273,7 +3278,10 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
   );
   const items = deduped.unique.map((item) => ({
     ...item,
-    attachmentName: item.file.name,
+    attachmentName: normalizedFontAttachmentName(
+      item.file.name,
+      identityByFile.get(item.file) || null
+    ),
     fontIdentity: identityByFile.get(item.file) || null,
   }));
   const subsetted = await subsetFontItems(items, subsetText);
