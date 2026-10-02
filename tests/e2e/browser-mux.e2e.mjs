@@ -1410,6 +1410,60 @@ async function scenarioTabletDesktopUi(browser) {
   }
 }
 
+async function scenarioRenamedMediaIdentity(browser) {
+  console.log('E2E scenario 34: renamed MP4 and AAC use actual content identity');
+  const { context, page } = await openApp(browser);
+
+  try {
+    const videoBuffer = await fs.readFile(path.join(root, 'base.mp4'));
+    const audioBuffer = await fs.readFile(path.join(root, 'external.aac'));
+
+    await page.setInputFiles('#videoInput', {
+      name: 'base.mmmmmm',
+      mimeType: 'application/octet-stream',
+      buffer: videoBuffer,
+    });
+    await page.setInputFiles('#audioInput', {
+      name: 'external.flac',
+      mimeType: 'application/octet-stream',
+      buffer: audioBuffer,
+    });
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#videoIdentity')?.textContent || '';
+      return text.includes('ISO BMFF') && text.includes('扩展名 .mmmmmm');
+    });
+
+    assert.equal(await page.locator('#muxBtn').isEnabled(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const output = path.join(outDir, 'renamed-media-identity.mkv');
+    const reportPath = path.join(outDir, 'renamed-media-identity.mux-report.json');
+    await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+
+    const outputProbe = probe(output);
+    assert.deepEqual(
+      streams(outputProbe, 'audio').map((stream) => stream.codec_name),
+      ['aac', 'aac'],
+      'renamed raw AAC must be detected and stream-copied as AAC',
+    );
+
+    const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(report.externalAudio[0].codec, 'aac');
+
+    const log = await page.locator('#log').textContent();
+    assert.match(log, /扩展名 \.mmmmmm 与实际检测到的 ISO BMFF \/ MP4 不一致/);
+    assert.match(log, /外部音频“external\.flac”.*实际检测到的 aac 不一致/);
+
+    console.log('Scenario 34 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -1418,6 +1472,7 @@ try {
   await scenarioTabletDesktopUi(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
+  await scenarioRenamedMediaIdentity(browser);
   await scenarioSelectiveAttachments(browser);
   await scenarioOriginalTracks(browser);
   await scenarioUtf16(browser);
