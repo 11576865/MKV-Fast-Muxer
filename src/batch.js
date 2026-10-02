@@ -2,6 +2,12 @@ import {
   collectSubtitleInputs,
   subtitleExtension,
 } from './subtitle-format.js';
+import {
+  identityMismatchMessage,
+  isSupportedVideoIdentity,
+  sniffFileContainer,
+  sniffedVideoIdentity,
+} from './media-identity.js';
 
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mkv', '.webm', '.mov', '.m4v']);
 const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.ttc', '.otc']);
@@ -41,6 +47,67 @@ export function mergeFileSelections(...groups) {
   return result;
 }
 
+async function mapWithConcurrency(items, limit, worker) {
+  const source = Array.from(items || []);
+  const results = new Array(source.length);
+  let cursor = 0;
+
+  async function consume() {
+    while (cursor < source.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await worker(source[index], index);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(Math.max(1, limit), source.length) },
+    () => consume()
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+export async function identifyBatchVideos(
+  files = [],
+  {
+    sniff = sniffFileContainer,
+    concurrency = 8,
+    cache = null,
+  } = {}
+) {
+  const source = Array.from(files || []);
+
+  const entries = await mapWithConcurrency(source, concurrency, async (file) => {
+    const key = fileIdentity(file);
+    let pending = cache?.get(key);
+
+    if (!pending) {
+      pending = Promise.resolve()
+        .then(() => sniff(file))
+        .then((sniffed) => sniffedVideoIdentity(file, sniffed))
+        .catch((error) => ({
+          ...sniffedVideoIdentity(file, { container: 'unknown', evidence: 'read-error' }),
+          inspectionError: error?.message || String(error),
+        }));
+      cache?.set(key, pending);
+    }
+
+    const identity = await pending;
+    return {
+      file,
+      identity,
+      supported: isSupportedVideoIdentity(identity),
+      mismatch: identityMismatchMessage(identity),
+    };
+  });
+
+  return {
+    recognized: entries.filter((entry) => entry.supported),
+    ignored: entries.filter((entry) => !entry.supported),
+  };
+}
+
 export function stem(name = '') {
   return String(name)
     .replace(/\.[^.]+$/, '')
@@ -78,8 +145,7 @@ function scorePair(video, subtitleFile) {
 }
 
 export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
-  const sourceVideos = Array.from(videoFiles || []);
-  const videos = sourceVideos.filter(isSupportedBatchVideo);
+  const videos = Array.from(videoFiles || []);
   const collected = collectSubtitleInputs(subtitleFiles);
   const subtitleTracks = collected.tracks;
   const assignments = new Map(videos.map((video) => [video, []]));
@@ -125,7 +191,7 @@ export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
     unmatchedSubtitles: unmatchedSubtitleTracks.map((track) => track.file),
     orphanSidecars: collected.orphanSidecars,
     invalidSubtitles: collected.invalid,
-    ignoredVideos: sourceVideos.filter((file) => !isSupportedBatchVideo(file)),
+    ignoredVideos: [],
   };
 }
 
