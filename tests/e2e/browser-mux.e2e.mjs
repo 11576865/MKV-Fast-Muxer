@@ -1482,6 +1482,95 @@ async function scenarioRenamedMediaIdentity(browser) {
   }
 }
 
+async function scenarioBatchContentIdentity(browser) {
+  console.log('E2E scenario 35: batch video identity follows content, not filename extension');
+  const { context, page } = await openApp(browser);
+
+  try {
+    const mp4Buffer = await fs.readFile(path.join(root, 'base.mp4'));
+    const mkvBuffer = await fs.readFile(path.join(root, 'source-with-attachments.mkv'));
+    const zhBuffer = await fs.readFile(path.join(root, 'zh.ass'));
+    const enBuffer = await fs.readFile(path.join(root, 'en.ass'));
+
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', [
+      {
+        name: 'Renamed S01E01.mmmmmm',
+        mimeType: 'application/octet-stream',
+        buffer: mp4Buffer,
+      },
+      {
+        name: 'Renamed S01E02.mp4',
+        mimeType: 'video/mp4',
+        buffer: mkvBuffer,
+      },
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', [
+      {
+        name: 'Renamed S01E01.zh-Hans.ass',
+        mimeType: 'text/plain',
+        buffer: zhBuffer,
+      },
+      {
+        name: 'Renamed S01E02.en.ass',
+        mimeType: 'text/plain',
+        buffer: enBuffer,
+      },
+    ]);
+
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return (
+        text.includes('Renamed S01E01.mmmmmm') &&
+        text.includes('实际：ISO BMFF / MP4') &&
+        text.includes('Renamed S01E02.mp4') &&
+        text.includes('实际：Matroska / MKV') &&
+        text.includes('2 个视频扩展名与实际内容不一致') &&
+        start &&
+        !start.disabled
+      );
+    });
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#batchStatus')?.textContent || '';
+      return value.startsWith('批量完成：');
+    }, null, { timeout: 360_000 });
+
+    assert.match(await page.locator('#batchStatus').textContent(), /成功 2，失败 0/);
+
+    const links = page.locator('#batchResults a.download');
+    assert.equal(await links.count(), 2);
+
+    const first = path.join(outDir, 'batch-renamed-mp4.mkv');
+    const [firstDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      links.nth(0).click(),
+    ]);
+    await firstDownload.saveAs(first);
+
+    const second = path.join(outDir, 'batch-renamed-matroska.mkv');
+    const [secondDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      links.nth(1).click(),
+    ]);
+    await secondDownload.saveAs(second);
+
+    assert.equal(streams(probe(first), 'video').length, 1);
+    const secondProbe = probe(second);
+    assert.equal(streams(secondProbe, 'video').length, 1);
+    assert.ok(
+      streams(secondProbe, 'attachment').length >= 2,
+      'renamed Matroska input should preserve original attachments in batch append mode',
+    );
+
+    console.log('Scenario 35 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -1518,6 +1607,7 @@ try {
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
   await scenarioBatchQueue(browser);
+  await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
   await scenarioBatchGroupSubset(browser);
