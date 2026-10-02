@@ -14,6 +14,12 @@ import {
   sourceVirtualSuffix,
   videoIdentityFromProbe,
 } from './media-identity.js';
+import {
+  COMPATIBILITY_STATE,
+  compatibilityPlanMessages,
+  resolveMuxCompatibility,
+  summarizeCompatibility,
+} from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
@@ -1794,6 +1800,21 @@ function buildMuxPlan() {
     }
   }
 
+  const hasKnownAssLikeSource = Boolean(
+    trackState &&
+    selectedTracks('subtitle').some((track) =>
+      ['ass', 'ssa', 'substation_alpha'].includes(
+        String(track.stream?.codec_name || '').toLowerCase()
+      )
+    )
+  );
+  warnings.push(...compatibilityPlanMessages({
+    newSubtitles: newSubtitleState,
+    fontCount: attachedFonts.length,
+    hasKnownAssLikeSource,
+    sourceSubtitleKnowledge: appendMode && !trackState ? 'unknown' : 'known',
+  }));
+
   return { entries, warnings };
 }
 
@@ -2571,6 +2592,34 @@ muxBtn.addEventListener('click', async () => {
       inputIndex: subtitleInputOffset + index,
     }));
 
+    const compatibilitySourceAudio = selectedAudio
+      ? selectedAudio.map((track) => track.stream)
+      : sourceAudios;
+    const compatibilitySourceSubtitles = preserveAllOriginalSubtitles
+      ? sourceSubtitles
+      : selectedSubtitles.map((track) => track.stream);
+    const compatibility = resolveMuxCompatibility({
+      targetContainer: 'matroska',
+      videoStreams: sourceVideos,
+      sourceAudioStreams: compatibilitySourceAudio,
+      externalAudioTracks: runtimeExternalAudio,
+      newSubtitles: runtimeSubtitles,
+      sourceSubtitleStreams: compatibilitySourceSubtitles,
+      fontAttachments: attachments,
+    });
+
+    logEl.textContent += `COMPATIBILITY: ${summarizeCompatibility(compatibility)} · 视频/音频策略 stream-copy-only · silent transcode=false。\n`;
+    for (const item of compatibility.issues) {
+      const level = item.state === COMPATIBILITY_STATE.CONVERSION_REQUIRED ? 'INFO' : 'WARNING';
+      logEl.textContent += `${level}: [${item.state}] ${item.message}\n`;
+    }
+    if (compatibility.state === COMPATIBILITY_STATE.UNSUPPORTED) {
+      const reasons = compatibility.issues
+        .filter((item) => item.state === COMPATIBILITY_STATE.UNSUPPORTED)
+        .map((item) => item.message);
+      throw new Error(`组合兼容性不支持：${reasons.join('；')}`);
+    }
+
     if (scanned) {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (isMatroskaIdentity(inputIdentity)) {
@@ -2811,6 +2860,14 @@ muxBtn.addEventListener('click', async () => {
         })),
       },
       plan: buildMuxPlan(),
+      compatibility: {
+        ...compatibility,
+        execution: {
+          muxSucceeded: true,
+          auditStatus: finalAudit?.status || 'unknown',
+          evidence: 'actual-ffmpeg-mux',
+        },
+      },
       expectedAudit,
       audit: finalAudit,
       output: {
