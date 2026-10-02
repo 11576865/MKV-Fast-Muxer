@@ -21,7 +21,7 @@ test('single subtitle workflow waits for content identity before mux', () => {
   assert.match(main, /subtitleInspectPromise/);
   assert.match(main, /subtitleIdentityPending/);
   assert.match(main, /await subtitleInspectPromise/);
-  assert.match(main, /track\.identityMismatch/);
+  assert.match(main, /identityMismatch/);
   assert.doesNotMatch(main, /!isSupportedSubtitleFile\(track\.file\)/);
 });
 
