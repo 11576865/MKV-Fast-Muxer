@@ -125,6 +125,9 @@ async function scenarioMultiTrack(browser) {
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
     assert.equal(report.application.version, '1.2.0');
+    assert.equal(report.compatibility?.state, 'DIRECT_COPY');
+    assert.equal(report.compatibility?.execution?.muxSucceeded, true);
+    assert.equal(report.compatibility?.playback?.verified, false);
     assert.equal(report.fonts.selectedCount, 2);
     assert.equal(report.fonts.uniqueCount, 1);
     assert.equal(report.fonts.duplicateCount, 1);
@@ -1089,6 +1092,15 @@ async function scenarioAdditionalSubtitleFormats(browser) {
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
     assert.deepEqual(report.subtitle.tracks.map((track) => track.format), ['SSA', 'SRT', 'WebVTT']);
+    assert.equal(report.compatibility?.state, 'CONVERSION_REQUIRED');
+    assert.equal(report.compatibility?.mediaPolicy?.silentTranscode, false);
+    assert.deepEqual(report.compatibility?.mediaPolicy?.subtitleConversions, [{
+      code: 'webvtt-to-subrip',
+      from: 'webvtt',
+      to: 'subrip',
+      builtIn: true,
+    }]);
+    assert.equal(report.compatibility?.execution?.muxSucceeded, true);
     assert.equal(report.fonts.selectedCount, 0);
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
     console.log('Scenario 26 PASS');
