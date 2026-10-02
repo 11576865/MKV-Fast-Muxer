@@ -45,3 +45,12 @@ test('reserved original attachment names force deterministic font renaming', () 
   assert.equal(items[0].attachmentName, 'Font-mkvfm-abcdef12.ttf');
   assert.equal(items[1].attachmentName, 'Other.otf');
 });
+
+
+test('precomputed content-derived attachment names participate in collision handling', () => {
+  const items = assignUniqueAttachmentNames([
+    { file: { name: 'Renamed.mmmmmm' }, attachmentName: 'Renamed.ttf', sha256: '12345678aaaaaaaa' },
+  ], ['renamed.ttf']);
+
+  assert.equal(items[0].attachmentName, 'Renamed-mkvfm-12345678.ttf');
+});
