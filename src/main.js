@@ -633,7 +633,7 @@ function updateUI() {
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
-  if (!batchRunning) syncBatchPlan();
+  if (!batchRunning) requestBatchPlanSync();
 }
 
 function bindNewTrackEditor(container, selector, getState) {
