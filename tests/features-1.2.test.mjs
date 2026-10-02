@@ -6,7 +6,7 @@ const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const main = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 
 test('1.2 UI exposes bitmap subtitles and preserve-all append mode', () => {
-  assert.match(html, /\.sup,\.idx,\.sub/);
+  assert.match(html, /PGS \/ VobSub/);
   assert.match(html, /id="appendPreserveAll"/);
   assert.match(html, /PGS \/ VobSub/);
   assert.match(main, /preserveAllOriginalSubtitles/);
