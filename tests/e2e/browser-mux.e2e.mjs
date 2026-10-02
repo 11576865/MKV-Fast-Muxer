@@ -1430,6 +1430,7 @@ async function scenarioRenamedMediaIdentity(browser) {
     const videoBuffer = await fs.readFile(path.join(root, 'base.mp4'));
     const audioBuffer = await fs.readFile(path.join(root, 'external.aac'));
     const subtitleBuffer = await fs.readFile(path.join(root, 'zh.ass'));
+    const fontBuffer = await fs.readFile(path.join(root, 'DejaVuSans.ttf'));
 
     await page.setInputFiles('#videoInput', {
       name: 'base.mmmmmm',
@@ -1445,6 +1446,11 @@ async function scenarioRenamedMediaIdentity(browser) {
       name: 'captions.mmmmm',
       mimeType: 'application/octet-stream',
       buffer: subtitleBuffer,
+    });
+    await page.setInputFiles('#fontInput', {
+      name: 'DejaVuSans.fontblob',
+      mimeType: 'application/octet-stream',
+      buffer: fontBuffer,
     });
 
     await page.waitForFunction(() => {
@@ -1488,10 +1494,19 @@ async function scenarioRenamedMediaIdentity(browser) {
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
     assert.equal(report.externalAudio[0].codec, 'aac');
+    assert.equal(report.fonts.attachments[0].sourceName, 'DejaVuSans.fontblob');
+    assert.equal(report.fonts.attachments[0].mimeType, 'font/ttf');
+    assert.equal(report.fonts.attachments[0].detectedKind, 'truetype-sfnt');
+    assert.equal(report.fonts.attachments[0].extensionMatchesContent, false);
+
+    const renamedFontAttachment = streams(outputProbe, 'attachment')
+      .find((stream) => stream.tags?.filename === 'DejaVuSans.fontblob');
+    assert.equal(renamedFontAttachment?.tags?.mimetype, 'font/ttf');
 
     const log = await page.locator('#log').textContent();
     assert.match(log, /扩展名 \.mmmmmm 与实际检测到的 ISO BMFF \/ MP4 不一致/);
     assert.match(log, /外部音频“external\.flac”.*实际检测到的 aac 不一致/);
+    assert.match(log, /字体“DejaVuSans\.fontblob”.*扩展名 \.fontblob.*TrueType SFNT 字体不一致/);
 
     const mkvBuffer = await fs.readFile(path.join(root, 'source-with-attachments.mkv'));
     await page.setInputFiles('#videoInput', {
