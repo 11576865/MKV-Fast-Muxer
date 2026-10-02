@@ -8,18 +8,11 @@ import {
   sniffFileContainer,
   sniffedVideoIdentity,
 } from './media-identity.js';
-
-const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.ttc', '.otc']);
-
-function extension(name = '') {
-  const match = String(name).toLowerCase().match(/\.[a-z0-9]+$/);
-  return match ? match[0] : '';
-}
-
-export function isSupportedBatchFont(fileOrName) {
-  const name = typeof fileOrName === 'string' ? fileOrName : fileOrName?.name;
-  return FONT_EXTENSIONS.has(extension(name));
-}
+import {
+  fontIdentityMismatchMessage,
+  inspectFontFile,
+  isSupportedFontIdentity,
+} from './font-identity.js';
 
 export function fileIdentity(file) {
   if (!file) return '';
@@ -93,6 +86,48 @@ export async function identifyBatchVideos(
       identity,
       supported: isSupportedVideoIdentity(identity),
       mismatch: identityMismatchMessage(identity),
+    };
+  });
+
+  return {
+    recognized: entries.filter((entry) => entry.supported),
+    ignored: entries.filter((entry) => !entry.supported),
+  };
+}
+
+export async function identifyBatchFonts(
+  files = [],
+  {
+    inspect = inspectFontFile,
+    concurrency = 8,
+    cache = null,
+  } = {}
+) {
+  const source = Array.from(files || []);
+
+  const entries = await mapWithConcurrency(source, concurrency, async (file) => {
+    const key = fileIdentity(file);
+    let pending = cache?.get(key);
+
+    if (!pending) {
+      pending = Promise.resolve()
+        .then(() => inspect(file))
+        .catch((error) => ({
+          kind: 'unknown',
+          supported: false,
+          evidence: 'read-error',
+          inspectionError: error?.message || String(error),
+          fileName: file?.name || '',
+        }));
+      cache?.set(key, pending);
+    }
+
+    const identity = await pending;
+    return {
+      file,
+      identity,
+      supported: isSupportedFontIdentity(identity),
+      mismatch: fontIdentityMismatchMessage(identity),
     };
   });
 
@@ -194,7 +229,7 @@ export function buildBatchJobs(videoFiles = [], subtitleFiles = []) {
 }
 
 export function collectBatchFonts(files = []) {
-  return Array.from(files || []).filter(isSupportedBatchFont);
+  return Array.from(files || []);
 }
 
 export function batchSubtitleSummary(job) {
