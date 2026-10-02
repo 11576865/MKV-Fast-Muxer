@@ -242,6 +242,7 @@ export function compatibilityPlanMessages({
   newSubtitles = [],
   fontCount = 0,
   hasKnownAssLikeSource = false,
+  sourceSubtitleKnowledge = 'known',
 } = {}) {
   const messages = [];
   const webvttCount = Array.from(newSubtitles || [])
@@ -257,7 +258,12 @@ export function compatibilityPlanMessages({
   const hasAssLikeNew = Array.from(newSubtitles || [])
     .some((track) => track?.format?.assLike || ['ass', 'ssa'].includes(track?.format?.id));
 
-  if (fontCount > 0 && !hasAssLikeNew && !hasKnownAssLikeSource) {
+  if (
+    fontCount > 0 &&
+    !hasAssLikeNew &&
+    !hasKnownAssLikeSource &&
+    sourceSubtitleKnowledge !== 'unknown'
+  ) {
     messages.push(
       '字体附件已选择，但当前可见计划中没有 ASS / SSA；字体不会改变普通文本或图形字幕的渲染。'
     );
