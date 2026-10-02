@@ -27,6 +27,7 @@ import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.j
 import { formatOperationError } from './error-feedback.js';
 import {
   collectSubtitleInputs,
+  identifySubtitleInputs,
   inferredSubtitleMetadata,
   isAssLikeSubtitle,
   isPreviewableSubtitle,
@@ -40,6 +41,7 @@ import { subsetFontItems } from './font-subset.js';
 import {
   batchSubtitleSummary,
   buildBatchJobs,
+  buildBatchJobsFromCollected,
   collectBatchFonts,
   identifyBatchVideos,
   mergeFileSelections,
@@ -263,6 +265,14 @@ let videoSniffState = {
   fileKey: '',
   identity: null,
 };
+let subtitleInspectGeneration = 0;
+let subtitleInspectPromise = Promise.resolve();
+let subtitleInspectState = {
+  status: 'idle',
+  selectionKey: '',
+  collected: null,
+};
+const batchSubtitleIdentityCache = new Map();
 
 ffmpeg.on('log', ({ message }) => {
   logEl.textContent += message + '\n';
@@ -296,8 +306,81 @@ function selectedSubtitleRawFiles() {
   return Array.from(subInput.files || []);
 }
 
+function subtitleSelectionKey(files = selectedSubtitleRawFiles()) {
+  return Array.from(files || [])
+    .map((file) => fileKey(file))
+    .sort()
+    .join('\n');
+}
+
 function selectedSubtitleTrackInputs() {
-  return collectSubtitleInputs(selectedSubtitleRawFiles());
+  const files = selectedSubtitleRawFiles();
+  const key = subtitleSelectionKey(files);
+  if (
+    subtitleInspectState.status === 'ready' &&
+    subtitleInspectState.selectionKey === key &&
+    subtitleInspectState.collected
+  ) {
+    return subtitleInspectState.collected;
+  }
+  if (!files.length) return collectSubtitleInputs([]);
+  return {
+    tracks: [],
+    orphanSidecars: [],
+    invalid: [],
+    identities: [],
+    mismatches: [],
+  };
+}
+
+function subtitleIdentityPending() {
+  const files = selectedSubtitleRawFiles();
+  if (!files.length) return false;
+  return (
+    subtitleInspectState.status === 'pending' &&
+    subtitleInspectState.selectionKey === subtitleSelectionKey(files)
+  );
+}
+
+async function inspectSelectedSubtitles() {
+  const files = selectedSubtitleRawFiles();
+  const selectionKey = subtitleSelectionKey(files);
+  const generation = ++subtitleInspectGeneration;
+
+  if (!files.length) {
+    subtitleInspectState = {
+      status: 'idle',
+      selectionKey: '',
+      collected: collectSubtitleInputs([]),
+    };
+    syncNewTrackState();
+    updateUI();
+    return subtitleInspectState.collected;
+  }
+
+  subtitleInspectState = {
+    status: 'pending',
+    selectionKey,
+    collected: null,
+  };
+  updateUI();
+
+  const collected = await identifySubtitleInputs(files, { concurrency: 8 });
+  if (
+    generation !== subtitleInspectGeneration ||
+    subtitleSelectionKey(selectedSubtitleRawFiles()) !== selectionKey
+  ) {
+    return null;
+  }
+
+  subtitleInspectState = {
+    status: 'ready',
+    selectionKey,
+    collected,
+  };
+  syncNewTrackState();
+  updateUI();
+  return collected;
 }
 
 function selectedSubtitleFiles() {
@@ -332,6 +415,8 @@ function syncNewTrackState() {
       old.file = trackInput.file;
       old.sidecarFile = trackInput.sidecarFile || null;
       old.format = trackInput.format;
+      old.identity = trackInput.identity || null;
+      old.identityMismatch = trackInput.identityMismatch || '';
       old.displayName = trackInput.displayName || trackInput.file.name;
       return old;
     }
@@ -342,6 +427,8 @@ function syncNewTrackState() {
       sidecarFile: trackInput.sidecarFile || null,
       displayName: trackInput.displayName || trackInput.file.name,
       format,
+      identity: trackInput.identity || null,
+      identityMismatch: trackInput.identityMismatch || '',
       language: inferred.language,
       title: inferred.title || stripExtension(trackInput.file.name) || languageTitles.und,
       default: index === 0,
@@ -381,6 +468,7 @@ function renderNewTrackLists() {
       <div class="new-track-row is-subtitle">
         <div class="new-track-main">
           <strong class="new-track-name">${escapeHtml(item.displayName || item.file.name)} <span class="track-meta">· ${escapeHtml(item.format?.label || subtitleFormatInfo(item.file.name)?.label || 'SUB')}</span></strong>
+          ${item.identityMismatch ? `<small class="track-warning">${escapeHtml(item.identityMismatch)} · 已按实际内容识别</small>` : ''}
           <div class="new-track-fields">
             <select data-new-sub-field="language" data-index="${index}" aria-label="字幕语言" title="语言代码：${escapeHtml(item.language)}">${languageSelectOptions(item.language)}</select>
             <input data-new-sub-field="title" data-index="${index}" value="${escapeHtml(item.title)}" maxlength="160" aria-label="字幕标题">
@@ -579,6 +667,7 @@ function updateUI() {
   const video = videoInput.files[0];
   const collectedSubs = selectedSubtitleTrackInputs();
   const subs = collectedSubs.tracks.map((track) => track.file);
+  const subtitlePending = subtitleIdentityPending();
   const fonts = selectedFonts();
   const inputIsMkv = currentVideoIsMatroska(video);
   const identityPending = Boolean(
@@ -592,9 +681,11 @@ function updateUI() {
   const videoLabel = video?.name ?? '未选择';
   const audioFiles = selectedExternalAudioFiles();
   const audioLabel = formatFontSelection(audioFiles).replace(/字体/g, '音频');
-  const subtitleLabel = subs.length
-    ? (subs.length === 1 ? (collectedSubs.tracks[0].displayName || subs[0].name) : `${subs.length} 条字幕`)
-    : (collectedSubs.invalid.length ? 'VobSub 缺少 IDX/SUB 配对' : '未选择');
+  const subtitleLabel = subtitlePending
+    ? '正在识别实际字幕格式…'
+    : subs.length
+      ? (subs.length === 1 ? (collectedSubs.tracks[0].displayName || subs[0].name) : `${subs.length} 条字幕`)
+      : (collectedSubs.invalid.length ? '字幕内容无法识别或配对不完整' : '未选择');
   const fontLabel = formatFontSelection(fonts);
   const outputLabel = video ? safeOutputName(video.name) : '—';
 
@@ -631,7 +722,7 @@ function updateUI() {
   preserveAttachments.checked = appendMode ? true : preserveAttachments.checked;
   preserveAttachments.disabled = busy || !inputIsMkv || appendMode;
   scanTracksBtn.disabled = busy || identityPending || !inputIsMkv || !video;
-  muxBtn.disabled = busy || identityPending || !(video && subs.length) || collectedSubs.invalid.length > 0;
+  muxBtn.disabled = busy || identityPending || subtitlePending || !(video && subs.length) || collectedSubs.invalid.length > 0;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
@@ -679,13 +770,18 @@ audioInput.addEventListener('change', () => {
   updateUI();
 });
 subInput.addEventListener('change', () => {
-  syncNewTrackState();
+  subtitleInspectGeneration += 1;
+  subtitleInspectState = {
+    status: 'idle',
+    selectionKey: '',
+    collected: null,
+  };
   previewCueTimes = [];
   previewCueIndex = -1;
   if (previewTimeInput) previewTimeInput.value = '';
   destroySubtitlePreview();
-  updateUI();
-  previewStatus.textContent = '字幕已更换；点击“生成预览帧”按需检查字幕效果。';
+  subtitleInspectPromise = inspectSelectedSubtitles();
+  previewStatus.textContent = '字幕已更换；正在识别实际字幕格式。';
 });
 fontInput.addEventListener('change', () => {
   destroySubtitlePreview();
@@ -2304,7 +2400,7 @@ muxBtn.addEventListener('click', async () => {
 
   const headerVideoIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
   const videoIsMatroska = isMatroskaIdentity(headerVideoIdentity);
-  const invalidSubtitle = subtitleTracks.find((track) => !isSupportedSubtitleFile(track.file));
+  const invalidSubtitle = subtitleTracks.find((track) => !track.format);
   const invalidFont = fontFiles.find((file) => !['.ttf', '.otf', '.ttc', '.otc'].includes(ext(file.name)));
   const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
   const manualScanned = getScannedSelection(video);
@@ -2315,7 +2411,7 @@ muxBtn.addEventListener('click', async () => {
     appendMode || (!scanned && preserveAttachments.checked)
   );
   if (invalidSubtitle) {
-    status.textContent = `字幕“${invalidSubtitle.file.name}”不是支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub 文件。`;
+    status.textContent = `字幕“${invalidSubtitle.file.name}”的实际内容无法识别为支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub。`;
     return;
   }
   if (invalidFont) {
@@ -3001,26 +3097,34 @@ async function syncBatchPlan() {
   batchCancelBtn.disabled = !batchRunning;
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
 
-  if (candidateVideos.length) {
-    batchPlan.innerHTML = '<div class="track-empty">正在读取视频文件头并识别实际容器…</div>';
+  if (candidateVideos.length || subtitles.length) {
+    batchPlan.innerHTML = '<div class="track-empty">正在读取实际视频容器与字幕格式…</div>';
   }
 
-  const recognition = await identifyBatchVideos(candidateVideos, {
-    cache: batchVideoIdentityCache,
-    concurrency: 8,
-  });
+  const [recognition, subtitleRecognition] = await Promise.all([
+    identifyBatchVideos(candidateVideos, {
+      cache: batchVideoIdentityCache,
+      concurrency: 8,
+    }),
+    identifySubtitleInputs(subtitles, {
+      cache: batchSubtitleIdentityCache,
+      concurrency: 8,
+    }),
+  ]);
 
   if (generation !== batchPlanGeneration) return latestBatchPairing;
 
   const videos = recognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
-  const pairing = buildBatchJobs(videos, subtitles);
+  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition);
   pairing.videoRecognition = recognition;
+  pairing.subtitleRecognition = subtitleRecognition;
   pairing.jobs.forEach((job) => {
     const recognized = identityByVideo.get(job.video);
     job.videoIdentity = recognized?.identity || null;
     job.videoIdentityMismatch = recognized?.mismatch || '';
   });
+
   pairing.ignoredVideos = recognition.ignored.map((entry) => entry.file);
 
   const rows = pairing.jobs.map((job, index) => {
@@ -3042,6 +3146,7 @@ async function syncBatchPlan() {
   const mismatchCount = recognition.recognized.filter((entry) => entry.mismatch).length;
   if (mismatchCount) notes.push(`${mismatchCount} 个视频扩展名与实际内容不一致，已按实际容器识别`);
   if (recognition.ignored.length) notes.push(`${recognition.ignored.length} 个文件未识别为支持的视频容器`);
+  if (subtitleRecognition.mismatches?.length) notes.push(`${subtitleRecognition.mismatches.length} 个字幕扩展名与实际内容不一致，已按实际格式识别`);
   if (pairing.unmatchedVideos.length) notes.push(`${pairing.unmatchedVideos.length} 个视频没有匹配字幕`);
   if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
   if (pairing.orphanSidecars.length) notes.push(`${pairing.orphanSidecars.length} 个 VobSub .sub 缺少同名 .idx`);
@@ -3251,6 +3356,7 @@ batchStartBtn?.addEventListener('click', async () => {
       setInputFiles(videoInput, [job.video]);
       await videoSniffPromise;
       setInputFiles(subInput, job.subtitleInputFiles);
+      await subtitleInspectPromise;
       setInputFiles(fontInput, jobFonts);
       resetTrackState();
 
@@ -3315,6 +3421,7 @@ batchStartBtn?.addEventListener('click', async () => {
     await videoSniffPromise;
     setInputFiles(audioInput, originalAudioFiles);
     setInputFiles(subInput, originalSubtitleFiles);
+    await subtitleInspectPromise;
     setInputFiles(fontInput, originalFontFiles);
     preserveAttachments.checked = originalPreserveAttachments;
     if (appendPreserveAll) {
