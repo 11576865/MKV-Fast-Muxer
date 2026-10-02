@@ -98,6 +98,27 @@ function extensionMatchForContainer(extension, container) {
   return expected ? expected.has(extension) : null;
 }
 
+export function sniffedVideoIdentity(file, sniffed = {}) {
+  const extension = mediaExtension(file?.name);
+  const container = String(sniffed?.container || 'unknown');
+  return {
+    kind: 'video',
+    fileName: file?.name || '',
+    extension,
+    mimeHint: file?.type || '',
+    container,
+    containerLabel: containerLabel(container),
+    formatName: '',
+    videoStreams: [],
+    audioStreams: [],
+    hasVideo: null,
+    supported: SUPPORTED_VIDEO_CONTAINERS.has(container),
+    extensionMatches: extensionMatchForContainer(extension, container),
+    evidence: sniffed?.evidence || 'none',
+    sniffEvidence: sniffed?.evidence || 'none',
+  };
+}
+
 export function videoIdentityFromProbe(file, probe, sniffed = {}) {
   const extension = mediaExtension(file?.name);
   const formatName = String(probe?.format?.format_name || '');
