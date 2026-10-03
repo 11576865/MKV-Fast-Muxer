@@ -1248,9 +1248,9 @@ async function scenarioPreserveAllAppend(browser) {
 
     assert.deepEqual(audio.map((stream) => stream.codec_name), ['aac', 'opus']);
     assert.equal(subtitles.length, 2);
-    assert.equal(subtitles[0].codec_name, 'ass');
-    assert.equal(subtitles[1].tags?.title, 'Original Signs');
-    assert.equal(Boolean(subtitles[1].disposition?.forced), true);
+    assert.equal(subtitles[0].tags?.title, 'Original Signs');
+    assert.equal(Boolean(subtitles[0].disposition?.forced), true);
+    assert.equal(subtitles[1].codec_name, 'ass');
     console.log('Scenario 30 PASS');
   } finally {
     await context.close();
