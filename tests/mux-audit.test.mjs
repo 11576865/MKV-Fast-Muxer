@@ -163,3 +163,21 @@ test('audit includes Matroska data streams in the verified container inventory',
   assert.equal(missing.ok, false);
   assert.match(missing.issues.join('\n'), /数据轨数量不一致|数据 #1 缺失/);
 });
+
+
+test('audit preserves otherwise unclassified source stream types', () => {
+  const result = auditMuxProbe({
+    streams: [
+      { codec_type: 'video', codec_name: 'h264' },
+      { codec_type: 'unknown_type', codec_name: 'mystery' },
+    ],
+    chapters: [],
+    format: { tags: {} },
+  }, {
+    video: [{ codec: 'h264' }],
+    otherStreams: [{ type: 'unknown_type', codec: 'mystery' }],
+  });
+
+  assert.equal(result.ok, true, result.issues.join('\n'));
+  assert.equal(result.counts.other, 1);
+});
