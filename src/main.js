@@ -2335,12 +2335,21 @@ function renderTrackList() {
   }
 
   const chapters = trackState.chapters || [];
-  sourceRows.push(`
-    <div class="container-item container-readonly-row" data-change="keep">
-      <span class="container-item-kind">章节</span>
-      <div class="container-item-main"><strong>${chapters.length} 个 Chapter</strong></div>
-      ${containerStatusBadge('keep')}
-    </div>`);
+  chapters.forEach((chapter, index) => {
+    const chapterTitle = String(chapter.tags?.title || '').trim() || `Chapter #${index + 1}`;
+    const chapterLanguage = String(chapter.tags?.language || '').trim();
+    const start = String(chapter.start_time ?? chapter.start ?? '').trim();
+    const end = String(chapter.end_time ?? chapter.end ?? '').trim();
+    sourceRows.push(`
+      <div class="container-item container-readonly-row" data-change="keep">
+        <span class="container-item-kind">章节</span>
+        <div class="container-item-main">
+          <strong>${escapeHtml(chapterTitle)}</strong>
+          <small>${escapeHtml([start && end ? `${start} → ${end}` : (start || end), chapterLanguage].filter(Boolean).join(' · '))}</small>
+        </div>
+        ${containerStatusBadge('keep')}
+      </div>`);
+  });
 
   const tags = preservableFormatTags(trackState.format?.tags || {});
   const tagEntries = Object.entries(tags);
