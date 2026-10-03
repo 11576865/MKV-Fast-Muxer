@@ -31,6 +31,8 @@ export function buildMuxCommand({
   mainInputPath,
   outputPath,
   sourceAudioCount = 0,
+  sourceSubtitleCount = 0,
+  preserveAllSourceStreams = false,
   originalAudioTracks = null,
   externalAudioTracks = [],
   newSubtitleTracks = [],
@@ -51,12 +53,18 @@ export function buildMuxCommand({
     args.push('-i', track.path);
   }
 
-  args.push('-map', '0:v?');
-
-  if (Array.isArray(originalAudioTracks)) {
-    for (const track of originalAudioTracks) args.push('-map', `0:${track.index}`);
+  if (preserveAllSourceStreams) {
+    // Preserve the complete source stream set in source order. This is the
+    // strongest meaning of “keep the original container and only append”.
+    args.push('-map', '0');
   } else {
-    args.push('-map', '0:a?');
+    args.push('-map', '0:v?');
+
+    if (Array.isArray(originalAudioTracks)) {
+      for (const track of originalAudioTracks) args.push('-map', `0:${track.index}`);
+    } else {
+      args.push('-map', '0:a?');
+    }
   }
 
   for (const track of externalAudioTracks) {
@@ -67,33 +75,35 @@ export function buildMuxCommand({
     args.push('-map', `${track.inputIndex}:0`);
   }
 
-  if (preserveAllOriginalSubtitles) {
-    args.push('-map', '0:s?');
-  } else {
-    for (const track of originalSubtitleTracks) {
-      args.push('-map', `0:${track.index}`);
+  if (!preserveAllSourceStreams) {
+    if (preserveAllOriginalSubtitles) {
+      args.push('-map', '0:s?');
+    } else {
+      for (const track of originalSubtitleTracks) {
+        args.push('-map', `0:${track.index}`);
+      }
     }
-  }
 
-  if (preserveAllOriginalAttachments) {
-    args.push('-map', '0:t?');
-  } else {
-    for (const attachment of originalAttachments) {
-      args.push('-map', `0:${attachment.index}`);
+    if (preserveAllOriginalAttachments) {
+      args.push('-map', '0:t?');
+    } else {
+      for (const attachment of originalAttachments) {
+        args.push('-map', `0:${attachment.index}`);
+      }
     }
-  }
 
-  // Matroska may contain data streams that are not audio/subtitle/attachment.
-  // Preserve them explicitly when the caller has verified a Matroska source.
-  if (preserveOriginalDataStreams) {
-    args.push('-map', '0:d?');
+    // In selective mode, data streams are not part of the editable track
+    // groups, but verified Matroska data streams should still survive.
+    if (preserveOriginalDataStreams) {
+      args.push('-map', '0:d?');
+    }
   }
 
   args.push('-map_metadata', '0', '-map_chapters', '0', '-c', 'copy');
 
-  const mappedOriginalAudioCount = Array.isArray(originalAudioTracks)
-    ? originalAudioTracks.length
-    : sourceAudioCount;
+  const mappedOriginalAudioCount = preserveAllSourceStreams
+    ? sourceAudioCount
+    : (Array.isArray(originalAudioTracks) ? originalAudioTracks.length : sourceAudioCount);
 
   if (Array.isArray(originalAudioTracks)) {
     originalAudioTracks.forEach((track, outputIndex) => {
@@ -114,7 +124,8 @@ export function buildMuxCommand({
     );
   });
 
-  newSubtitleTracks.forEach((track, outputIndex) => {
+  newSubtitleTracks.forEach((track, index) => {
+    const outputIndex = (preserveAllSourceStreams ? sourceSubtitleCount : 0) + index;
     args.push(
       `-metadata:s:s:${outputIndex}`, `language=${normalizeTrackLanguage(track.language)}`,
       `-metadata:s:s:${outputIndex}`, `title=${track.title || ''}`,
@@ -128,7 +139,7 @@ export function buildMuxCommand({
     }
   });
 
-  if (!preserveAllOriginalSubtitles) {
+  if (!preserveAllSourceStreams && !preserveAllOriginalSubtitles) {
     originalSubtitleTracks.forEach((track, index) => {
       const outputIndex = newSubtitleTracks.length + index;
       args.push(
@@ -139,11 +150,11 @@ export function buildMuxCommand({
     });
   }
 
-  const mappedOriginalAttachmentCount = preserveAllOriginalAttachments
+  const mappedOriginalAttachmentCount = preserveAllSourceStreams || preserveAllOriginalAttachments
     ? Number(originalAttachmentCount || 0)
     : originalAttachments.length;
 
-  if (!preserveAllOriginalAttachments) {
+  if (!preserveAllSourceStreams && !preserveAllOriginalAttachments) {
     originalAttachments.forEach((item, outputIndex) => {
       if (Object.prototype.hasOwnProperty.call(item, 'filename')) {
         args.push(`-metadata:s:t:${outputIndex}`, `filename=${item.filename || ''}`);
