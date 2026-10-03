@@ -1859,9 +1859,11 @@ function containerChangeCounts({ newFontCount = plannedFontAttachmentCount() } =
   }
 
   const appendMode = Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked);
-  let removed = (trackState.streams || [])
-    .filter((stream) => !['video', 'audio', 'subtitle', 'attachment', 'data'].includes(stream.codec_type))
-    .length;
+  let removed = appendMode
+    ? 0
+    : (trackState.streams || [])
+        .filter((stream) => !['video', 'audio', 'subtitle', 'attachment', 'data'].includes(stream.codec_type))
+        .length;
   let modified = 0;
 
   if (!appendMode) {
@@ -2317,7 +2319,7 @@ function renderTrackList() {
     }
 
     const supportedReadOnly = ['video', 'data'].includes(stream.codec_type);
-    const change = supportedReadOnly ? 'keep' : 'remove';
+    const change = appendMode ? 'keep' : (supportedReadOnly ? 'keep' : 'remove');
     sourceRows.push(`
       <div class="container-item container-readonly-row" data-change="${change}">
         <span class="container-item-kind">${containerKindLabel(stream.codec_type)}</span>
@@ -3027,6 +3029,7 @@ muxBtn.addEventListener('click', async () => {
     }
 
     const originalAttachmentCount = inputProbe.attachmentCount;
+    const preserveAllSourceStreams = Boolean(appendMode && isMatroskaIdentity(inputIdentity));
     const sourceVideos = inputProbe.streams.filter((stream) => stream.codec_type === 'video');
     const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
     const sourceSubtitles = inputProbe.streams.filter((stream) => stream.codec_type === 'subtitle');
@@ -3111,7 +3114,7 @@ muxBtn.addEventListener('click', async () => {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (isMatroskaIdentity(inputIdentity)) {
       logEl.textContent += appendMode
-        ? `INFO: 完整保留并追加模式：保留原视频、音频、字幕、数据流、附件、Chapters 与 metadata。\n`
+        ? `INFO: 完整保留并追加模式：使用 -map 0 保留全部原 stream，并保留 Chapters 与 metadata；新增内容只追加。\n`
         : `INFO: 未扫描轨道，兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
 
@@ -3128,6 +3131,8 @@ muxBtn.addEventListener('click', async () => {
       mainInputPath: videoPath,
       outputPath,
       sourceAudioCount: sourceAudios.length,
+      sourceSubtitleCount: sourceSubtitles.length,
+      preserveAllSourceStreams,
       originalAudioTracks: selectedAudio,
       externalAudioTracks: runtimeExternalAudio,
       newSubtitleTracks: runtimeSubtitles,
@@ -3205,19 +3210,9 @@ muxBtn.addEventListener('click', async () => {
         ? sourceData.map((stream) => ({ codec: stream.codec_name || '' }))
         : [],
       audio: expectedAudio,
-      subtitles: [
-        ...runtimeSubtitles.map((track) => ({
-          codec: track.expectedCodec || track.codec || '',
-          language: normalizeTrackLanguage(track.language),
-          title: track.title || '',
-          default: track.default,
-          forced: track.forced,
-          original: track.original,
-          commentary: track.commentary,
-          hearingImpaired: track.hearingImpaired,
-        })),
-        ...(preserveAllOriginalSubtitles
-          ? sourceSubtitles.map((stream) => ({
+      subtitles: preserveAllSourceStreams
+        ? [
+            ...sourceSubtitles.map((stream) => ({
               codec: stream.codec_name || '',
               language: normalizeTrackLanguage(stream.tags?.language),
               title: stream.tags?.title || '',
@@ -3226,8 +3221,30 @@ muxBtn.addEventListener('click', async () => {
               original: Boolean(stream.disposition?.original),
               commentary: Boolean(stream.disposition?.comment),
               hearingImpaired: Boolean(stream.disposition?.hearing_impaired),
-            }))
-          : selectedSubtitles.map((track) => ({
+            })),
+            ...runtimeSubtitles.map((track) => ({
+              codec: track.expectedCodec || track.codec || '',
+              language: normalizeTrackLanguage(track.language),
+              title: track.title || '',
+              default: track.default,
+              forced: track.forced,
+              original: track.original,
+              commentary: track.commentary,
+              hearingImpaired: track.hearingImpaired,
+            })),
+          ]
+        : [
+            ...runtimeSubtitles.map((track) => ({
+              codec: track.expectedCodec || track.codec || '',
+              language: normalizeTrackLanguage(track.language),
+              title: track.title || '',
+              default: track.default,
+              forced: track.forced,
+              original: track.original,
+              commentary: track.commentary,
+              hearingImpaired: track.hearingImpaired,
+            })),
+            ...selectedSubtitles.map((track) => ({
               codec: track.stream.codec_name || '',
               language: normalizeTrackLanguage(track.language),
               title: track.title || '',
@@ -3236,8 +3253,8 @@ muxBtn.addEventListener('click', async () => {
               original: track.original,
               commentary: track.commentary,
               hearingImpaired: track.hearingImpaired,
-            }))),
-      ],
+            })),
+          ],
       chapterCount: inputProbe.chapters.length,
       formatTitle: inputProbe.format?.tags?.title || '',
       formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
