@@ -771,7 +771,26 @@ function resetTrackState() {
   renderMuxPlan();
   if (!batchRunning) syncBatchPlan?.();
 }
+function captureNewTrackEditorState() {
+  for (const control of newAudioList.querySelectorAll('[data-new-audio-field]')) {
+    const item = externalAudioState[Number(control.dataset.index)];
+    if (!item) continue;
+    const field = control.dataset.newAudioField;
+    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  }
+  for (const control of newSubtitleList.querySelectorAll('[data-new-sub-field]')) {
+    const item = newSubtitleState[Number(control.dataset.index)];
+    if (!item) continue;
+    const field = control.dataset.newSubField;
+    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  }
+}
+
 function updateUI() {
+  // Async container/font/subtitle probes may complete while the user is editing
+  // track metadata. Snapshot live editor values before replacing list markup so
+  // background readiness updates cannot restore inferred defaults over user input.
+  captureNewTrackEditorState();
   const video = videoInput.files[0];
   const collectedSubs = selectedSubtitleTrackInputs();
   const subs = collectedSubs.tracks.map((track) => track.file);
