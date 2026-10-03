@@ -5546,3 +5546,41 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
     grid-column: 1 / -1;
   }
 }
+
+
+.source-type-icon,
+.source-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.source-type-icon {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border-radius: 7px;
+}
+
+.source-type-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.source-action-icon {
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+}
+
+.source-item:hover .source-action-icon {
+  border-color: var(--accent);
+  color: var(--text-strong);
+}
+
+.workload-notice[data-level="normal"] {
+  display: none;
+}
