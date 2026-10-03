@@ -92,6 +92,26 @@ function compareTrackGroup(issues, kind, expected, actual) {
   expected.forEach((track, index) => compareTrack(issues, kind, index, track, actual[index]));
 }
 
+function compareOtherStreams(issues, expected, actual) {
+  if (!Array.isArray(expected)) return;
+  if (actual.length !== expected.length) {
+    issues.push(`其他流数量不一致：期望 ${expected.length} 条，实际 ${actual.length} 条。`);
+  }
+  expected.forEach((item, index) => {
+    const stream = actual[index];
+    if (!stream) {
+      issues.push(`其他流 #${index + 1} 缺失。`);
+      return;
+    }
+    if (String(stream.codec_type || '') !== String(item.type || '')) {
+      pushMismatch(issues, `其他流 #${index + 1} type`, item.type || 'unknown', stream.codec_type || 'unknown');
+    }
+    if (String(stream.codec_name || '').toLowerCase() !== String(item.codec || '').toLowerCase()) {
+      pushMismatch(issues, `其他流 #${index + 1} codec`, item.codec || 'unknown', stream.codec_name || 'unknown');
+    }
+  });
+}
+
 function compareAttachments(issues, expected, actual) {
   if (!Array.isArray(expected)) return;
   if (actual.length !== expected.length) {
@@ -155,6 +175,8 @@ export function auditMuxProbe(probe, expected) {
   const subtitles = streams.filter((stream) => stream.codec_type === 'subtitle');
   const attachments = streams.filter((stream) => stream.codec_type === 'attachment');
   const data = streams.filter((stream) => stream.codec_type === 'data');
+  const knownTypes = new Set(['video', 'audio', 'subtitle', 'attachment', 'data']);
+  const otherStreams = streams.filter((stream) => !knownTypes.has(stream.codec_type));
   const issues = [];
 
   if (Array.isArray(expected.video)) {
@@ -166,6 +188,7 @@ export function auditMuxProbe(probe, expected) {
   compareTrackGroup(issues, '音频', expected.audio, audios);
   compareTrackGroup(issues, '字幕', expected.subtitles, subtitles);
   compareTrackGroup(issues, '数据', expected.data, data);
+  compareOtherStreams(issues, expected.otherStreams, otherStreams);
 
   if (Number.isInteger(expected.chapterCount) && chapters.length !== expected.chapterCount) {
     issues.push(`章节数量不一致：期望 ${expected.chapterCount} 个，实际 ${chapters.length} 个。`);
@@ -214,6 +237,7 @@ export function auditMuxProbe(probe, expected) {
       subtitle: subtitles.length,
       attachment: attachments.length,
       data: data.length,
+      other: otherStreams.length,
       chapter: chapters.length,
     },
   };
