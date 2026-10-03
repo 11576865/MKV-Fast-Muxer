@@ -27,8 +27,8 @@ test('1.2.2 keeps all three workflow stages and every real editor reachable', as
 
 test('preview remains a 16:9 on-demand frame and an editor sits beside it on wide screens', async () => {
   const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
-  assert.match(html, /按需抽帧，无连续播放/);
-  assert.match(html, /生成预览帧/);
+  assert.match(html, /id="preview-title">字幕预览/);
+  assert.match(html, /id="previewRefreshBtn"[^>]*aria-label="生成预览帧"/);
   assert.match(css, /1\.2\.2 visual system/);
   assert.match(css, /\.subtitle-preview-card \.preview-stage \{[^}]*aspect-ratio: 16 \/ 9;/);
   assert.match(css, /@media \(min-width: 1360px\) \{/);
@@ -59,7 +59,7 @@ test('desktop refinement removes explanatory noise and prioritizes action withou
   assert.match(css, /\.stage-input \.stage-title p,[\s\S]*\.stage-input \.workload-notice \{[\s\S]*display: none;/);
   assert.match(css, /\.subtitle-preview-card \.preview-head \{[\s\S]*display: none;/);
   assert.match(css, /\.object-editor-nav \{[\s\S]*display: none;/);
-  assert.match(css, /\.execution-panel \.button-primary \{[\s\S]*min-height: 48px;[\s\S]*linear-gradient/);
+  assert.match(css, /\.action-icon-button \{[\s\S]*width: 48px;[\s\S]*background: var\(--success\)/);
   assert.match(css, /\.batch-layout \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(400px, \.65fr\)/);
 
   // Controls stay in the DOM for narrower layouts and scripted state preservation.
@@ -77,4 +77,24 @@ test('portrait tablet desktop-mode browser guard prevents squeezed desktop colum
   assert.match(css, /\.stage-input \.source-strip \{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.workspace > \.workbench-grid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.output-hub \{[\s\S]*position: static;[\s\S]*max-height: none;[\s\S]*overflow: visible/);
+});
+
+
+test('compact mux UI uses icon actions and exposes an explicit container change summary', async () => {
+  const [html, css, main] = await Promise.all([
+    source('index.html'),
+    source('src/style.css'),
+    source('src/main.js'),
+  ]);
+
+  assert.match(html, /id="containerChangeSummary"/);
+  assert.match(html, /id="scanTracksBtn"[^>]*class="icon-button"[^>]*aria-label="重新扫描容器"/);
+  assert.match(html, /id="refreshPlanBtn"[^>]*class="icon-button"[^>]*aria-label="刷新封装计划"/);
+  assert.match(html, /id="muxBtn"[^>]*class="icon-button action-icon-button"[^>]*aria-label="开始封装"/);
+  assert.match(html, /id="cancelBtn"[^>]*class="icon-button danger-icon-button"[^>]*aria-label="取消当前操作"/);
+  assert.match(css, /1\.2\.3 compact soft-mux controls \+ explicit container inventory/);
+  assert.match(main, /function renderContainerChangeSummary/);
+  assert.match(main, /data-change="add"/);
+  assert.match(main, /data-change="remove"/);
+  assert.match(main, /streams: probe\.streams \|\| \[\]/);
 });
