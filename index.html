@@ -47,17 +47,9 @@
           <div class="brand-mark" aria-hidden="true">MKV</div>
           <div>
             <h1>Fast Muxer <span>v3</span></h1>
-            <p>本地 MKV 封装工作台</p>
           </div>
         </div>
 
-        <nav class="flow-rail" aria-label="工作流程">
-          <span class="flow-step"><b>01</b>素材</span>
-          <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>02</b>预览与调整</span>
-          <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>03</b>封装输出</span>
-        </nav>
 
         <div class="topbar-tools">
           <div class="runtime-note">
@@ -74,7 +66,6 @@
               <span class="section-index">01</span>
               <div>
                 <h2 id="source-title">素材</h2>
-                <p>视频 + 字幕开始。字体和外部音频按需添加。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -86,47 +77,47 @@
           <div class="source-grid source-strip" aria-label="单次封装素材">
             <label class="source-item source-video source-primary">
               <input id="videoInput" type="file" />
-              <span class="source-type">VIDEO</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l3-2v9l-3-2V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span>
               <span class="source-body">
                 <strong>视频</strong>
                 <small>MP4 / MKV / WebM / MOV / M4V</small>
                 <span id="videoName" class="filename">未选择</span>
                 <small id="videoIdentity" class="source-diagnostic" data-state="idle">实际内容：等待选择</small>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-subtitle source-primary">
               <input id="subInput" type="file" multiple />
-              <span class="source-type">SUB</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h18v14H3V5Zm2 2v10h14V7H5Zm2 3h4v2H7v-2Zm6 0h4v2h-4v-2Zm-6 4h10v2H7v-2Z"/></svg></span>
               <span class="source-body">
                 <strong>字幕</strong>
                 <small>ASS / SSA / SRT / WebVTT / PGS / VobSub · 按实际内容识别</small>
                 <span id="subName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-font source-secondary">
               <input id="fontInput" type="file" multiple />
-              <span class="source-type">FONT</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6l5 16h-3l-1.4-4H8.4L7 20H4L9 4Zm.3 9h5.4L12 5.5 9.3 13Z"/></svg></span>
               <span class="source-body">
                 <strong>字体</strong>
                 <small>可选 · TTF / OTF / TTC / OTC · 按实际结构识别</small>
                 <span id="fontName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-audio source-secondary">
               <input id="audioInput" type="file" multiple accept="audio/*,.flac,.aac,.m4a,.mp3,.opus,.ogg,.wav,.ac3,.eac3,.dts,.mka" />
-              <span class="source-type">AUDIO</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 10h4l5-4v12l-5-4H4v-4Zm12.5-2.5a6 6 0 0 1 0 9l-1.4-1.4a4 4 0 0 0 0-6.2l1.4-1.4Zm2.8-2.8a10 10 0 0 1 0 14.6l-1.4-1.4a8 8 0 0 0 0-11.8l1.4-1.4Z"/></svg></span>
               <span class="source-body">
                 <strong>外部音频</strong>
                 <small>可选 · 多选 · 原码流</small>
                 <span id="audioName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
           </div>
         </section>
@@ -138,7 +129,7 @@
                 <span class="section-index">02</span>
                 <div>
                   <h2>预览与调整</h2>
-                  <p>按需生成字幕帧，调整轨道与容器结构。</p>
+                  
                 </div>
               </div>
             </header>
@@ -146,17 +137,15 @@
             <section class="subtitle-preview-card" aria-labelledby="preview-title">
               <div class="preview-head">
                 <div>
-                  <span class="card-kicker">FRAME PREVIEW</span>
-                  <h3 id="preview-title">字幕预览帧</h3>
-                  <p>按需抽帧，无连续播放。</p>
+                  <h3 id="preview-title">字幕预览</h3>
                 </div>
                 <button id="mobilePreviewToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="previewStage previewControls previewFooter">展开</button>
               </div>
               <div class="preview-stage" id="previewStage">
                 <img id="previewImage" class="preview-image-trigger hidden" alt="字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
                 <div id="previewEmpty" class="preview-empty">
-                  <strong>选择视频与 ASS / SSA 后生成预览帧</strong>
-                  <span>选择字幕与时间点，点击“生成预览帧”。</span>
+                  <strong>选择视频与字幕</strong>
+                  <span>选择时间点后生成预览。</span>
                 </div>
               </div>
               <div id="previewControls" class="preview-tools">
@@ -170,9 +159,9 @@
                   <span>时间点</span>
                   <input id="previewTimeInput" type="text" inputmode="decimal" placeholder="12.500 / 00:00:12.500" aria-label="预览时间点" />
                 </label>
-                <button id="previewPrevCueBtn" class="button button-small" type="button" disabled>上一条</button>
-                <button id="previewNextCueBtn" class="button button-small" type="button" disabled>下一条</button>
-                <button id="previewRefreshBtn" class="button button-small" type="button" disabled>生成预览帧</button>
+                <button id="previewPrevCueBtn" class="icon-button" type="button" disabled aria-label="上一条字幕" title="上一条字幕"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15.5 5-7 7 7 7V5Z"/></svg></button>
+                <button id="previewNextCueBtn" class="icon-button" type="button" disabled aria-label="下一条字幕" title="下一条字幕"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8.5 5 7 7-7 7V5Z"/></svg></button>
+                <button id="previewRefreshBtn" class="icon-button icon-button-accent" type="button" disabled aria-label="生成预览帧" title="生成预览帧"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
               </div>
               <div id="previewFooter" class="preview-footer">
                 <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA。</span>
@@ -198,12 +187,11 @@
                 <button type="button" data-editor-filter="subtitle" aria-pressed="false">字幕</button>
                 <button type="button" data-editor-filter="audio" aria-pressed="false">音频</button>
                 <button type="button" data-editor-filter="font" aria-pressed="false">字体</button>
-                <button type="button" data-editor-filter="source" aria-pressed="false">原轨道</button>
+                <button type="button" data-editor-filter="source" aria-pressed="false">容器</button>
               </div>
               <section class="editor-card config-card" aria-labelledby="config-title">
                 <div class="card-head">
                   <div>
-                    <span class="card-kicker">OBJECT EDITOR</span>
                     <h3 id="config-title">对象属性</h3>
                   </div>
                 </div>
@@ -245,84 +233,59 @@
               </section>
 
               <section class="editor-card source-track-card" data-object-panel="source" aria-labelledby="tracks-title">
-                <div class="card-head">
-                  <div>
-                    <span class="card-kicker">SOURCE STRUCTURE</span>
-                    <h3 id="tracks-title">原 MKV 轨道与附件</h3>
-                  </div>
-                  <button id="scanTracksBtn" class="button button-small" type="button" disabled>扫描轨道</button>
+                <div class="card-head container-card-head">
+                  <h3 id="tracks-title">容器内容</h3>
+                  <button id="scanTracksBtn" class="icon-button" type="button" disabled aria-label="重新扫描容器" title="重新扫描容器">
+                    <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg>
+                  </button>
                 </div>
-                <label class="attachment-toggle append-mode-toggle">
-                  <input id="appendPreserveAll" type="checkbox" checked />
-                  <span>
-                    <strong>完整保留原容器结构，仅追加</strong>
-                    <small>原音频、字幕、附件、章节与元数据保持不动。</small>
-                  </span>
-                </label>
+
+                <div class="container-mode-row">
+                  <label class="compact-switch">
+                    <input id="appendPreserveAll" type="checkbox" checked />
+                    <span>保留原内容，只追加</span>
+                  </label>
+                  <div id="containerChangeSummary" class="container-change-summary" aria-live="polite">等待 MKV</div>
+                </div>
+
+                <input id="preserveAttachments" type="checkbox" hidden disabled />
+
+                <div id="trackList" class="track-list container-inventory">
+                  <div class="track-empty">选择 MKV 后自动读取容器内容。</div>
+                </div>
+                <div id="attachmentList" class="attachment-list container-inventory-tail"></div>
 
                 <details id="trackBulkTools" class="tool-drawer hidden">
-                  <summary>
-                    <span>轨道批量工具</span>
-                    <small>保留、语言、Default、恢复原值</small>
-                  </summary>
+                  <summary><span>批量编辑</span></summary>
                   <div class="bulk-tools">
                     <div class="bulk-tool">
-                      <span>批量保留</span>
-                      <button id="keepAllAudio" class="button button-small" type="button">全部音频</button>
-                      <button id="dropAllAudio" class="button button-small" type="button">取消音频</button>
-                      <button id="keepAllSubtitles" class="button button-small" type="button">全部字幕</button>
-                      <button id="dropAllSubtitles" class="button button-small" type="button">取消字幕</button>
+                      <span>轨道</span>
+                      <button id="keepAllAudio" class="button button-small" type="button">保留音频</button>
+                      <button id="dropAllAudio" class="button button-small" type="button">删除音频</button>
+                      <button id="keepAllSubtitles" class="button button-small" type="button">保留字幕</button>
+                      <button id="dropAllSubtitles" class="button button-small" type="button">删除字幕</button>
                     </div>
                     <div class="bulk-tool">
-                      <span>批量语言</span>
+                      <span>语言</span>
                       <input id="bulkLanguage" type="text" list="languageSuggestions" maxlength="35" placeholder="zho / eng / zh-Hans">
-                      <button id="applyAudioLanguage" class="button button-small" type="button">应用到音频</button>
-                      <button id="applySubtitleLanguage" class="button button-small" type="button">应用到字幕</button>
+                      <button id="applyAudioLanguage" class="button button-small" type="button">音频</button>
+                      <button id="applySubtitleLanguage" class="button button-small" type="button">字幕</button>
                     </div>
                     <div class="bulk-tool">
                       <span>Default</span>
                       <button id="firstAudioDefault" class="button button-small" type="button">第一音频</button>
                       <button id="firstSubtitleDefault" class="button button-small" type="button">第一字幕</button>
-                      <button id="clearAllDefaults" class="button button-small" type="button">全部关闭</button>
+                      <button id="clearAllDefaults" class="button button-small" type="button">清除</button>
                     </div>
                     <div class="bulk-tool">
-                      <span>恢复原值</span>
-                      <button id="resetAudioMetadata" class="button button-small" type="button">音频元数据</button>
-                      <button id="resetSubtitleMetadata" class="button button-small" type="button">字幕元数据</button>
+                      <span>恢复</span>
+                      <button id="resetAudioMetadata" class="button button-small" type="button">音频</button>
+                      <button id="resetSubtitleMetadata" class="button button-small" type="button">字幕</button>
                     </div>
-                  </div>
-                </details>
-
-                <div id="trackList" class="track-list">
-                  <div class="track-empty">选择 MKV 后扫描原轨道；完整保留模式无需扫描。</div>
-                </div>
-
-                <details class="attachment-manager">
-                  <summary class="attachment-manager-head">
-                    <span>
-                      <strong>原 MKV 附件</strong>
-                      <small>保留、改名或修正 MIME；默认不占用主流程空间。</small>
-                    </span>
-                    <span class="attachment-summary-note">ATTACHMENTS</span>
-                  </summary>
-
-                  <div class="attachment-manager-body">
-                    <label class="attachment-toggle">
-                      <input id="preserveAttachments" type="checkbox" disabled />
-                      <span>
-                        <strong>未扫描时：全部保留原附件</strong>
-                        <small>扫描后请使用逐项选择或批量工具。</small>
-                      </span>
-                    </label>
-
                     <div id="attachmentBulkTools" class="attachment-bulk-tools hidden">
-                      <button id="keepAllAttachments" class="button button-small" type="button">全部保留</button>
-                      <button id="dropAllAttachments" class="button button-small" type="button">全部取消</button>
-                      <button id="resetAttachmentMetadata" class="button button-small" type="button">恢复文件名与 MIME</button>
-                    </div>
-
-                    <div id="attachmentList" class="attachment-list">
-                      <div class="track-empty">扫描 MKV 后显示附件列表。</div>
+                      <button id="keepAllAttachments" class="button button-small" type="button">保留附件</button>
+                      <button id="dropAllAttachments" class="button button-small" type="button">删除附件</button>
+                      <button id="resetAttachmentMetadata" class="button button-small" type="button">恢复附件</button>
                     </div>
                   </div>
                 </details>
@@ -344,10 +307,10 @@
                 <span class="section-index">03</span>
                 <div>
                   <h2>封装输出</h2>
-                  <p>确认结构并执行。</p>
+                  
                 </div>
               </div>
-              <span class="output-mode">LOCAL MKV</span>
+              
             </header>
 
             <section class="output-summary" aria-label="输出摘要">
@@ -363,11 +326,10 @@
             <section class="output-section plan-panel">
               <div class="side-panel-head">
                 <div>
-                  <span class="panel-kicker">STRUCTURE</span>
                   <h3>封装计划</h3>
                 </div>
                 <div class="plan-head-actions">
-                  <button id="refreshPlanBtn" class="button button-quiet" type="button">刷新</button>
+                  <button id="refreshPlanBtn" class="icon-button" type="button" aria-label="刷新封装计划" title="刷新封装计划"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg></button>
                   <button id="mobilePlanToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="planWarnings muxPlan">展开</button>
                 </div>
               </div>
@@ -380,22 +342,21 @@
             <section class="output-section execution-panel">
               <div class="execution-status">
                 <div>
-                  <span class="status-label">STATUS</span>
                   <div id="status" class="status" aria-live="polite">选择视频和字幕后即可开始。</div>
                 </div>
                 <div class="progress" aria-hidden="true"><div id="bar"></div></div>
               </div>
 
               <div class="actions">
-                <button id="muxBtn" class="button button-primary" type="button">开始封装</button>
-                <button id="cancelBtn" class="button button-secondary" type="button" disabled>取消</button>
+                <button id="muxBtn" class="icon-button action-icon-button" type="button" aria-label="开始封装" title="开始封装"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
+                <button id="cancelBtn" class="icon-button danger-icon-button" type="button" disabled aria-label="取消当前操作" title="取消当前操作"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6h12v12H6z"/></svg></button>
               </div>
 
-              <a id="downloadLink" class="download hidden" href="#" download aria-label="保存生成的 MKV 到本机">保存成品</a>
-              <a id="reportLink" class="report-download hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告">保存封装报告</a>
+              <a id="downloadLink" class="download icon-link hidden" href="#" download aria-label="保存生成的 MKV 到本机" title="保存成品"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 20h14v-2H5v2Zm7-18v10.17l3.59-3.58L17 10l-5 5-5-5 1.41-1.41L11 12.17V2h1Z"/></svg></a>
+              <a id="reportLink" class="report-download icon-link hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告" title="保存封装报告"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v-2H8v2Zm0 4h8v-2H8v2Zm0 4h6v-2H8v2Z"/></svg></a>
               <div id="auditResult" class="audit-result hidden"></div>
 
-              <p class="execution-note">视频与音频使用 Stream Copy；完成后自动核对输出。</p>
+              
             </section>
           </aside>
         </div>
@@ -406,7 +367,6 @@
               <span class="section-index">B</span>
               <div>
                 <h2 id="batch-title">批量封装</h2>
-                <p>成组配对与输出。</p>
               </div>
             </div>
             <div class="batch-status-chip">

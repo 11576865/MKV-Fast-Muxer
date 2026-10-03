@@ -151,12 +151,16 @@ async function scenarioSelectiveAttachments(browser) {
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
-    await page.locator('.attachment-manager > summary').click();
+    await page.locator('#appendPreserveAll').uncheck();
+    assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
+    assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
 
     const attachmentRows = page.locator('.attachment-item');
     assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
+
+    const sourceFontRow = page.locator('.attachment-item', { hasText: 'fixture-original.ttf' });
+    await sourceFontRow.locator('input[data-attachment-action="include"]').uncheck();
 
     const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
     await notesRow.locator('input[data-attachment-action="include"]').check();
@@ -211,8 +215,9 @@ async function scenarioOriginalTracks(browser) {
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    assert.match(await page.locator('#containerChangeSummary').textContent(), /无删除/);
 
     const audioRows = page.locator('.track-row.track-audio');
     const subtitleRows = page.locator('.track-row.track-subtitle');
@@ -363,7 +368,6 @@ async function scenarioInputSwitchReset(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
 
     assert.equal(await page.locator('.track-row.track-audio').count(), 2);
@@ -372,8 +376,8 @@ async function scenarioInputSwitchReset(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
 
     assert.equal(await page.locator('.track-row').count(), 0);
-    assert.match(await page.locator('#trackList').textContent(), /选择 MKV 后可扫描轨道/);
-    assert.match(await page.locator('#attachmentList').textContent(), /扫描 MKV 后显示附件列表/);
+    assert.match(await page.locator('#trackList').textContent(), /选择 MKV 后自动读取容器内容/);
+    assert.equal(await page.locator('#attachmentList').textContent(), '');
     assert.equal(await page.locator('#preserveAttachments').isChecked(), false);
 
     const plan = await page.locator('#muxPlan').textContent();
@@ -397,8 +401,8 @@ async function scenarioDefaultWarnings(browser) {
       path.join(root, 'en.ass'),
     ]);
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
 
     await page.locator('input[data-new-audio-field="default"][data-index="0"]').check();
     await page.locator('input[data-new-sub-field="default"][data-index="1"]').check();
@@ -636,12 +640,11 @@ async function scenarioPlainMkvScan(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'plain-no-subs-no-attachments.mkv'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
 
     assert.equal(await page.locator('.track-row.track-audio').count(), 1);
     assert.equal(await page.locator('.track-row.track-subtitle').count(), 0);
-    assert.match(await page.locator('#attachmentList').textContent(), /没有附件/);
+    assert.equal(await page.locator('.attachment-item').count(), 0);
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -664,8 +667,8 @@ async function scenarioTrackReorder(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
 
     const audioRows = page.locator('.track-row.track-audio');
     assert.equal(await audioRows.count(), 2);
@@ -693,7 +696,7 @@ async function scenarioCancelScan(browser) {
 
   try {
     await page.setInputFiles('#videoInput', path.join(root, 'cancel-scan.mkv'));
-    await page.locator('#scanTracksBtn').click();
+    await page.waitForFunction(() => !document.querySelector('#cancelBtn')?.disabled, null, { timeout: 60_000 });
     await page.locator('#cancelBtn').click();
 
     await page.waitForFunction(() => {
@@ -836,8 +839,8 @@ async function scenarioBulkTrackMetadata(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
 
     await page.locator('.track-row.track-subtitle input[data-track-action="include"]').check();
     await page.locator('#trackBulkTools > summary').click();
@@ -889,13 +892,12 @@ async function scenarioWorkbenchEfficiency(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
-    await page.locator('.attachment-manager > summary').click();
+    await page.locator('#appendPreserveAll').uncheck();
+    await page.locator('#trackBulkTools > summary').click();
 
     await page.locator('#keepAllAttachments').click();
     assert.equal(await page.locator('input[data-attachment-action="include"]:checked').count(), 2);
-    await page.locator('#trackBulkTools > summary').click();
 
     const firstAttachment = page.locator('.attachment-item').first();
     await firstAttachment.locator('input[data-attachment-field="filename"]').fill('renamed.ttf');
@@ -1248,9 +1250,9 @@ async function scenarioPreserveAllAppend(browser) {
 
     assert.deepEqual(audio.map((stream) => stream.codec_name), ['aac', 'opus']);
     assert.equal(subtitles.length, 2);
-    assert.equal(subtitles[0].codec_name, 'ass');
-    assert.equal(subtitles[1].tags?.title, 'Original Signs');
-    assert.equal(Boolean(subtitles[1].disposition?.forced), true);
+    assert.equal(subtitles[0].tags?.title, 'Original Signs');
+    assert.equal(Boolean(subtitles[0].disposition?.forced), true);
+    assert.equal(subtitles[1].codec_name, 'ass');
     console.log('Scenario 30 PASS');
   } finally {
     await context.close();
@@ -1329,9 +1331,7 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
     assert.equal(await page.locator('#fontMode').isVisible(), false);
     await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
-    await page.locator('.attachment-manager > summary').click();
     await page.locator('[data-editor-filter="source"]').press('Home');
     assert.equal(await page.locator('[data-editor-filter="all"]').getAttribute('aria-pressed'), 'true');
     assert.equal(await page.locator('[data-new-sub-field="title"]').inputValue(), '字幕属性切换后保留');
@@ -1554,7 +1554,6 @@ async function scenarioRenamedMediaIdentity(browser) {
 
     assert.equal(await page.locator('#scanTracksBtn').isEnabled(), true);
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
-    await page.locator('#scanTracksBtn').click();
     await waitForStatus(page, '轨道扫描完成：');
 
     console.log('Scenario 34 PASS');
