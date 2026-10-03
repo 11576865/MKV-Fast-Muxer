@@ -153,8 +153,8 @@
               <div class="preview-stage" id="previewStage">
                 <img id="previewImage" class="preview-image-trigger hidden" alt="字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
                 <div id="previewEmpty" class="preview-empty">
-                  <strong>选择视频与 ASS / SSA 后生成预览帧</strong>
-                  <span>选择字幕与时间点，点击“生成预览帧”。</span>
+                  <strong>选择视频与字幕</strong>
+                  <span>选择时间点后生成预览。</span>
                 </div>
               </div>
               <div id="previewControls" class="preview-tools">
@@ -196,12 +196,11 @@
                 <button type="button" data-editor-filter="subtitle" aria-pressed="false">字幕</button>
                 <button type="button" data-editor-filter="audio" aria-pressed="false">音频</button>
                 <button type="button" data-editor-filter="font" aria-pressed="false">字体</button>
-                <button type="button" data-editor-filter="source" aria-pressed="false">原轨道</button>
+                <button type="button" data-editor-filter="source" aria-pressed="false">容器</button>
               </div>
               <section class="editor-card config-card" aria-labelledby="config-title">
                 <div class="card-head">
                   <div>
-                    <span class="card-kicker">OBJECT EDITOR</span>
                     <h3 id="config-title">对象属性</h3>
                   </div>
                 </div>
@@ -299,6 +298,7 @@
                     </div>
                   </div>
                 </details>
+              </section>
             </div>
 
             <details class="diagnostics-panel">
