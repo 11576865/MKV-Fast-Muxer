@@ -682,7 +682,8 @@ async function inspectSelectedVideoHeader() {
     fileKey(videoInput.files[0]) === key &&
     containerAutoScanSuppressedKey !== key &&
     (!trackState || trackState.fileKey !== key) &&
-    !isBusy()
+    !isBusy() &&
+    !batchRunning
   ) {
     containerScanPromise = scanSourceContainer({ automatic: true });
   }
@@ -3866,8 +3867,11 @@ batchStartBtn?.addEventListener('click', async () => {
       syncNewTrackState();
       updateUI();
 
-      muxBtn.click();
       try {
+        muxBtn.click();
+        if (!running) {
+          throw new Error('批量单项封装未启动；后台任务仍占用执行器或当前输入尚未就绪。');
+        }
         const result = await waitForSingleMuxCompletion();
         let savedToDirectory = false;
         if (batchOutputDirectoryHandle) {
