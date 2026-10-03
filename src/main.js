@@ -249,6 +249,7 @@ let loaded = false;
 let running = false;
 let scanning = false;
 let containerScanGeneration = 0;
+let containerAutoScanSuppressedKey = '';
 let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
@@ -678,6 +679,7 @@ async function inspectSelectedVideoHeader() {
   if (
     detectedMkv &&
     fileKey(videoInput.files[0]) === key &&
+    containerAutoScanSuppressedKey !== key &&
     (!trackState || trackState.fileKey !== key) &&
     !isBusy()
   ) {
@@ -887,6 +889,7 @@ function bindNewTrackEditor(container, selector, getState) {
 
 videoInput.addEventListener('change', () => {
   containerScanGeneration += 1;
+  containerAutoScanSuppressedKey = '';
   resetTrackState();
   videoSniffGeneration += 1;
   videoSniffState = {
@@ -2517,9 +2520,11 @@ async function scanSourceContainer({ automatic = false } = {}) {
   const video = videoInput.files[0];
   if (!video || !currentVideoIsMatroska(video) || isBusy()) return;
 
-  if (automatic && trackState?.fileKey === fileKey(video)) return;
-
   const sourceKey = fileKey(video);
+  if (automatic && (trackState?.fileKey === sourceKey || containerAutoScanSuppressedKey === sourceKey)) return;
+  if (!automatic) containerAutoScanSuppressedKey = '';
+
+
   const scanGeneration = ++containerScanGeneration;
   scanning = true;
   cancelRequested = false;
@@ -2635,6 +2640,7 @@ async function scanSourceContainer({ automatic = false } = {}) {
     if (
       current &&
       currentVideoIsMatroska(current) &&
+      containerAutoScanSuppressedKey !== fileKey(current) &&
       (!trackState || trackState.fileKey !== fileKey(current))
     ) {
       queueMicrotask(() => scanSourceContainer({ automatic: true }));
@@ -2756,6 +2762,7 @@ function getScannedSelection(video) {
 cancelBtn.addEventListener('click', () => {
   if (!isBusy()) return;
   cancelRequested = true;
+  if (scanning) containerAutoScanSuppressedKey = fileKey(videoInput.files[0]);
   status.textContent = '正在取消当前操作……';
   logEl.textContent += 'CANCEL: 用户请求终止当前操作。\n';
   ffmpeg.terminate();
