@@ -47,17 +47,9 @@
           <div class="brand-mark" aria-hidden="true">MKV</div>
           <div>
             <h1>Fast Muxer <span>v3</span></h1>
-            <p>本地 MKV 封装工作台</p>
           </div>
         </div>
 
-        <nav class="flow-rail" aria-label="工作流程">
-          <span class="flow-step"><b>01</b>素材</span>
-          <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>02</b>预览与调整</span>
-          <span class="flow-arrow">→</span>
-          <span class="flow-step"><b>03</b>封装输出</span>
-        </nav>
 
         <div class="topbar-tools">
           <div class="runtime-note">
@@ -74,7 +66,6 @@
               <span class="section-index">01</span>
               <div>
                 <h2 id="source-title">素材</h2>
-                <p>视频 + 字幕开始。字体和外部音频按需添加。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -86,47 +77,47 @@
           <div class="source-grid source-strip" aria-label="单次封装素材">
             <label class="source-item source-video source-primary">
               <input id="videoInput" type="file" />
-              <span class="source-type">VIDEO</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l3-2v9l-3-2V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span>
               <span class="source-body">
                 <strong>视频</strong>
                 <small>MP4 / MKV / WebM / MOV / M4V</small>
                 <span id="videoName" class="filename">未选择</span>
                 <small id="videoIdentity" class="source-diagnostic" data-state="idle">实际内容：等待选择</small>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-subtitle source-primary">
               <input id="subInput" type="file" multiple />
-              <span class="source-type">SUB</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h18v14H3V5Zm2 2v10h14V7H5Zm2 3h4v2H7v-2Zm6 0h4v2h-4v-2Zm-6 4h10v2H7v-2Z"/></svg></span>
               <span class="source-body">
                 <strong>字幕</strong>
                 <small>ASS / SSA / SRT / WebVTT / PGS / VobSub · 按实际内容识别</small>
                 <span id="subName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-font source-secondary">
               <input id="fontInput" type="file" multiple />
-              <span class="source-type">FONT</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6l5 16h-3l-1.4-4H8.4L7 20H4L9 4Zm.3 9h5.4L12 5.5 9.3 13Z"/></svg></span>
               <span class="source-body">
                 <strong>字体</strong>
                 <small>可选 · TTF / OTF / TTC / OTC · 按实际结构识别</small>
                 <span id="fontName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
 
             <label class="source-item source-audio source-secondary">
               <input id="audioInput" type="file" multiple accept="audio/*,.flac,.aac,.m4a,.mp3,.opus,.ogg,.wav,.ac3,.eac3,.dts,.mka" />
-              <span class="source-type">AUDIO</span>
+              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 10h4l5-4v12l-5-4H4v-4Zm12.5-2.5a6 6 0 0 1 0 9l-1.4-1.4a4 4 0 0 0 0-6.2l1.4-1.4Zm2.8-2.8a10 10 0 0 1 0 14.6l-1.4-1.4a8 8 0 0 0 0-11.8l1.4-1.4Z"/></svg></span>
               <span class="source-body">
                 <strong>外部音频</strong>
                 <small>可选 · 多选 · 原码流</small>
                 <span id="audioName" class="filename">未选择</span>
               </span>
-              <span class="source-action">选择</span>
+              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
             </label>
           </div>
         </section>
@@ -376,7 +367,6 @@
               <span class="section-index">B</span>
               <div>
                 <h2 id="batch-title">批量封装</h2>
-                <p>成组配对与输出。</p>
               </div>
             </div>
             <div class="batch-status-chip">
