@@ -250,6 +250,7 @@ let running = false;
 let scanning = false;
 let containerScanGeneration = 0;
 let containerAutoScanSuppressedKey = '';
+let containerScanPromise = Promise.resolve();
 let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
@@ -683,7 +684,7 @@ async function inspectSelectedVideoHeader() {
     (!trackState || trackState.fileKey !== key) &&
     !isBusy()
   ) {
-    scanSourceContainer({ automatic: true });
+    containerScanPromise = scanSourceContainer({ automatic: true });
   }
 }
 function formatFontSelection(files) {
@@ -1554,6 +1555,11 @@ async function buildPreviewAss(track, fontFiles) {
 }
 
 async function refreshSubtitlePreview() {
+  if (running || previewing) return;
+  if (scanning) {
+    previewStatus.textContent = '正在等待后台容器扫描完成，然后生成预览帧……';
+    try { await containerScanPromise; } catch {}
+  }
   if (isBusy()) return;
 
   const video = videoInput.files[0];
@@ -2671,13 +2677,15 @@ async function scanSourceContainer({ automatic = false } = {}) {
       containerAutoScanSuppressedKey !== fileKey(current) &&
       (!trackState || trackState.fileKey !== fileKey(current))
     ) {
-      queueMicrotask(() => scanSourceContainer({ automatic: true }));
+      queueMicrotask(() => {
+        containerScanPromise = scanSourceContainer({ automatic: true });
+      });
     }
   }
 }
 
 scanTracksBtn.addEventListener('click', () => {
-  scanSourceContainer({ automatic: false });
+  containerScanPromise = scanSourceContainer({ automatic: false });
 });
 function charPreview(chars, limit = 24) {
   const values = chars.slice(0, limit).map((char) => (
