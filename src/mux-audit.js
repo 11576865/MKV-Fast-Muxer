@@ -154,6 +154,7 @@ export function auditMuxProbe(probe, expected) {
   const audios = streams.filter((stream) => stream.codec_type === 'audio');
   const subtitles = streams.filter((stream) => stream.codec_type === 'subtitle');
   const attachments = streams.filter((stream) => stream.codec_type === 'attachment');
+  const data = streams.filter((stream) => stream.codec_type === 'data');
   const issues = [];
 
   if (Array.isArray(expected.video)) {
@@ -164,6 +165,7 @@ export function auditMuxProbe(probe, expected) {
 
   compareTrackGroup(issues, '音频', expected.audio, audios);
   compareTrackGroup(issues, '字幕', expected.subtitles, subtitles);
+  compareTrackGroup(issues, '数据', expected.data, data);
 
   if (Number.isInteger(expected.chapterCount) && chapters.length !== expected.chapterCount) {
     issues.push(`章节数量不一致：期望 ${expected.chapterCount} 个，实际 ${chapters.length} 个。`);
@@ -211,6 +213,7 @@ export function auditMuxProbe(probe, expected) {
       audio: audios.length,
       subtitle: subtitles.length,
       attachment: attachments.length,
+      data: data.length,
       chapter: chapters.length,
     },
   };
