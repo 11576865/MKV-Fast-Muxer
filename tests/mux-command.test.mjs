@@ -201,3 +201,40 @@ test('preserves verified Matroska data streams when requested', () => {
   }
   assert.ok(mapPairs.includes('0:d?'));
 });
+
+
+test('append-only mode maps the complete source before appended streams', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mkv',
+    outputPath: 'out.mkv',
+    sourceAudioCount: 2,
+    sourceSubtitleCount: 1,
+    preserveAllSourceStreams: true,
+    preserveAllOriginalSubtitles: true,
+    preserveAllOriginalAttachments: true,
+    originalAttachmentCount: 2,
+    externalAudioTracks: [
+      { path: 'extra.flac', inputIndex: 1, language: 'eng', title: 'Extra', default: false },
+    ],
+    newSubtitleTracks: [
+      { path: 'new.ass', inputIndex: 2, language: 'zho', title: 'New', default: false },
+    ],
+    fontAttachments: [
+      { path: 'font.ttf', filename: 'font.ttf', mimeType: 'font/ttf' },
+    ],
+  });
+
+  const mapped = [];
+  for (let index = 0; index < args.length - 1; index += 1) {
+    if (args[index] === '-map') mapped.push(args[index + 1]);
+  }
+  assert.equal(mapped[0], '0');
+  assert.equal(mapped.includes('0:v?'), false);
+  assert.equal(mapped.includes('0:s?'), false);
+  assert.equal(mapped.includes('0:t?'), false);
+  assert.ok(mapped.includes('1:a:0'));
+  assert.ok(mapped.includes('2:0'));
+  assert.ok(args.includes('-metadata:s:a:2'));
+  assert.ok(args.includes('-metadata:s:s:1'));
+  assert.ok(args.includes('-metadata:s:t:2'));
+});
