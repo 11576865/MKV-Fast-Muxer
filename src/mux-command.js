@@ -38,6 +38,7 @@ export function buildMuxCommand({
   preserveAllOriginalSubtitles = false,
   originalAttachments = [],
   preserveAllOriginalAttachments = false,
+  preserveOriginalDataStreams = false,
   originalAttachmentCount = 0,
   fontAttachments = [],
 }) {
@@ -80,6 +81,12 @@ export function buildMuxCommand({
     for (const attachment of originalAttachments) {
       args.push('-map', `0:${attachment.index}`);
     }
+  }
+
+  // Matroska may contain data streams that are not audio/subtitle/attachment.
+  // Preserve them explicitly when the caller has verified a Matroska source.
+  if (preserveOriginalDataStreams) {
+    args.push('-map', '0:d?');
   }
 
   args.push('-map_metadata', '0', '-map_chapters', '0', '-c', 'copy');
