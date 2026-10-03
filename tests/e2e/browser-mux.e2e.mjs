@@ -153,6 +153,8 @@ async function scenarioSelectiveAttachments(browser) {
 
     await waitForStatus(page, '轨道扫描完成：');
     await page.locator('#appendPreserveAll').uncheck();
+    assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
+    assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
 
     const attachmentRows = page.locator('.attachment-item');
     assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
