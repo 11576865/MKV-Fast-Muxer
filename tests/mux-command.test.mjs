@@ -186,3 +186,18 @@ test('preserve-all append mode maps every source subtitle without rewriting meta
   assert.equal(args.some((arg) => String(arg).startsWith('-metadata:s:s:1')), false);
   assert.ok(args.includes('1:0'));
 });
+
+
+test('preserves verified Matroska data streams when requested', () => {
+  const args = buildMuxCommand({
+    mainInputPath: 'main.mkv',
+    outputPath: 'out.mkv',
+    preserveOriginalDataStreams: true,
+  });
+
+  const mapPairs = [];
+  for (let index = 0; index < args.length - 1; index += 1) {
+    if (args[index] === '-map') mapPairs.push(args[index + 1]);
+  }
+  assert.ok(mapPairs.includes('0:d?'));
+});
