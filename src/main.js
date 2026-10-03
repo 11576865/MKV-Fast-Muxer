@@ -248,6 +248,7 @@ const ffmpeg = new FFmpeg();
 let loaded = false;
 let running = false;
 let scanning = false;
+let containerScanGeneration = 0;
 let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
@@ -726,36 +727,38 @@ function isBusy() {
 }
 
 function setInputsDisabled(disabled) {
-  videoInput.disabled = disabled;
-  audioInput.disabled = disabled;
-  subInput.disabled = disabled;
-  fontInput.disabled = disabled;
-  fontMode.disabled = disabled;
-  if (fontSubsetEnabled) fontSubsetEnabled.disabled = disabled;
+  // A background MKV inventory scan may be expensive, but it should not block
+  // selection of the remaining inputs. Mux/preview still lock source changes.
+  const sourceLocked = running || previewing;
+  videoInput.disabled = sourceLocked;
+  audioInput.disabled = sourceLocked;
+  subInput.disabled = sourceLocked;
+  fontInput.disabled = sourceLocked;
+  fontMode.disabled = sourceLocked;
+  if (fontSubsetEnabled) fontSubsetEnabled.disabled = sourceLocked;
   preserveAttachments.disabled = disabled || !currentVideoIsMatroska();
-  newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
-  newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
+  newAudioList.querySelectorAll('input').forEach((input) => { input.disabled = sourceLocked; });
+  newSubtitleList.querySelectorAll('input').forEach((input) => { input.disabled = sourceLocked; });
   attachmentList.querySelectorAll('input').forEach((input) => { input.disabled = disabled; });
   setBulkToolsDisabled(disabled || !trackState);
   attachmentBulkTools?.querySelectorAll('button').forEach((button) => {
     button.disabled = disabled || !trackState;
   });
-  if (appendPreserveAll) appendPreserveAll.disabled = disabled || !currentVideoIsMatroska();
+  if (appendPreserveAll) appendPreserveAll.disabled = sourceLocked || !currentVideoIsMatroska();
   if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleTracks().some((track) => track.format?.previewable);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
-  if (batchVideoInput) batchVideoInput.disabled = disabled || batchRunning;
-  if (batchVideoFolderInput) batchVideoFolderInput.disabled = disabled || batchRunning;
-  if (batchSubtitleInput) batchSubtitleInput.disabled = disabled || batchRunning;
-  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = disabled || batchRunning;
-  if (batchFontInput) batchFontInput.disabled = disabled || batchRunning;
-  if (batchFontFolderInput) batchFontFolderInput.disabled = disabled || batchRunning;
-  if (batchPreserveAttachments) batchPreserveAttachments.disabled = disabled || batchRunning;
-  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = disabled || batchRunning;
-  if (batchSubsetScope) batchSubsetScope.disabled = disabled || batchRunning || !batchFontSubsetEnabled?.checked;
-  if (batchOutputDirBtn) batchOutputDirBtn.disabled = disabled || batchRunning;
+  if (batchVideoInput) batchVideoInput.disabled = sourceLocked || batchRunning;
+  if (batchVideoFolderInput) batchVideoFolderInput.disabled = sourceLocked || batchRunning;
+  if (batchSubtitleInput) batchSubtitleInput.disabled = sourceLocked || batchRunning;
+  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = sourceLocked || batchRunning;
+  if (batchFontInput) batchFontInput.disabled = sourceLocked || batchRunning;
+  if (batchFontFolderInput) batchFontFolderInput.disabled = sourceLocked || batchRunning;
+  if (batchPreserveAttachments) batchPreserveAttachments.disabled = sourceLocked || batchRunning;
+  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = sourceLocked || batchRunning;
+  if (batchSubsetScope) batchSubsetScope.disabled = sourceLocked || batchRunning || !batchFontSubsetEnabled?.checked;
+  if (batchOutputDirBtn) batchOutputDirBtn.disabled = sourceLocked || batchRunning;
 }
-
 function resetTrackState() {
   trackState = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
@@ -853,8 +856,8 @@ function updateUI() {
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0;
   cancelBtn.disabled = !busy;
-  trackBulkTools?.classList.toggle('hidden', !trackState);
-  attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
+  trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
+  attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
   if (trackState) {
     renderTrackList();
@@ -883,6 +886,7 @@ function bindNewTrackEditor(container, selector, getState) {
 }
 
 videoInput.addEventListener('change', () => {
+  containerScanGeneration += 1;
   resetTrackState();
   videoSniffGeneration += 1;
   videoSniffState = {
@@ -2513,6 +2517,8 @@ async function scanSourceContainer({ automatic = false } = {}) {
 
   if (automatic && trackState?.fileKey === fileKey(video)) return;
 
+  const sourceKey = fileKey(video);
+  const scanGeneration = ++containerScanGeneration;
   scanning = true;
   cancelRequested = false;
   updateUI();
@@ -2525,12 +2531,20 @@ async function scanSourceContainer({ automatic = false } = {}) {
 
   try {
     await loadFFmpeg();
-    if (cancelRequested) return;
+    if (
+      cancelRequested ||
+      scanGeneration !== containerScanGeneration ||
+      fileKey(videoInput.files[0]) !== sourceKey
+    ) return;
 
     status.textContent = automatic ? '正在读取 MKV 容器内容……' : '正在重新扫描 MKV 容器……';
     await ffmpeg.writeFile(videoPath, await fetchFile(video));
     const probe = await probeInput(videoPath, probePath);
-    if (cancelRequested) return;
+    if (
+      cancelRequested ||
+      scanGeneration !== containerScanGeneration ||
+      fileKey(videoInput.files[0]) !== sourceKey
+    ) return;
 
     const headerIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
     const verifiedIdentity = videoIdentityFromProbe(video, probe, headerIdentity);
@@ -2614,8 +2628,16 @@ async function scanSourceContainer({ automatic = false } = {}) {
     scanning = false;
     cancelRequested = false;
     updateUI();
-  }
 
+    const current = videoInput.files[0];
+    if (
+      current &&
+      currentVideoIsMatroska(current) &&
+      (!trackState || trackState.fileKey !== fileKey(current))
+    ) {
+      queueMicrotask(() => scanSourceContainer({ automatic: true }));
+    }
+  }
 }
 
 scanTracksBtn.addEventListener('click', () => {
@@ -3009,6 +3031,7 @@ muxBtn.addEventListener('click', async () => {
     const sourceAudios = inputProbe.streams.filter((stream) => stream.codec_type === 'audio');
     const sourceSubtitles = inputProbe.streams.filter((stream) => stream.codec_type === 'subtitle');
     const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
+    const sourceData = inputProbe.streams.filter((stream) => stream.codec_type === 'data');
 
     const selectedAudio = scanned ? selectedTracks('audio') : null;
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
@@ -3088,7 +3111,7 @@ muxBtn.addEventListener('click', async () => {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (isMatroskaIdentity(inputIdentity)) {
       logEl.textContent += appendMode
-        ? `INFO: 完整保留并追加模式：保留全部原音频、原字幕、附件、Chapters 与 metadata。\n`
+        ? `INFO: 完整保留并追加模式：保留原视频、音频、字幕、数据流、附件、Chapters 与 metadata。\n`
         : `INFO: 未扫描轨道，兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
 
@@ -3176,6 +3199,9 @@ muxBtn.addEventListener('click', async () => {
 
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
+      data: isMatroskaIdentity(inputIdentity)
+        ? sourceData.map((stream) => ({ codec: stream.codec_name || '' }))
+        : [],
       audio: expectedAudio,
       subtitles: [
         ...runtimeSubtitles.map((track) => ({
@@ -3232,7 +3258,7 @@ muxBtn.addEventListener('click', async () => {
       };
       if (audit.ok) {
         const changes = containerChangeCounts();
-        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${changes.added} / −${changes.removed} / ~${changes.modified}。`;
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${changes.added} / −${changes.removed} / ~${changes.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
@@ -3277,6 +3303,7 @@ muxBtn.addEventListener('click', async () => {
         formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
         videoCodecs: sourceVideos.map((stream) => stream.codec_name || 'unknown'),
         audioCodecs: sourceAudios.map((stream) => stream.codec_name || 'unknown'),
+        dataCodecs: sourceData.map((stream) => stream.codec_name || 'unknown'),
         chapterCount: inputProbe.chapters.length,
         chapters: inputProbe.chapters.map((chapter) => ({
           id: chapter.id,
