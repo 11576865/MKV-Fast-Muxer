@@ -102,6 +102,7 @@ const appendPreserveAll = $('appendPreserveAll');
 const attachmentList = $('attachmentList');
 const scanTracksBtn = $('scanTracksBtn');
 const trackList = $('trackList');
+const containerChangeSummary = $('containerChangeSummary');
 const refreshPlanBtn = $('refreshPlanBtn');
 const muxPlan = $('muxPlan');
 const planWarnings = $('planWarnings');
@@ -646,6 +647,7 @@ async function inspectSelectedVideoHeader() {
   videoSniffState = { status: 'pending', fileKey: key, identity: null };
   updateUI();
 
+  let detectedMkv = false;
   try {
     const sniffed = await sniffFileContainer(video);
     if (generation !== videoSniffGeneration || fileKey(videoInput.files[0]) !== key) return;
@@ -653,11 +655,11 @@ async function inspectSelectedVideoHeader() {
     const identity = sniffedVideoIdentity(video, sniffed);
     videoSniffState = { status: 'ready', fileKey: key, identity };
 
-    const isMkv = isMatroskaIdentity(identity);
+    detectedMkv = isMatroskaIdentity(identity);
     if (appendPreserveAll && appendPreserveAll.dataset.userTouched !== '1') {
-      appendPreserveAll.checked = isMkv;
+      appendPreserveAll.checked = detectedMkv;
     }
-    preserveAttachments.checked = isMkv;
+    preserveAttachments.checked = detectedMkv;
   } catch (error) {
     if (generation !== videoSniffGeneration || fileKey(videoInput.files[0]) !== key) return;
     videoSniffState = {
@@ -669,8 +671,18 @@ async function inspectSelectedVideoHeader() {
   }
 
   updateUI();
-}
 
+  // Container discovery is observational: detecting the source must not
+  // silently switch the user out of preserve-all mode.
+  if (
+    detectedMkv &&
+    fileKey(videoInput.files[0]) === key &&
+    (!trackState || trackState.fileKey !== key) &&
+    !isBusy()
+  ) {
+    scanSourceContainer({ automatic: true });
+  }
+}
 function formatFontSelection(files) {
   if (!files.length) return '未选择';
   if (files.length === 1) return files[0].name;
@@ -746,14 +758,14 @@ function setInputsDisabled(disabled) {
 
 function resetTrackState() {
   trackState = null;
-  trackList.innerHTML = '<div class="track-empty">选择 MKV 后可扫描轨道。非 MKV 输入默认保留所有音频。</div>';
-  attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
+  trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
+  attachmentList.innerHTML = '';
   trackBulkTools?.classList.add('hidden');
   attachmentBulkTools?.classList.add('hidden');
+  renderContainerChangeSummary();
   renderMuxPlan();
   if (!batchRunning) syncBatchPlan?.();
 }
-
 function updateUI() {
   const video = videoInput.files[0];
   const collectedSubs = selectedSubtitleTrackInputs();
@@ -844,6 +856,12 @@ function updateUI() {
   trackBulkTools?.classList.toggle('hidden', !trackState);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || !trackState.attachments.length);
   renderNewTrackLists();
+  if (trackState) {
+    renderTrackList();
+    renderAttachmentList();
+  } else {
+    renderContainerChangeSummary();
+  }
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
@@ -1789,6 +1807,124 @@ async function probeInput(path, probePath, { allowDecodeFallback = true } = {}) 
   }
 }
 
+function containerKindLabel(type) {
+  switch (type) {
+    case 'video': return '视频';
+    case 'audio': return '音频';
+    case 'subtitle': return '字幕';
+    case 'attachment': return '附件';
+    case 'data': return '数据';
+    default: return '其他';
+  }
+}
+
+function sourceTrackModified(track) {
+  return (
+    track.language !== track.originalLanguage ||
+    track.title !== track.originalTitle ||
+    track.default !== track.originalDefault ||
+    track.forced !== track.originalForced ||
+    track.original !== track.originalOriginal ||
+    track.commentary !== track.originalCommentary ||
+    track.hearingImpaired !== track.originalHearingImpaired
+  );
+}
+
+function sourceAttachmentModified(item) {
+  return (
+    item.filename !== item.originalFilename ||
+    item.mimetype !== item.originalMimetype
+  );
+}
+
+function plannedFontAttachmentCount() {
+  const recognized = selectedFontRecognition().recognized || [];
+  if (!recognized.length) return 0;
+  const hasAssLikeSubtitle = newSubtitleState.some((track) => track.format?.assLike);
+  return fontMode.value === 'force' && hasAssLikeSubtitle ? 1 : recognized.length;
+}
+
+function containerChangeCounts() {
+  const added =
+    externalAudioState.length +
+    newSubtitleState.length +
+    plannedFontAttachmentCount();
+
+  if (!trackState) {
+    return { added, removed: 0, modified: 0 };
+  }
+
+  const appendMode = Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked);
+  let removed = (trackState.streams || [])
+    .filter((stream) => !['video', 'audio', 'subtitle', 'attachment', 'data'].includes(stream.codec_type))
+    .length;
+  let modified = 0;
+
+  if (!appendMode) {
+    for (const track of trackState.tracks) {
+      if (!track.include) removed += 1;
+      else if (sourceTrackModified(track)) modified += 1;
+    }
+    for (const item of trackState.attachments) {
+      if (!item.include) removed += 1;
+      else if (sourceAttachmentModified(item)) modified += 1;
+    }
+  }
+
+  return { added, removed, modified };
+}
+
+function renderContainerChangeSummary() {
+  if (!containerChangeSummary) return;
+  if (scanning) {
+    containerChangeSummary.textContent = '读取中…';
+    containerChangeSummary.dataset.state = 'pending';
+    return;
+  }
+  if (!currentVideoIsMatroska()) {
+    containerChangeSummary.textContent = '—';
+    containerChangeSummary.dataset.state = 'idle';
+    return;
+  }
+  if (!trackState) {
+    containerChangeSummary.textContent = '等待容器扫描';
+    containerChangeSummary.dataset.state = 'pending';
+    return;
+  }
+
+  const { added, removed, modified } = containerChangeCounts();
+  containerChangeSummary.dataset.state = removed ? 'destructive' : (added || modified ? 'changed' : 'clean');
+  containerChangeSummary.innerHTML = [
+    added ? `<span data-change="add">+${added} 新增</span>` : '',
+    removed ? `<span data-change="remove">−${removed} 删除</span>` : '<span data-change="keep">无删除</span>',
+    modified ? `<span data-change="modify">~${modified} 修改</span>` : '',
+  ].filter(Boolean).join('');
+}
+
+function containerStatusBadge(state) {
+  const labels = {
+    keep: '保留',
+    add: '新增',
+    remove: '删除',
+    modify: '修改',
+  };
+  return `<span class="change-badge" data-change="${state}">${labels[state] || state}</span>`;
+}
+
+function containerStreamTitle(stream) {
+  const title = String(stream.tags?.title || '').trim();
+  const type = containerKindLabel(stream.codec_type);
+  return title || `${type} #${stream.index}`;
+}
+
+function containerStreamMeta(stream) {
+  return [
+    stream.codec_name || 'unknown',
+    stream.tags?.language || '',
+    `source #${stream.index}`,
+  ].filter(Boolean).join(' · ');
+}
+
 function streamLabel(stream) {
   const type = stream.codec_type === 'audio' ? '音频' : '字幕';
   const language = stream.tags?.language || 'und';
@@ -2120,85 +2256,166 @@ function renderMuxPlan() {
 
 function renderTrackList() {
   if (!trackState) {
-    resetTrackState();
+    trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
+    renderContainerChangeSummary();
     return;
   }
 
-  const tracks = trackState.tracks;
-  if (!tracks.length) {
-    trackList.innerHTML = '<div class="track-empty">未发现可管理的音频或字幕轨。</div>';
-    return;
-  }
+  const appendMode = Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked);
+  const editableByIndex = new Map(trackState.tracks.map((track) => [track.index, track]));
+  const sourceRows = [];
 
-  trackList.innerHTML = tracks.map((track) => {
-    const forced = track.type === 'subtitle'
-      ? `<label><input type="checkbox" data-track-action="forced" data-track-index="${track.index}" ${track.forced ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Forced</label>`
-      : '';
+  for (const stream of trackState.streams || []) {
+    if (stream.codec_type === 'attachment') continue;
 
-    return `
-      <div class="track-row track-${track.type}">
-        <div class="track-title">
-          <strong>${escapeHtml(streamLabel(track.stream))}</strong>
-          <span class="track-meta">原始 Default=${track.originalDefault ? '1' : '0'}${track.type === 'subtitle' ? ` · Forced=${track.originalForced ? '1' : '0'}` : ''}</span>
-          <div class="track-edit-grid">
-            <label>语言
-              <input type="text" data-track-field="language" data-track-index="${track.index}" value="${escapeHtml(track.language)}" list="languageSuggestions" maxlength="35" ${track.include ? '' : 'disabled'}>
-            </label>
-            <label>标题
-              <input type="text" data-track-field="title" data-track-index="${track.index}" value="${escapeHtml(track.title)}" maxlength="160" ${track.include ? '' : 'disabled'}>
-            </label>
+    const track = editableByIndex.get(stream.index);
+    if (track) {
+      const forced = track.type === 'subtitle'
+        ? `<label><input type="checkbox" data-track-action="forced" data-track-index="${track.index}" ${track.forced ? 'checked' : ''} ${appendMode || !track.include ? 'disabled' : ''}> Forced</label>`
+        : '';
+      const change = appendMode
+        ? 'keep'
+        : (!track.include ? 'remove' : (sourceTrackModified(track) ? 'modify' : 'keep'));
+      const controlsDisabled = appendMode || !track.include ? 'disabled' : '';
+      sourceRows.push(`
+        <div class="track-row track-${track.type} container-item" data-change="${change}">
+          <span class="container-item-kind">${containerKindLabel(track.type)}</span>
+          <div class="track-title">
+            <strong>${escapeHtml(containerStreamTitle(stream))}</strong>
+            <span class="track-meta">${escapeHtml(containerStreamMeta(stream))}</span>
+            <div class="track-edit-grid">
+              <label>语言
+                <input type="text" data-track-field="language" data-track-index="${track.index}" value="${escapeHtml(track.language)}" list="languageSuggestions" maxlength="35" ${controlsDisabled}>
+              </label>
+              <label>标题
+                <input type="text" data-track-field="title" data-track-index="${track.index}" value="${escapeHtml(track.title)}" maxlength="160" ${controlsDisabled}>
+              </label>
+            </div>
           </div>
+          <div class="track-controls">
+            <span class="track-order">
+              <button type="button" data-track-move="-1" data-track-index="${track.index}" ${controlsDisabled} aria-label="上移" title="上移">↑</button>
+              <button type="button" data-track-move="1" data-track-index="${track.index}" ${controlsDisabled} aria-label="下移" title="下移">↓</button>
+            </span>
+            <label><input type="checkbox" data-track-action="include" data-track-index="${track.index}" ${track.include ? 'checked' : ''} ${appendMode ? 'disabled' : ''}> 保留</label>
+            <label><input type="checkbox" data-track-action="default" data-track-index="${track.index}" ${track.default ? 'checked' : ''} ${controlsDisabled}> Default</label>
+            ${forced}
+            <details class="track-advanced">
+              <summary>属性</summary>
+              <label><input type="checkbox" data-track-action="original" data-track-index="${track.index}" ${track.original ? 'checked' : ''} ${controlsDisabled}> Original</label>
+              <label><input type="checkbox" data-track-action="commentary" data-track-index="${track.index}" ${track.commentary ? 'checked' : ''} ${controlsDisabled}> Commentary</label>
+              <label><input type="checkbox" data-track-action="hearingImpaired" data-track-index="${track.index}" ${track.hearingImpaired ? 'checked' : ''} ${controlsDisabled}> Hearing impaired</label>
+            </details>
+          </div>
+          ${containerStatusBadge(change)}
+        </div>`);
+      continue;
+    }
+
+    const supportedReadOnly = ['video', 'data'].includes(stream.codec_type);
+    const change = supportedReadOnly ? 'keep' : 'remove';
+    sourceRows.push(`
+      <div class="container-item container-readonly-row" data-change="${change}">
+        <span class="container-item-kind">${containerKindLabel(stream.codec_type)}</span>
+        <div class="container-item-main">
+          <strong>${escapeHtml(containerStreamTitle(stream))}</strong>
+          <small>${escapeHtml(containerStreamMeta(stream))}</small>
         </div>
-        <div class="track-controls">
-          <span class="track-order">
-            <button type="button" data-track-move="-1" data-track-index="${track.index}" ${track.include ? '' : 'disabled'} aria-label="上移">↑</button>
-            <button type="button" data-track-move="1" data-track-index="${track.index}" ${track.include ? '' : 'disabled'} aria-label="下移">↓</button>
-          </span>
-          <label><input type="checkbox" data-track-action="include" data-track-index="${track.index}" ${track.include ? 'checked' : ''}> 保留</label>
-          <label><input type="checkbox" data-track-action="default" data-track-index="${track.index}" ${track.default ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Default</label>
-          ${forced}
-          <details class="track-advanced">
-            <summary>高级属性</summary>
-            <label><input type="checkbox" data-track-action="original" data-track-index="${track.index}" ${track.original ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Original</label>
-            <label><input type="checkbox" data-track-action="commentary" data-track-index="${track.index}" ${track.commentary ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Commentary</label>
-            <label><input type="checkbox" data-track-action="hearingImpaired" data-track-index="${track.index}" ${track.hearingImpaired ? 'checked' : ''} ${track.include ? '' : 'disabled'}> Hearing impaired</label>
-          </details>
-        </div>
-      </div>`;
-  }).join('');
+        ${containerStatusBadge(change)}
+      </div>`);
+  }
+
+  const chapters = trackState.chapters || [];
+  sourceRows.push(`
+    <div class="container-item container-readonly-row" data-change="keep">
+      <span class="container-item-kind">章节</span>
+      <div class="container-item-main"><strong>${chapters.length} 个 Chapter</strong></div>
+      ${containerStatusBadge('keep')}
+    </div>`);
+
+  const tags = preservableFormatTags(trackState.format?.tags || {});
+  const tagEntries = Object.entries(tags);
+  sourceRows.push(`
+    <div class="container-item container-readonly-row container-metadata-row" data-change="keep">
+      <span class="container-item-kind">元数据</span>
+      <div class="container-item-main">
+        <strong>${tagEntries.length} 个全局字段</strong>
+        ${tagEntries.length ? `<details class="container-meta"><summary>查看</summary><div>${tagEntries.map(([key, value]) => `<span><b>${escapeHtml(key)}</b> ${escapeHtml(value)}</span>`).join('')}</div></details>` : ''}
+      </div>
+      ${containerStatusBadge('keep')}
+    </div>`);
+
+  externalAudioState.forEach((item, index) => {
+    sourceRows.push(`
+      <div class="container-item container-readonly-row" data-change="add">
+        <span class="container-item-kind">音频</span>
+        <div class="container-item-main"><strong>${escapeHtml(item.title || item.file.name)}</strong><small>外部音频 #${index + 1} · ${escapeHtml(normalizeTrackLanguage(item.language))}</small></div>
+        ${containerStatusBadge('add')}
+      </div>`);
+  });
+  newSubtitleState.forEach((item, index) => {
+    sourceRows.push(`
+      <div class="container-item container-readonly-row" data-change="add">
+        <span class="container-item-kind">字幕</span>
+        <div class="container-item-main"><strong>${escapeHtml(item.title || item.displayName || item.file.name)}</strong><small>${escapeHtml(item.format?.label || 'SUB')} · ${escapeHtml(normalizeTrackLanguage(item.language))} · 新字幕 #${index + 1}</small></div>
+        ${containerStatusBadge('add')}
+      </div>`);
+  });
+
+  const fonts = selectedFontRecognition().recognized || [];
+  const visibleFonts = fontMode.value === 'force' && newSubtitleState.some((track) => track.format?.assLike)
+    ? fonts.slice(0, 1)
+    : fonts;
+  visibleFonts.forEach((item) => {
+    sourceRows.push(`
+      <div class="container-item container-readonly-row" data-change="add">
+        <span class="container-item-kind">附件</span>
+        <div class="container-item-main"><strong>${escapeHtml(item.file.name)}</strong><small>新字体附件</small></div>
+        ${containerStatusBadge('add')}
+      </div>`);
+  });
+
+  trackList.innerHTML = sourceRows.join('') || '<div class="track-empty">容器中没有可显示的流。</div>';
+  renderContainerChangeSummary();
   renderMuxPlan();
 }
 
 function renderAttachmentList() {
-  if (!trackState) {
-    attachmentList.innerHTML = '<div class="track-empty">扫描 MKV 后显示附件列表。</div>';
-    return;
-  }
-  if (!trackState.attachments.length) {
-    attachmentList.innerHTML = '<div class="track-empty">这个 MKV 没有附件。</div>';
+  if (!trackState || !trackState.attachments.length) {
+    attachmentList.innerHTML = '';
+    renderContainerChangeSummary();
     return;
   }
 
-  attachmentList.innerHTML = trackState.attachments.map((item) => `
-    <div class="attachment-item">
-      <div class="attachment-main">
-        <strong>${escapeHtml(item.filename || item.originalFilename || `Attachment #${item.index}`)}</strong>
-        <span class="attachment-meta">source #${item.index} · ${escapeHtml(item.stream.codec_name || 'attachment')}</span>
-        <div class="attachment-fields">
-          <label>文件名
-            <input type="text" data-attachment-field="filename" data-attachment-index="${item.index}" value="${escapeHtml(item.filename)}" maxlength="240" ${item.include ? '' : 'disabled'}>
-          </label>
-          <label>MIME
-            <input type="text" data-attachment-field="mimetype" data-attachment-index="${item.index}" value="${escapeHtml(item.mimetype)}" maxlength="120" ${item.include ? '' : 'disabled'}>
-          </label>
+  const appendMode = Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked);
+  attachmentList.innerHTML = trackState.attachments.map((item) => {
+    const change = appendMode
+      ? 'keep'
+      : (!item.include ? 'remove' : (sourceAttachmentModified(item) ? 'modify' : 'keep'));
+    const disabled = appendMode || !item.include ? 'disabled' : '';
+    return `
+      <div class="attachment-item container-item" data-change="${change}">
+        <span class="container-item-kind">附件</span>
+        <div class="attachment-main">
+          <strong>${escapeHtml(item.filename || item.originalFilename || `Attachment #${item.index}`)}</strong>
+          <span class="attachment-meta">source #${item.index} · ${escapeHtml(item.stream.codec_name || item.mimetype || 'attachment')}</span>
+          <div class="attachment-fields">
+            <label>文件名
+              <input type="text" data-attachment-field="filename" data-attachment-index="${item.index}" value="${escapeHtml(item.filename)}" maxlength="240" ${disabled}>
+            </label>
+            <label>MIME
+              <input type="text" data-attachment-field="mimetype" data-attachment-index="${item.index}" value="${escapeHtml(item.mimetype)}" maxlength="120" ${disabled}>
+            </label>
+          </div>
         </div>
-      </div>
-      <label class="attachment-select">
-        <input type="checkbox" data-attachment-action="include" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''}>
-        保留
-      </label>
-    </div>
-  `).join('');
+        <label class="attachment-select">
+          <input type="checkbox" data-attachment-action="include" data-attachment-index="${item.index}" ${item.include ? 'checked' : ''} ${appendMode ? 'disabled' : ''}>
+          保留
+        </label>
+        ${containerStatusBadge(change)}
+      </div>`;
+  }).join('');
+  renderContainerChangeSummary();
 }
 
 attachmentList.addEventListener('input', (event) => {
@@ -2290,17 +2507,11 @@ trackList.addEventListener('click', (event) => {
   renderTrackList();
 });
 
-scanTracksBtn.addEventListener('click', async () => {
+async function scanSourceContainer({ automatic = false } = {}) {
   const video = videoInput.files[0];
   if (!video || !currentVideoIsMatroska(video) || isBusy()) return;
 
-  // Explicitly scanning the source means the user wants manual source-track
-  // control rather than the zero-configuration "preserve everything + append" preset.
-  if (appendPreserveAll) {
-    appendPreserveAll.checked = false;
-    appendPreserveAll.dataset.userTouched = '1';
-  }
-  preserveAttachments.disabled = false;
+  if (automatic && trackState?.fileKey === fileKey(video)) return;
 
   scanning = true;
   cancelRequested = false;
@@ -2316,7 +2527,7 @@ scanTracksBtn.addEventListener('click', async () => {
     await loadFFmpeg();
     if (cancelRequested) return;
 
-    status.textContent = '正在载入 MKV 并扫描轨道……';
+    status.textContent = automatic ? '正在读取 MKV 容器内容……' : '正在重新扫描 MKV 容器……';
     await ffmpeg.writeFile(videoPath, await fetchFile(video));
     const probe = await probeInput(videoPath, probePath);
     if (cancelRequested) return;
@@ -2337,7 +2548,7 @@ scanTracksBtn.addEventListener('click', async () => {
         index: stream.index,
         type: stream.codec_type,
         stream,
-        include: stream.codec_type === 'audio',
+        include: true,
         language: stream.tags?.language || 'und',
         title: stream.tags?.title || '',
         order: stream.index,
@@ -2364,11 +2575,12 @@ scanTracksBtn.addEventListener('click', async () => {
         mimetype: stream.tags?.mimetype || '',
         originalFilename: stream.tags?.filename || '',
         originalMimetype: stream.tags?.mimetype || '',
-        include: false,
+        include: true,
       }));
 
     trackState = {
       fileKey: fileKey(video),
+      streams: probe.streams || [],
       tracks,
       attachments,
       chapters: probe.chapters,
@@ -2376,13 +2588,13 @@ scanTracksBtn.addEventListener('click', async () => {
       attachmentCount: probe.attachmentCount,
     };
 
-    preserveAttachments.checked = false;
+    preserveAttachments.checked = true;
     trackBulkTools?.classList.remove('hidden');
     attachmentBulkTools?.classList.toggle('hidden', !attachments.length);
     renderTrackList();
     renderAttachmentList();
     bar.style.width = '0%';
-    status.textContent = `轨道扫描完成：${tracks.filter((x) => x.type === 'audio').length} 条音频，${tracks.filter((x) => x.type === 'subtitle').length} 条字幕，${attachments.length} 个附件。`;
+    status.textContent = `轨道扫描完成：${(probe.streams || []).length} 个流 · ${attachments.length} 个附件 · ${(probe.chapters || []).length} 个章节。`;
   } catch (err) {
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
       status.textContent = '轨道扫描已取消。';
@@ -2403,8 +2615,12 @@ scanTracksBtn.addEventListener('click', async () => {
     cancelRequested = false;
     updateUI();
   }
-});
 
+}
+
+scanTracksBtn.addEventListener('click', () => {
+  scanSourceContainer({ automatic: false });
+});
 function charPreview(chars, limit = 24) {
   const values = chars.slice(0, limit).map((char) => (
     `${char}(U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')})`
@@ -2896,6 +3112,7 @@ muxBtn.addEventListener('click', async () => {
       preserveAllOriginalSubtitles,
       originalAttachments,
       preserveAllOriginalAttachments,
+      preserveOriginalDataStreams: isMatroskaIdentity(inputIdentity),
       originalAttachmentCount,
       fontAttachments,
     });
@@ -3014,7 +3231,8 @@ muxBtn.addEventListener('click', async () => {
         ...audit,
       };
       if (audit.ok) {
-        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节。`;
+        const changes = containerChangeCounts();
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${changes.added} / −${changes.removed} / ~${changes.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
