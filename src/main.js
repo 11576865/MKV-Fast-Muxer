@@ -1848,11 +1848,11 @@ function plannedFontAttachmentCount() {
   return fontMode.value === 'force' && hasAssLikeSubtitle ? 1 : recognized.length;
 }
 
-function containerChangeCounts() {
+function containerChangeCounts({ newFontCount = plannedFontAttachmentCount() } = {}) {
   const added =
     externalAudioState.length +
     newSubtitleState.length +
-    plannedFontAttachmentCount();
+    newFontCount;
 
   if (!trackState) {
     return { added, removed: 0, modified: 0 };
@@ -3197,6 +3197,8 @@ muxBtn.addEventListener('click', async () => {
       mimetype: fontMimeType(item.fontIdentity),
     }));
 
+    const runtimeChanges = containerChangeCounts({ newFontCount: attachments.length });
+
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
       data: isMatroskaIdentity(inputIdentity)
@@ -3257,8 +3259,7 @@ muxBtn.addEventListener('click', async () => {
         ...audit,
       };
       if (audit.ok) {
-        const changes = containerChangeCounts();
-        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${changes.added} / −${changes.removed} / ~${changes.modified}。`;
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${runtimeChanges.added} / −${runtimeChanges.removed} / ~${runtimeChanges.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
