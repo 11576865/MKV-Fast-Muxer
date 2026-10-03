@@ -3035,6 +3035,8 @@ muxBtn.addEventListener('click', async () => {
     const sourceSubtitles = inputProbe.streams.filter((stream) => stream.codec_type === 'subtitle');
     const sourceAttachments = inputProbe.streams.filter((stream) => stream.codec_type === 'attachment');
     const sourceData = inputProbe.streams.filter((stream) => stream.codec_type === 'data');
+    const knownContainerTypes = new Set(['video', 'audio', 'subtitle', 'attachment', 'data']);
+    const sourceOtherStreams = inputProbe.streams.filter((stream) => !knownContainerTypes.has(stream.codec_type));
 
     const selectedAudio = scanned ? selectedTracks('audio') : null;
     const selectedSubtitles = scanned ? selectedTracks('subtitle') : [];
@@ -3209,6 +3211,12 @@ muxBtn.addEventListener('click', async () => {
       data: isMatroskaIdentity(inputIdentity)
         ? sourceData.map((stream) => ({ codec: stream.codec_name || '' }))
         : [],
+      otherStreams: preserveAllSourceStreams
+        ? sourceOtherStreams.map((stream) => ({
+            type: stream.codec_type || 'unknown',
+            codec: stream.codec_name || '',
+          }))
+        : [],
       audio: expectedAudio,
       subtitles: preserveAllSourceStreams
         ? [
@@ -3276,7 +3284,7 @@ muxBtn.addEventListener('click', async () => {
         ...audit,
       };
       if (audit.ok) {
-        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${runtimeChanges.added} / −${runtimeChanges.removed} / ~${runtimeChanges.modified}。`;
+        const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.other} 其他 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${runtimeChanges.added} / −${runtimeChanges.removed} / ~${runtimeChanges.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
@@ -3322,6 +3330,10 @@ muxBtn.addEventListener('click', async () => {
         videoCodecs: sourceVideos.map((stream) => stream.codec_name || 'unknown'),
         audioCodecs: sourceAudios.map((stream) => stream.codec_name || 'unknown'),
         dataCodecs: sourceData.map((stream) => stream.codec_name || 'unknown'),
+        otherStreams: sourceOtherStreams.map((stream) => ({
+          type: stream.codec_type || 'unknown',
+          codec: stream.codec_name || 'unknown',
+        })),
         chapterCount: inputProbe.chapters.length,
         chapters: inputProbe.chapters.map((chapter) => ({
           id: chapter.id,
