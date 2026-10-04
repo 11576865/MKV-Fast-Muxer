@@ -130,3 +130,54 @@ test('audit validates attachment MIME and global metadata preservation', () => {
 
   assert.equal(result.ok, true, JSON.stringify(result.issues));
 });
+
+
+test('audit includes Matroska data streams in the verified container inventory', () => {
+  const result = auditMuxProbe({
+    streams: [
+      { codec_type: 'video', codec_name: 'h264' },
+      { codec_type: 'data', codec_name: 'bin_data' },
+    ],
+    chapters: [],
+    format: { tags: {} },
+  }, {
+    video: [{ codec: 'h264' }],
+    data: [{ codec: 'bin_data' }],
+    audio: [],
+    subtitles: [],
+    attachments: [],
+    chapterCount: 0,
+  });
+
+  assert.equal(result.ok, true, result.issues.join('\n'));
+  assert.equal(result.counts.data, 1);
+
+  const missing = auditMuxProbe({
+    streams: [{ codec_type: 'video', codec_name: 'h264' }],
+    chapters: [],
+    format: { tags: {} },
+  }, {
+    video: [{ codec: 'h264' }],
+    data: [{ codec: 'bin_data' }],
+  });
+  assert.equal(missing.ok, false);
+  assert.match(missing.issues.join('\n'), /数据轨数量不一致|数据 #1 缺失/);
+});
+
+
+test('audit preserves otherwise unclassified source stream types', () => {
+  const result = auditMuxProbe({
+    streams: [
+      { codec_type: 'video', codec_name: 'h264' },
+      { codec_type: 'unknown_type', codec_name: 'mystery' },
+    ],
+    chapters: [],
+    format: { tags: {} },
+  }, {
+    video: [{ codec: 'h264' }],
+    otherStreams: [{ type: 'unknown_type', codec: 'mystery' }],
+  });
+
+  assert.equal(result.ok, true, result.issues.join('\n'));
+  assert.equal(result.counts.other, 1);
+});

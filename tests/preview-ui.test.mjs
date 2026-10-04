@@ -16,7 +16,7 @@ test('visual ASS preview is present and explicit light theme is removed', async 
   assert.match(html, /id="previewImage"/);
   assert.match(html, /id="previewSubtitleSelect"/);
   assert.match(html, /id="previewRefreshBtn"/);
-  assert.match(html, /FRAME PREVIEW/);
+  assert.match(html, /id="preview-title">字幕预览/);
   assert.doesNotMatch(html, /data-theme-choice="light"/);
   assert.doesNotMatch(html, />白天</);
 
@@ -119,7 +119,7 @@ test('visual polish adds preview zoom and clamps long desktop names', async () =
     text('src/main.js'),
   ]);
 
-  assert.match(html, /FRAME PREVIEW/);
+  assert.match(html, /id="preview-title">字幕预览/);
   assert.doesNotMatch(html, /PREVIEW FRAME · LIBASS/);
   assert.match(html, /id="previewDialog"/);
   assert.match(html, /id="previewDialogImage"/);
