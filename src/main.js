@@ -25,6 +25,7 @@ import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './f
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
+import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, ASSET_STATUS } from './asset-intake.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -72,6 +73,11 @@ const videoIdentityLabel = $('videoIdentity');
 const audioInput = $('audioInput');
 const subInput = $('subInput');
 const fontInput = $('fontInput');
+const unifiedAssetInput = $('unifiedAssetInput');
+const unifiedFolderInput = $('unifiedFolderInput');
+const assetDropzone = $('assetDropzone');
+const assetInventory = $('assetInventory');
+const assetImportStatus = $('assetImportStatus');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const fontSubsetEnabled = $('fontSubsetEnabled');
@@ -282,6 +288,10 @@ let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
 let videoSniffPromise = Promise.resolve();
+let importedAssetEntries = [];
+let chosenImportSourceKey = '';
+let importInProgress = false;
+let importPendingCount = 0;
 let videoSniffState = {
   status: 'idle',
   fileKey: '',
@@ -741,6 +751,10 @@ function setInputsDisabled(disabled) {
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
   fontInput.disabled = sourceLocked;
+  const intakeLocked = disabled || batchRunning || importInProgress;
+  if (unifiedAssetInput) unifiedAssetInput.disabled = intakeLocked;
+  if (unifiedFolderInput) unifiedFolderInput.disabled = intakeLocked;
+  if (assetDropzone) assetDropzone.setAttribute('aria-disabled', String(intakeLocked));
   fontMode.disabled = sourceLocked;
   if (fontSubsetEnabled) fontSubsetEnabled.disabled = sourceLocked;
   preserveAttachments.disabled = disabled || !currentVideoIsMatroska();
@@ -811,6 +825,7 @@ function updateUI() {
   );
   const mode = fontMode.value || 'preserve';
   const busy = isBusy();
+  const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
   const videoLabel = video?.name ?? '未选择';
   const audioFiles = selectedExternalAudioFiles();
@@ -878,7 +893,9 @@ function updateUI() {
     identityPending ||
     subtitlePending ||
     fontPending ||
-    !(video && subs.length) ||
+    !video ||
+    importInProgress ||
+    (importedAssetEntries.length > 0 && (importRoles.needsSourceChoice || importRoles.unknown.length > 0)) ||
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0;
   cancelBtn.disabled = !busy;
@@ -894,6 +911,7 @@ function updateUI() {
   setInputsDisabled(busy);
   refreshPlanBtn.disabled = busy;
   renderMuxPlan();
+  renderImportedAssetInventory();
   if (!batchRunning) requestBatchPlanSync();
 }
 
@@ -910,6 +928,149 @@ function bindNewTrackEditor(container, selector, getState) {
   container.addEventListener('input', update);
   container.addEventListener('change', update);
 }
+
+// Content-first intake adapter. This module keeps the existing audited
+// single-task mux/preview inputs as implementation details, not upload gates.
+// Imported assets always remain visible, including unsupported/unknown ones.
+function setAdapterFiles(input, files) {
+  if (!input) return;
+  const oldKeys = Array.from(input.files || []).map(assetIntakeKey);
+  const newKeys = files.map(assetIntakeKey);
+  if (oldKeys.length === newKeys.length && oldKeys.every((key, index) => key === newKeys[index])) return;
+  const transfer = new DataTransfer();
+  for (const file of files) transfer.items.add(file);
+  input.files = transfer.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function applyImportedAssetRoles() {
+  const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
+  setAdapterFiles(videoInput, roles.video ? [roles.video] : []);
+  setAdapterFiles(subInput, roles.subtitles);
+  setAdapterFiles(audioInput, roles.audio);
+  setAdapterFiles(fontInput, roles.fonts);
+  updateUI();
+}
+
+function renderImportedAssetInventory() {
+  if (!assetInventory || !assetImportStatus) return;
+  const entries = importedAssetEntries;
+  const roles = resolveImportedRoles(entries, chosenImportSourceKey);
+  assetImportStatus.textContent = importInProgress
+    ? `正在按内容识别 ${importPendingCount} 个文件…`
+    : !entries.length
+      ? '尚未导入文件'
+      : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
+  if (!entries.length) {
+    assetInventory.innerHTML = '<div class="track-empty">导入后在此查看容器、轨道、附加资源和识别状态。</div>';
+    return;
+  }
+  assetInventory.innerHTML = entries.map((entry) => {
+    const selected = roles.sourceKey === entry.key && entry.kind === 'container';
+    const canChange = !isBusy() && !batchRunning && !importInProgress;
+    const kindLabel = {
+      container: '媒体容器', subtitle: '字幕', font: '字体',
+      audio: '独立音频', unknown: '未识别',
+    }[entry.kind] || '未知';
+    const statusLabel = entry.status === ASSET_STATUS.RECOGNIZED ? '已识别'
+      : entry.status === ASSET_STATUS.UNVERIFIED ? '需进一步验证'
+      : '不参与封装';
+    const sourceScanned = selected && trackState?.fileKey === fileKey(entry.file);
+    const counts = sourceScanned
+      ? Object.entries(
+          (trackState.streams || []).reduce((all, stream) => {
+            all[stream.codec_type] = (all[stream.codec_type] || 0) + 1;
+            return all;
+          }, {})
+        ).map(([type, count]) => `${containerKindLabel(type)} ${count}`).join(' · ')
+      : '';
+    const sourceNote = entry.kind === 'container' && !selected
+      ? '此容器目前未分配为主源；不会自动追加其中的轨道。'
+      : '';
+    return `<div class="asset-entry" data-kind="${entry.kind}">
+      <div class="asset-entry-main">
+        <div class="asset-entry-line">
+          <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
+          <span class="asset-entry-type">${kindLabel} · ${escapeHtml(entry.label)} · ${statusLabel}</span>
+        </div>
+        <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
+      </div>
+      <div class="asset-entry-roles">
+        ${entry.kind === 'container' ? `<label class="asset-select-source">
+          <input type="radio" name="assetMainSource" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
+          设为主源
+        </label>` : ''}
+        <button type="button" class="asset-remove" data-asset-remove="${escapeHtml(entry.key)}" ${canChange ? '' : 'disabled'}>移除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function importUnifiedAssets(files) {
+  if (isBusy() || batchRunning || importInProgress) return;
+  const existing = new Set(importedAssetEntries.map((entry) => entry.key));
+  const incoming = Array.from(files || []).filter((file) => {
+    const key = assetIntakeKey(file);
+    if (!key || existing.has(key)) return false;
+    existing.add(key);
+    return true;
+  });
+  if (!incoming.length) return;
+  importInProgress = true;
+  importPendingCount = incoming.length;
+  updateUI();
+  try {
+    // Bound concurrent reads: each classifier inspects at most 256 KiB.
+    const identified = [];
+    for (let start = 0; start < incoming.length; start += 4) {
+      identified.push(...await Promise.all(incoming.slice(start, start + 4).map((file) =>
+        identifyImportedAsset(file)
+      )));
+    }
+    importedAssetEntries = [...importedAssetEntries, ...identified];
+    applyImportedAssetRoles();
+  } finally {
+    importInProgress = false;
+    importPendingCount = 0;
+    updateUI();
+  }
+}
+
+unifiedAssetInput?.addEventListener('change', () => {
+  void importUnifiedAssets(unifiedAssetInput.files);
+  unifiedAssetInput.value = '';
+});
+unifiedFolderInput?.addEventListener('change', () => {
+  void importUnifiedAssets(unifiedFolderInput.files);
+  unifiedFolderInput.value = '';
+});
+assetDropzone?.addEventListener('dragover', (event) => {
+  if (isBusy() || batchRunning || importInProgress) return;
+  event.preventDefault();
+  assetDropzone.dataset.dragging = 'true';
+});
+assetDropzone?.addEventListener('dragleave', () => {
+  assetDropzone.dataset.dragging = 'false';
+});
+assetDropzone?.addEventListener('drop', (event) => {
+  event.preventDefault();
+  assetDropzone.dataset.dragging = 'false';
+  void importUnifiedAssets(event.dataTransfer?.files);
+});
+assetInventory?.addEventListener('change', (event) => {
+  const radio = event.target.closest('[data-asset-source]');
+  if (!radio || isBusy() || batchRunning || importInProgress) return;
+  chosenImportSourceKey = radio.dataset.assetSource;
+  applyImportedAssetRoles();
+});
+assetInventory?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-asset-remove]');
+  if (!button || isBusy() || batchRunning || importInProgress) return;
+  const key = button.dataset.assetRemove;
+  importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
+  if (chosenImportSourceKey === key) chosenImportSourceKey = '';
+  applyImportedAssetRoles();
+});
 
 videoInput.addEventListener('change', () => {
   containerScanGeneration += 1;
@@ -2827,7 +2988,9 @@ muxBtn.addEventListener('click', async () => {
   );
   const subtitleTracks = newSubtitleState;
   const externalAudioTracks = externalAudioState;
-  if (!video || !subtitleTracks.length) return;
+  // A source-only remux is valid: existing MKV tracks, chapters and attachments
+  // do not require an extra subtitle file. ffprobe still checks video presence.
+  if (!video || importInProgress) return;
 
   const headerVideoIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
   const videoIsMatroska = isMatroskaIdentity(headerVideoIdentity);
