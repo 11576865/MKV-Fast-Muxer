@@ -49,25 +49,6 @@ export async function findExistingBatchOutputs(directory, jobs = []) {
   return findExistingNamedOutputs(directory, plannedBatchFilenames(jobs));
 }
 
-// A failed writable can leave a newly created zero-byte entry behind even
-// after abort(). Remove it only when identity and emptiness can be verified.
-// Never delete an entry with contents, a changed identity, or missing metadata.
-async function removeAbortedEmptyBatchOutput(directory, filename, createdHandle) {
-  if (typeof directory.removeEntry !== 'function' ||
-      typeof createdHandle.isSameEntry !== 'function') return false;
-  try {
-    const existingHandle = await directory.getFileHandle(filename, { create: false });
-    if (!(await createdHandle.isSameEntry(existingHandle))) return false;
-    const existingFile = await existingHandle.getFile();
-    if (existingFile.size !== 0) return false;
-    await directory.removeEntry(filename);
-    return true;
-  } catch {
-    // Cleanup cannot safely be guaranteed. Preserve the original I/O error.
-    return false;
-  }
-}
-
 export async function writeNewBatchOutput(directory, filename, blob) {
   if (!directory || !blob) throw new Error('缺少批量输出目录或成品。');
   if ((await findExistingNamedOutputs(directory, [filename])).length) {
@@ -83,11 +64,14 @@ export async function writeNewBatchOutput(directory, filename, blob) {
     await writable.close();
   } catch (error) {
     try { await writable?.abort?.(); } catch {}
-    const cleaned = await removeAbortedEmptyBatchOutput(directory, filename, handle);
-    if (!cleaned) {
-      throw new Error(`${error?.message || error}；自动清理未完成，请检查输出目录内的“${filename}”后再重试。`, { cause: error });
-    }
-    throw error;
+    // The File System Access API cannot prove whether { create: true } actually
+    // created this entry: another process may have created it after preflight.
+    // Therefore NEVER removeEntry here, even for an empty same-identity file.
+    // Abort may roll back content, but cannot guarantee removal of the name.
+    throw new Error(
+      `${error?.message || error}；写入已中止，未删除任何目录文件。目标“${filename}”可能留有空文件或其他进程的数据，请检查后再重试。`,
+      { cause: error }
+    );
   }
   return true;
 }
