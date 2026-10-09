@@ -5584,3 +5584,117 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 .workload-notice[data-level="normal"] {
   display: none;
 }
+
+
+/* Content-first MKV intake: import is one action; detected roles are rows. */
+.legacy-source-picker,
+.legacy-source-picker[hidden] {
+  display: none !important;
+}
+
+.unified-intake { display: grid; gap: 10px; min-width: 0; }
+.unified-intake-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.unified-intake-head h3 { margin: 0 0 4px; color: var(--text-strong); font-size: .98rem; }
+.unified-intake-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: .72rem;
+  max-width: 650px;
+}
+.unified-intake-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.intake-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 13px;
+  min-height: 40px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.intake-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.intake-picker:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.intake-picker:has(input:disabled) { opacity: .48; cursor: not-allowed; }
+
+.asset-dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+  padding: 12px 15px;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.5;
+  background: var(--surface-0);
+}
+.asset-dropzone[data-dragging="true"] {
+  color: var(--text-strong);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-0));
+}
+.asset-dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.asset-inventory-head { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; flex-wrap: wrap; }
+.asset-inventory-head strong { font-size: .83rem; }
+.asset-inventory-head #assetImportStatus { font-size: .7rem; color: var(--muted); }
+.asset-inventory { display: grid; gap: 7px; }
+.asset-entry {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+.asset-entry[data-kind="container"] {
+  border-left: 3px solid var(--video);
+}
+.asset-entry[data-kind="subtitle"] { border-left: 3px solid var(--subtitle); }
+.asset-entry[data-kind="font"] { border-left: 3px solid var(--font); }
+.asset-entry[data-kind="audio"] { border-left: 3px solid var(--audio); }
+.asset-entry[data-kind="unknown"] { border-left: 3px solid var(--warning); }
+.asset-entry-main { min-width: 0; display: grid; gap: 4px; }
+.asset-entry-line { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; min-width: 0; }
+.asset-entry-name { overflow-wrap: anywhere; min-width: 0; font-size: .79rem; }
+.asset-entry-type { font-size: .69rem; font-weight: 700; color: var(--accent); }
+.asset-entry-desc { color: var(--muted); font-size: .67rem; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-entry-roles { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.asset-select-source { display: inline-flex; align-items: center; gap: 6px; font-size: .73rem; cursor: pointer; }
+.asset-select-source input { accent-color: var(--accent); }
+.asset-remove {
+  padding: 5px 8px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-0);
+  color: var(--muted);
+  font-size: .7rem;
+}
+.asset-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 900px) {
+  .unified-intake-head { flex-direction: column; align-items: stretch; }
+  .unified-intake-buttons { width: 100%; }
+  .unified-intake-buttons > .intake-picker { flex: 1; }
+}
+@media (max-width: 600px) {
+  .asset-entry { grid-template-columns: 1fr; }
+  .asset-entry-roles { justify-content: flex-start; }
+  .unified-intake-head p { font-size: .68rem; }
+  .asset-dropzone { padding: 10px 12px; }
+}
