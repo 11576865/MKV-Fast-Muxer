@@ -1154,8 +1154,7 @@ assetInventory?.addEventListener('toggle', (event) => {
 function editSourceFromInventory(event) {
   if (!trackState || isBusy() || batchRunning) return;
   const element = event.target;
-  const trackIndex = element.dataset.treeTrackIndex
-    ?? element.dataset.treeTrackInclude ?? element.dataset.treeTrackFlag && element.dataset.treeTrackIndex;
+  const trackIndex = element.dataset.treeTrackIndex ?? element.dataset.treeTrackInclude;
   const attachmentIndex = element.dataset.treeAttachmentIndex ?? element.dataset.treeAttachmentInclude;
   let modified = false;
   if (trackIndex !== undefined) {
