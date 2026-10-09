@@ -23,6 +23,7 @@ import {
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
+import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -3587,7 +3588,7 @@ async function syncBatchPlan() {
     }),
   ]);
 
-  if (generation !== batchPlanGeneration) return latestBatchPairing;
+  if (generation !== batchPlanGeneration) return null;
 
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
@@ -3604,6 +3605,19 @@ async function syncBatchPlan() {
   });
 
   pairing.ignoredVideos = recognition.ignored.map((entry) => entry.file);
+
+  pairing.directoryConflicts = [];
+  pairing.directoryCheckError = '';
+  if (batchOutputDirectoryHandle && pairing.jobs.length) {
+    try {
+      pairing.directoryConflicts = await findExistingBatchOutputs(
+        batchOutputDirectoryHandle, pairing.jobs
+      );
+    } catch (error) {
+      pairing.directoryCheckError = error?.message || String(error);
+    }
+  }
+  if (generation !== batchPlanGeneration) return null;
 
   const rows = pairing.jobs.map((job, index) => {
     const identityText = job.videoIdentity?.containerLabel
@@ -3625,6 +3639,24 @@ async function syncBatchPlan() {
   if (mismatchCount) notes.push(`${mismatchCount} 个视频扩展名与实际内容不一致，已按实际容器识别`);
   if (recognition.ignored.length) notes.push(`${recognition.ignored.length} 个文件未识别为支持的视频容器`);
   if (subtitleRecognition.mismatches?.length) notes.push(`${subtitleRecognition.mismatches.length} 个字幕扩展名与实际内容不一致，已按实际格式识别`);
+  if (pairing.ambiguousPairings.length) {
+    const examples = pairing.ambiguousPairings.slice(0, 3).map(({ track, candidates }) =>
+      `${track.file.name} → ${candidates.map((video) => video.webkitRelativePath || video.name).join(' / ')}`
+    );
+    notes.push(`${pairing.ambiguousPairings.length} 条字幕匹配多个视频（${examples.join('；')}）；请调整文件名或分批处理，未自动选择第一个`);
+  }
+  if (pairing.outputNameCollisions.length) {
+    const examples = pairing.outputNameCollisions.map(({ outputName, videos }) =>
+      `${outputName} ← ${videos.map((video) => video.webkitRelativePath || video.name).join(' / ')}`
+    );
+    notes.push(`输出文件名冲突（${examples.join('；')}）；请调整文件名或分批处理，以免覆盖已有任务产物`);
+  }
+  if (pairing.directoryConflicts.length) {
+    notes.push(`输出目录已有 ${pairing.directoryConflicts.length} 个同名文件（${pairing.directoryConflicts.join('、')}）；不会覆盖，请换目录或移走冲突文件`);
+  }
+  if (pairing.directoryCheckError) {
+    notes.push(`无法安全检查输出目录：${pairing.directoryCheckError}；已禁止启动，避免误覆盖`);
+  }
   if (pairing.unmatchedVideos.length) notes.push(`${pairing.unmatchedVideos.length} 个视频没有匹配字幕`);
   if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
   if (pairing.orphanSidecars.length) notes.push(`${pairing.orphanSidecars.length} 个 VobSub .sub 缺少同名 .idx`);
@@ -3643,6 +3675,10 @@ async function syncBatchPlan() {
     batchRunning ||
     isBusy() ||
     !pairing.jobs.length ||
+    pairing.ambiguousPairings.length > 0 ||
+    pairing.outputNameCollisions.length > 0 ||
+    pairing.directoryConflicts.length > 0 ||
+    Boolean(pairing.directoryCheckError) ||
     pairing.invalidSubtitles.length > 0 ||
     fontRecognition.ignored.length > 0;
   batchCancelBtn.disabled = !batchRunning;
@@ -3681,18 +3717,6 @@ async function chooseBatchOutputDirectory() {
       batchOutputDirStatus.textContent = `无法使用输出目录：${error?.message || error}`;
     }
   }
-}
-
-async function writeBlobToBatchDirectory(name, blob) {
-  if (!batchOutputDirectoryHandle || !blob) return false;
-  const handle = await batchOutputDirectoryHandle.getFileHandle(name, { create: true });
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(blob);
-  } finally {
-    await writable.close();
-  }
-  return true;
 }
 
 async function collectBatchSubsetText(pairing) {
@@ -3806,7 +3830,43 @@ batchCancelBtn?.addEventListener('click', () => {
 batchStartBtn?.addEventListener('click', async () => {
   if (isBusy()) return;
   const pairing = await requestBatchPlanSync();
-  if (!pairing?.jobs?.length) return;
+  if (!pairing) {
+    batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
+    return;
+  }
+  if (
+    !pairing.jobs.length ||
+    pairing.ambiguousPairings.length ||
+    pairing.outputNameCollisions.length ||
+    pairing.directoryConflicts.length ||
+    pairing.directoryCheckError ||
+    pairing.invalidSubtitles.length ||
+    pairing.fontRecognition?.ignored?.length
+  ) {
+    batchStatus.textContent = '批量未开始：请先解决配对歧义、重名输出或无效输入。';
+    return;
+  }
+  if (isBusy() || batchRunning) return;
+  const selectedOutputDirectory = batchOutputDirectoryHandle;
+  if (selectedOutputDirectory) {
+    const planGeneration = batchPlanGeneration;
+    try {
+      const conflicts = await findExistingBatchOutputs(selectedOutputDirectory, pairing.jobs);
+      if (planGeneration !== batchPlanGeneration || isBusy() || batchRunning) {
+        batchStatus.textContent = '批量输入或执行状态已改变，请重新确认计划。';
+        return;
+      }
+      if (conflicts.length) {
+        batchStatus.textContent = `批量未开始：输出目录已有 ${conflicts.join('、')}；不会覆盖。`;
+        requestBatchPlanSync();
+        return;
+      }
+    } catch (error) {
+      batchStatus.textContent = `批量未开始：无法核对输出目录（${error?.message || error}）。`;
+      requestBatchPlanSync();
+      return;
+    }
+  }
 
   batchRunning = true;
   batchCancelRequested = false;
@@ -3874,12 +3934,20 @@ batchStartBtn?.addEventListener('click', async () => {
         }
         const result = await waitForSingleMuxCompletion();
         let savedToDirectory = false;
-        if (batchOutputDirectoryHandle) {
-          await writeBlobToBatchDirectory(result.outputName, result.blob);
-          if (result.reportBlob && result.reportName) {
-            await writeBlobToBatchDirectory(result.reportName, result.reportBlob);
+        let directorySaveError = '';
+        if (selectedOutputDirectory) {
+          try {
+            // Recheck at write time; files may have appeared after preflight.
+            await writeNewBatchOutput(selectedOutputDirectory, result.outputName, result.blob);
+            if (result.reportBlob && result.reportName) {
+              await writeNewBatchOutput(selectedOutputDirectory, result.reportName, result.reportBlob);
+            }
+            savedToDirectory = true;
+          } catch (error) {
+            // A successfully muxed artifact is not a failed encode merely
+            // because optional directory persistence was refused or failed.
+            directorySaveError = error?.message || String(error);
           }
-          savedToDirectory = true;
         }
 
         const url = URL.createObjectURL(result.blob);
@@ -3892,6 +3960,7 @@ batchStartBtn?.addEventListener('click', async () => {
           reportUrl,
           reportName: result.reportName,
           savedToDirectory,
+          directorySaveError,
         });
       } catch (error) {
         if (String(error?.message || error) === 'batch-cancelled') break;
@@ -3899,7 +3968,7 @@ batchStartBtn?.addEventListener('click', async () => {
       }
 
       batchResults.innerHTML = results.map((item) => item.ok
-        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成${item.savedToDirectory ? ` · 已写入 ${escapeHtml(batchOutputDirectoryHandle?.name || '输出目录')}` : ''}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ''}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
         : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
       ).join('');
     }
@@ -3907,9 +3976,11 @@ batchStartBtn?.addEventListener('click', async () => {
     batchRunning = false;
     const done = results.filter((item) => item.ok).length;
     const failed = results.filter((item) => !item.ok).length;
+    const unsaved = results.filter((item) => item.ok && item.directorySaveError).length;
+    const saveWarning = unsaved ? `其中 ${unsaved} 项未完整写入目录，可通过下载链接另存。` : '';
     batchStatus.textContent = batchCancelRequested
-      ? `批量已取消：完成 ${done}，失败 ${failed}。`
-      : `批量完成：成功 ${done}，失败 ${failed}。`;
+      ? `批量已取消：完成 ${done}，失败 ${failed}。${saveWarning}`
+      : `批量完成：成功 ${done}，失败 ${failed}。${saveWarning}`;
     batchCancelRequested = false;
     setInputFiles(videoInput, originalVideoFiles);
     await videoSniffPromise;

@@ -131,24 +131,51 @@ function scorePair(video, subtitleFile) {
   return -1;
 }
 
+export function findBatchOutputNameCollisions(jobs = []) {
+  const byName = new Map();
+  for (const job of jobs) {
+    // Case/Unicode variants can name the same output on common file systems.
+    const key = String(job.outputName || '').normalize('NFKC').toLocaleLowerCase('en-US');
+    const entries = byName.get(key) || [];
+    entries.push(job);
+    byName.set(key, entries);
+  }
+  return [...byName.values()]
+    .filter((entries) => entries.length > 1)
+    .map((entries) => ({
+      outputName: entries[0].outputName,
+      videos: entries.map((job) => job.video),
+    }));
+}
+
 export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
   const videos = Array.from(videoFiles || []);
   const subtitleTracks = Array.from(collected.tracks || []);
   const assignments = new Map(videos.map((video) => [video, []]));
   const unmatchedSubtitleTracks = [];
+  const ambiguousPairings = [];
 
   for (const track of subtitleTracks) {
-    let best = null;
     let bestScore = -1;
+    let bestVideos = [];
     for (const video of videos) {
       const score = scorePair(video, track.file);
+      if (score < 0) continue;
       if (score > bestScore) {
-        best = video;
+        bestVideos = [video];
         bestScore = score;
+      } else if (score === bestScore) {
+        bestVideos.push(video);
       }
     }
-    if (best && bestScore >= 0) assignments.get(best).push(track);
-    else unmatchedSubtitleTracks.push(track);
+    if (bestVideos.length === 1) {
+      assignments.get(bestVideos[0]).push(track);
+    } else if (bestVideos.length > 1) {
+      // Never assign tied episode/stem matches based on input enumeration order.
+      ambiguousPairings.push({ track, candidates: bestVideos, score: bestScore });
+    } else {
+      unmatchedSubtitleTracks.push(track);
+    }
   }
 
   const jobs = videos
@@ -174,6 +201,8 @@ export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
     jobs,
     unmatchedVideos,
     unmatchedSubtitleTracks,
+    ambiguousPairings,
+    outputNameCollisions: findBatchOutputNameCollisions(jobs),
     unmatchedSubtitles: unmatchedSubtitleTracks.map((track) => track.file),
     orphanSidecars: Array.from(collected.orphanSidecars || []),
     invalidSubtitles: Array.from(collected.invalid || []),

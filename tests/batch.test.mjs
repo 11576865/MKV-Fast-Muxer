@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   batchSubtitleSummary,
   buildBatchJobs,
+  findBatchOutputNameCollisions,
   identifyBatchFonts,
   identifyBatchVideos,
   mergeFileSelections,
@@ -176,4 +177,57 @@ test('batch font content recognition caches file identity', async () => {
   await identifyBatchFonts([font], { identify, cache });
   await identifyBatchFonts([font], { identify, cache });
   assert.equal(calls, 1);
+});
+
+test('episode-only batch pairing refuses ties instead of choosing first input', () => {
+  const videos = [file('Series A S01E01.mkv'), file('Series B S01E01.mkv')];
+  const subtitle = file('S01E01.zh.ass');
+
+  for (const order of [videos, [...videos].reverse()]) {
+    const result = buildBatchJobs(order, [subtitle]);
+    assert.equal(result.jobs.length, 0);
+    assert.equal(result.ambiguousPairings.length, 1);
+    assert.equal(result.unmatchedSubtitles.length, 0);
+    assert.equal(result.unmatchedVideos.length, 2);
+    assert.equal(result.ambiguousPairings[0].track.file, subtitle);
+    assert.deepEqual(
+      result.ambiguousPairings[0].candidates.map((item) => item.name).sort(),
+      videos.map((item) => item.name).sort(),
+    );
+  }
+});
+
+test('a strong full-name pairing wins over an unrelated matching episode token', () => {
+  const result = buildBatchJobs(
+    [file('Series A S01E01.mkv'), file('Series B S01E01.mkv')],
+    [file('Series B S01E01.zh-Hans.ass')],
+  );
+  assert.equal(result.ambiguousPairings.length, 0);
+  assert.equal(result.jobs.length, 1);
+  assert.equal(result.jobs[0].video.name, 'Series B S01E01.mkv');
+});
+
+test('unambiguous work cannot conceal another subtitle with an ambiguous target', () => {
+  const result = buildBatchJobs(
+    [file('Series A S01E01.mkv'), file('Series B S01E01.mkv')],
+    [file('Series B S01E01.eng.ass'), file('S01E01.zh.ass')],
+  );
+  assert.equal(result.jobs.length, 1);
+  assert.equal(result.jobs[0].subtitles.length, 1);
+  assert.equal(result.ambiguousPairings.length, 1);
+});
+
+test('duplicate output names are detected under case and Unicode normalization', () => {
+  const jobs = [
+    { outputName: 'Film.mkv', video: file('Film.mp4') },
+    { outputName: 'film.MKV', video: file('film.mov') },
+    { outputName: 'Ｄｒａｍａ.mkv', video: file('Ｄｒａｍａ.mp4') },
+    { outputName: 'Drama.mkv', video: file('Drama.webm') },
+    { outputName: 'Unique.mkv', video: file('Unique.mp4') },
+  ];
+  const conflicts = findBatchOutputNameCollisions(jobs);
+  assert.equal(conflicts.length, 2);
+  assert.deepEqual(conflicts.map((item) => item.videos.length), [2, 2]);
+  assert.deepEqual(conflicts[0].videos.map((item) => item.name), ['Film.mp4', 'film.mov']);
+  assert.deepEqual(findBatchOutputNameCollisions([{ outputName: 'unique.mkv', video: file('unique.mp4') }]), []);
 });

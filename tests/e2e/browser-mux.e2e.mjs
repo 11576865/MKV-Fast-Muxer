@@ -1154,6 +1154,147 @@ async function scenarioFontSubsetting(browser) {
   }
 }
 
+async function scenarioBatchAmbiguousSafety(browser) {
+  console.log('E2E: ambiguous episode-only batch subtitles must not start a mux');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    const videoBuffer = await fs.readFile(path.join(root, 'base.mp4'));
+    const subtitleBuffer = await fs.readFile(path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.setInputFiles('#batchVideoInput', [
+      { name: 'Series A S01E01.mp4', mimeType: 'video/mp4', buffer: videoBuffer },
+      { name: 'Series B S01E01.mp4', mimeType: 'video/mp4', buffer: videoBuffer },
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', {
+      name: 'S01E01.zh-Hans.ass', mimeType: 'text/plain', buffer: subtitleBuffer,
+    });
+
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchPlan')?.textContent || '').includes('字幕匹配多个视频')
+    );
+    const plan = await page.locator('#batchPlan').textContent();
+    assert.match(plan, /S01E01\.zh-Hans\.ass/);
+    assert.match(plan, /Series A S01E01\.mp4/);
+    assert.match(plan, /Series B S01E01\.mp4/);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(), 0);
+
+    await page.setInputFiles('#batchSubtitleInput', {
+      name: 'Series B S01E01.zh-Hans.ass', mimeType: 'text/plain', buffer: subtitleBuffer,
+    });
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return text.includes('Series B S01E01.zh-Hans.ass') &&
+        !text.includes('字幕匹配多个视频') && start && !start.disabled;
+    });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    console.log('Batch ambiguous pairing safety PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioBatchDirectoryConflict(browser) {
+  console.log('E2E: existing directory artifacts block batch before any mux starts');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      let selected = new Set(['Batch S01E01.mux-report.json']);
+      window.__setBatchDirectoryContents = (names) => { selected = new Set(names); };
+      window.showDirectoryPicker = async () => ({
+        name: 'fixture-output',
+        requestPermission: async () => 'granted',
+        entries: async function* () {
+          for (const name of selected) yield [name, { kind: 'file' }];
+        },
+        getFileHandle: async (filename, options = {}) => {
+          if (selected.has(filename)) return { kind: 'file' };
+          if (options.create) {
+            selected.add(filename);
+            return { kind: 'file' };
+          }
+          throw Object.assign(new Error('not found'), { name: 'NotFoundError' });
+        },
+      });
+    });
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.locator('#batchOutputDirBtn').click();
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      return text.includes('已有 1 个同名文件') && text.includes('Batch S01E01.mux-report.json');
+    });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(), 0);
+
+    await page.evaluate(() => window.__setBatchDirectoryContents([]));
+    await page.locator('#batchOutputDirBtn').click();
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return text.includes('Batch S01E01.mp4') &&
+        !text.includes('已有 1 个同名文件') && start && !start.disabled;
+    });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    console.log('Batch existing-directory conflict safety PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioBatchDirectorySaveFallback(browser) {
+  console.log('E2E: completed mux remains downloadable when optional directory save fails');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      window.showDirectoryPicker = async () => ({
+        name: 'simulated-unwritable-dir',
+        requestPermission: async () => 'granted',
+        entries: async function* () {},
+        getFileHandle: async (_name, options = {}) => {
+          if (!options.create) {
+            throw Object.assign(new Error('not found'), { name: 'NotFoundError' });
+          }
+          return {
+            createWritable: async () => ({
+              write: async () => { throw new Error('simulated quota exceeded'); },
+              close: async () => {},
+              abort: async () => {},
+            }),
+          };
+        },
+      });
+    });
+
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.locator('#batchOutputDirBtn').click();
+    await page.waitForFunction(() => {
+      const start = document.querySelector('#batchStartBtn');
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      return text.includes('Batch S01E01.mp4') && start && !start.disabled;
+    });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#batchStatus')?.textContent || '';
+      return status.startsWith('批量完成：') || status.startsWith('批量已取消：');
+    }, null, { timeout: 360_000 });
+
+    const status = await page.locator('#batchStatus').textContent();
+    assert.match(status, /成功 1，失败 0/);
+    assert.match(status, /其中 1 项未完整写入目录/);
+    assert.match(await page.locator('#batchResults').textContent(), /simulated quota exceeded/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 1);
+    assert.equal(await page.locator('#batchResults a.report-download').count(), 1);
+    console.log('Batch directory save fallback PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchQueue(browser) {
   console.log('E2E scenario 28: two-job batch queue with filename pairing');
   const { context, page } = await openApp(browser);
@@ -1818,6 +1959,9 @@ try {
   await scenarioAv1PreviewFrame(browser);
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
+  await scenarioBatchAmbiguousSafety(browser);
+  await scenarioBatchDirectoryConflict(browser);
+  await scenarioBatchDirectorySaveFallback(browser);
   await scenarioBatchQueue(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
