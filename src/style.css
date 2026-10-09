@@ -5584,3 +5584,121 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 .workload-notice[data-level="normal"] {
   display: none;
 }
+
+
+/* MKV-focused UI phase 1: identify the workflow and its primary action.
+   Overrides are intentionally scoped: existing track controls, preview
+   interaction, tablet disclosure, and phone two-mode editor stay intact. */
+.stage-context {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.45;
+}
+
+.execution-headline {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.execution-headline strong {
+  color: var(--text-strong);
+  font-size: .91rem;
+  font-weight: 700;
+}
+
+.execution-headline span {
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.45;
+}
+
+.execution-panel .actions {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  gap: 9px;
+}
+
+.execution-panel .action-icon-button {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 15px;
+  gap: 10px;
+  font-weight: 760;
+  font-size: .92rem;
+}
+
+.execution-panel .danger-icon-button {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 48px;
+  padding: 10px 13px;
+  gap: 8px;
+  font-size: .76rem;
+  font-weight: 650;
+}
+
+.execution-panel .actions .action-label {
+  white-space: nowrap;
+}
+
+.execution-panel .icon-link:not(.hidden) {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  flex-basis: auto;
+  gap: 9px;
+  justify-content: flex-start;
+  font-size: .76rem;
+  font-weight: 680;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.execution-panel .download:not(.hidden) {
+  border-color: color-mix(in srgb, var(--success) 60%, var(--line));
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-1));
+}
+
+@media (min-width: 1360px) and (hover: hover) and (pointer: fine) {
+  /* Desktop users can discover the same live object-focus navigation offered
+     on small screens, rather than being forced through all editor fields. */
+  .editor-grid > .object-editor-nav {
+    display: grid;
+    grid-column: 1 / -1;
+  }
+
+  .editor-grid[data-editor-focus="source"] > .source-track-card,
+  .editor-grid[data-editor-focus="subtitle"] > .config-card,
+  .editor-grid[data-editor-focus="audio"] > .config-card,
+  .editor-grid[data-editor-focus="font"] > .config-card {
+    grid-column: 1 / -1;
+  }
+
+  .subtitle-preview-card .preview-head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .subtitle-preview-card .preview-head h3 {
+    margin: 0;
+    font-size: .84rem;
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 600px) {
+  .stage-context { font-size: .68rem; }
+  .execution-panel .actions { gap: 7px; }
+  .execution-panel .action-icon-button { padding: 10px 12px; }
+  .execution-panel .danger-icon-button { padding: 10px; }
+}
