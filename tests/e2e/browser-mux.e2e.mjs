@@ -1548,6 +1548,104 @@ async function scenarioResponsiveObjectEditor(browser) {
 }
 
 
+async function scenarioContentFirstMkvIntake(browser) {
+  console.log('E2E: unified content-first file inventory routes mixed assets to existing mux engine');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', [
+      path.join(root, 'base.mp4'),
+      path.join(root, 'zh.ass'),
+      path.join(root, 'external.flac'),
+      path.join(root, 'DejaVuSans.ttf'),
+    ]);
+    await page.waitForFunction(() => {
+      const entries = document.querySelectorAll('.asset-entry');
+      const button = document.querySelector('#muxBtn');
+      return entries.length === 4 && button && !button.disabled;
+    }, null, { timeout: 120_000 });
+    const inventory = await page.locator('#assetInventory').textContent();
+    assert.match(inventory, /媒体容器/);
+    assert.match(inventory, /字幕/);
+    assert.match(inventory, /独立音频/);
+    assert.match(inventory, /字体/);
+    assert.deepEqual(await page.evaluate(() => ({
+      source: [...document.querySelector('#videoInput').files].map(f => f.name),
+      subtitles: [...document.querySelector('#subInput').files].map(f => f.name),
+      audio: [...document.querySelector('#audioInput').files].map(f => f.name),
+      fonts: [...document.querySelector('#fontInput').files].map(f => f.name),
+    })), {
+      source: ['base.mp4'], subtitles: ['zh.ass'], audio: ['external.flac'],
+      fonts: ['DejaVuSans.ttf'],
+    });
+    assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
+
+    // Unrecognized content stays visible, blocks execution and can be removed.
+    await page.evaluate(() => {
+      const file = new File([new Uint8Array([0, 2, 4, 6])], 'mystery.bin');
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      const input = document.querySelector('#unifiedAssetInput');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.waitForFunction(() => document.querySelectorAll('.asset-entry').length === 5);
+    assert.match(await page.locator('#assetImportStatus').textContent(), /1 项未识别/);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    await page.locator('.asset-entry[data-kind="unknown"] [data-asset-remove]').click();
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#muxBtn');
+      return document.querySelectorAll('.asset-entry').length === 4 && btn && !btn.disabled;
+    });
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'unified-intake.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const streamsOut = probe(output).streams;
+    assert.equal(streamsOut.filter(s => s.codec_type === 'video').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'subtitle').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'attachment').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'audio').length, 2);
+    console.log('Unified content-first intake mux PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioContentFirstSourceAmbiguity(browser) {
+  console.log('E2E: multiple detected containers require source choice; source-only MKV remux is valid');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', [
+      path.join(root, 'base.mp4'),
+      path.join(root, 'source-with-attachments.mkv'),
+    ]);
+    await page.waitForFunction(() => document.querySelectorAll('.asset-entry[data-kind="container"]').length === 2);
+    assert.match(await page.locator('#assetImportStatus').textContent(), /请选择主源/);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+
+    await page.locator('.asset-entry[data-kind="container"]').filter({ hasText: 'source-with-attachments.mkv' })
+      .locator('[data-asset-source]').check();
+    await page.waitForFunction(() => {
+      const source = document.querySelector('#videoInput').files[0];
+      const btn = document.querySelector('#muxBtn');
+      return source?.name === 'source-with-attachments.mkv' && btn && !btn.disabled;
+    }, null, { timeout: 120_000 });
+    assert.equal(await page.locator('#subInput').evaluate(el => el.files.length), 0);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-only-remux.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    assert.ok(result.streams.some(s => s.codec_type === 'video'));
+    assert.ok(result.streams.some(s => s.codec_type === 'audio'));
+    console.log('Source ambiguity and MKV-only remux PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioTabletDesktopUi(browser) {
   console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
   const context = await browser.newContext({
@@ -2001,6 +2099,8 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioTabletDesktopUi(browser);
+  await scenarioContentFirstMkvIntake(browser);
+  await scenarioContentFirstSourceAmbiguity(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
