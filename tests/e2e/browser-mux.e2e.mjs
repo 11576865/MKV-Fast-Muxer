@@ -1548,6 +1548,62 @@ async function scenarioResponsiveObjectEditor(browser) {
 }
 
 
+async function scenarioMkvUiActionHierarchy(browser) {
+  console.log('E2E: MKV workbench keeps actions legible and object focus accessible');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForFunction(() =>
+      matchMedia('(min-width: 1360px) and (hover: hover) and (pointer: fine)').matches
+    );
+
+    assert.equal(await page.locator('.subtitle-preview-card .preview-head').isVisible(), true);
+    assert.equal(await page.locator('.editor-grid > .object-editor-nav').isVisible(), true);
+    assert.equal(await page.locator('#muxBtn').getByText('开始封装').isVisible(), true);
+    assert.equal(await page.locator('#cancelBtn').getByText('取消').isVisible(), true);
+    assert.match(await page.locator('.execution-headline').textContent(), /MKV/);
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.locator('[data-editor-filter="subtitle"]').click();
+    assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
+    assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
+    await page.locator('[data-editor-filter="source"]').click();
+    assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
+    await page.locator('[data-editor-filter="all"]').click();
+    assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
+
+    const desktop = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      actionWidth: document.querySelector('#muxBtn').getBoundingClientRect().width,
+      navWidth: document.querySelector('.object-editor-nav').getBoundingClientRect().width,
+    }));
+    assert.ok(desktop.scrollWidth <= desktop.innerWidth, 'no new horizontal overflow on desktop');
+    assert.ok(desktop.actionWidth >= 130, 'primary action is no longer a 48px icon-only target');
+    assert.ok(desktop.navWidth >= 300, 'object navigation has a usable desktop width');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.locator('#muxBtn').getByText('开始封装').isVisible(), true);
+    assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
+    assert.equal(await page.locator('[data-editor-filter="source"]').isVisible(), true);
+    assert.equal(await page.locator('[data-editor-filter="subtitle"]').isVisible(), false);
+    assert.equal(await page.locator('#previewStage').isVisible(), false);
+    assert.equal(await page.locator('#mobilePreviewToggle').isVisible(), true);
+
+    const mobile = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+      actionWidth: document.querySelector('#muxBtn').getBoundingClientRect().width,
+    }));
+    assert.ok(mobile.scrollWidth <= mobile.innerWidth, 'no new horizontal overflow on phone');
+    assert.ok(mobile.actionWidth >= 130, 'phone primary action still has a readable label');
+    console.log('MKV action hierarchy PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioTabletDesktopUi(browser) {
   console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
   const context = await browser.newContext({
@@ -2001,6 +2057,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioTabletDesktopUi(browser);
+  await scenarioMkvUiActionHierarchy(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
