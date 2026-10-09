@@ -19,7 +19,7 @@ class FakeDirectory {
     this.writeFailures = new Set();
     this.abortCount = 0;
     this.removals = [];
-    this.simulateReplacement = false;
+    this.injectBeforeCreate = null;
     this.preserveOnAbort = false;
     this.failCreateWritable = false;
   }
@@ -34,18 +34,17 @@ class FakeDirectory {
   }
 
   async getFileHandle(filename, { create = false } = {}) {
+    if (create && this.injectBeforeCreate) {
+      const injection = this.injectBeforeCreate;
+      this.injectBeforeCreate = null;
+      injection(filename, this.files);
+    }
     if (!this.files.has(filename)) {
       if (!create) throw namedError('NotFoundError');
       this.files.set(filename, null);
     }
     const directory = this;
-    const identity = this.files;
     return {
-      isSameEntry: async (other) => !directory.simulateReplacement && other.identity === identity,
-      identity,
-      getFile: async () => ({
-        size: directory.files.get(filename) === null ? 0 : String(directory.files.get(filename)).length,
-      }),
       createWritable: async () => {
         if (directory.failCreateWritable) throw new Error('create writable failed');
         let pending = null;
@@ -127,60 +126,62 @@ test('directory occupying an output filename counts as collision', async () => {
   assert.deepEqual(await findExistingNamedOutputs(directory, ['a.mkv']), ['a.mkv']);
 });
 
-test('writing failure aborts a writable instead of closing and publishing partial content', async () => {
+test('aborted write never deletes a possible foreign directory entry', async () => {
   const directory = new FakeDirectory();
   directory.writeFailures.add('failed.mkv');
   await assert.rejects(
     writeNewBatchOutput(directory, 'failed.mkv', new Blob(['incomplete'])),
-    /disk write failed/,
+    /写入已中止，未删除任何目录文件/,
   );
   assert.equal(directory.abortCount, 1);
-  assert.equal(directory.files.has('failed.mkv'), false);
-  assert.deepEqual(directory.removals, ['failed.mkv']);
+  assert.equal(directory.files.has('failed.mkv'), true);
+  assert.deepEqual(directory.removals, []);
 });
 
-test('failed writable creation removes only verified empty new entry', async () => {
+test('createWritable failure leaves a possibly new entry for manual inspection', async () => {
   const directory = new FakeDirectory();
   directory.failCreateWritable = true;
   await assert.rejects(
     writeNewBatchOutput(directory, 'uncreated.mkv', new Blob(['x'])),
-    /create writable failed/,
+    /请检查后再重试/,
   );
-  assert.equal(directory.files.has('uncreated.mkv'), false);
-  assert.deepEqual(directory.removals, ['uncreated.mkv']);
-});
-
-test('cleanup never removes a different entry that replaced the original handle', async () => {
-  const directory = new FakeDirectory();
-  directory.writeFailures.add('changed.mkv');
-  directory.simulateReplacement = true;
-  await assert.rejects(
-    writeNewBatchOutput(directory, 'changed.mkv', new Blob(['x'])),
-    /自动清理未完成/,
-  );
-  assert.equal(directory.files.has('changed.mkv'), true);
+  assert.equal(directory.files.has('uncreated.mkv'), true);
   assert.deepEqual(directory.removals, []);
 });
 
-test('cleanup never removes nonempty files after abort', async () => {
+test('a foreign empty file created after preflight must not be removed', async () => {
+  const directory = new FakeDirectory();
+  directory.failCreateWritable = true;
+  directory.injectBeforeCreate = (filename, files) => {
+    files.set(filename, null); // a concurrent writer created the empty entry
+  };
+  await assert.rejects(
+    writeNewBatchOutput(directory, 'foreign-empty.mkv', new Blob(['x'])),
+    /未删除任何目录文件/,
+  );
+  assert.equal(directory.files.has('foreign-empty.mkv'), true);
+  assert.deepEqual(directory.removals, []);
+});
+
+test('a foreign populated file modified during abort must not be removed', async () => {
   const directory = new FakeDirectory();
   directory.writeFailures.add('important.mkv');
   directory.preserveOnAbort = true;
   await assert.rejects(
     writeNewBatchOutput(directory, 'important.mkv', new Blob(['x'])),
-    /自动清理未完成/,
+    /写入已中止/,
   );
   assert.equal(directory.files.get('important.mkv'), 'OTHER PROCESS');
   assert.deepEqual(directory.removals, []);
 });
 
-test('if delete capability is absent, fail safely and warn for manual inspection', async () => {
+test('absence of remove capability still yields clear manual inspection warning', async () => {
   const directory = new FakeDirectory();
   directory.removeEntry = undefined;
   directory.writeFailures.add('no-remove.mkv');
   await assert.rejects(
     writeNewBatchOutput(directory, 'no-remove.mkv', new Blob(['x'])),
-    /自动清理未完成/,
+    /请检查后再重试/,
   );
   assert.equal(directory.files.has('no-remove.mkv'), true);
 });
