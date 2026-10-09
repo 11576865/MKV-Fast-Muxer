@@ -49,6 +49,25 @@ export async function findExistingBatchOutputs(directory, jobs = []) {
   return findExistingNamedOutputs(directory, plannedBatchFilenames(jobs));
 }
 
+// A failed writable can leave a newly created zero-byte entry behind even
+// after abort(). Remove it only when identity and emptiness can be verified.
+// Never delete an entry with contents, a changed identity, or missing metadata.
+async function removeAbortedEmptyBatchOutput(directory, filename, createdHandle) {
+  if (typeof directory.removeEntry !== 'function' ||
+      typeof createdHandle.isSameEntry !== 'function') return false;
+  try {
+    const existingHandle = await directory.getFileHandle(filename, { create: false });
+    if (!(await createdHandle.isSameEntry(existingHandle))) return false;
+    const existingFile = await existingHandle.getFile();
+    if (existingFile.size !== 0) return false;
+    await directory.removeEntry(filename);
+    return true;
+  } catch {
+    // Cleanup cannot safely be guaranteed. Preserve the original I/O error.
+    return false;
+  }
+}
+
 export async function writeNewBatchOutput(directory, filename, blob) {
   if (!directory || !blob) throw new Error('缺少批量输出目录或成品。');
   if ((await findExistingNamedOutputs(directory, [filename])).length) {
@@ -57,12 +76,17 @@ export async function writeNewBatchOutput(directory, filename, blob) {
   // File System Access API has no atomic create-if-absent operation. This is
   // best-effort protection against pre-existing files, not a cross-process lock.
   const handle = await directory.getFileHandle(filename, { create: true });
-  const writable = await handle.createWritable();
+  let writable;
   try {
+    writable = await handle.createWritable();
     await writable.write(blob);
     await writable.close();
   } catch (error) {
-    try { await writable.abort?.(); } catch {}
+    try { await writable?.abort?.(); } catch {}
+    const cleaned = await removeAbortedEmptyBatchOutput(directory, filename, handle);
+    if (!cleaned) {
+      throw new Error(`${error?.message || error}；自动清理未完成，请检查输出目录内的“${filename}”后再重试。`, { cause: error });
+    }
     throw error;
   }
   return true;
