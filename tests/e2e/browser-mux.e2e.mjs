@@ -1687,10 +1687,23 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     assert.equal(audios[0].tags?.title, 'Tree Edited Opus');
     assert.equal(streams(result, 'subtitle')[0].disposition?.forced, 1);
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    // Exporting must NOT clear the unified inventory or reset live trackState.
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files[0]?.name), 'source-multitrack.mkv');
     assert.equal(await tree.isVisible(), true);
-    console.log('MKV container-tree source track editing PASS');
+    assert.equal(await tree.locator('[data-tree-group="audio"] [data-tree-track-field="title"]').nth(1).inputValue(), 'Tree Edited Opus');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Responsive projection may settle after the viewport API resolves.
+    await page.waitForFunction(() => {
+      const tree = document.querySelector('.asset-container-tree');
+      const rect = tree?.getBoundingClientRect();
+      return Boolean(rect && rect.width > 0 && rect.height > 0 &&
+        document.documentElement.scrollWidth <= innerWidth);
+    }, null, { timeout: 30_000 });
+    assert.equal(await tree.isVisible(), true);
+    assert.equal(await tree.getAttribute('open'), '');
+    assert.equal(await page.locator('#muxBtn').isDisabled(), false);
+    console.log('MKV container-tree source track editing and post-export retention PASS');
   } finally {
     await context.close();
   }
