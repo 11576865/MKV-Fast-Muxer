@@ -51,15 +51,16 @@ test('narrow layouts stack controls and batch is a secondary expandable workspac
 });
 
 
-test('desktop refinement removes explanatory noise and prioritizes action without changing mobile markup', async () => {
+test('desktop refinement keeps compact controls while restoring discoverable MKV actions', async () => {
   const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
 
   assert.match(css, /Desktop refinement: annotated 1920px pass/);
   assert.match(css, /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/);
   assert.match(css, /\.stage-input \.stage-title p,[\s\S]*\.stage-input \.workload-notice \{[\s\S]*display: none;/);
   assert.match(css, /\.subtitle-preview-card \.preview-head \{[\s\S]*display: none;/);
-  assert.match(css, /\.object-editor-nav \{[\s\S]*display: none;/);
-  assert.match(css, /\.action-icon-button \{[\s\S]*width: 48px;[\s\S]*background: var\(--success\)/);
+  assert.match(css, /\.editor-grid > \.object-editor-nav \{\s*display: grid;/);
+  assert.match(css, /\.subtitle-preview-card \.preview-head \{\s*display: flex;/);
+  assert.match(css, /\.execution-panel \.action-icon-button \{\s*width: auto;[\s\S]*flex: 1 1 auto;/);
   assert.match(css, /\.batch-layout \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(400px, \.65fr\)/);
 
   // Controls stay in the DOM for narrower layouts and scripted state preservation.
