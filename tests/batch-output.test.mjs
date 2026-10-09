@@ -18,6 +18,15 @@ class FakeDirectory {
     this.files = new Map(files.map((name) => [name, 'ORIGINAL']));
     this.writeFailures = new Set();
     this.abortCount = 0;
+    this.removals = [];
+    this.simulateReplacement = false;
+    this.preserveOnAbort = false;
+    this.failCreateWritable = false;
+  }
+
+  async removeEntry(filename) {
+    this.removals.push(filename);
+    this.files.delete(filename);
   }
 
   async *entries() {
@@ -29,16 +38,27 @@ class FakeDirectory {
       if (!create) throw namedError('NotFoundError');
       this.files.set(filename, null);
     }
+    const directory = this;
+    const identity = this.files;
     return {
+      isSameEntry: async (other) => !directory.simulateReplacement && other.identity === identity,
+      identity,
+      getFile: async () => ({
+        size: directory.files.get(filename) === null ? 0 : String(directory.files.get(filename)).length,
+      }),
       createWritable: async () => {
+        if (directory.failCreateWritable) throw new Error('create writable failed');
         let pending = null;
         return {
           write: async (blob) => {
-            if (this.writeFailures.has(filename)) throw new Error('disk write failed');
+            if (directory.writeFailures.has(filename)) throw new Error('disk write failed');
             pending = blob;
           },
-          close: async () => { this.files.set(filename, pending); },
-          abort: async () => { this.abortCount += 1; },
+          close: async () => { directory.files.set(filename, pending); },
+          abort: async () => {
+            directory.abortCount += 1;
+            if (directory.preserveOnAbort) directory.files.set(filename, 'OTHER PROCESS');
+          },
         };
       },
     };
@@ -115,5 +135,52 @@ test('writing failure aborts a writable instead of closing and publishing partia
     /disk write failed/,
   );
   assert.equal(directory.abortCount, 1);
-  assert.equal(directory.files.get('failed.mkv'), null);
+  assert.equal(directory.files.has('failed.mkv'), false);
+  assert.deepEqual(directory.removals, ['failed.mkv']);
+});
+
+test('failed writable creation removes only verified empty new entry', async () => {
+  const directory = new FakeDirectory();
+  directory.failCreateWritable = true;
+  await assert.rejects(
+    writeNewBatchOutput(directory, 'uncreated.mkv', new Blob(['x'])),
+    /create writable failed/,
+  );
+  assert.equal(directory.files.has('uncreated.mkv'), false);
+  assert.deepEqual(directory.removals, ['uncreated.mkv']);
+});
+
+test('cleanup never removes a different entry that replaced the original handle', async () => {
+  const directory = new FakeDirectory();
+  directory.writeFailures.add('changed.mkv');
+  directory.simulateReplacement = true;
+  await assert.rejects(
+    writeNewBatchOutput(directory, 'changed.mkv', new Blob(['x'])),
+    /自动清理未完成/,
+  );
+  assert.equal(directory.files.has('changed.mkv'), true);
+  assert.deepEqual(directory.removals, []);
+});
+
+test('cleanup never removes nonempty files after abort', async () => {
+  const directory = new FakeDirectory();
+  directory.writeFailures.add('important.mkv');
+  directory.preserveOnAbort = true;
+  await assert.rejects(
+    writeNewBatchOutput(directory, 'important.mkv', new Blob(['x'])),
+    /自动清理未完成/,
+  );
+  assert.equal(directory.files.get('important.mkv'), 'OTHER PROCESS');
+  assert.deepEqual(directory.removals, []);
+});
+
+test('if delete capability is absent, fail safely and warn for manual inspection', async () => {
+  const directory = new FakeDirectory();
+  directory.removeEntry = undefined;
+  directory.writeFailures.add('no-remove.mkv');
+  await assert.rejects(
+    writeNewBatchOutput(directory, 'no-remove.mkv', new Blob(['x'])),
+    /自动清理未完成/,
+  );
+  assert.equal(directory.files.has('no-remove.mkv'), true);
 });
