@@ -1154,6 +1154,47 @@ async function scenarioFontSubsetting(browser) {
   }
 }
 
+async function scenarioBatchAmbiguousSafety(browser) {
+  console.log('E2E: ambiguous episode-only batch subtitles must not start a mux');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    const videoBuffer = await fs.readFile(path.join(root, 'base.mp4'));
+    const subtitleBuffer = await fs.readFile(path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.setInputFiles('#batchVideoInput', [
+      { name: 'Series A S01E01.mp4', mimeType: 'video/mp4', buffer: videoBuffer },
+      { name: 'Series B S01E01.mp4', mimeType: 'video/mp4', buffer: videoBuffer },
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', {
+      name: 'S01E01.zh-Hans.ass', mimeType: 'text/plain', buffer: subtitleBuffer,
+    });
+
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchPlan')?.textContent || '').includes('字幕匹配多个视频')
+    );
+    const plan = await page.locator('#batchPlan').textContent();
+    assert.match(plan, /S01E01\.zh-Hans\.ass/);
+    assert.match(plan, /Series A S01E01\.mp4/);
+    assert.match(plan, /Series B S01E01\.mp4/);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(), 0);
+
+    await page.setInputFiles('#batchSubtitleInput', {
+      name: 'Series B S01E01.zh-Hans.ass', mimeType: 'text/plain', buffer: subtitleBuffer,
+    });
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return text.includes('Series B S01E01.zh-Hans.ass') &&
+        !text.includes('字幕匹配多个视频') && start && !start.disabled;
+    });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    console.log('Batch ambiguous pairing safety PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchQueue(browser) {
   console.log('E2E scenario 28: two-job batch queue with filename pairing');
   const { context, page } = await openApp(browser);
@@ -1818,6 +1859,7 @@ try {
   await scenarioAv1PreviewFrame(browser);
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
+  await scenarioBatchAmbiguousSafety(browser);
   await scenarioBatchQueue(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
