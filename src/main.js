@@ -1044,6 +1044,14 @@ unifiedFolderInput?.addEventListener('change', () => {
   void importUnifiedAssets(unifiedFolderInput.files);
   unifiedFolderInput.value = '';
 });
+assetDropzone?.addEventListener('click', () => {
+  if (!isBusy() && !batchRunning && !importInProgress) unifiedAssetInput?.click();
+});
+assetDropzone?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  if (!isBusy() && !batchRunning && !importInProgress) unifiedAssetInput?.click();
+});
 assetDropzone?.addEventListener('dragover', (event) => {
   if (isBusy() || batchRunning || importInProgress) return;
   event.preventDefault();
