@@ -39,3 +39,23 @@ All full Node/build/Chromium checks are **pending CI** at initial PR submission.
 - Source content verification should be asynchronous but cancellable, with explicit `PENDING`/verified/error lifecycle and no FFmpeg contention across imports.
 - Batch input should eventually reuse a common identity inventory without bypassing ambiguity and destination collision gates.
 - Remove leftover CSS legacy selectors and align existing UI tests with the new hierarchy once actual viewport evidence is collected.
+
+
+## Phase 2 — inline source-container tree (Draft PR #69 follow-up)
+
+Once the **selected source MKV** has completed the existing automatic ffprobe scan, its entry now expands to a nested tree of actual video/audio/subtitle/data streams, original attachments, chapters and preserved global metadata. Stream names/codecs/tags come from the source probe, not extension guesses. Other imported media containers still remain **unverified**; no imaginary stream list is generated for them.
+
+In this vertical slice, the tree allows users to toggle full-content-preservation vs selective editing, include/exclude original audio/subtitle tracks and attachments, change track language/title and Default/Forced status, and rename source attachment filename/MIME. These controls update the **same `trackState` objects** used by the established original-track editor and FFmpeg output planner; there is no independent tree copy to reconcile.
+
+The established editor retains its wider functions (track ordering, advanced Original/Commentary/Hearing-impaired flags, bulk operations). The new tree is a first direct-edit surface, not a claim that all container editing now occurs in one location.
+
+**Important post-export lifetime fix:** The legacy single-task success path previously cleared `videoInput`, `subInput`, `audioInput` and `trackState`. That was incompatible with the visible, persistent unified asset inventory; the UI would show an imported file even though its editable source and stream tree had disappeared. The unified import path now preserves input adapters, original track selections and modifications after a successful MKV export, enabling a second edit/export operation. Users explicitly remove inventory items when no longer needed. The legacy non-inventory path retains its previous clear-on-success behavior.
+
+Regression requirements:
+- An actual scanned multitrack MKV renders all relevant source stream categories.
+- Changes in the tree are visible in the original editor **and** affect the downloaded MKV's ffprobe metadata/track count.
+- Chapter and metadata items remain visible and unchanged; original attachment removal/renaming is reflected in the artifact.
+- Successful export does not strand or clear the unified import and edit context.
+- At 390px phone width, synchronize on nonzero tree geometry after viewport change before asserting overflow and visibility.
+
+The source-projection model has **5/5 V8 source-derived assertions** passing. The first full Node/Chromium CI run caught the real post-export reset mismatch; it is being corrected with a targeted browser regression. Do not mark this phase accepted until the later **latest-head** CI is green.
