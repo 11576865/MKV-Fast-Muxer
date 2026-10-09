@@ -26,6 +26,7 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, ASSET_STATUS } from './asset-intake.js';
+import { buildContainerTreeModel } from './container-tree.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -289,6 +290,7 @@ let previewCueIndex = -1;
 let videoSniffGeneration = 0;
 let videoSniffPromise = Promise.resolve();
 let importedAssetEntries = [];
+const containerTreeExpansion = new Map();
 let chosenImportSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
@@ -952,6 +954,83 @@ function applyImportedAssetRoles() {
   updateUI();
 }
 
+function renderSourceContainerTree(entry, selected, sourceScanned) {
+  if (entry.kind !== 'container' || !selected) return '';
+  if (!sourceScanned) {
+    const isMkv = currentVideoIsMatroska(entry.file);
+    return `<div class="asset-container-pending">${isMkv
+      ? (scanning ? '正在解析 MKV 内部轨道、附件和章节…' : '内部轨道未完成验证；请使用容器扫描后检查。')
+      : '已识别容器头；此容器的内部轨道将在封装时核验，尚无可编辑的轨道树。'}</div>`;
+  }
+
+  const appendMode = Boolean(appendPreserveAll?.checked);
+  const model = buildContainerTreeModel(trackState, {
+    appendMode,
+    metadataTags: preservableFormatTags(trackState.format?.tags || {}),
+  });
+  if (!model) return '';
+  const locked = isBusy() || batchRunning;
+  const disabled = locked || appendMode;
+  const open = containerTreeExpansion.get(entry.key) ?? true;
+  const badge = (status) => containerStatusBadge(status);
+  const row = (item) => {
+    if (item.kind === 'chapter') {
+      const ch = item.chapter;
+      const name = ch.tags?.title || `Chapter #${item.index + 1}`;
+      return `<div class="asset-tree-row" data-change="keep"><strong>${escapeHtml(name)}</strong>
+        <small>${escapeHtml(String(ch.start_time ?? ch.start ?? ''))} → ${escapeHtml(String(ch.end_time ?? ch.end ?? ''))}</small>${badge('keep')}</div>`;
+    }
+    if (item.kind === 'metadata') {
+      return `<div class="asset-tree-row asset-tree-metadata" data-change="keep">
+        <strong>${item.tags.length} 个全局元数据字段</strong>
+        <div class="asset-tree-metadata-fields">${item.tags.map(([key, value]) =>
+          `<span><b>${escapeHtml(key)}</b> ${escapeHtml(value)}</span>`).join('') || '无可保留的全局字段'}</div>
+        ${badge('keep')}</div>`;
+    }
+    const { stream, track, attachment } = item;
+    const title = attachment ? (attachment.filename || `Attachment #${item.index}`)
+      : track?.title || containerStreamTitle(stream);
+    const meta = attachment
+      ? `source #${item.index} · ${attachment.mimetype || stream.codec_name || 'attachment'}`
+      : containerStreamMeta(stream);
+    let actions = '';
+    if (track) {
+      const inputDisabled = disabled || !track.include ? 'disabled' : '';
+      actions = `<div class="asset-tree-controls">
+        <label><input type="checkbox" data-tree-track-include="${item.index}" ${track.include ? 'checked' : ''} ${disabled ? 'disabled' : ''}> 保留</label>
+        <label>语言 <input type="text" data-tree-track-field="language" data-tree-track-index="${item.index}" value="${escapeHtml(track.language)}" maxlength="35" list="languageSuggestions" ${inputDisabled}></label>
+        <label>标题 <input type="text" data-tree-track-field="title" data-tree-track-index="${item.index}" value="${escapeHtml(track.title)}" maxlength="160" ${inputDisabled}></label>
+        <label><input type="checkbox" data-tree-track-flag="default" data-tree-track-index="${item.index}" ${track.default ? 'checked' : ''} ${inputDisabled}> Default</label>
+        ${track.type === 'subtitle' ? `<label><input type="checkbox" data-tree-track-flag="forced" data-tree-track-index="${item.index}" ${track.forced ? 'checked' : ''} ${inputDisabled}> Forced</label>` : ''}
+      </div>`;
+    } else if (attachment) {
+      const inputDisabled = disabled || !attachment.include ? 'disabled' : '';
+      actions = `<div class="asset-tree-controls">
+        <label><input type="checkbox" data-tree-attachment-include="${item.index}" ${attachment.include ? 'checked' : ''} ${disabled ? 'disabled' : ''}> 保留</label>
+        <label>名称 <input type="text" data-tree-attachment-field="filename" data-tree-attachment-index="${item.index}" value="${escapeHtml(attachment.filename)}" maxlength="240" ${inputDisabled}></label>
+        <label>MIME <input type="text" data-tree-attachment-field="mimetype" data-tree-attachment-index="${item.index}" value="${escapeHtml(attachment.mimetype)}" maxlength="120" ${inputDisabled}></label>
+      </div>`;
+    }
+    return `<div class="asset-tree-row" data-change="${item.status}" data-tree-stream-index="${item.index}">
+      <div class="asset-tree-item-info"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(meta)}</small></div>
+      ${actions}${badge(item.status)}</div>`;
+  };
+
+  return `<details class="asset-container-tree" data-source-tree="${escapeHtml(entry.key)}" ${open ? 'open' : ''}>
+    <summary>容器内容 · ${model.streamCount} 个流 · ${model.attachmentCount} 个附件 · ${model.chapterCount} 个章节</summary>
+    <div class="asset-tree-body">
+      <label class="asset-tree-mode"><input type="checkbox" data-tree-preserve-all ${appendMode ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+        保留全部原内容，仅追加新素材
+      </label>
+      ${appendMode ? '<p class="asset-tree-tip">当前为保留全部模式。取消上方勾选后，可调整音频、字幕和附件。</p>' : ''}
+      ${model.groups.map((group) => `<section class="asset-tree-group" data-tree-group="${group.key}">
+        <h4>${group.label} <span>${group.items.length}</span></h4>
+        ${group.items.map(row).join('')}
+      </section>`).join('')}
+    </div>
+  </details>`;
+}
+
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
   const entries = importedAssetEntries;
@@ -1002,6 +1081,7 @@ function renderImportedAssetInventory() {
         </label>` : ''}
         <button type="button" class="asset-remove" data-asset-remove="${escapeHtml(entry.key)}" ${canChange ? '' : 'disabled'}>移除</button>
       </div>
+      ${renderSourceContainerTree(entry, selected, sourceScanned)}
     </div>`;
   }).join('');
 }
@@ -1065,6 +1145,71 @@ assetDropzone?.addEventListener('drop', (event) => {
   assetDropzone.dataset.dragging = 'false';
   void importUnifiedAssets(event.dataTransfer?.files);
 });
+assetInventory?.addEventListener('toggle', (event) => {
+  const details = event.target.closest?.('details[data-source-tree]');
+  if (!details || !assetInventory.contains(details)) return;
+  containerTreeExpansion.set(details.dataset.sourceTree, details.open);
+}, true);
+
+function editSourceFromInventory(event) {
+  if (!trackState || isBusy() || batchRunning) return;
+  const element = event.target;
+  const trackIndex = element.dataset.treeTrackIndex
+    ?? element.dataset.treeTrackInclude ?? element.dataset.treeTrackFlag && element.dataset.treeTrackIndex;
+  const attachmentIndex = element.dataset.treeAttachmentIndex ?? element.dataset.treeAttachmentInclude;
+  let modified = false;
+  if (trackIndex !== undefined) {
+    const track = trackState.tracks.find((item) => item.index === Number(trackIndex));
+    if (!track) return;
+    if (element.dataset.treeTrackInclude !== undefined) {
+      track.include = element.checked;
+      if (!track.include) {
+        for (const flag of ['default','forced','original','commentary','hearingImpaired']) track[flag] = false;
+      }
+    } else if (element.dataset.treeTrackFlag) {
+      track[element.dataset.treeTrackFlag] = element.checked;
+    } else if (element.dataset.treeTrackField) {
+      track[element.dataset.treeTrackField] = element.value;
+    }
+    renderTrackList();
+    modified = true;
+  } else if (attachmentIndex !== undefined) {
+    const item = trackState.attachments.find((entry) => entry.index === Number(attachmentIndex));
+    if (!item) return;
+    if (element.dataset.treeAttachmentInclude !== undefined) {
+      item.include = element.checked;
+      preserveAttachments.checked = trackState.attachments.length > 0 &&
+        trackState.attachments.every((entry) => entry.include);
+    } else if (element.dataset.treeAttachmentField) {
+      item[element.dataset.treeAttachmentField] = element.value;
+    }
+    renderAttachmentList();
+    modified = true;
+  }
+  if (modified) {
+    renderContainerChangeSummary();
+    renderMuxPlan();
+    if (event.type === 'change' && element.type === 'checkbox') renderImportedAssetInventory();
+  }
+}
+
+assetInventory?.addEventListener('input', (event) => {
+  if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) {
+    editSourceFromInventory(event);
+  }
+});
+assetInventory?.addEventListener('change', (event) => {
+  if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) return;
+  if (event.target.matches('[data-tree-preserve-all]')) {
+    appendPreserveAll.checked = event.target.checked;
+    appendPreserveAll.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  if (event.target.matches('[data-tree-track-include], [data-tree-track-flag], [data-tree-attachment-include]')) {
+    editSourceFromInventory(event);
+  }
+});
+
 assetInventory?.addEventListener('change', (event) => {
   const radio = event.target.closest('[data-asset-source]');
   if (!radio || isBusy() || batchRunning || importInProgress) return;
