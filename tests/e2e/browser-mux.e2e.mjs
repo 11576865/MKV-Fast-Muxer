@@ -1509,10 +1509,9 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
     // mobile all mode excludes source structure; source remains its own mode
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
-    const mobileSourceHeights = await page.locator('.source-strip .source-item').evaluateAll((items) =>
-      items.map((el) => el.getBoundingClientRect().height)
-    );
-    assert.ok(Math.max(...mobileSourceHeights) <= 72, `mobile source cards are too tall: ${mobileSourceHeights.join(', ')}`);
+    const mobileIntake = await page.locator('.unified-intake').boundingBox();
+    assert.ok(mobileIntake && mobileIntake.width > 250, 'unified intake should remain usable on phones');
+    assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -1676,7 +1675,7 @@ async function scenarioTabletDesktopUi(browser) {
       const output = document.querySelector('.output-hub').getBoundingClientRect();
       const config = document.querySelector('.config-card').getBoundingClientRect();
       const source = document.querySelector('.source-track-card').getBoundingClientRect();
-      const sourceGrid = getComputedStyle(document.querySelector('.source-strip')).gridTemplateColumns;
+      const unifiedPickerWidth = document.querySelector('.unified-intake').getBoundingClientRect().width;
       return {
         scroll: document.documentElement.scrollWidth,
         viewport: innerWidth,
@@ -1685,14 +1684,14 @@ async function scenarioTabletDesktopUi(browser) {
         outputWidth: output.width,
         configWidth: config.width,
         sourceWidth: source.width,
-        sourceGrid,
+        unifiedPickerWidth,
       };
     });
     assert.ok(collapsedLayout.scroll <= collapsedLayout.viewport, `tablet horizontal overflow: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.outputLeft >= collapsedLayout.editorRight - 1, `tablet output should sit beside editor: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.outputWidth >= 270, `tablet output is too narrow: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.configWidth >= 250 && collapsedLayout.sourceWidth >= 250, `tablet editor cards are too narrow: ${JSON.stringify(collapsedLayout)}`);
-    assert.ok(collapsedLayout.sourceGrid.split(' ').length >= 4, `tablet source strip should keep desktop four-column UI: ${collapsedLayout.sourceGrid}`);
+    assert.ok(collapsedLayout.unifiedPickerWidth > 500, `unified intake needs enough tablet width: ${collapsedLayout.unifiedPickerWidth}`);
 
     await page.locator('#mobilePreviewToggle').click();
     assert.equal(await page.locator('#previewStage').isVisible(), true);
