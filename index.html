@@ -74,7 +74,38 @@
             </div>
           </header>
 
-          <div class="source-grid source-strip" aria-label="单次封装素材">
+          <section class="unified-intake" aria-labelledby="intake-title">
+            <div class="unified-intake-head">
+              <div>
+                <h3 id="intake-title">导入文件和容器</h3>
+                <p>无需预先区分视频、音频、字幕或字体。先识别文件内容，再选择 MKV 主源和附加资源。</p>
+              </div>
+              <div class="unified-intake-buttons">
+                <label class="button button-primary intake-picker">
+                  添加文件
+                  <input id="unifiedAssetInput" type="file" multiple aria-label="导入任意文件并识别内容" />
+                </label>
+                <label class="button button-secondary intake-picker">
+                  添加文件夹
+                  <input id="unifiedFolderInput" type="file" multiple webkitdirectory directory aria-label="导入文件夹并识别内容" />
+                </label>
+              </div>
+            </div>
+            <div id="assetDropzone" class="asset-dropzone" tabindex="0" role="group" aria-label="文件拖放区域">
+              将文件拖到这里，或使用上方按钮导入。仅识别当前引擎支持的内容；未知文件会保留在清单中并提示。
+            </div>
+            <div class="asset-inventory-head">
+              <strong>已导入资源</strong>
+              <span id="assetImportStatus" role="status" aria-live="polite">尚未导入文件</span>
+            </div>
+            <div id="assetInventory" class="asset-inventory" aria-label="导入资源清单">
+              <div class="track-empty">导入后在此查看实际内容类型、主源选择和识别问题。</div>
+            </div>
+          </section>
+
+          <!-- Legacy DOM adapters retained for the existing audited FFmpeg workflow.
+               They are not user-facing categorized import gates. -->
+          <div class="source-grid source-strip legacy-source-picker" hidden aria-hidden="true" inert>
             <label class="source-item source-video source-primary">
               <input id="videoInput" type="file" />
               <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l3-2v9l-3-2V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span>
