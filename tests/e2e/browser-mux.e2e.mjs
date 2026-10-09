@@ -1645,6 +1645,91 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
   }
 }
 
+async function scenarioUnifiedContainerTreeEditing(browser) {
+  console.log('E2E: MKV container tree edits live original audio, subtitle and attachment state');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    assert.equal(await tree.getAttribute('open'), '');
+    assert.equal(await tree.locator('[data-tree-group="video"] .asset-tree-row').count(), 1);
+    assert.equal(await tree.locator('[data-tree-group="audio"] .asset-tree-row').count(), 2);
+    assert.equal(await tree.locator('[data-tree-group="subtitle"] .asset-tree-row').count(), 1);
+    assert.equal(await page.locator('#assetInventory [data-tree-preserve-all]').isChecked(), true);
+
+    // Exposing selective edit mode must use the SAME append flag as old editor.
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), false);
+    const audio = tree.locator('[data-tree-group="audio"] .asset-tree-row');
+    await audio.nth(0).locator('[data-tree-track-include]').uncheck();
+    assert.equal(await page.locator('.track-row.track-audio').nth(0)
+      .locator('input[data-track-action="include"]').isChecked(), false);
+    await audio.nth(1).locator('[data-tree-track-field="title"]').fill('Tree Edited Opus');
+    assert.equal(await page.locator('.track-row.track-audio').nth(1)
+      .locator('input[data-track-field="title"]').inputValue(), 'Tree Edited Opus');
+    const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
+    await subtitle.locator('[data-tree-track-flag="forced"]').check();
+    assert.equal(await page.locator('.track-row.track-subtitle')
+      .locator('input[data-track-action="forced"]').isChecked(), true);
+    assert.match(await page.locator('#muxPlan').textContent(), /Tree Edited Opus/);
+    assert.match(await page.locator('#containerChangeSummary').textContent(), /删除/);
+    assert.equal(await tree.getAttribute('open'), '', 'container hierarchy must remain expanded after edits');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-audio-edit.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    const audios = streams(result, 'audio');
+    assert.equal(audios.length, 1);
+    assert.equal(audios[0].tags?.title, 'Tree Edited Opus');
+    assert.equal(streams(result, 'subtitle')[0].disposition?.forced, 1);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await tree.isVisible(), true);
+    console.log('MKV container-tree source track editing PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnifiedContainerAttachmentEditing(browser) {
+  console.log('E2E: source container hierarchy includes chapters, metadata and editable attachments');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-with-attachments.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    assert.equal(await tree.locator('[data-tree-group="chapter"] .asset-tree-row').count(), 2);
+    assert.equal(await tree.locator('[data-tree-group="metadata"] .asset-tree-row').count(), 1);
+    const attachmentRows = tree.locator('[data-tree-group="attachment"] .asset-tree-row');
+    assert.equal(await attachmentRows.count(), 2);
+
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const font = attachmentRows.filter({ hasText: 'fixture-original.ttf' });
+    await font.locator('[data-tree-attachment-include]').uncheck();
+    const notes = attachmentRows.filter({ hasText: 'notes.txt' });
+    await notes.locator('[data-tree-attachment-field="filename"]').fill('tree-notes.txt');
+    assert.equal(await page.locator('.attachment-item', { hasText: 'notes.txt' })
+      .locator('input[data-attachment-field="filename"]').inputValue(), 'tree-notes.txt');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-attachments.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    assert.equal(result.chapters?.length, 2);
+    assert.deepEqual(streams(result, 'attachment').map(s => s.tags?.filename), ['tree-notes.txt']);
+    console.log('MKV container-tree attachment editing PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioTabletDesktopUi(browser) {
   console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
   const context = await browser.newContext({
@@ -2100,6 +2185,8 @@ try {
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
   await scenarioContentFirstSourceAmbiguity(browser);
+  await scenarioUnifiedContainerTreeEditing(browser);
+  await scenarioUnifiedContainerAttachmentEditing(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
