@@ -3811,13 +3811,20 @@ muxBtn.addEventListener('click', async () => {
       logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体 face / 字形覆盖警告。请在发布前检查日志。\n`;
     }
 
-    videoInput.value = '';
-    audioInput.value = '';
-    subInput.value = '';
-    externalAudioState = [];
-    newSubtitleState = [];
-    renderNewTrackLists();
-    resetTrackState();
+    // Content-first asset inventory remains the user's editable task after
+    // export. Clearing only the hidden File adapters here would strand the
+    // visible source/track tree and discard its live edits. Keep the task ready
+    // for another revision; users can explicitly remove assets to release it.
+    // Preserve original cleanup behavior only for the pre-inventory path.
+    if (!importedAssetEntries.length) {
+      videoInput.value = '';
+      audioInput.value = '';
+      subInput.value = '';
+      externalAudioState = [];
+      newSubtitleState = [];
+      renderNewTrackLists();
+      resetTrackState();
+    }
   } catch (err) {
     console.error(err);
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
