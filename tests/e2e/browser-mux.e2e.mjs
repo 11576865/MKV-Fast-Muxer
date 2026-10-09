@@ -1244,6 +1244,57 @@ async function scenarioBatchDirectoryConflict(browser) {
   }
 }
 
+async function scenarioBatchDirectorySaveFallback(browser) {
+  console.log('E2E: completed mux remains downloadable when optional directory save fails');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      window.showDirectoryPicker = async () => ({
+        name: 'simulated-unwritable-dir',
+        requestPermission: async () => 'granted',
+        entries: async function* () {},
+        getFileHandle: async (_name, options = {}) => {
+          if (!options.create) {
+            throw Object.assign(new Error('not found'), { name: 'NotFoundError' });
+          }
+          return {
+            createWritable: async () => ({
+              write: async () => { throw new Error('simulated quota exceeded'); },
+              close: async () => {},
+              abort: async () => {},
+            }),
+          };
+        },
+      });
+    });
+
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.locator('#batchOutputDirBtn').click();
+    await page.waitForFunction(() => {
+      const start = document.querySelector('#batchStartBtn');
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      return text.includes('Batch S01E01.mp4') && start && !start.disabled;
+    });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const status = document.querySelector('#batchStatus')?.textContent || '';
+      return status.startsWith('批量完成：') || status.startsWith('批量已取消：');
+    }, null, { timeout: 360_000 });
+
+    const status = await page.locator('#batchStatus').textContent();
+    assert.match(status, /成功 1，失败 0/);
+    assert.match(status, /其中 1 项未完整写入目录/);
+    assert.match(await page.locator('#batchResults').textContent(), /simulated quota exceeded/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 1);
+    assert.equal(await page.locator('#batchResults a.report-download').count(), 1);
+    console.log('Batch directory save fallback PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchQueue(browser) {
   console.log('E2E scenario 28: two-job batch queue with filename pairing');
   const { context, page } = await openApp(browser);
@@ -1910,6 +1961,7 @@ try {
   await scenarioFontSubsetting(browser);
   await scenarioBatchAmbiguousSafety(browser);
   await scenarioBatchDirectoryConflict(browser);
+  await scenarioBatchDirectorySaveFallback(browser);
   await scenarioBatchQueue(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
