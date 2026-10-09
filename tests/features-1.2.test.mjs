@@ -21,7 +21,8 @@ test('1.2 batch UI exposes folder inputs, output directory and group subset mode
   assert.match(html, /value="group"/);
   assert.match(main, /showDirectoryPicker/);
   assert.match(main, /buildGroupedSubsetFonts/);
-  assert.match(main, /writeBlobToBatchDirectory/);
+  assert.match(main, /findExistingBatchOutputs/);
+  assert.match(main, /writeNewBatchOutput/);
 });
 
 test('1.2 runtime handles binary subtitle streams without text decoding', () => {
