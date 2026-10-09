@@ -25,6 +25,7 @@ import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './f
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
+import { formatBatchTerminalStatus } from './batch-status.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -3889,6 +3890,7 @@ batchStartBtn?.addEventListener('click', async () => {
   const originalSubsetEnabled = fontSubsetEnabled?.checked;
   const requestedBatchFonts = pairing.fonts || [];
   const results = [];
+  let batchFatalError = '';
   let jobFonts = requestedBatchFonts;
 
   setInputFiles(audioInput, []);
@@ -3977,15 +3979,19 @@ batchStartBtn?.addEventListener('click', async () => {
         : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
       ).join('');
     }
+  } catch (error) {
+    // Preparation (notably Group font subsetting) and per-job setup happen
+    // outside the per-item mux try/catch. These failures must be visible, not
+    // mistaken for an empty, successful batch; always restore inputs below.
+    batchFatalError = error?.message || String(error);
+    console.error('Batch preparation/execution interrupted:', error);
   } finally {
     batchRunning = false;
-    const done = results.filter((item) => item.ok).length;
-    const failed = results.filter((item) => !item.ok).length;
-    const unsaved = results.filter((item) => item.ok && item.directorySaveError).length;
-    const saveWarning = unsaved ? `其中 ${unsaved} 项未完整写入目录，可通过下载链接另存。` : '';
-    batchStatus.textContent = batchCancelRequested
-      ? `批量已取消：完成 ${done}，失败 ${failed}。${saveWarning}`
-      : `批量完成：成功 ${done}，失败 ${failed}。${saveWarning}`;
+    batchStatus.textContent = formatBatchTerminalStatus({
+      results,
+      cancelled: batchCancelRequested,
+      fatalError: batchFatalError,
+    });
     batchCancelRequested = false;
     setInputFiles(videoInput, originalVideoFiles);
     await videoSniffPromise;

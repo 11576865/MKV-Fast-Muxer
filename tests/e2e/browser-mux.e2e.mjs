@@ -1400,6 +1400,56 @@ async function scenarioPreserveAllAppend(browser) {
   }
 }
 
+async function scenarioBatchGroupSubsetPreparationFailure(browser) {
+  console.log('E2E: Group font-subset preparation failure is visible and input state is restored');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.setInputFiles('#batchFontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#batchFontSubsetEnabled').check();
+    await page.locator('#batchSubsetScope').selectOption('group');
+
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      const start = document.querySelector('#batchStartBtn');
+      return plan.includes('Batch S01E01.mp4') && start && !start.disabled;
+    }, null, { timeout: 60_000 });
+
+    // Inject only after preflight/cached file identity checks are complete.
+    // Group preparation then reads the actual ASS bytes with readAssText().
+    await page.evaluate(() => {
+      const original = File.prototype.arrayBuffer;
+      File.prototype.arrayBuffer = function (...args) {
+        if (this.name === 'Batch S01E01.zh-Hans.ass') {
+          return Promise.reject(new Error('simulated group subtitle read failure'));
+        }
+        return original.apply(this, args);
+      };
+    });
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const message = document.querySelector('#batchStatus')?.textContent || '';
+      return message.startsWith('批量中断：');
+    }, null, { timeout: 120_000 });
+
+    const message = await page.locator('#batchStatus').textContent();
+    assert.match(message, /批量中断：simulated group subtitle read failure/);
+    assert.match(message, /已完成 0，单项失败 0/);
+    assert.doesNotMatch(message, /批量完成/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+    await page.waitForFunction(() => {
+      const start = document.querySelector('#batchStartBtn');
+      return start && !start.disabled;
+    }, null, { timeout: 60_000 });
+    console.log('Batch Group preparation failure feedback PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchGroupSubset(browser) {
   console.log('E2E scenario 31: batch group font subset reused across jobs');
   const { context, page } = await openApp(browser);
@@ -2041,6 +2091,7 @@ try {
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
   await scenarioBatchGroupSubset(browser);
+  await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
 } finally {
   await browser.close();
