@@ -3587,7 +3587,7 @@ async function syncBatchPlan() {
     }),
   ]);
 
-  if (generation !== batchPlanGeneration) return latestBatchPairing;
+  if (generation !== batchPlanGeneration) return null;
 
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
@@ -3625,6 +3625,18 @@ async function syncBatchPlan() {
   if (mismatchCount) notes.push(`${mismatchCount} 个视频扩展名与实际内容不一致，已按实际容器识别`);
   if (recognition.ignored.length) notes.push(`${recognition.ignored.length} 个文件未识别为支持的视频容器`);
   if (subtitleRecognition.mismatches?.length) notes.push(`${subtitleRecognition.mismatches.length} 个字幕扩展名与实际内容不一致，已按实际格式识别`);
+  if (pairing.ambiguousPairings.length) {
+    const examples = pairing.ambiguousPairings.slice(0, 3).map(({ track, candidates }) =>
+      `${track.file.name} → ${candidates.map((video) => video.webkitRelativePath || video.name).join(' / ')}`
+    );
+    notes.push(`${pairing.ambiguousPairings.length} 条字幕匹配多个视频（${examples.join('；')}）；请调整文件名或分批处理，未自动选择第一个`);
+  }
+  if (pairing.outputNameCollisions.length) {
+    const examples = pairing.outputNameCollisions.map(({ outputName, videos }) =>
+      `${outputName} ← ${videos.map((video) => video.webkitRelativePath || video.name).join(' / ')}`
+    );
+    notes.push(`输出文件名冲突（${examples.join('；')}）；请调整文件名或分批处理，以免覆盖已有任务产物`);
+  }
   if (pairing.unmatchedVideos.length) notes.push(`${pairing.unmatchedVideos.length} 个视频没有匹配字幕`);
   if (pairing.unmatchedSubtitles.length) notes.push(`${pairing.unmatchedSubtitles.length} 条字幕没有匹配视频`);
   if (pairing.orphanSidecars.length) notes.push(`${pairing.orphanSidecars.length} 个 VobSub .sub 缺少同名 .idx`);
@@ -3643,6 +3655,8 @@ async function syncBatchPlan() {
     batchRunning ||
     isBusy() ||
     !pairing.jobs.length ||
+    pairing.ambiguousPairings.length > 0 ||
+    pairing.outputNameCollisions.length > 0 ||
     pairing.invalidSubtitles.length > 0 ||
     fontRecognition.ignored.length > 0;
   batchCancelBtn.disabled = !batchRunning;
@@ -3806,7 +3820,21 @@ batchCancelBtn?.addEventListener('click', () => {
 batchStartBtn?.addEventListener('click', async () => {
   if (isBusy()) return;
   const pairing = await requestBatchPlanSync();
-  if (!pairing?.jobs?.length) return;
+  if (!pairing) {
+    batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
+    return;
+  }
+  if (
+    !pairing.jobs.length ||
+    pairing.ambiguousPairings.length ||
+    pairing.outputNameCollisions.length ||
+    pairing.invalidSubtitles.length ||
+    pairing.fontRecognition?.ignored?.length
+  ) {
+    batchStatus.textContent = '批量未开始：请先解决配对歧义、重名输出或无效输入。';
+    return;
+  }
+  if (isBusy() || batchRunning) return;
 
   batchRunning = true;
   batchCancelRequested = false;
