@@ -1703,6 +1703,79 @@ async function scenarioRenamedMediaIdentity(browser) {
   }
 }
 
+async function scenarioBatchResultUrlLifetime(browser) {
+  console.log('E2E: batch download Blob URLs survive a completed run and expire on next run');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      const nativeRevoke = URL.revokeObjectURL.bind(URL);
+      window.__revokedResultUrls = [];
+      URL.revokeObjectURL = (url) => {
+        window.__revokedResultUrls.push(url);
+        nativeRevoke(url);
+      };
+    });
+
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+
+    async function waitReady() {
+      await page.waitForFunction(() => {
+        const start = document.querySelector('#batchStartBtn');
+        const plan = document.querySelector('#batchPlan')?.textContent || '';
+        return start && !start.disabled && plan.includes('Batch S01E01.mp4');
+      }, null, { timeout: 60_000 });
+    }
+
+    async function waitCompleted() {
+      await page.waitForFunction(() => {
+        const value = document.querySelector('#batchStatus')?.textContent || '';
+        return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
+      }, null, { timeout: 360_000 });
+      assert.match(await page.locator('#batchStatus').textContent(), /成功 1，失败 0/);
+    }
+
+    await waitReady();
+    await page.locator('#batchStartBtn').click();
+    await waitCompleted();
+    const firstLinks = await page.locator('#batchResults a').evaluateAll((els) =>
+      els.map((el) => el.href)
+    );
+    assert.equal(firstLinks.length, 2, 'MKV and report downloads stay visible');
+    assert.ok(firstLinks.every((href) => href.startsWith('blob:')));
+    assert.deepEqual(
+      await page.evaluate((links) =>
+        links.filter((url) => window.__revokedResultUrls.includes(url)), firstLinks
+      ),
+      [],
+      'do not revoke downloads while their result rows remain on screen',
+    );
+
+    await waitReady();
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction((links) =>
+      links.every((url) => window.__revokedResultUrls.includes(url)), firstLinks,
+      { timeout: 30_000 }
+    );
+    await waitCompleted();
+    const secondLinks = await page.locator('#batchResults a').evaluateAll((els) =>
+      els.map((el) => el.href)
+    );
+    assert.equal(secondLinks.length, 2);
+    assert.deepEqual(
+      await page.evaluate((links) =>
+        links.filter((url) => window.__revokedResultUrls.includes(url)), secondLinks
+      ),
+      [],
+      'new batch result links must remain usable',
+    );
+    console.log('Batch Blob download URL lifetime PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchContentIdentity(browser) {
   console.log('E2E scenario 35: batch video identity follows content, not filename extension');
   const { context, page } = await openApp(browser);
@@ -1963,6 +2036,7 @@ try {
   await scenarioBatchDirectoryConflict(browser);
   await scenarioBatchDirectorySaveFallback(browser);
   await scenarioBatchQueue(browser);
+  await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);

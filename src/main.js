@@ -24,6 +24,7 @@ import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
+import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -264,6 +265,7 @@ let previewing = false;
 let batchRunning = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
+const batchResultUrls = createBatchResultUrlRegistry();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
@@ -3870,6 +3872,9 @@ batchStartBtn?.addEventListener('click', async () => {
 
   batchRunning = true;
   batchCancelRequested = false;
+  // Old batch links remain valid until a replacement batch actually starts.
+  // Clear them together with the old results to release large Blob references.
+  batchResultUrls.releaseAll();
   batchResults.innerHTML = '';
   batchStatus.textContent = `批量任务：0 / ${pairing.jobs.length}`;
   requestBatchPlanSync();
@@ -3950,8 +3955,8 @@ batchStartBtn?.addEventListener('click', async () => {
           }
         }
 
-        const url = URL.createObjectURL(result.blob);
-        const reportUrl = result.reportBlob ? URL.createObjectURL(result.reportBlob) : '';
+        const url = batchResultUrls.create(result.blob);
+        const reportUrl = batchResultUrls.create(result.reportBlob);
         results.push({
           job,
           ok: true,
