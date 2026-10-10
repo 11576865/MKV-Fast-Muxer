@@ -1169,6 +1169,76 @@ async function scenarioFontSubsetting(browser) {
   }
 }
 
+async function scenarioUnifiedBatchContentIntake(browser) {
+  console.log('E2E: unified batch import identifies mixed contents, blocks unsupported files, then muxes MKV');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchUnifiedInput', [
+      path.join(root, 'Batch S01E01.mp4'),
+      path.join(root, 'Batch S01E01.zh-Hans.ass'),
+      path.join(root, 'DejaVuSans.ttf'),
+      path.join(root, 'external.flac'),
+    ]);
+    await page.waitForFunction(() => {
+      const count = document.querySelectorAll('#batchAssetInventory .asset-entry').length;
+      const status = document.querySelector('#batchAssetStatus')?.textContent || '';
+      return count === 4 && status.includes('1 项不可使用');
+    }, null, { timeout: 120_000 });
+    assert.deepEqual(await page.locator('#batchAssetInventory .asset-entry').evaluateAll(items =>
+      items.map(item => item.dataset.kind)
+    ), ['container','subtitle','font','audio']);
+    assert.deepEqual(await page.evaluate(() => [
+      [...document.querySelector('#batchVideoInput').files].map(f => f.name),
+      [...document.querySelector('#batchSubtitleInput').files].map(f => f.name),
+      [...document.querySelector('#batchFontInput').files].map(f => f.name),
+    ]), [['Batch S01E01.mp4'], ['Batch S01E01.zh-Hans.ass'], ['DejaVuSans.ttf']]);
+    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+
+    await page.locator('#batchAssetInventory .asset-entry[data-kind="audio"] [data-batch-asset-remove]').click();
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return document.querySelectorAll('#batchAssetInventory .asset-entry').length === 3 &&
+        plan.includes('Batch S01E01.mp4') &&
+        plan.includes('1 ASS') &&
+        !document.querySelector('#batchStartBtn').disabled;
+    }, null, { timeout: 120_000 });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#batchStatus')?.textContent || '';
+      return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
+    }, null, { timeout: 360_000 });
+    assert.match(await page.locator('#batchStatus').textContent(), /成功 1，失败 0/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 1);
+    const resultPath = path.join(outDir, 'unified-batch-content-first.mkv');
+    const link = page.locator('#batchResults a.download').first();
+    const downloadPromise = page.waitForEvent('download');
+    await link.click();
+    await (await downloadPromise).saveAs(resultPath);
+    const output = probe(resultPath);
+    assert.ok(output.streams.some(stream => stream.codec_type === 'video'));
+    assert.ok(output.streams.some(stream => stream.codec_type === 'subtitle'));
+    assert.ok(output.streams.some(stream => stream.codec_type === 'attachment'));
+
+    // Explicit use of the advanced category picker switches modes rather
+    // than mixing hidden unified adapters with stale manual selections.
+    await page.locator('.batch-legacy-intake > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E02.mp4'));
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return plan.includes('Batch S01E02.mp4') && !plan.includes('Batch S01E01.mp4') &&
+        document.querySelectorAll('#batchAssetInventory .asset-entry').length === 0;
+    });
+    assert.equal(await page.locator('#batchSubtitleInput').evaluate(el => el.files.length), 0);
+    assert.equal(await page.locator('#batchFontInput').evaluate(el => el.files.length), 0);
+    console.log('Unified batch content-first import and real MKV mux PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchAmbiguousSafety(browser) {
   console.log('E2E: ambiguous episode-only batch subtitles must not start a mux');
   const { context, page } = await openApp(browser);
@@ -2462,6 +2532,7 @@ try {
   await scenarioAv1PreviewFrame(browser);
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
+  await scenarioUnifiedBatchContentIntake(browser);
   await scenarioBatchAmbiguousSafety(browser);
   await scenarioBatchDirectoryConflict(browser);
   await scenarioBatchDirectorySaveFallback(browser);
