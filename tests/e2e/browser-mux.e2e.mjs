@@ -757,8 +757,23 @@ async function scenarioTenSequential(browser) {
       await page.setInputFiles('#subInput', path.join(root, index % 2 === 0 ? 'zh.ass' : 'en.ass'));
       await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
+      // The previous iteration clears the old inputs after export. Await the
+      // new subtitle identity and current task readiness before editing its
+      // metadata; otherwise a stale track editor can be filled mid-refresh.
+      const subtitleName = index % 2 === 0 ? 'zh.ass' : 'en.ass';
+      await page.waitForFunction((expected) => {
+        const file = document.querySelector('#subInput')?.files?.[0];
+        const action = document.querySelector('#muxBtn');
+        const titleField = document.querySelector(
+          'input[data-new-sub-field="title"][data-index="0"]'
+        );
+        return file?.name === expected && action && !action.disabled &&
+          titleField && !titleField.disabled;
+      }, subtitleName, { timeout: 60_000 });
+
       const title = `Loop ${index + 1}`;
       await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill(title);
+      assert.equal(await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue(), title);
       await page.locator('#muxBtn').click();
       await waitForStatus(page, '完成。');
 
