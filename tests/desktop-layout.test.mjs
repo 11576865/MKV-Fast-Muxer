@@ -41,7 +41,7 @@ test('narrow layouts keep content-first intake and batch remains separately expa
   const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
   assert.match(css, /@media \(max-width: 900px\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
-  assert.match(css, /\.unified-intake-head \{ flex-direction: column; align-items: stretch;/);
+  assert.match(await source('src/workbench.css'), /\.unified-intake-head \{ flex-direction: column; align-items: stretch;/);
   assert.match(html, /<details class="batch-drawer">/);
   assert.match(html, /id="batchVideoFolderInput"/);
   assert.match(html, /id="batchSubtitleFolderInput"/);
@@ -57,7 +57,7 @@ test('desktop refinement preserves existing editors while offering unified impor
 
   assert.match(css, /Desktop refinement: annotated 1920px pass/);
   assert.match(css, /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/);
-  assert.match(css, /\.legacy-source-picker,\s*\.legacy-source-picker\[hidden\] \{\s*display: none !important;/);
+  assert.match(await source('src/workbench.css'), /\.legacy-source-picker,\s*\.legacy-source-picker\[hidden\] \{\s*display: none !important;/);
   assert.match(css, /\.subtitle-preview-card \.preview-head \{[\s\S]*display: none;/);
   assert.match(css, /\.object-editor-nav \{[\s\S]*display: none;/);
   assert.match(css, /\.action-icon-button \{[\s\S]*width: 48px;[\s\S]*background: var\(--success\)/);
@@ -75,7 +75,7 @@ test('portrait tablet guard preserves editor/output columns below unified import
 
   assert.match(css, /Portrait tablet \/ desktop-mode browser guard/);
   assert.match(css, /@media \(min-width: 601px\) and \(max-width: 1180px\) and \(orientation: portrait\)/);
-  assert.match(css, /@media \(max-width: 900px\) \{\s*\.unified-intake-head \{ flex-direction: column;/);
+  assert.match(await source('src/workbench.css'), /@media \(max-width: 900px\) \{\s*\.unified-intake-head \{ flex-direction: column;/);
   assert.match(css, /\.workspace > \.workbench-grid \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(css, /\.output-hub \{[\s\S]*position: static;[\s\S]*max-height: none;[\s\S]*overflow: visible/);
 });
