@@ -59,13 +59,20 @@
         </div>
       </header>
 
+      <nav class="workbench-jump-nav" aria-label="工作台区段导航">
+        <a href="#source-title">资源</a>
+        <a href="#workbench-editor-title">编辑</a>
+        <a href="#workbench-output-title">输出</a>
+        <a href="#batch-title">批量</a>
+      </nav>
+
       <main class="workspace">
         <section class="stage stage-input" aria-labelledby="source-title">
           <header class="stage-head">
             <div class="stage-title">
               <span class="section-index">01</span>
               <div>
-                <h2 id="source-title">素材</h2>
+                <h2 id="source-title" tabindex="-1">素材</h2>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -159,7 +166,7 @@
               <div class="stage-title">
                 <span class="section-index">02</span>
                 <div>
-                  <h2>预览与调整</h2>
+                  <h2 id="workbench-editor-title" tabindex="-1">预览与调整</h2>
                   
                 </div>
               </div>
@@ -339,7 +346,7 @@
               <div class="stage-title">
                 <span class="section-index">03</span>
                 <div>
-                  <h2>封装输出</h2>
+                  <h2 id="workbench-output-title" tabindex="-1">封装输出</h2>
                   
                 </div>
               </div>
@@ -353,22 +360,6 @@
                 <div><span>字幕</span><strong>软字幕轨</strong></div>
                 <div><span>字体</span><strong id="fontSummary">—</strong></div>
                 <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
-              </div>
-            </section>
-
-            <section class="output-section plan-panel">
-              <div class="side-panel-head">
-                <div>
-                  <h3>封装计划</h3>
-                </div>
-                <div class="plan-head-actions">
-                  <button id="refreshPlanBtn" class="icon-button" type="button" aria-label="刷新封装计划" title="刷新封装计划"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg></button>
-                  <button id="mobilePlanToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="planWarnings muxPlan">展开</button>
-                </div>
-              </div>
-              <div id="planWarnings" class="plan-warnings hidden"></div>
-              <div id="muxPlan" class="mux-plan">
-                <div class="track-empty">选择文件后显示最终 MKV 结构。</div>
               </div>
             </section>
 
@@ -391,6 +382,24 @@
 
               
             </section>
+
+            <section class="output-section plan-panel">
+              <div class="side-panel-head">
+                <div>
+                  <h3>封装计划</h3>
+                </div>
+                <div class="plan-head-actions">
+                  <button id="refreshPlanBtn" class="icon-button" type="button" aria-label="刷新封装计划" title="刷新封装计划"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg></button>
+                  <button id="mobilePlanToggle" class="mobile-disclosure-toggle" type="button" aria-expanded="false" aria-controls="planWarnings muxPlan">展开</button>
+                </div>
+              </div>
+              <div id="planWarnings" class="plan-warnings hidden"></div>
+              <div id="muxPlan" class="mux-plan">
+                <div class="track-empty">选择文件后显示最终 MKV 结构。</div>
+              </div>
+            </section>
+
+
           </aside>
         </div>
 
@@ -399,7 +408,7 @@
             <div class="stage-title">
               <span class="section-index">B</span>
               <div>
-                <h2 id="batch-title">批量封装</h2>
+                <h2 id="batch-title" tabindex="-1">批量封装</h2>
               </div>
             </div>
             <div class="batch-status-chip">
