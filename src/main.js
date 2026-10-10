@@ -1267,6 +1267,12 @@ function editSourceFromInventory(event) {
       track[element.dataset.treeTrackFlag] = element.checked;
     } else if (element.dataset.treeTrackField) {
       track[element.dataset.treeTrackField] = element.value;
+      if (element.dataset.treeTrackField === 'title') {
+        const activeLabel = assetInventory?.querySelector('.asset-tree-select[aria-pressed="true"] .asset-tree-index-name');
+        if (activeLabel) activeLabel.textContent = element.value || containerStreamTitle(
+          trackState.streams.find((stream) => stream.index === track.index) || { index: track.index }
+        );
+      }
     }
     renderTrackList();
     modified = true;
@@ -1279,6 +1285,10 @@ function editSourceFromInventory(event) {
         trackState.attachments.every((entry) => entry.include);
     } else if (element.dataset.treeAttachmentField) {
       item[element.dataset.treeAttachmentField] = element.value;
+      if (element.dataset.treeAttachmentField === 'filename') {
+        const activeLabel = assetInventory?.querySelector('.asset-tree-select[aria-pressed="true"] .asset-tree-index-name');
+        if (activeLabel) activeLabel.textContent = element.value || `附件 #${item.index}`;
+      }
     }
     renderAttachmentList();
     modified = true;
