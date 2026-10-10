@@ -1371,6 +1371,7 @@ function applyLanguageToSelectedTracks(type) {
   const language = normalizeTrackLanguage(bulkLanguage?.value);
   selectedTracks(type).forEach((track) => { track.language = language; });
   renderTrackList();
+  renderImportedAssetInventory();
 }
 
 function setOnlyFirstDefault(type) {
@@ -1378,6 +1379,7 @@ function setOnlyFirstDefault(type) {
   const selected = selectedTracks(type);
   selected.forEach((track, index) => { track.default = index === 0; });
   renderTrackList();
+  renderImportedAssetInventory();
 }
 
 applyAudioLanguage?.addEventListener('click', () => applyLanguageToSelectedTracks('audio'));
@@ -1391,6 +1393,7 @@ clearAllDefaults?.addEventListener('click', () => {
   externalAudioState.forEach((track) => { track.default = false; });
   newSubtitleState.forEach((track) => { track.default = false; });
   renderTrackList();
+  renderImportedAssetInventory();
   renderNewTrackLists();
   renderMuxPlan();
 });
@@ -1410,6 +1413,7 @@ function setTrackInclusion(type, include) {
       }
     });
   renderTrackList();
+  renderImportedAssetInventory();
 }
 
 function restoreTrackMetadata(type) {
@@ -1426,6 +1430,7 @@ function restoreTrackMetadata(type) {
       track.hearingImpaired = track.originalHearingImpaired;
     });
   renderTrackList();
+  renderImportedAssetInventory();
 }
 
 keepAllAudio?.addEventListener('click', () => setTrackInclusion('audio', true));
@@ -1440,6 +1445,7 @@ function setAttachmentInclusion(include) {
   trackState.attachments.forEach((item) => { item.include = include; });
   preserveAttachments.checked = include && trackState.attachments.length > 0;
   renderAttachmentList();
+  renderImportedAssetInventory();
   renderMuxPlan();
 }
 
@@ -1452,6 +1458,7 @@ resetAttachmentMetadata?.addEventListener('click', () => {
     item.mimetype = item.originalMimetype;
   });
   renderAttachmentList();
+  renderImportedAssetInventory();
   renderMuxPlan();
 });
 
@@ -2848,6 +2855,7 @@ attachmentList.addEventListener('change', (event) => {
     item[fieldInput.dataset.attachmentField] = fieldInput.value;
   }
   renderMuxPlan();
+  renderImportedAssetInventory();
 });
 
 function escapeHtml(value) {
@@ -2880,6 +2888,7 @@ trackList.addEventListener('change', (event) => {
       track.hearingImpaired = false;
     }
     renderTrackList();
+    renderImportedAssetInventory();
     return;
   }
 
@@ -2888,6 +2897,7 @@ trackList.addEventListener('change', (event) => {
   // is moving focus to it, causing the next edit to be lost.
   track[fieldInput.dataset.trackField] = fieldInput.value;
   renderMuxPlan();
+  renderImportedAssetInventory();
 });
 
 trackList.addEventListener('input', (event) => {
@@ -2907,6 +2917,9 @@ trackList.addEventListener('click', (event) => {
   if (!track) return;
   moveTrack(track, Number(button.dataset.trackMove));
   renderTrackList();
+  renderImportedAssetInventory();
+  renderContainerChangeSummary();
+  renderMuxPlan();
 });
 
 async function scanSourceContainer({ automatic = false } = {}) {
