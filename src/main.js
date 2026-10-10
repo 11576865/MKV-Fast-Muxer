@@ -1076,10 +1076,11 @@ function renderImportedAssetInventory() {
       container: '媒体容器', subtitle: '字幕', font: '字体',
       audio: '独立音频', unknown: '未识别',
     }[entry.kind] || '未知';
-    const statusLabel = entry.status === ASSET_STATUS.RECOGNIZED ? '已识别'
-      : entry.status === ASSET_STATUS.UNVERIFIED ? '需进一步验证'
-      : '不参与封装';
     const sourceScanned = selected && trackState?.fileKey === fileKey(entry.file);
+    const statusLabel = sourceScanned ? '内部结构已扫描'
+      : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别内容'
+      : entry.status === ASSET_STATUS.UNVERIFIED ? '已识别文件头，内部流待核验'
+      : '不参与封装';
     const counts = sourceScanned
       ? Object.entries(
           (trackState.streams || []).reduce((all, stream) => {
