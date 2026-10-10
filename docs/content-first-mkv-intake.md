@@ -134,3 +134,19 @@ A small shared `src/inventory-focus.js` helper now restores focus **after** the 
 This logic is shared between single and batch inventories without merging their different execution contracts. Four unit checks cover next-row, empty-list fallback, identity-based source radio and disabled target semantics. Browser E2E asserts actual keyboard Enter-based removal of unsupported single/batch assets and Space-based source switching, inspecting `document.activeElement` after the list rerenders.
 
 Do not conflate keyboard focus restoration with complete accessibility: screen-reader announcements, escape/selection semantics, touch hit targets and task-level keyboard traversal require separate verification. The latest CI for the phase must be checked at the final commit; prior E2E green results do not validate these new focus assertions.
+
+
+## Phase 9 — finish CSS authority split and cross-viewport edit retention
+
+The prior Phase 6 extracted the newer three-zone layout and native navigation, but it left the underlying content-first upload surface and full source-container/attachment tree definitions at the **end of the legacy global stylesheet**. That split gave two style files authority over the same import/inspector component and made visual regressions hard to localize.
+
+This slice moves the complete content-first intake and MKV source tree CSS into `src/workbench.css` before its more specific modern layout rules, while preserving the original selectors and import order (`src/style.css` first, `src/workbench.css` second). The legacy `src/style.css` is reduced from ~5,868 to ~5,587 lines. The workbench stylesheet becomes the explicit owner of source import, source-stream index, active property inspector, responsive task navigation, named output actions, and the batch content-first entry layout. No FFmpeg, parser, metadata schema or DOM input identity changes.
+
+Regression contracts:
+- Source-level checks prohibit moving `Content-first MKV intake`, `Live source-container hierarchy`, `In-place track ordering`, and `Workbench IA` rules back to legacy CSS, and verify actual CSS load order.
+- Old tests no longer assert the obsolete side-by-side preview/legacy editor or icon-only primary action; they assert a 16:9 preview **within the current editor zone**, default absence of duplicate source forms, a three-zone desktop layout and visibly named MKV execution actions.
+- Real Chromium resizes an imported, selected and explicitly editable stream from 1600px desktop → 390px mobile → 1600px desktop, checks its title, index selection and unique inspector remain stable, and verifies task navigation still uses native hash anchors.
+
+**Safety precondition:** `appendPreserveAll` defaults to enabled and intentionally disables source metadata editing. The new responsive regression must uncheck this explicit preserve-all mode before editing a title; a first test attempt correctly timed out on a disabled input. This is evidence that the safety mode remained effective, not a reason to remove or relax it.
+
+Passing Node/build alone is not a full acceptance claim. The final post-documentation PR head must have successful Chromium E2E and Pages checks; desktop/tablet/phone visuals and actual keyboard/touch usability still require review. Keep PR Draft and MKV as the only output container.
