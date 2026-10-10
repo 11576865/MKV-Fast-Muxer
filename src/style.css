@@ -5797,3 +5797,52 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .asset-tree-controls { flex-basis: 100%; }
   .asset-tree-controls input[type="text"] { width: min(180px, 46vw); }
 }
+
+
+/* In-place track ordering and advanced stream dispositions. These are
+   mutations of the same source track objects used by the legacy editor. */
+.asset-tree-order-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  align-items: center;
+}
+.asset-tree-order-controls button {
+  width: 31px;
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-order-controls button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+.asset-tree-order-controls button:focus-visible,
+.asset-tree-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.asset-tree-advanced {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.asset-tree-advanced > summary {
+  font-size: .69rem;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-advanced-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-top: 8px;
+}
+@media (max-width: 600px) {
+  .asset-tree-advanced { flex-basis: 100%; }
+  .asset-tree-advanced-fields { gap: 10px; }
+  .asset-tree-order-controls button { min-height: 38px; width: 38px; }
+}
