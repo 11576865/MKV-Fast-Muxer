@@ -1196,7 +1196,12 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
     assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
 
-    await page.locator('#batchAssetInventory .asset-entry[data-kind="audio"] [data-batch-asset-remove]').click();
+    const removeUnsupportedBatch = page.locator('#batchAssetInventory .asset-entry[data-kind="audio"] [data-batch-asset-remove]');
+    await removeUnsupportedBatch.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() =>
+      document.activeElement?.closest('#batchAssetInventory .asset-entry')?.dataset.kind),
+    'font', 'after removing last batch asset, focus returns to previous available row');
     await page.waitForFunction(() => {
       const plan = document.querySelector('#batchPlan')?.textContent || '';
       return document.querySelectorAll('#batchAssetInventory .asset-entry').length === 3 &&
@@ -1711,7 +1716,12 @@ async function scenarioContentFirstMkvIntake(browser) {
     await page.waitForFunction(() => document.querySelectorAll('.asset-entry').length === 5);
     assert.match(await page.locator('#assetImportStatus').textContent(), /1 项未识别/);
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
-    await page.locator('.asset-entry[data-kind="unknown"] [data-asset-remove]').click();
+    const removeUnknown = page.locator('.asset-entry[data-kind="unknown"] [data-asset-remove]');
+    await removeUnknown.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() =>
+      document.activeElement?.closest('#assetInventory .asset-entry')?.dataset.kind),
+    'font', 'after removing last single asset, focus must not fall onto document.body');
     await page.waitForFunction(() => {
       const btn = document.querySelector('#muxBtn');
       return document.querySelectorAll('.asset-entry').length === 4 && btn && !btn.disabled;
@@ -1745,8 +1755,13 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
     assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
 
-    await page.locator('.asset-entry[data-kind="container"]').filter({ hasText: 'source-with-attachments.mkv' })
-      .locator('[data-asset-source]').check();
+    const selectMkvSource = page.locator('.asset-entry[data-kind="container"]')
+      .filter({ hasText: 'source-with-attachments.mkv' }).locator('[data-asset-source]');
+    await selectMkvSource.focus();
+    await page.keyboard.press('Space');
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-asset-source')),
+      await selectMkvSource.getAttribute('data-asset-source'),
+      'switching source by keyboard must preserve the focused radio after inventory redraw');
     await page.waitForFunction(() => {
       const source = document.querySelector('#videoInput').files[0];
       const btn = document.querySelector('#muxBtn');
