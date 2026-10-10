@@ -3,6 +3,288 @@
  * explicit output actions and stacked task navigation.
  * Do not append further overrides for these surfaces to style.css. */
 
+/* Source intake + scanned MKV tree base styles, formerly at the end of
+ * the legacy stylesheet. Kept before the responsive workbench overrides. */
+/* Content-first MKV intake: import is one action; detected roles are rows. */
+.legacy-source-picker,
+.legacy-source-picker[hidden] {
+  display: none !important;
+}
+
+.unified-intake { display: grid; gap: 10px; min-width: 0; }
+.unified-intake-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.unified-intake-head h3 { margin: 0 0 4px; color: var(--text-strong); font-size: .98rem; }
+.unified-intake-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: .72rem;
+  max-width: 650px;
+}
+.unified-intake-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.intake-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 13px;
+  min-height: 40px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.intake-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.intake-picker:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.intake-picker:has(input:disabled) { opacity: .48; cursor: not-allowed; }
+
+.asset-dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+  padding: 12px 15px;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.5;
+  background: var(--surface-0);
+}
+.asset-dropzone[data-dragging="true"] {
+  color: var(--text-strong);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-0));
+}
+.asset-dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.asset-inventory-head { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; flex-wrap: wrap; }
+.asset-inventory-head strong { font-size: .83rem; }
+.asset-inventory-head #assetImportStatus { font-size: .7rem; color: var(--muted); }
+.asset-inventory { display: grid; gap: 7px; }
+.asset-entry {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+.asset-entry[data-kind="container"] {
+  border-left: 3px solid var(--video);
+}
+.asset-entry[data-kind="subtitle"] { border-left: 3px solid var(--subtitle); }
+.asset-entry[data-kind="font"] { border-left: 3px solid var(--font); }
+.asset-entry[data-kind="audio"] { border-left: 3px solid var(--audio); }
+.asset-entry[data-kind="unknown"] { border-left: 3px solid var(--warning); }
+.asset-entry-main { min-width: 0; display: grid; gap: 4px; }
+.asset-entry-line { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; min-width: 0; }
+.asset-entry-name { overflow-wrap: anywhere; min-width: 0; font-size: .79rem; }
+.asset-entry-type { font-size: .69rem; font-weight: 700; color: var(--accent); }
+.asset-entry-desc { color: var(--muted); font-size: .67rem; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-entry-roles { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.asset-select-source { display: inline-flex; align-items: center; gap: 6px; font-size: .73rem; cursor: pointer; }
+.asset-select-source input { accent-color: var(--accent); }
+.asset-remove {
+  padding: 5px 8px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-0);
+  color: var(--muted);
+  font-size: .7rem;
+}
+.asset-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 900px) {
+  .unified-intake-head { flex-direction: column; align-items: stretch; }
+  .unified-intake-buttons { width: 100%; }
+  .unified-intake-buttons > .intake-picker { flex: 1; }
+}
+@media (max-width: 600px) {
+  .asset-entry { grid-template-columns: 1fr; }
+  .asset-entry-roles { justify-content: flex-start; }
+  .unified-intake-head p { font-size: .68rem; }
+  .asset-dropzone { padding: 10px 12px; }
+}
+
+
+/* Live source-container hierarchy in the unified asset inventory.
+   Container rows read/write the same trackState as the legacy editor. */
+.asset-container-tree,
+.asset-container-pending {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.asset-container-pending {
+  padding: 9px 11px;
+  border-top: 1px solid var(--line);
+  font-size: .7rem;
+  color: var(--muted);
+}
+.asset-container-tree {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.asset-container-tree > summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .78rem;
+  color: var(--text-strong);
+  padding: 5px 0;
+  list-style-position: inside;
+}
+.asset-tree-body { display: grid; gap: 12px; margin-top: 9px; }
+.asset-tree-mode { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .75rem; }
+.asset-tree-mode input { accent-color: var(--accent); }
+.asset-tree-tip { margin: 0; color: var(--muted); font-size: .68rem; }
+.asset-tree-group { min-width: 0; display: grid; gap: 5px; }
+.asset-tree-group h4 {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.asset-tree-group h4 span { color: var(--muted); font-weight: 500; }
+.asset-tree-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+}
+.asset-tree-item-info {
+  display: grid;
+  flex: 1 1 170px;
+  min-width: 0;
+  gap: 3px;
+}
+.asset-tree-row strong { font-size: .73rem; overflow-wrap: anywhere; }
+.asset-tree-row small { font-size: .66rem; color: var(--muted); overflow-wrap: anywhere; }
+.asset-tree-row > .change-badge { margin-left: auto; }
+.asset-tree-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  flex: 2 1 320px;
+  min-width: 0;
+}
+.asset-tree-controls label {
+  display: inline-flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: .68rem;
+  color: var(--muted);
+}
+.asset-tree-controls input[type="text"] {
+  min-width: 70px;
+  width: clamp(94px, 12vw, 170px);
+  max-width: 100%;
+  padding: 6px 7px;
+  font-size: .72rem;
+}
+.asset-tree-controls input[type="checkbox"] { accent-color: var(--accent); }
+.asset-tree-metadata-fields {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 100%;
+  color: var(--muted);
+  font-size: .68rem;
+  overflow-wrap: anywhere;
+}
+.asset-tree-metadata-fields span { display: block; }
+@media (max-width: 600px) {
+  .asset-tree-row { align-items: flex-start; }
+  .asset-tree-controls { flex-basis: 100%; }
+  .asset-tree-controls input[type="text"] { width: min(180px, 46vw); }
+}
+
+
+/* In-place track ordering and advanced stream dispositions. These are
+   mutations of the same source track objects used by the legacy editor. */
+.asset-tree-order-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  align-items: center;
+}
+.asset-tree-order-controls button {
+  width: 31px;
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-order-controls button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+.asset-tree-order-controls button:focus-visible,
+.asset-tree-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.asset-tree-advanced {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.asset-tree-advanced > summary {
+  font-size: .69rem;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-advanced-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-top: 8px;
+}
+@media (max-width: 600px) {
+  .asset-tree-advanced { flex-basis: 100%; }
+  .asset-tree-advanced-fields { gap: 10px; }
+  .asset-tree-order-controls button { min-height: 38px; width: 38px; }
+}
+
+
+/* Visual evidence follow-up: source tree controls were too small at phone
+   width. Preserve wrapping while meeting a readable text scale. */
+.asset-tree-row strong { font-size: .79rem; }
+.asset-tree-row small { font-size: .73rem; }
+.asset-tree-controls label { font-size: .75rem; }
+.asset-tree-controls input[type="text"] { font-size: .76rem; }
+.asset-tree-advanced > summary { font-size: .75rem; }
+.asset-tree-metadata-fields { font-size: .73rem; }
+
+@media (max-width: 600px) {
+  .asset-entry-type { font-size: .75rem; line-height: 1.45; }
+  .asset-entry-desc { font-size: .73rem; }
+  .asset-tree-controls label { font-size: .77rem; }
+  .asset-tree-controls input[type="text"] { width: min(210px, 53vw); font-size: .78rem; }
+  .asset-tree-row { gap: 10px; }
+  .asset-tree-advanced-fields { gap: 12px; }
+}
+
 /* UI structural revision: compact index + one inspector, not one form per
    source stream. The existing batch/preview/editor IDs are preserved. */
 .editor-grid[data-intake-mode="unified"][data-show-legacy-source="false"]:not([data-editor-focus="source"]) > .source-track-card {
@@ -11,7 +293,7 @@
 
 .asset-tree-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   min-width: 0;
@@ -142,8 +424,7 @@
 .asset-tree-more-tools:hover { color: var(--text-strong); }
 
 @media (max-width: 1100px) {
-  .asset-tree-workspace { grid-template-columns: minmax(0, 1fr); }
-  .asset-tree-inspector { grid-row: 2; }
+    .asset-tree-inspector { grid-row: 2; }
 }
 @media (max-width: 600px) {
   .asset-tree-workspace { gap: 10px; }
