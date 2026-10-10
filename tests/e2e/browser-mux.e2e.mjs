@@ -1709,6 +1709,67 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
   }
 }
 
+async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
+  console.log('E2E: source container tree reorders real audio streams and writes advanced flags');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
+    assert.equal(await audioRows.count(), 2);
+    assert.equal(await audioRows.nth(0).locator('[data-tree-track-move="-1"]').isDisabled(), true);
+    assert.equal(await audioRows.nth(1).locator('[data-tree-track-move="1"]').isDisabled(), true);
+    await audioRows.nth(0).locator('[data-tree-track-field="title"]').fill('First tree audio');
+    await audioRows.nth(1).locator('[data-tree-track-field="title"]').fill('Second tree audio');
+
+    // The second included source audio must move above the first, not just
+    // visually change position without affecting the mux output map.
+    await audioRows.nth(1).locator('[data-tree-track-move="-1"]').click();
+    assert.deepEqual(await audioRows.locator('[data-tree-track-field="title"]').evaluateAll(
+      elements => elements.map(input => input.value)
+    ), ['Second tree audio', 'First tree audio']);
+    assert.match(await page.locator('#containerChangeSummary').textContent(), /修改/);
+
+    const first = audioRows.nth(0);
+    const advanced = first.locator('[data-tree-advanced]');
+    await advanced.locator('summary').click();
+    await advanced.locator('[data-tree-track-flag="original"]').check();
+    assert.equal(await advanced.getAttribute('open'), '');
+    await advanced.locator('[data-tree-track-flag="commentary"]').check();
+    assert.equal(await advanced.getAttribute('open'), '');
+    const editedSourceIndex = await first.locator('[data-tree-track-flag="original"]').getAttribute('data-tree-track-index');
+    const oldEditor = page.locator(`.track-row.track-audio input[data-track-action="original"][data-track-index="${editedSourceIndex}"]`);
+    assert.equal(await oldEditor.isChecked(), true, 'legacy editor and asset tree share the same track state');
+
+    const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
+    const subAdvanced = subtitle.locator('[data-tree-advanced]');
+    await subAdvanced.locator('summary').click();
+    await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
+    assert.equal(await subAdvanced.getAttribute('open'), '');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-advanced-order.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    const audios = streams(result, 'audio');
+    assert.equal(audios.length, 2);
+    assert.deepEqual(audios.map(audio => audio.tags?.title),
+      ['Second tree audio', 'First tree audio']);
+    assert.equal(Boolean(audios[0].disposition?.original), true);
+    assert.equal(Boolean(audios[0].disposition?.comment), true);
+    assert.equal(Boolean(streams(result, 'subtitle')[0].disposition?.hearing_impaired), true);
+    assert.equal(await tree.isVisible(), true, 'post-export tree remains available');
+    console.log('MKV container-tree order and advanced flags PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioUnifiedContainerAttachmentEditing(browser) {
   console.log('E2E: source container hierarchy includes chapters, metadata and editable attachments');
   const { context, page } = await openApp(browser);
@@ -2200,6 +2261,7 @@ try {
   await scenarioContentFirstSourceAmbiguity(browser);
   await scenarioUnifiedContainerTreeEditing(browser);
   await scenarioUnifiedContainerAttachmentEditing(browser);
+  await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
