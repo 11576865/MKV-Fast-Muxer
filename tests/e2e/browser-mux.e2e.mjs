@@ -1745,6 +1745,18 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const oldEditor = page.locator(`.track-row.track-audio input[data-track-action="original"][data-track-index="${editedSourceIndex}"]`);
     assert.equal(await oldEditor.isChecked(), true, 'legacy editor and asset tree share the same track state');
 
+    // Mutations in the legacy source editor must also project back to the
+    // imported container tree (without remounting its domain state).
+    const oldCommentary = page.locator(
+      `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
+    );
+    await oldCommentary.check();
+    assert.equal(await first.locator('[data-tree-track-flag="commentary"]').isChecked(), true);
+    await oldCommentary.uncheck();
+    assert.equal(await first.locator('[data-tree-track-flag="commentary"]').isChecked(), false);
+    assert.equal(await advanced.getAttribute('open'), '');
+    await first.locator('[data-tree-track-flag="commentary"]').check();
+
     const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
     const subAdvanced = subtitle.locator('[data-tree-advanced]');
     await subAdvanced.locator('summary').click();
