@@ -27,7 +27,7 @@ import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './f
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
-import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, ASSET_STATUS } from './asset-intake.js';
+import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
@@ -86,6 +86,11 @@ const assetImportStatus = $('assetImportStatus');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const fontSubsetEnabled = $('fontSubsetEnabled');
+const batchUnifiedInput = $('batchUnifiedInput');
+const batchUnifiedFolderInput = $('batchUnifiedFolderInput');
+const batchAssetDropzone = $('batchAssetDropzone');
+const batchAssetInventory = $('batchAssetInventory');
+const batchAssetStatus = $('batchAssetStatus');
 const batchVideoInput = $('batchVideoInput');
 const batchVideoFolderInput = $('batchVideoFolderInput');
 const batchSubtitleInput = $('batchSubtitleInput');
@@ -273,6 +278,10 @@ let newSubtitleState = [];
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
+let batchImportEntries = [];
+let batchImportInProgress = false;
+let batchUnifiedMode = false;
+let batchInternalAdapterUpdate = false;
 let batchRunning = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
@@ -779,12 +788,15 @@ function setInputsDisabled(disabled) {
   if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleTracks().some((track) => track.format?.previewable);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
-  if (batchVideoInput) batchVideoInput.disabled = sourceLocked || batchRunning;
-  if (batchVideoFolderInput) batchVideoFolderInput.disabled = sourceLocked || batchRunning;
-  if (batchSubtitleInput) batchSubtitleInput.disabled = sourceLocked || batchRunning;
-  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = sourceLocked || batchRunning;
-  if (batchFontInput) batchFontInput.disabled = sourceLocked || batchRunning;
-  if (batchFontFolderInput) batchFontFolderInput.disabled = sourceLocked || batchRunning;
+  if (batchUnifiedInput) batchUnifiedInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchUnifiedFolderInput) batchUnifiedFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchAssetDropzone) batchAssetDropzone.setAttribute('aria-disabled', String(sourceLocked || batchRunning || batchImportInProgress));
+  if (batchVideoInput) batchVideoInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchVideoFolderInput) batchVideoFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchSubtitleInput) batchSubtitleInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchFontInput) batchFontInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
+  if (batchFontFolderInput) batchFontFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
   if (batchPreserveAttachments) batchPreserveAttachments.disabled = sourceLocked || batchRunning;
   if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = sourceLocked || batchRunning;
   if (batchSubsetScope) batchSubsetScope.disabled = sourceLocked || batchRunning || !batchFontSubsetEnabled?.checked;
@@ -4028,6 +4040,128 @@ muxBtn.addEventListener('click', async () => {
   }
 });
 
+// Batch uses the same *content identity* scanner as single-task intake,
+// but each candidate media container may become a separate video job.
+// Legacy category inputs remain execution adapters and an explicit fallback.
+function renderBatchAssetInventory() {
+  if (!batchAssetInventory || !batchAssetStatus) return;
+  const entries = batchImportEntries;
+  const roles = resolveBatchImportedAssets(entries);
+  const blocked = roles.unsupported.length;
+  batchAssetStatus.textContent = batchImportInProgress
+    ? '正在按内容识别批量文件…'
+    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '也可展开下方分类导入')
+    : `${entries.length} 个文件 · ${roles.containers.length} 个容器候选 · ${roles.subtitles.length} 条字幕 · ${roles.fonts.length} 个字体${blocked ? ` · ${blocked} 项不可使用` : ''}`;
+  if (!entries.length) {
+    batchAssetInventory.innerHTML = '<div class="track-empty">批量导入后，文件内容类型及不支持项目在此列出。</div>';
+    return;
+  }
+  const locked = batchRunning || isBusy() || batchImportInProgress;
+  batchAssetInventory.innerHTML = entries.map((entry) => {
+    const role = { container: '媒体容器候选', subtitle: '字幕', font: '字体', audio: '独立音频', unknown: '未识别' }[entry.kind] || '未知';
+    const supported = ['container', 'subtitle', 'font'].includes(entry.kind);
+    const state = supported
+      ? entry.kind === 'container' ? '视频轨待预检' : '进入配对预检'
+      : entry.kind === 'audio' ? '批量模式不支持追加独立音频' : '不参与批量任务';
+    return `<div class="asset-entry" data-kind="${entry.kind}">
+      <div class="asset-entry-main">
+        <div class="asset-entry-line">
+          <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
+          <span class="asset-entry-type">${role} · ${escapeHtml(entry.label)}</span>
+        </div>
+        <div class="asset-entry-desc">${state} · ${escapeHtml(entry.detail || '')}</div>
+      </div>
+      <div class="asset-entry-roles">
+        <button type="button" class="asset-remove" data-batch-asset-remove="${escapeHtml(entry.key)}"
+          ${locked ? 'disabled' : ''}>移除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function replaceBatchAdapterFiles() {
+  const roles = resolveBatchImportedAssets(batchImportEntries);
+  batchInternalAdapterUpdate = true;
+  try {
+    for (const input of [batchVideoInput, batchSubtitleInput, batchFontInput,
+      batchVideoFolderInput, batchSubtitleFolderInput, batchFontFolderInput]) {
+      setInputFiles(input, input === batchVideoInput ? roles.containers
+        : input === batchSubtitleInput ? roles.subtitles
+        : input === batchFontInput ? roles.fonts : []);
+    }
+  } finally {
+    batchInternalAdapterUpdate = false;
+  }
+  renderBatchAssetInventory();
+  requestBatchPlanSync();
+}
+
+async function importBatchUnifiedAssets(files) {
+  if (batchImportInProgress || batchRunning || isBusy()) return;
+  const existing = new Set(batchImportEntries.map((entry) => entry.key));
+  const incoming = Array.from(files || []).filter((file) => {
+    const key = assetIntakeKey(file);
+    if (!key || existing.has(key)) return false;
+    existing.add(key);
+    return true;
+  });
+  if (!incoming.length) return;
+  batchImportInProgress = true;
+  batchStartBtn.disabled = true;
+  ++batchPlanGeneration; // Stale preflight results may not re-enable execution.
+  renderBatchAssetInventory();
+  try {
+    const identified = [];
+    for (let start = 0; start < incoming.length; start += 4) {
+      identified.push(...await Promise.all(incoming.slice(start, start + 4)
+        .map((file) => identifyImportedAsset(file))));
+    }
+    batchImportEntries = [...batchImportEntries, ...identified];
+    batchUnifiedMode = true;
+  } finally {
+    batchImportInProgress = false;
+    replaceBatchAdapterFiles();
+    updateUI();
+  }
+}
+
+batchUnifiedInput?.addEventListener('change', () => {
+  void importBatchUnifiedAssets(batchUnifiedInput.files);
+  batchUnifiedInput.value = '';
+});
+batchUnifiedFolderInput?.addEventListener('change', () => {
+  void importBatchUnifiedAssets(batchUnifiedFolderInput.files);
+  batchUnifiedFolderInput.value = '';
+});
+batchAssetDropzone?.addEventListener('click', () => {
+  if (!isBusy() && !batchRunning && !batchImportInProgress) batchUnifiedInput?.click();
+});
+batchAssetDropzone?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  if (!isBusy() && !batchRunning && !batchImportInProgress) batchUnifiedInput?.click();
+});
+batchAssetDropzone?.addEventListener('dragover', (event) => {
+  if (isBusy() || batchRunning || batchImportInProgress) return;
+  event.preventDefault();
+  batchAssetDropzone.dataset.dragging = 'true';
+});
+batchAssetDropzone?.addEventListener('dragleave', () => {
+  batchAssetDropzone.dataset.dragging = 'false';
+});
+batchAssetDropzone?.addEventListener('drop', (event) => {
+  event.preventDefault();
+  batchAssetDropzone.dataset.dragging = 'false';
+  void importBatchUnifiedAssets(event.dataTransfer?.files);
+});
+batchAssetInventory?.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-batch-asset-remove]');
+  if (!button || batchRunning || isBusy() || batchImportInProgress) return;
+  batchImportEntries = batchImportEntries.filter((item) => item.key !== button.dataset.batchAssetRemove);
+  batchUnifiedMode = true;
+  replaceBatchAdapterFiles();
+});
+
 function batchVideoFiles() {
   return mergeFileSelections(batchVideoInput?.files, batchVideoFolderInput?.files);
 }
@@ -4048,6 +4182,7 @@ async function syncBatchPlan() {
   const candidateVideos = batchVideoFiles();
   const subtitles = batchSubtitleFiles();
   const fontCandidates = batchFontCandidates();
+  const unifiedRoles = batchUnifiedMode ? resolveBatchImportedAssets(batchImportEntries) : null;
 
   batchVideoName.textContent = Array.from(batchVideoInput.files || []).length
     ? `${Array.from(batchVideoInput.files || []).length} 个文件` : '未选择';
@@ -4135,6 +4270,7 @@ async function syncBatchPlan() {
   const mismatchCount = recognition.recognized.filter((entry) => entry.mismatch).length;
   if (mismatchCount) notes.push(`${mismatchCount} 个视频扩展名与实际内容不一致，已按实际容器识别`);
   if (recognition.ignored.length) notes.push(`${recognition.ignored.length} 个文件未识别为支持的视频容器`);
+  if (unifiedRoles?.unsupported.length) notes.push(`${unifiedRoles.unsupported.length} 个统一导入项目不支持当前批量模式，请在资源清单中移除`);
   if (subtitleRecognition.mismatches?.length) notes.push(`${subtitleRecognition.mismatches.length} 个字幕扩展名与实际内容不一致，已按实际格式识别`);
   if (pairing.ambiguousPairings.length) {
     const examples = pairing.ambiguousPairings.slice(0, 3).map(({ track, candidates }) =>
@@ -4170,6 +4306,8 @@ async function syncBatchPlan() {
   if (notes.length) batchPlan.innerHTML += `<div class="track-empty">${escapeHtml(notes.join('；'))}</div>`;
   batchStartBtn.disabled =
     batchRunning ||
+    batchImportInProgress ||
+    (batchUnifiedMode && Boolean(unifiedRoles?.unsupported.length || recognition.ignored.length)) ||
     isBusy() ||
     !pairing.jobs.length ||
     pairing.ambiguousPairings.length > 0 ||
@@ -4307,6 +4445,23 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
   batchFontInput,
   batchFontFolderInput,
 ].forEach((input) => input?.addEventListener('change', () => {
+  if (batchInternalAdapterUpdate) return;
+  if (batchUnifiedMode) {
+    // Explicit legacy picker use switches mode; do not combine hidden unified
+    // assets with selected category files or silently keep stale source roles.
+    batchUnifiedMode = false;
+    batchImportEntries = [];
+    batchInternalAdapterUpdate = true;
+    try {
+      for (const other of [batchVideoInput, batchVideoFolderInput, batchSubtitleInput,
+        batchSubtitleFolderInput, batchFontInput, batchFontFolderInput]) {
+        if (other !== input) setInputFiles(other, []);
+      }
+    } finally {
+      batchInternalAdapterUpdate = false;
+    }
+    renderBatchAssetInventory();
+  }
   requestBatchPlanSync();
 }));
 batchFontSubsetEnabled?.addEventListener('change', () => {
@@ -4325,7 +4480,11 @@ batchCancelBtn?.addEventListener('click', () => {
 });
 
 batchStartBtn?.addEventListener('click', async () => {
-  if (isBusy()) return;
+  if (batchImportInProgress || isBusy()) return;
+  if (batchUnifiedMode && resolveBatchImportedAssets(batchImportEntries).unsupported.length) {
+    batchStatus.textContent = '批量未开始：请移除无法参与批量封装的文件。';
+    return;
+  }
   const pairing = await requestBatchPlanSync();
   if (!pairing) {
     batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
@@ -4338,7 +4497,8 @@ batchStartBtn?.addEventListener('click', async () => {
     pairing.directoryConflicts.length ||
     pairing.directoryCheckError ||
     pairing.invalidSubtitles.length ||
-    pairing.fontRecognition?.ignored?.length
+    pairing.fontRecognition?.ignored?.length ||
+    (batchUnifiedMode && pairing.videoRecognition?.ignored?.length)
   ) {
     batchStatus.textContent = '批量未开始：请先解决配对歧义、重名输出或无效输入。';
     return;
