@@ -291,6 +291,7 @@ let videoSniffGeneration = 0;
 let videoSniffPromise = Promise.resolve();
 let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
+const containerTreeAdvancedExpansion = new Map();
 let chosenImportSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
@@ -996,12 +997,28 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
     let actions = '';
     if (track) {
       const inputDisabled = disabled || !track.include ? 'disabled' : '';
+      const moveUpDisabled = inputDisabled || !item.canMoveUp ? 'disabled' : '';
+      const moveDownDisabled = inputDisabled || !item.canMoveDown ? 'disabled' : '';
+      const advancedKey = `${entry.key}:${item.index}`;
+      const advancedOpen = containerTreeAdvancedExpansion.get(advancedKey) ?? false;
       actions = `<div class="asset-tree-controls">
+        <span class="asset-tree-order-controls" role="group" aria-label="轨道顺序">
+          <button type="button" data-tree-track-move="-1" data-tree-track-index="${item.index}" ${moveUpDisabled} aria-label="上移 ${escapeHtml(title)}" title="上移">↑</button>
+          <button type="button" data-tree-track-move="1" data-tree-track-index="${item.index}" ${moveDownDisabled} aria-label="下移 ${escapeHtml(title)}" title="下移">↓</button>
+        </span>
         <label><input type="checkbox" data-tree-track-include="${item.index}" ${track.include ? 'checked' : ''} ${disabled ? 'disabled' : ''}> 保留</label>
         <label>语言 <input type="text" data-tree-track-field="language" data-tree-track-index="${item.index}" value="${escapeHtml(track.language)}" maxlength="35" list="languageSuggestions" ${inputDisabled}></label>
         <label>标题 <input type="text" data-tree-track-field="title" data-tree-track-index="${item.index}" value="${escapeHtml(track.title)}" maxlength="160" ${inputDisabled}></label>
         <label><input type="checkbox" data-tree-track-flag="default" data-tree-track-index="${item.index}" ${track.default ? 'checked' : ''} ${inputDisabled}> Default</label>
         ${track.type === 'subtitle' ? `<label><input type="checkbox" data-tree-track-flag="forced" data-tree-track-index="${item.index}" ${track.forced ? 'checked' : ''} ${inputDisabled}> Forced</label>` : ''}
+        <details class="asset-tree-advanced" data-tree-advanced="${escapeHtml(advancedKey)}" ${advancedOpen ? 'open' : ''}>
+          <summary>高级标记</summary>
+          <div class="asset-tree-advanced-fields">
+            <label><input type="checkbox" data-tree-track-flag="original" data-tree-track-index="${item.index}" ${track.original ? 'checked' : ''} ${inputDisabled}> Original</label>
+            <label><input type="checkbox" data-tree-track-flag="commentary" data-tree-track-index="${item.index}" ${track.commentary ? 'checked' : ''} ${inputDisabled}> Commentary</label>
+            <label><input type="checkbox" data-tree-track-flag="hearingImpaired" data-tree-track-index="${item.index}" ${track.hearingImpaired ? 'checked' : ''} ${inputDisabled}> Hearing impaired</label>
+          </div>
+        </details>
       </div>`;
     } else if (attachment) {
       const inputDisabled = disabled || !attachment.include ? 'disabled' : '';
@@ -1033,6 +1050,14 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
 
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
+  // Preserve both disclosure levels when replacing the list after a checkbox
+  // change; an editing click must not collapse the same control it updated.
+  assetInventory.querySelectorAll('details[data-source-tree]').forEach((details) => {
+    containerTreeExpansion.set(details.dataset.sourceTree, details.open);
+  });
+  assetInventory.querySelectorAll('details[data-tree-advanced]').forEach((details) => {
+    containerTreeAdvancedExpansion.set(details.dataset.treeAdvanced, details.open);
+  });
   const entries = importedAssetEntries;
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
   assetImportStatus.textContent = importInProgress
@@ -1146,9 +1171,13 @@ assetDropzone?.addEventListener('drop', (event) => {
   void importUnifiedAssets(event.dataTransfer?.files);
 });
 assetInventory?.addEventListener('toggle', (event) => {
-  const details = event.target.closest?.('details[data-source-tree]');
+  const details = event.target.closest?.('details[data-source-tree], details[data-tree-advanced]');
   if (!details || !assetInventory.contains(details)) return;
-  containerTreeExpansion.set(details.dataset.sourceTree, details.open);
+  if (details.dataset.sourceTree !== undefined) {
+    containerTreeExpansion.set(details.dataset.sourceTree, details.open);
+  } else {
+    containerTreeAdvancedExpansion.set(details.dataset.treeAdvanced, details.open);
+  }
 }, true);
 
 function editSourceFromInventory(event) {
@@ -1216,6 +1245,18 @@ assetInventory?.addEventListener('change', (event) => {
   applyImportedAssetRoles();
 });
 assetInventory?.addEventListener('click', (event) => {
+  const moveButton = event.target.closest('button[data-tree-track-move]');
+  if (moveButton) {
+    if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return;
+    const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
+    if (!track || !track.include) return;
+    moveTrack(track, Number(moveButton.dataset.treeTrackMove));
+    renderTrackList();
+    renderImportedAssetInventory();
+    renderContainerChangeSummary();
+    renderMuxPlan();
+    return;
+  }
   const button = event.target.closest('[data-asset-remove]');
   if (!button || isBusy() || batchRunning || importInProgress) return;
   const key = button.dataset.assetRemove;
@@ -2169,6 +2210,7 @@ function containerKindLabel(type) {
 
 function sourceTrackModified(track) {
   return (
+    track.order !== track.index ||
     track.language !== track.originalLanguage ||
     track.title !== track.originalTitle ||
     track.default !== track.originalDefault ||
