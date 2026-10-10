@@ -5846,3 +5846,22 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .asset-tree-advanced-fields { gap: 10px; }
   .asset-tree-order-controls button { min-height: 38px; width: 38px; }
 }
+
+
+/* Visual evidence follow-up: source tree controls were too small at phone
+   width. Preserve wrapping while meeting a readable text scale. */
+.asset-tree-row strong { font-size: .79rem; }
+.asset-tree-row small { font-size: .73rem; }
+.asset-tree-controls label { font-size: .75rem; }
+.asset-tree-controls input[type="text"] { font-size: .76rem; }
+.asset-tree-advanced > summary { font-size: .75rem; }
+.asset-tree-metadata-fields { font-size: .73rem; }
+
+@media (max-width: 600px) {
+  .asset-entry-type { font-size: .75rem; line-height: 1.45; }
+  .asset-entry-desc { font-size: .73rem; }
+  .asset-tree-controls label { font-size: .77rem; }
+  .asset-tree-controls input[type="text"] { width: min(210px, 53vw); font-size: .78rem; }
+  .asset-tree-row { gap: 10px; }
+  .asset-tree-advanced-fields { gap: 12px; }
+}
