@@ -1943,7 +1943,23 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       'mobile must flow source > selected property editor > output');
     assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
-    console.log('Three-zone MKV workbench and keyboard selection PASS');
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true);
+    const actionOrder = await page.evaluate(() => ({
+      action: document.querySelector('.execution-panel').getBoundingClientRect().top,
+      details: document.querySelector('.plan-panel').getBoundingClientRect().top,
+    }));
+    assert.ok(actionOrder.action < actionOrder.details,
+      'execute/status must precede detailed plan in visual and DOM order');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.evaluate(() => location.hash), '#workbench-output-title');
+    await page.waitForFunction(() => {
+      const r = document.querySelector('#muxBtn').getBoundingClientRect();
+      return r.height > 0 && r.top >= 40 && r.bottom <= innerHeight;
+    }, null, { timeout: 10000 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => location.hash), '#workbench-editor-title');
+    console.log('Three-zone MKV workbench, keyboard selection and mobile task jumps PASS');
   } finally {
     await context.close();
   }
