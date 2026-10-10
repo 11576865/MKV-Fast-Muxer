@@ -215,12 +215,13 @@
   .workspace > .workbench-grid > .output-hub {
     grid-column: 3;
     grid-row: 1;
-    position: sticky;
-    top: 12px;
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-gutter: stable;
+    /* The old sticky rail could visually overlap the following batch row
+       while scrolling. Both sections share one page; let the rail remain in
+       normal grid flow so batch controls cannot be covered by prior output. */
+    position: static;
+    max-height: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
     margin: 0;
     min-width: 0;
   }
