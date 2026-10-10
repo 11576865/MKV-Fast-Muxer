@@ -1868,6 +1868,67 @@ async function scenarioUnifiedContainerAttachmentEditing(browser) {
   }
 }
 
+async function scenarioUnifiedWorkBenchZones(browser) {
+  console.log('E2E: desktop three-zone layout, mobile stacked ownership, keyboard track selection');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setViewportSize({ width: 1600, height: 960 });
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const regions = await page.evaluate(() => {
+      const bounds = selector => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return { x: r.x, right: r.right, y: r.y, width: r.width, height: r.height };
+      };
+      return {
+        source: bounds('.stage-input'),
+        editor: bounds('.editor-column'),
+        inspector: bounds('#assetInspectorHost'),
+        output: bounds('.output-hub'),
+        scrollWidth: document.documentElement.scrollWidth,
+        viewport: innerWidth,
+      };
+    });
+    assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
+    assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
+    assert.ok(regions.inspector.x >= regions.editor.x && regions.inspector.right <= regions.editor.right + 2,
+      'selected object inspector must live in the central editor');
+    assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'one visible editor, not repeated per stream');
+    assert.equal(await page.locator('#muxBtn').getByText('开始封装 MKV').isVisible(), true);
+
+    const nav = page.locator('[data-tree-group="audio"] [data-tree-select]');
+    await nav.nth(1).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
+    const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
+      .getAttribute('data-tree-track-include');
+    assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    const mobile = await page.evaluate(() => {
+      const top = selector => document.querySelector(selector).getBoundingClientRect().top;
+      const right = selector => document.querySelector(selector).getBoundingClientRect().right;
+      return {
+        sourceY: top('.stage-input'),
+        inspectorY: top('#assetInspectorHost'),
+        outputY: top('.output-hub'),
+        inspectorRight: right('#assetInspectorHost'),
+        viewport: innerWidth,
+      };
+    });
+    assert.ok(mobile.sourceY < mobile.inspectorY && mobile.inspectorY < mobile.outputY,
+      'mobile must flow source > selected property editor > output');
+    assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
+    console.log('Three-zone MKV workbench and keyboard selection PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioTabletDesktopUi(browser) {
   console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
   const context = await browser.newContext({
@@ -2323,6 +2384,7 @@ try {
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
   await scenarioContentFirstSourceAmbiguity(browser);
+  await scenarioUnifiedWorkBenchZones(browser);
   await scenarioUnifiedContainerTreeEditing(browser);
   await scenarioUnifiedContainerAttachmentEditing(browser);
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
