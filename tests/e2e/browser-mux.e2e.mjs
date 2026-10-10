@@ -1920,6 +1920,8 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await nav.nth(1).focus();
     await page.keyboard.press('Enter');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-tree-select')),
+      'audio:2', 'keyboard focus should survive navigator re-render');
     const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
       .getAttribute('data-tree-track-include');
     assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
