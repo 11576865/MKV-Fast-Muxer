@@ -28,6 +28,17 @@ export function setupWorkbenchNavigation(nav, win = window, doc = document) {
     if (win.scrollY + win.innerHeight >= doc.documentElement.scrollHeight - 2) {
       active = sections.at(-1);
     }
+    // Native fragment navigation may stop the heading slightly BELOW the
+    // sticky-nav cutoff because of scroll-margin, browser scroll anchoring,
+    // or a short remaining page. The requested heading is authoritative
+    // while it is genuinely near the top of the visible viewport.
+    const hashTarget = sections.find(({ link }) => link.hash === win.location?.hash);
+    if (hashTarget) {
+      const top = hashTarget.heading.getBoundingClientRect().top;
+      if (top >= -16 && top <= Math.min(win.innerHeight * .5, 260)) {
+        active = hashTarget;
+      }
+    }
     select(active);
   };
   const schedule = () => {
