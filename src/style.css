@@ -6017,3 +6017,107 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .asset-tree-index-row .asset-tree-select { padding: 10px; }
   .asset-tree-inspector .asset-tree-advanced { flex-basis: auto; }
 }
+
+
+/* Workbench IA / phase 5: separate source navigation, active editing and
+   output decision. This rule block intentionally supersedes historical
+   desktop layout overrides; responsive DOM and runtime IDs stay intact. */
+.asset-inspector-host[hidden] { display: none !important; }
+.asset-inspector-host {
+  min-width: 0;
+  display: block;
+}
+.asset-inspector-host > .asset-tree-inspector { width: 100%; }
+.asset-tree-workspace { grid-template-columns: minmax(0, 1fr); }
+.asset-tree-list { gap: 10px; }
+.asset-tree-inspector-head strong { font-size: .9rem; }
+.asset-inspector-host .asset-tree-inspector {
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  padding: clamp(12px, 1.2vw, 18px);
+}
+.asset-tree-index-row .asset-tree-select {
+  min-height: 42px;
+}
+.asset-entry[data-kind="container"] .asset-tree-index-row {
+  min-width: 0;
+}
+.editor-column > .asset-inspector-host { grid-area: inspector; }
+.editor-column > .subtitle-preview-card { grid-area: preview; }
+.editor-column > .editor-grid { grid-area: editors; }
+.editor-column > .diagnostics-panel { grid-area: logs; }
+
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .topbar, .workspace {
+    width: min(calc(100% - 36px), 1820px);
+    max-width: 1820px;
+  }
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(320px, .93fr) minmax(410px, 1.35fr) minmax(300px, .82fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .workspace > .stage-input {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+  }
+  .workspace > .workbench-grid { display: contents; }
+  .workspace > .workbench-grid > .editor-column {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "editors" "preview" "logs";
+    align-content: start;
+    gap: 13px;
+  }
+  .workspace > .workbench-grid > .output-hub {
+    grid-column: 3;
+    grid-row: 1;
+    position: sticky;
+    top: 12px;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    margin: 0;
+    min-width: 0;
+  }
+  .workspace > .batch-workspace {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .editor-column > .editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-grid > .config-card,
+  .editor-grid > .source-track-card { grid-column: 1; }
+  .editor-grid > .object-editor-nav { grid-column: 1; }
+  .stage-input, .editor-column, .output-hub { min-width: 0; }
+}
+
+@media (max-width: 1439px) {
+  .editor-column {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "preview" "editors" "logs";
+  }
+  .editor-column > .editor-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse) {
+  .editor-column {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "preview" "editors" "logs";
+  }
+  .editor-column > .editor-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .asset-inspector-host > .asset-tree-inspector { padding: 12px; }
+  .asset-tree-select { scroll-margin-top: 76px; }
+  .asset-inspector-host { scroll-margin-top: 18px; }
+}
