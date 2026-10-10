@@ -1807,12 +1807,22 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     // Capture real populated UI evidence for visual review, not just markup
     // or success-state screenshots. Generated fixtures contain no user data.
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-container-tree-desktop-viewport-1440.png'),
+      animations: 'disabled',
+    });
     await page.locator('.workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-desktop-1440.png'),
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-container-tree-phone-viewport-390.png'),
+      animations: 'disabled',
+    });
     await page.locator('.workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
       animations: 'disabled',
