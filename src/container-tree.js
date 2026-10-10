@@ -42,6 +42,10 @@ export function buildContainerTreeModel(trackState, {
     const group = groups.get(kind);
     group.items.sort((left, right) => (left.track?.order ?? left.index) -
       (right.track?.order ?? right.index));
+    for (const item of group.items) {
+      item.canMoveUp = false;
+      item.canMoveDown = false;
+    }
     const included = group.items.filter((item) => item.track?.include);
     included.forEach((item, index) => {
       item.canMoveUp = !appendMode && index > 0;
