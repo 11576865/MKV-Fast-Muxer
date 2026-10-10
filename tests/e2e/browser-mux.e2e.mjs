@@ -1240,13 +1240,21 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     await page.locator('.batch-legacy-intake > summary').click();
     await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E02.mp4'));
     await page.waitForFunction(() => {
-      const plan = document.querySelector('#batchPlan')?.textContent || '';
-      return plan.includes('Batch S01E02.mp4') && !plan.includes('Batch S01E01.mp4') &&
+      return document.querySelector('#batchVideoInput')?.files[0]?.name === 'Batch S01E02.mp4' &&
+        document.querySelector('#batchSubtitleInput')?.files.length === 0 &&
+        document.querySelector('#batchFontInput')?.files.length === 0 &&
         document.querySelectorAll('#batchAssetInventory .asset-entry').length === 0;
     });
-    assert.equal(await page.locator('#batchSubtitleInput').evaluate(el => el.files.length), 0);
-    assert.equal(await page.locator('#batchFontInput').evaluate(el => el.files.length), 0);
-    console.log('Unified batch content-first import and real MKV mux PASS');
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true,
+      'no matched subtitle means no executable legacy batch job');
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E02.en.srt'));
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      return text.includes('Batch S01E02.mp4') && text.includes('1 SRT') &&
+        !text.includes('Batch S01E01.mp4') &&
+        !document.querySelector('#batchStartBtn').disabled;
+    });
+    console.log('Unified batch content-first import, MKV mux and legacy mode isolation PASS');
   } finally {
     await context.close();
   }
