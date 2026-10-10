@@ -78,6 +78,7 @@ const unifiedAssetInput = $('unifiedAssetInput');
 const unifiedFolderInput = $('unifiedFolderInput');
 const assetDropzone = $('assetDropzone');
 const assetInventory = $('assetInventory');
+const assetInspectorHost = $('assetInspectorHost');
 const assetImportStatus = $('assetImportStatus');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
@@ -294,6 +295,7 @@ const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
 const containerTreeSelectedItem = new Map();
 let showLegacySourceTools = false;
+let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
@@ -1066,6 +1068,14 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
       ${actions}${badge(item.status)}</div>`;
   };
 
+  sourceInspectorMarkup = `<section class="asset-tree-inspector" aria-label="当前资源的属性编辑器">
+          <div class="asset-tree-inspector-head">
+            <strong>当前对象</strong>
+            <span>${current ? escapeHtml(({video:'视频',audio:'音频',subtitle:'字幕',attachment:'附件',data:'数据',chapter:'章节',metadata:'元数据',other:'其他'})[current.kind] || '资源') : '无'}</span>
+          </div>
+          ${current ? row(current) : '<div class="track-empty">从左侧选择一项查看属性。</div>'}
+        </section>`;
+
   return `<details class="asset-container-tree" data-source-tree="${escapeHtml(entry.key)}" ${open ? 'open' : ''}>
     <summary>容器内容 · ${model.streamCount} 个流 · ${model.attachmentCount} 个附件 · ${model.chapterCount} 个章节</summary>
     <div class="asset-tree-body">
@@ -1080,13 +1090,7 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
             ${group.items.map(listRow).join('')}
           </section>`).join('')}
         </div>
-        <section class="asset-tree-inspector" aria-label="当前资源的属性编辑器">
-          <div class="asset-tree-inspector-head">
-            <strong>当前对象</strong>
-            <span>${current ? escapeHtml(({video:'视频',audio:'音频',subtitle:'字幕',attachment:'附件',data:'数据',chapter:'章节',metadata:'元数据',other:'其他'})[current.kind] || '资源') : '无'}</span>
-          </div>
-          ${current ? row(current) : '<div class="track-empty">从左侧选择一项查看属性。</div>'}
-        </section>
+
       </div>
       <button type="button" class="asset-tree-more-tools" data-tree-legacy-tools aria-expanded="${showLegacySourceTools}">
         ${showLegacySourceTools ? '收起' : '展开'}传统轨道批量工具
@@ -1102,9 +1106,10 @@ function renderImportedAssetInventory() {
   assetInventory.querySelectorAll('details[data-source-tree]').forEach((details) => {
     containerTreeExpansion.set(details.dataset.sourceTree, details.open);
   });
-  assetInventory.querySelectorAll('details[data-tree-advanced]').forEach((details) => {
+  assetInspectorHost?.querySelectorAll('details[data-tree-advanced]').forEach((details) => {
     containerTreeAdvancedExpansion.set(details.dataset.treeAdvanced, details.open);
   });
+  sourceInspectorMarkup = '';
   const entries = importedAssetEntries;
   const editorGrid = document.querySelector('.editor-grid');
   if (editorGrid) {
@@ -1119,6 +1124,10 @@ function renderImportedAssetInventory() {
       : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
   if (!entries.length) {
     assetInventory.innerHTML = '<div class="track-empty">导入后在此查看容器、轨道、附加资源和识别状态。</div>';
+    if (assetInspectorHost) {
+      assetInspectorHost.replaceChildren();
+      assetInspectorHost.hidden = true;
+    }
     return;
   }
   assetInventory.innerHTML = entries.map((entry) => {
@@ -1162,6 +1171,10 @@ function renderImportedAssetInventory() {
       ${renderSourceContainerTree(entry, selected, sourceScanned)}
     </div>`;
   }).join('');
+  if (assetInspectorHost) {
+    assetInspectorHost.innerHTML = sourceInspectorMarkup;
+    assetInspectorHost.hidden = !sourceInspectorMarkup;
+  }
 }
 
 async function importUnifiedAssets(files) {
@@ -1224,11 +1237,14 @@ assetDropzone?.addEventListener('drop', (event) => {
   void importUnifiedAssets(event.dataTransfer?.files);
 });
 assetInventory?.addEventListener('toggle', (event) => {
-  const details = event.target.closest?.('details[data-source-tree], details[data-tree-advanced]');
-  if (!details || !assetInventory.contains(details)) return;
-  if (details.dataset.sourceTree !== undefined) {
+  const details = event.target.closest?.('details[data-source-tree]');
+  if (details && assetInventory.contains(details)) {
     containerTreeExpansion.set(details.dataset.sourceTree, details.open);
-  } else {
+  }
+}, true);
+assetInspectorHost?.addEventListener('toggle', (event) => {
+  const details = event.target.closest?.('details[data-tree-advanced]');
+  if (details && assetInspectorHost.contains(details)) {
     containerTreeAdvancedExpansion.set(details.dataset.treeAdvanced, details.open);
   }
 }, true);
@@ -1274,22 +1290,24 @@ function editSourceFromInventory(event) {
   }
 }
 
-assetInventory?.addEventListener('input', (event) => {
-  if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) {
-    editSourceFromInventory(event);
-  }
-});
-assetInventory?.addEventListener('change', (event) => {
-  if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) return;
-  if (event.target.matches('[data-tree-preserve-all]')) {
-    appendPreserveAll.checked = event.target.checked;
-    appendPreserveAll.dispatchEvent(new Event('change', { bubbles: true }));
-    return;
-  }
-  if (event.target.matches('[data-tree-track-include], [data-tree-track-flag], [data-tree-attachment-include]')) {
-    editSourceFromInventory(event);
-  }
-});
+for (const target of [assetInventory, assetInspectorHost]) {
+  target?.addEventListener('input', (event) => {
+    if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) {
+      editSourceFromInventory(event);
+    }
+  });
+  target?.addEventListener('change', (event) => {
+    if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) return;
+    if (event.target.matches('[data-tree-preserve-all]')) {
+      appendPreserveAll.checked = event.target.checked;
+      appendPreserveAll.dispatchEvent(new Event('change', { bubbles: true }));
+      return;
+    }
+    if (event.target.matches('[data-tree-track-include], [data-tree-track-flag], [data-tree-attachment-include]')) {
+      editSourceFromInventory(event);
+    }
+  });
+}
 
 assetInventory?.addEventListener('change', (event) => {
   const radio = event.target.closest('[data-asset-source]');
@@ -1297,6 +1315,23 @@ assetInventory?.addEventListener('change', (event) => {
   chosenImportSourceKey = radio.dataset.assetSource;
   applyImportedAssetRoles();
 });
+function handleInspectorTrackMove(event) {
+  const moveButton = event.target.closest('button[data-tree-track-move]');
+  if (!moveButton) return false;
+  if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return true;
+  const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
+  if (!track || !track.include) return true;
+  moveTrack(track, Number(moveButton.dataset.treeTrackMove));
+  renderTrackList();
+  renderImportedAssetInventory();
+  renderContainerChangeSummary();
+  renderMuxPlan();
+  return true;
+}
+assetInspectorHost?.addEventListener('click', (event) => {
+  handleInspectorTrackMove(event);
+});
+
 assetInventory?.addEventListener('click', (event) => {
   const selected = event.target.closest('button[data-tree-select]');
   if (selected) {
@@ -1307,7 +1342,7 @@ assetInventory?.addEventListener('click', (event) => {
     // On narrow screens the inspector follows the compact list. Move to the
     // newly selected editor rather than leaving it outside the visible region.
     if (matchMedia('(max-width: 900px)').matches) {
-      assetInventory.querySelector('.asset-tree-inspector')?.scrollIntoView({ block: 'nearest' });
+      assetInspectorHost?.scrollIntoView({ block: 'nearest' });
     }
     return;
   }
@@ -1320,18 +1355,7 @@ assetInventory?.addEventListener('click', (event) => {
     }
     return;
   }
-  const moveButton = event.target.closest('button[data-tree-track-move]');
-  if (moveButton) {
-    if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return;
-    const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
-    if (!track || !track.include) return;
-    moveTrack(track, Number(moveButton.dataset.treeTrackMove));
-    renderTrackList();
-    renderImportedAssetInventory();
-    renderContainerChangeSummary();
-    renderMuxPlan();
-    return;
-  }
+  if (handleInspectorTrackMove(event)) return;
   const button = event.target.closest('[data-asset-remove]');
   if (!button || isBusy() || batchRunning || importInProgress) return;
   const key = button.dataset.assetRemove;
