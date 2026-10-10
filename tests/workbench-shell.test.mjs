@@ -35,3 +35,15 @@ test('desktop uses three independent workbench zones, with a stacked mobile insp
   assert.match(css, /\.asset-inspector-host\[hidden\] \{ display: none !important; \}/);
   assert.match(css, /@media \(max-width: 1439px\)[\s\S]*?grid-template-areas: "head" "inspector" "preview" "editors" "logs"/);
 });
+
+test('stacked view has native task navigation and output execution precedes plan details', async () => {
+  const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
+  for (const id of ['source-title', 'workbench-editor-title', 'workbench-output-title', 'batch-title']) {
+    assert.match(html, new RegExp(`href="#${id}"`), `missing native section jump for ${id}`);
+    assert.match(html, new RegExp(`id="${id}" tabindex="-1"`), `missing heading focus target ${id}`);
+  }
+  assert.ok(html.indexOf('class="output-section execution-panel"') <
+    html.indexOf('class="output-section plan-panel"'), 'ready/status/action must precede detailed plan');
+  assert.match(css, /\.workbench-jump-nav \{[\s\S]*?position: sticky;/);
+  assert.match(css, /#source-title, #workbench-editor-title, #workbench-output-title, #batch-title \{\s*scroll-margin-top: 72px;/);
+});
