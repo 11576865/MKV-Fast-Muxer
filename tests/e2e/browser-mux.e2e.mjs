@@ -1750,7 +1750,9 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const oldCommentary = page.locator(
       `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
     );
-    const legacyAudioRow = page.locator('.track-row.track-audio').filter({ has: oldCommentary });
+    const legacyAudioRow = page.locator(
+      `.track-row.track-audio:has(input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"])`
+    );
     await legacyAudioRow.locator('details.track-advanced > summary').click();
     assert.equal(await oldCommentary.isChecked(), true);
     await oldCommentary.uncheck();
