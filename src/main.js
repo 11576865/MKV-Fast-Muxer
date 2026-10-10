@@ -1,6 +1,7 @@
 import './style.css';
 import './workbench.css';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
+import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
@@ -1339,6 +1340,12 @@ assetInventory?.addEventListener('change', (event) => {
   if (!radio || isBusy() || batchRunning || importInProgress) return;
   chosenImportSourceKey = radio.dataset.assetSource;
   applyImportedAssetRoles();
+  focusUpdatedInventoryItem(assetInventory, {
+    selector: '[data-asset-source]',
+    keyAttribute: 'data-asset-source',
+    key: chosenImportSourceKey,
+    fallback: assetDropzone,
+  });
 });
 function handleInspectorTrackMove(event) {
   const moveButton = event.target.closest('button[data-tree-track-move]');
@@ -1390,9 +1397,15 @@ assetInventory?.addEventListener('click', (event) => {
   const button = event.target.closest('[data-asset-remove]');
   if (!button || isBusy() || batchRunning || importInProgress) return;
   const key = button.dataset.assetRemove;
+  const previousIndex = [...assetInventory.querySelectorAll('button[data-asset-remove]')].indexOf(button);
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
   applyImportedAssetRoles();
+  focusUpdatedInventoryItem(assetInventory, {
+    selector: 'button[data-asset-remove]',
+    previousIndex,
+    fallback: assetDropzone,
+  });
 });
 
 videoInput.addEventListener('change', () => {
@@ -4157,9 +4170,15 @@ batchAssetDropzone?.addEventListener('drop', (event) => {
 batchAssetInventory?.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-batch-asset-remove]');
   if (!button || batchRunning || isBusy() || batchImportInProgress) return;
+  const previousIndex = [...batchAssetInventory.querySelectorAll('button[data-batch-asset-remove]')].indexOf(button);
   batchImportEntries = batchImportEntries.filter((item) => item.key !== button.dataset.batchAssetRemove);
   batchUnifiedMode = true;
   replaceBatchAdapterFiles();
+  focusUpdatedInventoryItem(batchAssetInventory, {
+    selector: 'button[data-batch-asset-remove]',
+    previousIndex,
+    fallback: batchAssetDropzone,
+  });
 });
 
 function batchVideoFiles() {
