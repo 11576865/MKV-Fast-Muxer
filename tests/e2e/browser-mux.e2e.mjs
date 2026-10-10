@@ -1678,14 +1678,20 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     await tree.locator('[data-tree-preserve-all]').uncheck();
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), false);
     const audio = tree.locator('[data-tree-group="audio"] .asset-tree-row');
-    await audio.nth(0).locator('[data-tree-track-include]').uncheck();
+    const inspector = tree.locator('.asset-tree-inspector');
+    assert.equal(await tree.locator('[data-tree-group="audio"] [data-tree-track-field]').count(), 0,
+      'compact list must not repeat one full editor per track');
+    await audio.nth(0).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-include]').uncheck();
     assert.equal(await page.locator('.track-row.track-audio').nth(0)
       .locator('input[data-track-action="include"]').isChecked(), false);
-    await audio.nth(1).locator('[data-tree-track-field="title"]').fill('Tree Edited Opus');
+    await audio.nth(1).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-field="title"]').fill('Tree Edited Opus');
     assert.equal(await page.locator('.track-row.track-audio').nth(1)
       .locator('input[data-track-field="title"]').inputValue(), 'Tree Edited Opus');
     const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
-    await subtitle.locator('[data-tree-track-flag="forced"]').check();
+    await subtitle.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-flag="forced"]').check();
     assert.equal(await page.locator('.track-row.track-subtitle')
       .locator('input[data-track-action="forced"]').isChecked(), true);
     assert.match(await page.locator('#muxPlan').textContent(), /Tree Edited Opus/);
@@ -1705,7 +1711,8 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     // Exporting must NOT clear the unified inventory or reset live trackState.
     assert.equal(await page.locator('#videoInput').evaluate(el => el.files[0]?.name), 'source-multitrack.mkv');
     assert.equal(await tree.isVisible(), true);
-    assert.equal(await tree.locator('[data-tree-group="audio"] [data-tree-track-field="title"]').nth(1).inputValue(), 'Tree Edited Opus');
+    await audio.nth(1).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-field="title"]').inputValue(), 'Tree Edited Opus');
 
     await page.setViewportSize({ width: 390, height: 844 });
     // Responsive projection may settle after the viewport API resolves.
@@ -1738,21 +1745,23 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await tree.locator('[data-tree-preserve-all]').uncheck();
     const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
     assert.equal(await audioRows.count(), 2);
-    assert.equal(await audioRows.nth(0).locator('[data-tree-track-move="-1"]').isDisabled(), true);
-    assert.equal(await audioRows.nth(1).locator('[data-tree-track-move="1"]').isDisabled(), true);
-    await audioRows.nth(0).locator('[data-tree-track-field="title"]').fill('First tree audio');
-    await audioRows.nth(1).locator('[data-tree-track-field="title"]').fill('Second tree audio');
+    const inspector = tree.locator('.asset-tree-inspector');
+    await audioRows.nth(0).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-move="-1"]').isDisabled(), true);
+    await inspector.locator('[data-tree-track-field="title"]').fill('First tree audio');
+    await audioRows.nth(1).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-move="1"]').isDisabled(), true);
+    await inspector.locator('[data-tree-track-field="title"]').fill('Second tree audio');
 
     // The second included source audio must move above the first, not just
     // visually change position without affecting the mux output map.
-    await audioRows.nth(1).locator('[data-tree-track-move="-1"]').click();
-    assert.deepEqual(await audioRows.locator('[data-tree-track-field="title"]').evaluateAll(
-      elements => elements.map(input => input.value)
-    ), ['Second tree audio', 'First tree audio']);
+    await inspector.locator('[data-tree-track-move="-1"]').click();
+    assert.deepEqual(await audioRows.locator('.asset-tree-index-name').allTextContents(),
+      ['Second tree audio', 'First tree audio']);
     assert.match(await page.locator('#containerChangeSummary').textContent(), /修改/);
 
-    const first = audioRows.nth(0);
-    const advanced = first.locator('[data-tree-advanced]');
+    const first = inspector;
+    const advanced = inspector.locator('[data-tree-advanced]');
     await advanced.locator('summary').click();
     await advanced.locator('[data-tree-track-flag="original"]').check();
     assert.equal(await advanced.getAttribute('open'), '');
@@ -1767,6 +1776,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const oldCommentary = page.locator(
       `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
     );
+    await tree.locator('[data-tree-legacy-tools]').click();
     const legacyAudioRow = page.locator(
       `.track-row.track-audio:has(input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"])`
     );
@@ -1778,7 +1788,8 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await first.locator('[data-tree-track-flag="commentary"]').check();
 
     const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
-    const subAdvanced = subtitle.locator('[data-tree-advanced]');
+    await subtitle.locator('[data-tree-select]').click();
+    const subAdvanced = inspector.locator('[data-tree-advanced]');
     await subAdvanced.locator('summary').click();
     await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
     assert.equal(await subAdvanced.getAttribute('open'), '');
@@ -1832,10 +1843,13 @@ async function scenarioUnifiedContainerAttachmentEditing(browser) {
     assert.equal(await attachmentRows.count(), 2);
 
     await tree.locator('[data-tree-preserve-all]').uncheck();
+    const inspector = tree.locator('.asset-tree-inspector');
     const font = attachmentRows.filter({ hasText: 'fixture-original.ttf' });
-    await font.locator('[data-tree-attachment-include]').uncheck();
+    await font.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-attachment-include]').uncheck();
     const notes = attachmentRows.filter({ hasText: 'notes.txt' });
-    await notes.locator('[data-tree-attachment-field="filename"]').fill('tree-notes.txt');
+    await notes.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-attachment-field="filename"]').fill('tree-notes.txt');
     assert.equal(await page.locator('.attachment-item', { hasText: 'notes.txt' })
       .locator('input[data-attachment-field="filename"]').inputValue(), 'tree-notes.txt');
 
