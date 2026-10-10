@@ -5869,7 +5869,7 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 
 /* UI structural revision: compact index + one inspector, not one form per
    source stream. The existing batch/preview/editor IDs are preserved. */
-.editor-grid[data-intake-mode="unified"][data-show-legacy-source="false"] > .source-track-card {
+.editor-grid[data-intake-mode="unified"][data-show-legacy-source="false"]:not([data-editor-focus="source"]) > .source-track-card {
   display: none !important;
 }
 
