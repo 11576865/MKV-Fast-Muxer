@@ -356,6 +356,11 @@
     background: var(--surface-2);
     color: var(--text-strong);
   }
+  .workbench-jump-nav a[aria-current="location"] {
+    background: var(--surface-3);
+    color: var(--text-strong);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
   .workbench-jump-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   #source-title, #workbench-editor-title, #workbench-output-title, #batch-title {
     scroll-margin-top: 72px;
