@@ -1577,7 +1577,14 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('[data-new-audio-field="title"]').inputValue(), 'External audio');
     assert.equal(await page.locator('.batch-drawer').getAttribute('open'), null);
     await page.locator('.batch-drawer > summary').click();
-    for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput', '#batchSubsetScope', '#batchOutputDirBtn']) {
+    for (const selector of ['#batchUnifiedInput', '#batchUnifiedFolderInput', '#batchAssetDropzone', '#batchSubsetScope', '#batchOutputDirBtn']) {
+      assert.equal(await page.locator(selector).isVisible(), true, selector);
+    }
+    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('#batchVideoInput').isVisible(), false,
+      'legacy category slots must not appear as default batch import');
+    await page.locator('.batch-legacy-intake > summary').click();
+    for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput']) {
       assert.equal(await page.locator(selector).isVisible(), true, selector);
     }
     // mobile two-mode editor and disclosure behavior
