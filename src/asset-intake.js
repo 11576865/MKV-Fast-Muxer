@@ -134,3 +134,24 @@ export function resolveImportedRoles(entries, selectedSourceKey = '') {
     unassignedContainers: containers.filter((entry) => entry.key !== sourceKey),
   };
 }
+
+/**
+ * Batch roles are not single-job roles: every video-bearing container is a
+ * candidate for its own job. Never silently append a standalone audio file
+ * that the batch mux engine cannot currently map.
+ * Classification is a header-level claim; identifyBatchVideos supplies the
+ * authoritative stream scan and pairing safety checks afterward.
+ */
+export function resolveBatchImportedAssets(entries) {
+  const containers = [];
+  const subtitles = [];
+  const fonts = [];
+  const unsupported = [];
+  for (const entry of entries) {
+    if (entry.kind === 'container') containers.push(entry.file);
+    else if (entry.kind === 'subtitle') subtitles.push(entry.file);
+    else if (entry.kind === 'font') fonts.push(entry.file);
+    else unsupported.push(entry);
+  }
+  return { containers, subtitles, fonts, unsupported };
+}
