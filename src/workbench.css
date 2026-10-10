@@ -376,3 +376,65 @@
     padding-top: 14px;
   }
 }
+
+
+/* Batch and single-task import share a content-first entry vocabulary.
+   Existing category pickers remain only in an explicit compatibility drawer. */
+.batch-unified-intake {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.batch-unified-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.batch-unified-head h3 { margin: 0 0 5px; font-size: .9rem; }
+.batch-unified-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.5;
+  max-width: 620px;
+}
+.batch-unified-intake .asset-entry { padding: 9px 11px; }
+.batch-unified-intake .asset-entry-desc { font-size: .72rem; }
+.batch-legacy-intake {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding: 8px 0 0;
+}
+.batch-legacy-intake > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .74rem;
+  padding: 7px 4px;
+}
+.batch-legacy-intake > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.batch-legacy-intake-body {
+  display: grid;
+  gap: 12px;
+  padding: 10px 2px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .batch-unified-head { flex-direction: column; align-items: stretch; }
+  .batch-unified-head .unified-intake-buttons { width: 100%; }
+  .batch-unified-head .intake-picker { flex: 1 1 auto; }
+}
+@media (max-width: 600px) {
+  .batch-unified-intake { padding: 10px; }
+  .batch-unified-intake .asset-entry { grid-template-columns: minmax(0, 1fr); }
+  .batch-unified-intake .asset-entry-roles { justify-content: flex-start; }
+  .batch-unified-head p { font-size: .73rem; }
+}
