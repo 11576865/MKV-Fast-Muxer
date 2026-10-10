@@ -14,7 +14,8 @@ test('workbench separates imported source navigation from the central inspector 
   assert.match(script, /assetInspectorHost\.innerHTML = sourceInspectorMarkup/);
   assert.match(script, /for \(const target of \[assetInventory, assetInspectorHost\]\)/);
   assert.match(script, /assetInspectorHost\?\.addEventListener\('click'/);
-  assert.match(script, /containerTreeSelectedItem\.set\(source\.dataset\.sourceTree, selected\.dataset\.treeSelect\)/);
+  assert.match(script, /containerTreeSelectedItem\.set\(source\.dataset\.sourceTree, targetKey\)/);
+  assert.match(script, /reselected\?\.focus\(\{ preventScroll: true \}\)/);
 });
 
 test('all consequential MKV output actions have visible text labels, not only icons or aria names', async () => {
