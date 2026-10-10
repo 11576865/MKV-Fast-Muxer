@@ -112,3 +112,14 @@ At viewports under 1440px, a small sticky, native-anchor task navigator supplies
 Acceptance: on 390px viewport, `#workbench-output-title` must be reachable by a visible section link, execution must precede full plan, and the MKV primary action must be inside the viewport after the jump. This is a real browser geometry assertion, not just a CSS/string check. Workbench screenshots now capture both whole-workspace and actual top-of-viewport views, because long element screenshots distort the appearance of sticky sidebars.
 
 **Current full-PR head CI must still be checked after this follow-up**; do not re-use previous green test results as final acceptance.
+
+
+## Phase 6 — explicit CSS authority and active native task navigation
+
+The previous consolidated `src/style.css` contained 6,238 lines, including ~369 final lines whose workbench-specific rules relied on being the latest override to desktop/tablet/mobile styles. Phase 6 moves those rules into `src/workbench.css` and loads it after `src/style.css` in `src/main.js`. The global stylesheet is now ~5,868 lines. The separate file is the **single active workbench authority**, without a risky wholesale rewrite of legacy app styling. Adding future workbench overrides to the global file is prohibited by the local module note.
+
+The sticky section navigation now indicates the user's **current visible section** with `aria-current="location"`, not only a visual hover state. It listens to scroll, resize and hash changes, uses animation-frame coalescing, and leaves actual native anchor and focus behavior untouched. A hash target near the viewport top remains current even if browser scrolling and `scroll-margin-top` leave the heading below the sticky-bar boundary; normal manual scrolling later overrides a stale hash.
+
+**Evidence on PR #69 head `ec4ec2ed103a3db4d83fe3aa17f5b8c20e4070ca`:** [full Node + Chromium workflow](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38027820697) **177/177 Node tests, all browser mux E2E passed**; [Pages build](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38027820648) passed. The new `tests/workbench-navigation.test.mjs` checks scroll current-state, hidden desktop nav, hash/scroll-margin behavior and listener cleanup. New UI source assertions verify CSS load order. Browser E2E checks actual 390px native hash navigation, `aria-current`, focus and real MKV output workflows. Synthetic screenshot artifact: `mkv-ui-container-tree-viewports`, id `11660956495`.
+
+Remaining: review computed CSS for superseded base selectors; inspect 900–1439px tablet/coarse pointer layout and its actual touch interaction; consolidate batch input under the common content-first inventory model, which is still a separate legacy workflow. The evidence validates this incremental refactoring slice only, not the whole application UX. PR stays Draft until final UI acceptance; MKV-only output.
