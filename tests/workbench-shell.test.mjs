@@ -55,8 +55,15 @@ test('workbench styles are loaded after legacy CSS with one explicit authority',
   ]);
   assert.ok(main.indexOf("import './style.css'") < main.indexOf("import './workbench.css'"),
     'workbench overrides must load after the global stylesheet');
-  assert.doesNotMatch(legacyCss, /Workbench IA \/ phase 5/);
-  assert.match(css, /Workbench IA \/ phase 5/);
+  for (const marker of [
+    /Workbench IA \/ phase 5/,
+    /Content-first MKV intake: import is one action/,
+    /Live source-container hierarchy in the unified asset inventory/,
+    /In-place track ordering and advanced stream dispositions/,
+  ]) {
+    assert.doesNotMatch(legacyCss, marker, 'modern source workbench CSS must not leak back into global style');
+    assert.match(css, marker, 'source/track rules belong to workbench.css');
+  }
   assert.match(css, /\.workbench-jump-nav a\[aria-current="location"\]/);
   assert.match(main, /setupWorkbenchNavigation\(document\.querySelector\('\.workbench-jump-nav'\)\)/);
   assert.match(navigation, /aria-current/);
