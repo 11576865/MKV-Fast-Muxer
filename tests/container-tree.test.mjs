@@ -11,9 +11,9 @@ const fixture = () => ({
     { index: 4, codec_type: 'data', codec_name: 'bin_data' },
   ],
   tracks: [
-    { index: 1, type: 'audio', include: true, language: 'eng', originalLanguage: 'eng',
+    { index: 1, order: 1, type: 'audio', include: true, language: 'eng', originalLanguage: 'eng',
       title: 'Audio', originalTitle: 'Audio', default: true, originalDefault: true },
-    { index: 2, type: 'subtitle', include: true, language: 'zho', originalLanguage: 'zho',
+    { index: 2, order: 2, type: 'subtitle', include: true, language: 'zho', originalLanguage: 'zho',
       title: 'Signs', originalTitle: 'Signs', forced: false, originalForced: false },
   ],
   attachments: [{ index: 3, include: true, filename: 'font.ttf', originalFilename: 'font.ttf',
@@ -68,4 +68,40 @@ test('unknown streams are not omitted; their editability remains read-only', () 
   assert.equal(tree.streamCount, 6);
   assert.equal(item(tree, 'other').status, 'remove');
   assert.equal(item(tree, 'other').track, null);
+});
+
+test('tree sorts included audio by editable order and exposes bounded moves', () => {
+  const state = fixture();
+  state.streams.push({ index: 6, codec_type: 'audio', codec_name: 'flac' });
+  state.tracks.push({
+    index: 6, order: 6, type: 'audio', include: true,
+    language: 'jpn', originalLanguage: 'jpn',
+    title: 'Second', originalTitle: 'Second',
+    default: false, originalDefault: false,
+    forced: false, originalForced: false,
+    original: false, originalOriginal: false,
+    commentary: false, originalCommentary: false,
+    hearingImpaired: false, originalHearingImpaired: false,
+  });
+  const initial = buildContainerTreeModel(state);
+  const initialAudio = initial.groups.find(group => group.key === 'audio').items;
+  assert.deepEqual(initialAudio.map(item => item.index), [1, 6]);
+  assert.equal(initialAudio[0].canMoveUp, false);
+  assert.equal(initialAudio[0].canMoveDown, true);
+  assert.equal(initialAudio[1].canMoveUp, true);
+  assert.equal(initialAudio[1].canMoveDown, false);
+
+  [state.tracks[0].order, state.tracks[2].order] =
+    [state.tracks[2].order, state.tracks[0].order];
+  const reordered = buildContainerTreeModel(state).groups.find(group => group.key === 'audio').items;
+  assert.deepEqual(reordered.map(item => item.index), [6, 1]);
+  assert.equal(reordered[0].status, 'modify');
+  assert.equal(reordered[1].status, 'modify');
+
+  state.tracks[2].include = false;
+  const excluded = buildContainerTreeModel(state).groups.find(group => group.key === 'audio').items;
+  assert.equal(excluded.find(item => item.index === 1).canMoveUp, false);
+  assert.equal(excluded.find(item => item.index === 1).canMoveDown, false);
+  assert.equal(buildContainerTreeModel(state, { appendMode: true }).groups
+    .find(group => group.key === 'audio').items[0].canMoveDown, false);
 });
