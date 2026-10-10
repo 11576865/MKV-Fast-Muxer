@@ -59,3 +59,18 @@ Regression requirements:
 - At 390px phone width, synchronize on nonzero tree geometry after viewport change before asserting overflow and visibility.
 
 The source-projection model has **5/5 V8 source-derived assertions** passing. The first full Node/Chromium CI run caught the real post-export reset mismatch; it is being corrected with a targeted browser regression. Do not mark this phase accepted until the later **latest-head** CI is green.
+
+
+## Phase 3 — track order, advanced flags and viewport evidence
+
+The in-tree source MKV audio/subtitle controls now expose **reorder within included peers of the same type**, and the advanced `Original`, `Commentary`, and `Hearing impaired` dispositions. The tree calls the existing `moveTrack` operation on `trackState.tracks`; its display order is a projection of `track.order`. When a reorder differs from the source index it contributes to the modification indicator. Removed tracks remain visible for recovery but have no active reordering targets. `appendPreserveAll` mode disables all modifications.
+
+The existing original-track editor and bulk editing actions now refresh the imported container tree on committed changes. Conversely, the tree updates the same `trackState` objects and refreshes the original editor/plan. Text input never rebuilds its own active container tree on each keystroke, to avoid losing caret position; the opposite view updates on committed change.
+
+Advanced disclosure state is retained across inventory re-renders, including after setting a checkbox. Both original stream and attachment status use the same output mapping and post-mux audit as before.
+
+**Verification contract:** browser E2E reorders two real original audio streams, confirms the downloaded MKV's audio order and titles, and checks the actual `original`, `comment` and `hearing_impaired` disposition bits by ffprobe. It also checks reverse synchronization from the legacy editor and preservation of the expanded advanced panel.
+
+**Visual evidence:** E2E saves screenshot artifacts of the actual populated container tree at **1440×900 desktop** and **390×844 phone** from generated, non-user fixtures. The workflow uploads only `mkv-container-tree-*.png` files to the `mkv-ui-container-tree-viewports` GitHub Actions artifact for subsequent human/visual review. CI success alone is not proof of design acceptance.
+
+**Remaining work:** validated screenshots should be reviewed for ergonomics, clipping, hierarchy and control density; consider moving all original-track editing into one canonical view once parity is established. Continue keeping PR #69 Draft and MKV-only until visual acceptance and more diverse input evaluation.
