@@ -1205,6 +1205,19 @@ async function scenarioUnifiedBatchContentIntake(browser) {
         !document.querySelector('#batchStartBtn').disabled;
     }, null, { timeout: 120_000 });
     assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.batch-workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-batch-desktop-1440.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#batchAssetInventory .asset-entry').count(), 3);
+    await page.locator('.batch-unified-intake').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-batch-phone-390.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.locator('#batchStartBtn').click();
     await page.waitForFunction(() => {
       const value = document.querySelector('#batchStatus')?.textContent || '';
