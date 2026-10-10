@@ -74,3 +74,28 @@ Advanced disclosure state is retained across inventory re-renders, including aft
 **Visual evidence:** E2E saves screenshot artifacts of the actual populated container tree at **1440×900 desktop** and **390×844 phone** from generated, non-user fixtures. The workflow uploads only `mkv-container-tree-*.png` files to the `mkv-ui-container-tree-viewports` GitHub Actions artifact for subsequent human/visual review. CI success alone is not proof of design acceptance.
 
 **Remaining work:** validated screenshots should be reviewed for ergonomics, clipping, hierarchy and control density; consider moving all original-track editing into one canonical view once parity is established. Continue keeping PR #69 Draft and MKV-only until visual acceptance and more diverse input evaluation.
+
+
+## Phase 5 — source / editor / output ownership of the complete workbench
+
+The previous Master/Detail improvement made the MKV source-track list compact, but both the list and full metadata inspector still lived **inside the import card**, while unrelated external-resource controls and subtitle preview lived in an editor column and output controls lived in another panel. This left a task-level ownership split: the user had to switch context between three unrelated areas to edit one item.
+
+The workbench now uses **three purpose-specific zones** at wide desktop widths (1440+ with fine pointer):
+- **Sources**: one content-first import entry and a grouped, compact inventory/stream index; no stream metadata forms live here
+- **Current edit context**: a single selected source-track inspector, additional subtitle/audio/font controls, on-demand subtitle preview and diagnostics
+- **Output decision**: preflight, progress/cancel, visibly named MKV export and artifact/report download with final audit
+
+The inspector is moved to a stable `#assetInspectorHost` inside the actual editor column; `#assetInventory` remains a navigation list. The renderer projects the same `trackState` into these surfaces without independently storing edited values. Moving the actual editable subtree means **existing delegated change/click/toggle listeners must be bound to the editor host**, not left on the old inventory parent. The source list keeps the user's current index selection using original stream identity and updates active track/attachment names during text editing without remounting the input (avoids losing caret position). Source inventory, editor and output remain one continuous DOM task when responsive layout stacks them.
+
+At desktop width the CSS grid renders left source, central editor/preview and right output concurrently. At smaller viewports the sections stack; coarse-pointer tablet keeps its existing intentional two-column editor/output layout and preview disclosure. Original source editor remains reachable as a compatibility/bulk tool; it is not a duplicated default UI.
+
+### Evidence gates
+
+- Node source contract: inspector DOM ownership, visible text labels, responsive zone CSS
+- Chromium actual geometry at 1600px: source < editor < output, inspector belongs to central edit column, no horizontal overflow
+- Chromium phone at 390px: source → inspector → output document order; no clipped inspector or horizontal overflow
+- Keyboard selection of an audio track must update the active original stream; text-label changes must update source navigation without input remounting
+- Existing MKV output E2E must still validate real stream ordering, disposition flags, original attachment editing, source-only remux, reports and error behavior
+- Visual evidence must show the **normal mode**; legacy source editor opened temporarily for reverse-sync test should be closed before screenshots
+
+**CI and visual-review status for the final head must be verified independently**; prior PR #69 successes are not evidence for this latest structural refactor. Do not treat it as a completed product UI or merge based solely on screenshot geometry. MP4 output remains out of scope.
