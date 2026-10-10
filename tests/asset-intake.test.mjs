@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assetIntakeKey, classifyAssetBytes, identifyImportedAsset, resolveImportedRoles, ASSET_STATUS } from '../src/asset-intake.js';
+import { assetIntakeKey, classifyAssetBytes, identifyImportedAsset, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from '../src/asset-intake.js';
 
 const bytes = (text) => new TextEncoder().encode(text);
 const fixture = (name, data, lastModified = 1) => ({
@@ -80,4 +80,30 @@ test('asset keys distinguish paths in selected folders', () => {
   const a = { name: '01.ass', webkitRelativePath: 'A/01.ass', size: 10, lastModified: 12 };
   const b = { name: '01.ass', webkitRelativePath: 'B/01.ass', size: 10, lastModified: 12 };
   assert.notEqual(assetIntakeKey(a), assetIntakeKey(b));
+});
+
+
+test('batch content-first roles include every container and standalone subtitle/font, but block unsupported audio', () => {
+  const files = [
+    {kind:'container',file:{name:'a.mp4'}},
+    {kind:'container',file:{name:'b.mkv'}},
+    {kind:'subtitle',file:{name:'a.ass'}},
+    {kind:'font',file:{name:'shared.ttf'}},
+    {kind:'audio',file:{name:'sound.flac'}},
+    {kind:'unknown',file:{name:'unknown.bin'}},
+  ];
+  const roles = resolveBatchImportedAssets(files);
+  assert.deepEqual(roles.containers.map(x => x.name), ['a.mp4','b.mkv']);
+  assert.deepEqual(roles.subtitles.map(x => x.name), ['a.ass']);
+  assert.deepEqual(roles.fonts.map(x => x.name), ['shared.ttf']);
+  assert.deepEqual(roles.unsupported.map(x => x.file.name), ['sound.flac','unknown.bin']);
+});
+
+test('batch role mapping does not mutate original inventory or auto-promote audio to a video source', () => {
+  const entries = [{kind:'audio',file:{name:'episode.flac'}}, {kind:'subtitle',file:{name:'episode.ass'}}];
+  const before = entries.map(x => x.kind);
+  const result = resolveBatchImportedAssets(entries);
+  assert.deepEqual(result.containers, []);
+  assert.equal(result.unsupported.length, 1);
+  assert.deepEqual(entries.map(x => x.kind), before);
 });
