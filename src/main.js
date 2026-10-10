@@ -1,4 +1,6 @@
 import './style.css';
+import './workbench.css';
+import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
@@ -68,6 +70,7 @@ import {
 
 const $ = (id) => document.getElementById(id);
 setupObjectEditor(document.querySelector('.editor-grid'));
+setupWorkbenchNavigation(document.querySelector('.workbench-jump-nav'));
 
 const videoInput = $('videoInput');
 const videoIdentityLabel = $('videoIdentity');
