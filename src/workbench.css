@@ -380,6 +380,18 @@
 
 /* Batch and single-task import share a content-first entry vocabulary.
    Existing category pickers remain only in an explicit compatibility drawer. */
+.batch-inputs {
+  /* Override the previous three visible category slots. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.batch-unified-intake,
+.batch-legacy-intake { grid-column: 1 / -1; }
+.batch-legacy-intake-body {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 760px) {
+  .batch-legacy-intake-body { grid-template-columns: minmax(0, 1fr); }
+}
 .batch-unified-intake {
   display: grid;
   gap: 10px;
