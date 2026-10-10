@@ -26,17 +26,17 @@ test('content-first MKV intake keeps live editors and output without category up
   }
 });
 
-test('preview remains a 16:9 on-demand frame and an editor sits beside it on wide screens', async () => {
-  const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
+test('preview stays 16:9 within the active edit workspace, not the source inventory', async () => {
+  const [html, legacyCss, modernCss] = await Promise.all([
+    source('index.html'), source('src/style.css'), source('src/workbench.css'),
+  ]);
   assert.match(html, /id="preview-title">字幕预览/);
   assert.match(html, /id="previewRefreshBtn"[^>]*aria-label="生成预览帧"/);
-  assert.match(css, /1\.2\.2 visual system/);
-  assert.match(css, /\.subtitle-preview-card \.preview-stage \{[^}]*aspect-ratio: 16 \/ 9;/);
-  assert.match(css, /@media \(min-width: 1360px\) \{/);
-  assert.match(css, /\.editor-column \{[^}]*grid-template-columns: minmax\(0, 1\.38fr\) minmax\(325px, \.62fr\)/);
-  assert.match(css, /@media \(max-width: 1359px\)/);
+  assert.match(legacyCss, /\.subtitle-preview-card \.preview-stage \{[^}]*aspect-ratio: 16 \/ 9;/);
+  assert.match(html, /class="editor-column"[\s\S]*id="assetInspectorHost"[\s\S]*class="subtitle-preview-card"/);
+  assert.match(modernCss, /grid-template-areas: "head" "inspector" "editors" "preview" "logs"/);
+  assert.match(modernCss, /grid-template-areas: "head" "inspector" "preview" "editors" "logs"/);
 });
-
 test('narrow layouts keep content-first intake and batch remains separately expandable', async () => {
   const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
   assert.match(css, /@media \(max-width: 900px\)/);
@@ -52,24 +52,19 @@ test('narrow layouts keep content-first intake and batch remains separately expa
 });
 
 
-test('desktop refinement preserves existing editors while offering unified import', async () => {
-  const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
-
-  assert.match(css, /Desktop refinement: annotated 1920px pass/);
-  assert.match(css, /@media \(min-width: 1360px\) and \(hover: hover\) and \(pointer: fine\)/);
-  assert.match(await source('src/workbench.css'), /\.legacy-source-picker,\s*\.legacy-source-picker\[hidden\] \{\s*display: none !important;/);
-  assert.match(css, /\.subtitle-preview-card \.preview-head \{[\s\S]*display: none;/);
-  assert.match(css, /\.object-editor-nav \{[\s\S]*display: none;/);
-  assert.match(css, /\.action-icon-button \{[\s\S]*width: 48px;[\s\S]*background: var\(--success\)/);
-  assert.match(css, /\.batch-layout \{[\s\S]*grid-template-columns: minmax\(0, 1\.35fr\) minmax\(400px, \.65fr\)/);
-
-  // Controls stay in the DOM for narrower layouts and scripted state preservation.
+test('modern desktop layout hides duplicate original editor by default while preserving access', async () => {
+  const [html, modernCss] = await Promise.all([
+    source('index.html'), source('src/workbench.css'),
+  ]);
+  assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-legacy-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
+  assert.match(modernCss, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
+  assert.match(modernCss, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
+  assert.match(modernCss, /\.workspace > \.workbench-grid > \.output-hub \{/);
+  // Secondary legacy and bulk controls are still real, reachable DOM nodes.
   assert.match(html, /class="object-editor-nav"/);
   assert.match(html, /id="previewRefreshBtn"/);
   assert.match(html, /id="batchStartBtn"/);
 });
-
-
 test('portrait tablet guard preserves editor/output columns below unified import', async () => {
   const css = await source('src/style.css');
 
@@ -81,19 +76,18 @@ test('portrait tablet guard preserves editor/output columns below unified import
 });
 
 
-test('compact mux UI uses icon actions and exposes an explicit container change summary', async () => {
-  const [html, css, main] = await Promise.all([
-    source('index.html'),
-    source('src/style.css'),
-    source('src/main.js'),
+test('MKV execution actions are visibly named and preserve the container change audit', async () => {
+  const [html, modernCss, main] = await Promise.all([
+    source('index.html'), source('src/workbench.css'), source('src/main.js'),
   ]);
-
   assert.match(html, /id="containerChangeSummary"/);
-  assert.match(html, /id="scanTracksBtn"[^>]*class="icon-button"[^>]*aria-label="重新扫描容器"/);
-  assert.match(html, /id="refreshPlanBtn"[^>]*class="icon-button"[^>]*aria-label="刷新封装计划"/);
-  assert.match(html, /id="muxBtn"[^>]*class="icon-button action-icon-button"[^>]*aria-label="开始封装"/);
-  assert.match(html, /id="cancelBtn"[^>]*class="icon-button danger-icon-button"[^>]*aria-label="取消当前操作"/);
-  assert.match(css, /1\.2\.3 compact soft-mux controls \+ explicit container inventory/);
+  assert.match(html, /id="scanTracksBtn"[^>]*aria-label="重新扫描容器"/);
+  assert.match(html, /id="refreshPlanBtn"[^>]*aria-label="刷新封装计划"/);
+  assert.match(html, /id="muxBtn"[^>]*>[\s\S]*?<span class="action-label">开始封装 MKV<\/span>/);
+  assert.match(html, /id="cancelBtn"[^>]*>[\s\S]*?<span class="action-label">取消<\/span>/);
+  assert.match(html, /id="downloadLink"[^>]*>[\s\S]*?<span>下载 MKV<\/span>/);
+  assert.match(html, /id="reportLink"[^>]*>[\s\S]*?<span>下载报告<\/span>/);
+  assert.match(modernCss, /\.execution-panel \.action-icon-button \{[\s\S]*?min-height: 48px;/);
   assert.match(main, /function renderContainerChangeSummary/);
   assert.match(main, /data-change="add"/);
   assert.match(main, /data-change="remove"/);
