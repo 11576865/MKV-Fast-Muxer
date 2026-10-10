@@ -1549,11 +1549,12 @@ async function scenarioResponsiveObjectEditor(browser) {
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
-        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewRight: rect.right, editorLeft: editor.left };
+        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewTop: rect.top, editorBottom: editor.bottom };
       });
       assert.ok(layout.scroll <= layout.viewport, `horizontal overflow at ${width}: ${JSON.stringify(layout)}`);
       assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `preview ratio at ${width}: ${layout.ratio}`);
-      if (width >= 1360) assert.ok(layout.previewRight <= layout.editorLeft + 1, `object editor is beside preview at ${width}: ${JSON.stringify(layout)}`);
+      if (width >= 1440) assert.ok(layout.editorBottom <= layout.previewTop + 2,
+        `desktop should place property editing above contextual preview at ${width}: ${JSON.stringify(layout)}`);
     }
     console.log('Scenario 32 PASS');
   } finally {
