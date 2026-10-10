@@ -421,6 +421,38 @@
             <summary>展开批量工作区 <span aria-hidden="true">↗</span></summary>
           <div class="batch-layout">
             <div class="batch-inputs" aria-label="批量素材">
+              <section class="batch-unified-intake" aria-labelledby="batch-unified-title">
+                <div class="batch-unified-head">
+                  <div>
+                    <h3 id="batch-unified-title">导入批量素材</h3>
+                    <p>统一导入文件或文件夹；识别容器、字幕和字体，再按文件名自动配对。独立音频目前不属于批量封装能力。</p>
+                  </div>
+                  <div class="unified-intake-buttons">
+                    <label class="button button-primary intake-picker">
+                      添加文件
+                      <input id="batchUnifiedInput" type="file" multiple aria-label="统一导入批量文件"/>
+                    </label>
+                    <label class="button button-secondary intake-picker">
+                      添加文件夹
+                      <input id="batchUnifiedFolderInput" type="file" multiple webkitdirectory directory aria-label="统一导入批量文件夹"/>
+                    </label>
+                  </div>
+                </div>
+                <div id="batchAssetDropzone" class="asset-dropzone" role="button" tabindex="0" aria-label="点击或拖放批量素材">
+                  将批量素材拖入这里，按实际文件内容分类；识别结果和无法使用的文件会列在下方。
+                </div>
+                <div class="asset-inventory-head">
+                  <strong>批量资源</strong>
+                  <span id="batchAssetStatus" role="status" aria-live="polite">尚未导入</span>
+                </div>
+                <div id="batchAssetInventory" class="asset-inventory" aria-label="批量内容识别清单">
+                  <div class="track-empty">导入后显示文件内容身份；不能参与批量任务的文件不会被忽略。</div>
+                </div>
+              </section>
+
+              <details class="batch-legacy-intake">
+                <summary>分类导入（兼容旧批量流程）</summary>
+                <div class="batch-legacy-intake-body">
               <section class="batch-source-cluster batch-video-cluster">
                 <div class="batch-cluster-head">
                   <span class="source-type">VIDEO</span>
@@ -471,6 +503,8 @@
                   </label>
                 </div>
               </section>
+                </div>
+              </details>
             </div>
 
             <div class="batch-detail">
