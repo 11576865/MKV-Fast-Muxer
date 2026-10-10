@@ -27,7 +27,7 @@ test('all consequential MKV output actions have visible text labels, not only ic
 });
 
 test('desktop uses three independent workbench zones, with a stacked mobile inspector', async () => {
-  const css = await source('src/style.css');
+  const css = await source('src/workbench.css');
   assert.match(css, /Workbench IA \/ phase 5/);
   assert.match(css, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
   assert.match(css, /grid-template-areas: "head" "inspector" "editors" "preview" "logs"/);
@@ -37,7 +37,7 @@ test('desktop uses three independent workbench zones, with a stacked mobile insp
 });
 
 test('stacked view has native task navigation and output execution precedes plan details', async () => {
-  const [html, css] = await Promise.all([source('index.html'), source('src/style.css')]);
+  const [html, css] = await Promise.all([source('index.html'), source('src/workbench.css')]);
   for (const id of ['source-title', 'workbench-editor-title', 'workbench-output-title', 'batch-title']) {
     assert.match(html, new RegExp(`href="#${id}"`), `missing native section jump for ${id}`);
     assert.match(html, new RegExp(`id="${id}" tabindex="-1"`), `missing heading focus target ${id}`);
@@ -46,4 +46,18 @@ test('stacked view has native task navigation and output execution precedes plan
     html.indexOf('class="output-section plan-panel"'), 'ready/status/action must precede detailed plan');
   assert.match(css, /\.workbench-jump-nav \{[\s\S]*?position: sticky;/);
   assert.match(css, /#source-title, #workbench-editor-title, #workbench-output-title, #batch-title \{\s*scroll-margin-top: 72px;/);
+});
+
+test('workbench styles are loaded after legacy CSS with one explicit authority', async () => {
+  const [main, legacyCss, css, navigation] = await Promise.all([
+    source('src/main.js'), source('src/style.css'),
+    source('src/workbench.css'), source('src/workbench-navigation.js'),
+  ]);
+  assert.ok(main.indexOf("import './style.css'") < main.indexOf("import './workbench.css'"),
+    'workbench overrides must load after the global stylesheet');
+  assert.doesNotMatch(legacyCss, /Workbench IA \/ phase 5/);
+  assert.match(css, /Workbench IA \/ phase 5/);
+  assert.match(css, /\.workbench-jump-nav a\[aria-current="location"\]/);
+  assert.match(main, /setupWorkbenchNavigation\(document\.querySelector\('\.workbench-jump-nav'\)\)/);
+  assert.match(navigation, /aria-current/);
 });
