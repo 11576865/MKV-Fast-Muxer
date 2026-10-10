@@ -28,6 +28,7 @@ test('batch signature identity routes through existing pairing without invisible
 test('batch-specific UI owns its style rules in workbench.css, not global legacy CSS', async () => {
   const [css, js] = await Promise.all([source('src/workbench.css'), source('src/main.js')]);
   assert.match(css, /\.batch-unified-intake \{/);
+  assert.match(css, /\.batch-inputs \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/);
   assert.match(css, /\.batch-legacy-intake > summary/);
   assert.ok(js.indexOf("import './style.css'") < js.indexOf("import './workbench.css'"));
 });
