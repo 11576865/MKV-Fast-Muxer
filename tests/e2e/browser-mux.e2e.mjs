@@ -1206,6 +1206,13 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     }, null, { timeout: 120_000 });
     assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
     await page.setViewportSize({ width: 1440, height: 900 });
+    const sectionSeparation = await page.evaluate(() => {
+      const output = document.querySelector('.output-hub').getBoundingClientRect();
+      const batch = document.querySelector('.batch-workspace').getBoundingClientRect();
+      return { outputBottom: output.bottom, batchTop: batch.top };
+    });
+    assert.ok(sectionSeparation.outputBottom <= sectionSeparation.batchTop + 2,
+      `single-task output rail overlaps the batch workbench: ${JSON.stringify(sectionSeparation)}`);
     await page.locator('.batch-workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-batch-desktop-1440.png'),
       animations: 'disabled',
