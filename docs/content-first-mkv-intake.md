@@ -99,3 +99,16 @@ At desktop width the CSS grid renders left source, central editor/preview and ri
 - Visual evidence must show the **normal mode**; legacy source editor opened temporarily for reverse-sync test should be closed before screenshots
 
 **CI and visual-review status for the final head must be verified independently**; prior PR #69 successes are not evidence for this latest structural refactor. Do not treat it as a completed product UI or merge based solely on screenshot geometry. MP4 output remains out of scope.
+
+
+### Follow-up from actual full-workbench viewport review
+
+The 1440×900 **viewport** image, not merely the long whole-workspace screenshot, showed that the output rail listed a long plan above the action, causing the primary **开始封装 MKV** control to fall below the first screen. The mobile viewport screenshot showed no rapid way to reach distant edit/output sections when the imported MKV contained multiple source tracks.
+
+This is an actionable interaction finding, not a mere style preference. The output rail's HTML order is now **output summary → execution readiness/status/action → detailed plan**, so the next task action is visible without scrolling through every plan item. The complete plan and warning section are still available and bound to the same DOM IDs; the preflight engine still disables execution for blockers.
+
+At viewports under 1440px, a small sticky, native-anchor task navigator supplies **资源 / 编辑 / 输出 / 批量** section jumps. Headings are focusable hash targets with `scroll-margin-top` for non-occlusion, links are keyboard-operable, and no editor/input DOM is remounted by the navigation. Desktop three-column workbenches do not display redundant section navigation.
+
+Acceptance: on 390px viewport, `#workbench-output-title` must be reachable by a visible section link, execution must precede full plan, and the MKV primary action must be inside the viewport after the jump. This is a real browser geometry assertion, not just a CSS/string check. Workbench screenshots now capture both whole-workspace and actual top-of-viewport views, because long element screenshots distort the appearance of sticky sidebars.
+
+**Current full-PR head CI must still be checked after this follow-up**; do not re-use previous green test results as final acceptance.
