@@ -757,8 +757,23 @@ async function scenarioTenSequential(browser) {
       await page.setInputFiles('#subInput', path.join(root, index % 2 === 0 ? 'zh.ass' : 'en.ass'));
       await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
+      // The previous iteration clears the old inputs after export. Await the
+      // new subtitle identity and current task readiness before editing its
+      // metadata; otherwise a stale track editor can be filled mid-refresh.
+      const subtitleName = index % 2 === 0 ? 'zh.ass' : 'en.ass';
+      await page.waitForFunction((expected) => {
+        const file = document.querySelector('#subInput')?.files?.[0];
+        const action = document.querySelector('#muxBtn');
+        const titleField = document.querySelector(
+          'input[data-new-sub-field="title"][data-index="0"]'
+        );
+        return file?.name === expected && action && !action.disabled &&
+          titleField && !titleField.disabled;
+      }, subtitleName, { timeout: 60_000 });
+
       const title = `Loop ${index + 1}`;
       await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill(title);
+      assert.equal(await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue(), title);
       await page.locator('#muxBtn').click();
       await waitForStatus(page, '完成。');
 
@@ -1154,6 +1169,109 @@ async function scenarioFontSubsetting(browser) {
   }
 }
 
+async function scenarioUnifiedBatchContentIntake(browser) {
+  console.log('E2E: unified batch import identifies mixed contents, blocks unsupported files, then muxes MKV');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchUnifiedInput', [
+      path.join(root, 'Batch S01E01.mp4'),
+      path.join(root, 'Batch S01E01.zh-Hans.ass'),
+      path.join(root, 'DejaVuSans.ttf'),
+      path.join(root, 'external.flac'),
+    ]);
+    await page.waitForFunction(() => {
+      const count = document.querySelectorAll('#batchAssetInventory .asset-entry').length;
+      const status = document.querySelector('#batchAssetStatus')?.textContent || '';
+      return count === 4 && status.includes('1 项不可使用');
+    }, null, { timeout: 120_000 });
+    assert.deepEqual(await page.locator('#batchAssetInventory .asset-entry').evaluateAll(items =>
+      items.map(item => item.dataset.kind)
+    ), ['container','subtitle','font','audio']);
+    assert.deepEqual(await page.evaluate(() => [
+      [...document.querySelector('#batchVideoInput').files].map(f => f.name),
+      [...document.querySelector('#batchSubtitleInput').files].map(f => f.name),
+      [...document.querySelector('#batchFontInput').files].map(f => f.name),
+    ]), [['Batch S01E01.mp4'], ['Batch S01E01.zh-Hans.ass'], ['DejaVuSans.ttf']]);
+    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+
+    const removeUnsupportedBatch = page.locator('#batchAssetInventory .asset-entry[data-kind="audio"] [data-batch-asset-remove]');
+    await removeUnsupportedBatch.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() =>
+      document.activeElement?.closest('#batchAssetInventory .asset-entry')?.dataset.kind),
+    'font', 'after removing last batch asset, focus returns to previous available row');
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return document.querySelectorAll('#batchAssetInventory .asset-entry').length === 3 &&
+        plan.includes('Batch S01E01.mp4') &&
+        plan.includes('1 ASS') &&
+        !document.querySelector('#batchStartBtn').disabled;
+    }, null, { timeout: 120_000 });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), false);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const sectionSeparation = await page.evaluate(() => {
+      const output = document.querySelector('.output-hub').getBoundingClientRect();
+      const batch = document.querySelector('.batch-workspace').getBoundingClientRect();
+      return { outputBottom: output.bottom, batchTop: batch.top };
+    });
+    assert.ok(sectionSeparation.outputBottom <= sectionSeparation.batchTop + 2,
+      `single-task output rail overlaps the batch workbench: ${JSON.stringify(sectionSeparation)}`);
+    await page.locator('.batch-workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-batch-desktop-1440.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#batchAssetInventory .asset-entry').count(), 3);
+    await page.locator('.batch-unified-intake').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-batch-phone-390.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const value = document.querySelector('#batchStatus')?.textContent || '';
+      return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
+    }, null, { timeout: 360_000 });
+    assert.match(await page.locator('#batchStatus').textContent(), /成功 1，失败 0/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 1);
+    const resultPath = path.join(outDir, 'unified-batch-content-first.mkv');
+    const link = page.locator('#batchResults a.download').first();
+    const downloadPromise = page.waitForEvent('download');
+    await link.click();
+    await (await downloadPromise).saveAs(resultPath);
+    const output = probe(resultPath);
+    assert.ok(output.streams.some(stream => stream.codec_type === 'video'));
+    assert.ok(output.streams.some(stream => stream.codec_type === 'subtitle'));
+    assert.ok(output.streams.some(stream => stream.codec_type === 'attachment'));
+
+    // Explicit use of the advanced category picker switches modes rather
+    // than mixing hidden unified adapters with stale manual selections.
+    await page.locator('.batch-legacy-intake > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E02.mp4'));
+    await page.waitForFunction(() => {
+      return document.querySelector('#batchVideoInput')?.files[0]?.name === 'Batch S01E02.mp4' &&
+        document.querySelector('#batchSubtitleInput')?.files.length === 0 &&
+        document.querySelector('#batchFontInput')?.files.length === 0 &&
+        document.querySelectorAll('#batchAssetInventory .asset-entry').length === 0;
+    });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true,
+      'no matched subtitle means no executable legacy batch job');
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E02.en.srt'));
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchPlan')?.textContent || '';
+      return text.includes('Batch S01E02.mp4') && text.includes('1 SRT') &&
+        !text.includes('Batch S01E01.mp4') &&
+        !document.querySelector('#batchStartBtn').disabled;
+    });
+    console.log('Unified batch content-first import, MKV mux and legacy mode isolation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchAmbiguousSafety(browser) {
   console.log('E2E: ambiguous episode-only batch subtitles must not start a mux');
   const { context, page } = await openApp(browser);
@@ -1479,7 +1597,14 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('[data-new-audio-field="title"]').inputValue(), 'External audio');
     assert.equal(await page.locator('.batch-drawer').getAttribute('open'), null);
     await page.locator('.batch-drawer > summary').click();
-    for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput', '#batchSubsetScope', '#batchOutputDirBtn']) {
+    for (const selector of ['#batchUnifiedInput', '#batchUnifiedFolderInput', '#batchAssetDropzone', '#batchSubsetScope', '#batchOutputDirBtn']) {
+      assert.equal(await page.locator(selector).isVisible(), true, selector);
+    }
+    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('#batchVideoInput').isVisible(), false,
+      'legacy category slots must not appear as default batch import');
+    await page.locator('.batch-legacy-intake > summary').click();
+    for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput']) {
       assert.equal(await page.locator(selector).isVisible(), true, selector);
     }
     // mobile two-mode editor and disclosure behavior
@@ -1509,10 +1634,9 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
     // mobile all mode excludes source structure; source remains its own mode
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
-    const mobileSourceHeights = await page.locator('.source-strip .source-item').evaluateAll((items) =>
-      items.map((el) => el.getBoundingClientRect().height)
-    );
-    assert.ok(Math.max(...mobileSourceHeights) <= 72, `mobile source cards are too tall: ${mobileSourceHeights.join(', ')}`);
+    const mobileIntake = await page.locator('.unified-intake').boundingBox();
+    assert.ok(mobileIntake && mobileIntake.width > 250, 'unified intake should remain usable on phones');
+    assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
 
     for (const width of [1920, 1440, 1360, 1280, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -1535,11 +1659,12 @@ async function scenarioResponsiveObjectEditor(browser) {
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
-        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewRight: rect.right, editorLeft: editor.left };
+        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewTop: rect.top, editorBottom: editor.bottom };
       });
       assert.ok(layout.scroll <= layout.viewport, `horizontal overflow at ${width}: ${JSON.stringify(layout)}`);
       assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `preview ratio at ${width}: ${layout.ratio}`);
-      if (width >= 1360) assert.ok(layout.previewRight <= layout.editorLeft + 1, `object editor is beside preview at ${width}: ${JSON.stringify(layout)}`);
+      if (width >= 1440) assert.ok(layout.editorBottom <= layout.previewTop + 2,
+        `desktop should place property editing above contextual preview at ${width}: ${JSON.stringify(layout)}`);
     }
     console.log('Scenario 32 PASS');
   } finally {
@@ -1547,6 +1672,457 @@ async function scenarioResponsiveObjectEditor(browser) {
   }
 }
 
+
+async function scenarioContentFirstMkvIntake(browser) {
+  console.log('E2E: unified content-first file inventory routes mixed assets to existing mux engine');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', [
+      path.join(root, 'base.mp4'),
+      path.join(root, 'zh.ass'),
+      path.join(root, 'external.flac'),
+      path.join(root, 'DejaVuSans.ttf'),
+    ]);
+    await page.waitForFunction(() => {
+      const entries = document.querySelectorAll('.asset-entry');
+      const button = document.querySelector('#muxBtn');
+      return entries.length === 4 && button && !button.disabled;
+    }, null, { timeout: 120_000 });
+    const inventory = await page.locator('#assetInventory').textContent();
+    assert.match(inventory, /媒体容器/);
+    assert.match(inventory, /字幕/);
+    assert.match(inventory, /独立音频/);
+    assert.match(inventory, /字体/);
+    assert.deepEqual(await page.evaluate(() => ({
+      source: [...document.querySelector('#videoInput').files].map(f => f.name),
+      subtitles: [...document.querySelector('#subInput').files].map(f => f.name),
+      audio: [...document.querySelector('#audioInput').files].map(f => f.name),
+      fonts: [...document.querySelector('#fontInput').files].map(f => f.name),
+    })), {
+      source: ['base.mp4'], subtitles: ['zh.ass'], audio: ['external.flac'],
+      fonts: ['DejaVuSans.ttf'],
+    });
+    assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
+
+    // Unrecognized content stays visible, blocks execution and can be removed.
+    await page.evaluate(() => {
+      const file = new File([new Uint8Array([0, 2, 4, 6])], 'mystery.bin');
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      const input = document.querySelector('#unifiedAssetInput');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.waitForFunction(() => document.querySelectorAll('.asset-entry').length === 5);
+    assert.match(await page.locator('#assetImportStatus').textContent(), /1 项未识别/);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    const removeUnknown = page.locator('.asset-entry[data-kind="unknown"] [data-asset-remove]');
+    await removeUnknown.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() =>
+      document.activeElement?.closest('#assetInventory .asset-entry')?.dataset.kind),
+    'font', 'after removing last single asset, focus must not fall onto document.body');
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#muxBtn');
+      return document.querySelectorAll('.asset-entry').length === 4 && btn && !btn.disabled;
+    });
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'unified-intake.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const streamsOut = probe(output).streams;
+    assert.equal(streamsOut.filter(s => s.codec_type === 'video').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'subtitle').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'attachment').length, 1);
+    assert.equal(streamsOut.filter(s => s.codec_type === 'audio').length, 2);
+    console.log('Unified content-first intake mux PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioContentFirstSourceAmbiguity(browser) {
+  console.log('E2E: multiple detected containers require source choice; source-only MKV remux is valid');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', [
+      path.join(root, 'base.mp4'),
+      path.join(root, 'source-with-attachments.mkv'),
+    ]);
+    await page.waitForFunction(() => document.querySelectorAll('.asset-entry[data-kind="container"]').length === 2);
+    assert.match(await page.locator('#assetImportStatus').textContent(), /请选择主源/);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+
+    const selectMkvSource = page.locator('.asset-entry[data-kind="container"]')
+      .filter({ hasText: 'source-with-attachments.mkv' }).locator('[data-asset-source]');
+    await selectMkvSource.focus();
+    await page.keyboard.press('Space');
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-asset-source')),
+      await selectMkvSource.getAttribute('data-asset-source'),
+      'switching source by keyboard must preserve the focused radio after inventory redraw');
+    await page.waitForFunction(() => {
+      const source = document.querySelector('#videoInput').files[0];
+      const btn = document.querySelector('#muxBtn');
+      return source?.name === 'source-with-attachments.mkv' && btn && !btn.disabled;
+    }, null, { timeout: 120_000 });
+    assert.equal(await page.locator('#subInput').evaluate(el => el.files.length), 0);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-only-remux.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    assert.ok(result.streams.some(s => s.codec_type === 'video'));
+    assert.ok(result.streams.some(s => s.codec_type === 'audio'));
+    console.log('Source ambiguity and MKV-only remux PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnifiedContainerTreeEditing(browser) {
+  console.log('E2E: MKV container tree edits live original audio, subtitle and attachment state');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    assert.equal(await tree.getAttribute('open'), '');
+    assert.equal(await tree.locator('[data-tree-group="video"] .asset-tree-row').count(), 1);
+    assert.equal(await tree.locator('[data-tree-group="audio"] .asset-tree-row').count(), 2);
+    assert.equal(await tree.locator('[data-tree-group="subtitle"] .asset-tree-row').count(), 1);
+    assert.equal(await page.locator('#assetInventory [data-tree-preserve-all]').isChecked(), true);
+
+    // Exposing selective edit mode must use the SAME append flag as old editor.
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), false);
+    const audio = tree.locator('[data-tree-group="audio"] .asset-tree-row');
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+    assert.equal(await inspector.isVisible(), true, 'active track inspector belongs to central edit workspace');
+    assert.equal(await tree.locator('.asset-tree-inspector').count(), 0, 'source inventory does not own the detailed editor');
+    assert.equal(await tree.locator('[data-tree-group="audio"] [data-tree-track-field]').count(), 0,
+      'compact list must not repeat one full editor per track');
+    await audio.nth(0).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-include]').uncheck();
+    assert.equal(await page.locator('.track-row.track-audio').nth(0)
+      .locator('input[data-track-action="include"]').isChecked(), false);
+    await audio.nth(1).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-field="title"]').fill('Tree Edited Opus');
+    assert.equal(await page.locator('.track-row.track-audio').nth(1)
+      .locator('input[data-track-field="title"]').inputValue(), 'Tree Edited Opus');
+    const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
+    await subtitle.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-flag="forced"]').check();
+    assert.equal(await page.locator('.track-row.track-subtitle')
+      .locator('input[data-track-action="forced"]').isChecked(), true);
+    assert.match(await page.locator('#muxPlan').textContent(), /Tree Edited Opus/);
+    assert.match(await page.locator('#containerChangeSummary').textContent(), /删除/);
+    assert.equal(await tree.getAttribute('open'), '', 'container hierarchy must remain expanded after edits');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-audio-edit.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    const audios = streams(result, 'audio');
+    assert.equal(audios.length, 1);
+    assert.equal(audios[0].tags?.title, 'Tree Edited Opus');
+    assert.equal(streams(result, 'subtitle')[0].disposition?.forced, 1);
+
+    // Exporting must NOT clear the unified inventory or reset live trackState.
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files[0]?.name), 'source-multitrack.mkv');
+    assert.equal(await tree.isVisible(), true);
+    await audio.nth(1).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-field="title"]').inputValue(), 'Tree Edited Opus');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Responsive projection may settle after the viewport API resolves.
+    await page.waitForFunction(() => {
+      const tree = document.querySelector('.asset-container-tree');
+      const rect = tree?.getBoundingClientRect();
+      return Boolean(rect && rect.width > 0 && rect.height > 0 &&
+        document.documentElement.scrollWidth <= innerWidth);
+    }, null, { timeout: 30_000 });
+    assert.equal(await tree.isVisible(), true);
+    assert.equal(await tree.getAttribute('open'), '');
+    assert.equal(await page.locator('#muxBtn').isDisabled(), false);
+    console.log('MKV container-tree source track editing and post-export retention PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
+  console.log('E2E: source container tree reorders real audio streams and writes advanced flags');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    assert.match(await page.locator('.asset-entry[data-kind="container"] .asset-entry-type').textContent(),
+      /内部结构已扫描/, 'file identity label must reflect the completed actual source probe');
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
+    assert.equal(await audioRows.count(), 2);
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+    await audioRows.nth(0).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-move="-1"]').isDisabled(), true);
+    await inspector.locator('[data-tree-track-field="title"]').fill('First tree audio');
+    await audioRows.nth(1).locator('[data-tree-select]').click();
+    assert.equal(await inspector.locator('[data-tree-track-move="1"]').isDisabled(), true);
+    await inspector.locator('[data-tree-track-field="title"]').fill('Second tree audio');
+    assert.equal(await audioRows.nth(1).locator('.asset-tree-index-name').textContent(),
+      'Second tree audio', 'source index updates without remounting the edited text input');
+
+    // The second included source audio must move above the first, not just
+    // visually change position without affecting the mux output map.
+    await inspector.locator('[data-tree-track-move="-1"]').click();
+    assert.deepEqual(await audioRows.locator('.asset-tree-index-name').allTextContents(),
+      ['Second tree audio', 'First tree audio']);
+    assert.match(await page.locator('#containerChangeSummary').textContent(), /修改/);
+
+    const first = inspector;
+    const advanced = inspector.locator('[data-tree-advanced]');
+    await advanced.locator('summary').click();
+    await advanced.locator('[data-tree-track-flag="original"]').check();
+    assert.equal(await advanced.getAttribute('open'), '');
+    await advanced.locator('[data-tree-track-flag="commentary"]').check();
+    assert.equal(await advanced.getAttribute('open'), '');
+    const editedSourceIndex = await first.locator('[data-tree-track-flag="original"]').getAttribute('data-tree-track-index');
+    const oldEditor = page.locator(`.track-row.track-audio input[data-track-action="original"][data-track-index="${editedSourceIndex}"]`);
+    assert.equal(await oldEditor.isChecked(), true, 'legacy editor and asset tree share the same track state');
+
+    // Mutations in the legacy source editor must also project back to the
+    // imported container tree (without remounting its domain state).
+    const oldCommentary = page.locator(
+      `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
+    );
+    await tree.locator('[data-tree-legacy-tools]').click();
+    const legacyAudioRow = page.locator(
+      `.track-row.track-audio:has(input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"])`
+    );
+    await legacyAudioRow.locator('details.track-advanced > summary').click();
+    assert.equal(await oldCommentary.isChecked(), true);
+    await oldCommentary.uncheck();
+    assert.equal(await first.locator('[data-tree-track-flag="commentary"]').isChecked(), false);
+    assert.equal(await advanced.getAttribute('open'), '');
+    await first.locator('[data-tree-track-flag="commentary"]').check();
+
+    const subtitle = tree.locator('[data-tree-group="subtitle"] .asset-tree-row');
+    await subtitle.locator('[data-tree-select]').click();
+    const subAdvanced = inspector.locator('[data-tree-advanced]');
+    await subAdvanced.locator('summary').click();
+    await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
+    assert.equal(await subAdvanced.getAttribute('open'), '');
+
+    // Visual acceptance captures the normal workbench, not the deliberately
+    // expanded compatibility editor used to test reverse synchronization.
+    await tree.locator('[data-tree-legacy-tools]').click();
+    assert.equal(await page.locator('.source-track-card').isVisible(), false);
+
+    // Capture real populated UI evidence for visual review, not just markup
+    // or success-state screenshots. Generated fixtures contain no user data.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-container-tree-desktop-viewport-1440.png'),
+      animations: 'disabled',
+    });
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-desktop-1440.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-container-tree-phone-viewport-390.png'),
+      animations: 'disabled',
+    });
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
+      animations: 'disabled',
+    });
+    assert.equal(await tree.isVisible(), true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-advanced-order.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    const audios = streams(result, 'audio');
+    assert.equal(audios.length, 2);
+    assert.deepEqual(audios.map(audio => audio.tags?.title),
+      ['Second tree audio', 'First tree audio']);
+    assert.equal(Boolean(audios[0].disposition?.original), true);
+    assert.equal(Boolean(audios[0].disposition?.comment), true);
+    assert.equal(Boolean(streams(result, 'subtitle')[0].disposition?.hearing_impaired), true);
+    assert.equal(await tree.isVisible(), true, 'post-export tree remains available');
+    console.log('MKV container-tree order and advanced flags PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnifiedContainerAttachmentEditing(browser) {
+  console.log('E2E: source container hierarchy includes chapters, metadata and editable attachments');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-with-attachments.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const tree = page.locator('.asset-container-tree');
+    await tree.waitFor({ state: 'visible' });
+    assert.equal(await tree.locator('[data-tree-group="chapter"] .asset-tree-row').count(), 2);
+    assert.equal(await tree.locator('[data-tree-group="metadata"] .asset-tree-row').count(), 1);
+    const attachmentRows = tree.locator('[data-tree-group="attachment"] .asset-tree-row');
+    assert.equal(await attachmentRows.count(), 2);
+
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+    const font = attachmentRows.filter({ hasText: 'fixture-original.ttf' });
+    await font.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-attachment-include]').uncheck();
+    const notes = attachmentRows.filter({ hasText: 'notes.txt' });
+    await notes.locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-attachment-field="filename"]').fill('tree-notes.txt');
+    assert.equal(await page.locator('.attachment-item', { hasText: 'notes.txt' })
+      .locator('input[data-attachment-field="filename"]').inputValue(), 'tree-notes.txt');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'container-tree-attachments.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    assert.equal(result.chapters?.length, 2);
+    assert.deepEqual(streams(result, 'attachment').map(s => s.tags?.filename), ['tree-notes.txt']);
+    console.log('MKV container-tree attachment editing PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioUnifiedWorkBenchZones(browser) {
+  console.log('E2E: desktop three-zone layout, mobile stacked ownership, keyboard track selection');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setViewportSize({ width: 1600, height: 960 });
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    const regions = await page.evaluate(() => {
+      const bounds = selector => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return { x: r.x, right: r.right, y: r.y, width: r.width, height: r.height };
+      };
+      return {
+        source: bounds('.stage-input'),
+        editor: bounds('.editor-column'),
+        inspector: bounds('#assetInspectorHost'),
+        output: bounds('.output-hub'),
+        scrollWidth: document.documentElement.scrollWidth,
+        viewport: innerWidth,
+      };
+    });
+    assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
+    assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
+    assert.ok(regions.inspector.x >= regions.editor.x && regions.inspector.right <= regions.editor.right + 2,
+      'selected object inspector must live in the central editor');
+    assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'one visible editor, not repeated per stream');
+    assert.equal(await page.locator('#muxBtn').getByText('开始封装 MKV').isVisible(), true);
+
+    const nav = page.locator('[data-tree-group="audio"] [data-tree-select]');
+    await nav.nth(1).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-tree-select')),
+      'audio:2', 'keyboard focus should survive navigator re-render');
+    const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
+      .getAttribute('data-tree-track-include');
+    assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
+    // Preserve-all is the safe default: editing a source track is intentionally
+    // disabled until the user chooses selective modification.
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').isDisabled(), true);
+    await page.locator('[data-tree-preserve-all]').uncheck();
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#assetInspectorHost [data-tree-track-field="title"]');
+      return field && !field.disabled;
+    });
+    await page.locator('#assetInspectorHost [data-tree-track-field="title"]').fill('Viewport persistent audio');
+    assert.equal(await nav.nth(1).locator('.asset-tree-index-name').textContent(),
+      'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => {
+      const inspector = document.querySelector('#assetInspectorHost');
+      return inspector && inspector.getBoundingClientRect().width > 0;
+    });
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'edited stream attributes survive desktop-to-phone reflow');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
+      'source track selection survives viewport changes');
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    const mobile = await page.evaluate(() => {
+      const top = selector => document.querySelector(selector).getBoundingClientRect().top;
+      const right = selector => document.querySelector(selector).getBoundingClientRect().right;
+      return {
+        sourceY: top('.stage-input'),
+        inspectorY: top('#assetInspectorHost'),
+        outputY: top('.output-hub'),
+        inspectorRight: right('#assetInspectorHost'),
+        viewport: innerWidth,
+      };
+    });
+    assert.ok(mobile.sourceY < mobile.inspectorY && mobile.inspectorY < mobile.outputY,
+      'mobile must flow source > selected property editor > output');
+    assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true);
+    const actionOrder = await page.evaluate(() => ({
+      action: document.querySelector('.execution-panel').getBoundingClientRect().top,
+      details: document.querySelector('.plan-panel').getBoundingClientRect().top,
+    }));
+    assert.ok(actionOrder.action < actionOrder.details,
+      'execute/status must precede detailed plan in visual and DOM order');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.evaluate(() => location.hash), '#workbench-output-title');
+    await page.waitForFunction(() =>
+      document.querySelector('.workbench-jump-nav a[href="#workbench-output-title"]')?.getAttribute('aria-current') === 'location'
+    );
+    await page.waitForFunction(() => {
+      const r = document.querySelector('#muxBtn').getBoundingClientRect();
+      return r.height > 0 && r.top >= 40 && r.bottom <= innerHeight;
+    }, null, { timeout: 10000 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => location.hash), '#workbench-editor-title');
+    await page.waitForFunction(() =>
+      document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.getAttribute('aria-current') === 'location'
+    );
+    assert.equal(await page.locator('.workbench-jump-nav a[aria-current="location"]').count(), 1);
+
+    await page.setViewportSize({ width: 1600, height: 960 });
+    await page.waitForFunction(() => {
+      const nav = document.querySelector('.workbench-jump-nav');
+      return nav && getComputedStyle(nav).display === 'none' &&
+        document.documentElement.scrollWidth <= innerWidth;
+    });
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
+      'source selection must be stable across both viewport transitions');
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'responsive reflow must not mount a second editable stream inspector');
+    console.log('Three-zone MKV workbench, responsive edit retention, keyboard selection and task jumps PASS');
+  } finally {
+    await context.close();
+  }
+}
 
 async function scenarioTabletDesktopUi(browser) {
   console.log('E2E scenario 33: tablet uses desktop-style workbench with collapsed preview');
@@ -1578,7 +2154,7 @@ async function scenarioTabletDesktopUi(browser) {
       const output = document.querySelector('.output-hub').getBoundingClientRect();
       const config = document.querySelector('.config-card').getBoundingClientRect();
       const source = document.querySelector('.source-track-card').getBoundingClientRect();
-      const sourceGrid = getComputedStyle(document.querySelector('.source-strip')).gridTemplateColumns;
+      const unifiedPickerWidth = document.querySelector('.unified-intake').getBoundingClientRect().width;
       return {
         scroll: document.documentElement.scrollWidth,
         viewport: innerWidth,
@@ -1587,14 +2163,14 @@ async function scenarioTabletDesktopUi(browser) {
         outputWidth: output.width,
         configWidth: config.width,
         sourceWidth: source.width,
-        sourceGrid,
+        unifiedPickerWidth,
       };
     });
     assert.ok(collapsedLayout.scroll <= collapsedLayout.viewport, `tablet horizontal overflow: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.outputLeft >= collapsedLayout.editorRight - 1, `tablet output should sit beside editor: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.outputWidth >= 270, `tablet output is too narrow: ${JSON.stringify(collapsedLayout)}`);
     assert.ok(collapsedLayout.configWidth >= 250 && collapsedLayout.sourceWidth >= 250, `tablet editor cards are too narrow: ${JSON.stringify(collapsedLayout)}`);
-    assert.ok(collapsedLayout.sourceGrid.split(' ').length >= 4, `tablet source strip should keep desktop four-column UI: ${collapsedLayout.sourceGrid}`);
+    assert.ok(collapsedLayout.unifiedPickerWidth > 500, `unified intake needs enough tablet width: ${collapsedLayout.unifiedPickerWidth}`);
 
     await page.locator('#mobilePreviewToggle').click();
     assert.equal(await page.locator('#previewStage').isVisible(), true);
@@ -2001,6 +2577,12 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioTabletDesktopUi(browser);
+  await scenarioContentFirstMkvIntake(browser);
+  await scenarioContentFirstSourceAmbiguity(browser);
+  await scenarioUnifiedWorkBenchZones(browser);
+  await scenarioUnifiedContainerTreeEditing(browser);
+  await scenarioUnifiedContainerAttachmentEditing(browser);
+  await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioRenamedMediaIdentity(browser);
@@ -2032,6 +2614,7 @@ try {
   await scenarioAv1PreviewFrame(browser);
   await scenarioAdditionalSubtitleFormats(browser);
   await scenarioFontSubsetting(browser);
+  await scenarioUnifiedBatchContentIntake(browser);
   await scenarioBatchAmbiguousSafety(browser);
   await scenarioBatchDirectoryConflict(browser);
   await scenarioBatchDirectorySaveFallback(browser);

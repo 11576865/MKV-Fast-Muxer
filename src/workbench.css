@@ -1,0 +1,734 @@
+/* MKV workbench authority — loaded AFTER style.css by main.js.
+ * Owns compact stream index, active inspector, three-zone layout,
+ * explicit output actions and stacked task navigation.
+ * Do not append further overrides for these surfaces to style.css. */
+
+/* Source intake + scanned MKV tree base styles, formerly at the end of
+ * the legacy stylesheet. Kept before the responsive workbench overrides. */
+/* Content-first MKV intake: import is one action; detected roles are rows. */
+.legacy-source-picker,
+.legacy-source-picker[hidden] {
+  display: none !important;
+}
+
+.unified-intake { display: grid; gap: 10px; min-width: 0; }
+.unified-intake-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.unified-intake-head h3 { margin: 0 0 4px; color: var(--text-strong); font-size: .98rem; }
+.unified-intake-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: .72rem;
+  max-width: 650px;
+}
+.unified-intake-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.intake-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 13px;
+  min-height: 40px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.intake-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.intake-picker:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.intake-picker:has(input:disabled) { opacity: .48; cursor: not-allowed; }
+
+.asset-dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+  padding: 12px 15px;
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.5;
+  background: var(--surface-0);
+}
+.asset-dropzone[data-dragging="true"] {
+  color: var(--text-strong);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-0));
+}
+.asset-dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.asset-inventory-head { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; flex-wrap: wrap; }
+.asset-inventory-head strong { font-size: .83rem; }
+.asset-inventory-head #assetImportStatus { font-size: .7rem; color: var(--muted); }
+.asset-inventory { display: grid; gap: 7px; }
+.asset-entry {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+.asset-entry[data-kind="container"] {
+  border-left: 3px solid var(--video);
+}
+.asset-entry[data-kind="subtitle"] { border-left: 3px solid var(--subtitle); }
+.asset-entry[data-kind="font"] { border-left: 3px solid var(--font); }
+.asset-entry[data-kind="audio"] { border-left: 3px solid var(--audio); }
+.asset-entry[data-kind="unknown"] { border-left: 3px solid var(--warning); }
+.asset-entry-main { min-width: 0; display: grid; gap: 4px; }
+.asset-entry-line { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; min-width: 0; }
+.asset-entry-name { overflow-wrap: anywhere; min-width: 0; font-size: .79rem; }
+.asset-entry-type { font-size: .69rem; font-weight: 700; color: var(--accent); }
+.asset-entry-desc { color: var(--muted); font-size: .67rem; line-height: 1.5; overflow-wrap: anywhere; }
+.asset-entry-roles { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; }
+.asset-select-source { display: inline-flex; align-items: center; gap: 6px; font-size: .73rem; cursor: pointer; }
+.asset-select-source input { accent-color: var(--accent); }
+.asset-remove {
+  padding: 5px 8px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-0);
+  color: var(--muted);
+  font-size: .7rem;
+}
+.asset-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 900px) {
+  .unified-intake-head { flex-direction: column; align-items: stretch; }
+  .unified-intake-buttons { width: 100%; }
+  .unified-intake-buttons > .intake-picker { flex: 1; }
+}
+@media (max-width: 600px) {
+  .asset-entry { grid-template-columns: 1fr; }
+  .asset-entry-roles { justify-content: flex-start; }
+  .unified-intake-head p { font-size: .68rem; }
+  .asset-dropzone { padding: 10px 12px; }
+}
+
+
+/* Live source-container hierarchy in the unified asset inventory.
+   Container rows read/write the same trackState as the legacy editor. */
+.asset-container-tree,
+.asset-container-pending {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.asset-container-pending {
+  padding: 9px 11px;
+  border-top: 1px solid var(--line);
+  font-size: .7rem;
+  color: var(--muted);
+}
+.asset-container-tree {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.asset-container-tree > summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: .78rem;
+  color: var(--text-strong);
+  padding: 5px 0;
+  list-style-position: inside;
+}
+.asset-tree-body { display: grid; gap: 12px; margin-top: 9px; }
+.asset-tree-mode { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .75rem; }
+.asset-tree-mode input { accent-color: var(--accent); }
+.asset-tree-tip { margin: 0; color: var(--muted); font-size: .68rem; }
+.asset-tree-group { min-width: 0; display: grid; gap: 5px; }
+.asset-tree-group h4 {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.asset-tree-group h4 span { color: var(--muted); font-weight: 500; }
+.asset-tree-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+}
+.asset-tree-item-info {
+  display: grid;
+  flex: 1 1 170px;
+  min-width: 0;
+  gap: 3px;
+}
+.asset-tree-row strong { font-size: .73rem; overflow-wrap: anywhere; }
+.asset-tree-row small { font-size: .66rem; color: var(--muted); overflow-wrap: anywhere; }
+.asset-tree-row > .change-badge { margin-left: auto; }
+.asset-tree-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  flex: 2 1 320px;
+  min-width: 0;
+}
+.asset-tree-controls label {
+  display: inline-flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: .68rem;
+  color: var(--muted);
+}
+.asset-tree-controls input[type="text"] {
+  min-width: 70px;
+  width: clamp(94px, 12vw, 170px);
+  max-width: 100%;
+  padding: 6px 7px;
+  font-size: .72rem;
+}
+.asset-tree-controls input[type="checkbox"] { accent-color: var(--accent); }
+.asset-tree-metadata-fields {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 100%;
+  color: var(--muted);
+  font-size: .68rem;
+  overflow-wrap: anywhere;
+}
+.asset-tree-metadata-fields span { display: block; }
+@media (max-width: 600px) {
+  .asset-tree-row { align-items: flex-start; }
+  .asset-tree-controls { flex-basis: 100%; }
+  .asset-tree-controls input[type="text"] { width: min(180px, 46vw); }
+}
+
+
+/* In-place track ordering and advanced stream dispositions. These are
+   mutations of the same source track objects used by the legacy editor. */
+.asset-tree-order-controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  align-items: center;
+}
+.asset-tree-order-controls button {
+  width: 31px;
+  min-height: 32px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-order-controls button:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+.asset-tree-order-controls button:focus-visible,
+.asset-tree-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.asset-tree-advanced {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.asset-tree-advanced > summary {
+  font-size: .69rem;
+  color: var(--text-strong);
+  cursor: pointer;
+}
+.asset-tree-advanced-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-top: 8px;
+}
+@media (max-width: 600px) {
+  .asset-tree-advanced { flex-basis: 100%; }
+  .asset-tree-advanced-fields { gap: 10px; }
+  .asset-tree-order-controls button { min-height: 38px; width: 38px; }
+}
+
+
+/* Visual evidence follow-up: source tree controls were too small at phone
+   width. Preserve wrapping while meeting a readable text scale. */
+.asset-tree-row strong { font-size: .79rem; }
+.asset-tree-row small { font-size: .73rem; }
+.asset-tree-controls label { font-size: .75rem; }
+.asset-tree-controls input[type="text"] { font-size: .76rem; }
+.asset-tree-advanced > summary { font-size: .75rem; }
+.asset-tree-metadata-fields { font-size: .73rem; }
+
+@media (max-width: 600px) {
+  .asset-entry-type { font-size: .75rem; line-height: 1.45; }
+  .asset-entry-desc { font-size: .73rem; }
+  .asset-tree-controls label { font-size: .77rem; }
+  .asset-tree-controls input[type="text"] { width: min(210px, 53vw); font-size: .78rem; }
+  .asset-tree-row { gap: 10px; }
+  .asset-tree-advanced-fields { gap: 12px; }
+}
+
+/* UI structural revision: compact index + one inspector, not one form per
+   source stream. The existing batch/preview/editor IDs are preserved. */
+.editor-grid[data-intake-mode="unified"][data-show-legacy-source="false"]:not([data-editor-focus="source"]) > .source-track-card {
+  display: none !important;
+}
+
+.asset-tree-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+.asset-tree-list {
+  display: grid;
+  align-content: start;
+  gap: 13px;
+  min-width: 0;
+}
+.asset-tree-group {
+  gap: 5px;
+}
+.asset-tree-group h4 {
+  padding: 0 3px 4px;
+  font-size: .78rem;
+  border-bottom: 1px solid var(--line);
+}
+.asset-tree-index-row {
+  display: flex;
+  padding: 0;
+  gap: 0;
+  min-height: 49px;
+  align-items: stretch;
+  background: var(--surface-0);
+  overflow: hidden;
+}
+.asset-tree-index-row .asset-tree-select {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  text-align: left;
+  cursor: pointer;
+}
+.asset-tree-index-row .asset-tree-select small {
+  font-size: .72rem;
+  overflow-wrap: anywhere;
+}
+.asset-tree-index-row .asset-tree-select[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface-0));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.asset-tree-index-row .asset-tree-select:focus-visible,
+.asset-tree-more-tools:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.asset-tree-index-row > .change-badge {
+  align-self: center;
+  flex: 0 0 auto;
+  margin: 0 10px 0 4px;
+}
+.asset-tree-inspector {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-0);
+}
+.asset-tree-inspector-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+.asset-tree-inspector-head strong { font-size: .87rem; color: var(--text-strong); }
+.asset-tree-inspector-head span { font-size: .73rem; color: var(--muted); }
+.asset-tree-inspector > .asset-tree-row {
+  background: transparent;
+  border: none;
+  display: grid;
+  gap: 11px;
+  padding: 0;
+  min-width: 0;
+}
+.asset-tree-inspector .asset-tree-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+  align-items: start;
+  min-width: 0;
+}
+.asset-tree-inspector .asset-tree-controls > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  justify-items: start;
+  font-size: .8rem;
+}
+.asset-tree-inspector .asset-tree-controls > label:has(input[type="checkbox"]) {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+}
+.asset-tree-inspector .asset-tree-controls input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-height: 36px;
+  font-size: .85rem;
+}
+.asset-tree-inspector .asset-tree-controls > .asset-tree-advanced {
+  grid-column: 1 / -1;
+}
+.asset-tree-inspector .asset-tree-controls > .asset-tree-order-controls {
+  justify-self: start;
+}
+.asset-tree-more-tools {
+  justify-self: start;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  padding: 8px 2px;
+  font-size: .75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.asset-tree-more-tools:hover { color: var(--text-strong); }
+
+@media (max-width: 1100px) {
+    .asset-tree-inspector { grid-row: 2; }
+}
+@media (max-width: 600px) {
+  .asset-tree-workspace { gap: 10px; }
+  .asset-tree-inspector { padding: 12px; }
+  .asset-tree-inspector .asset-tree-controls { gap: 9px; }
+  .asset-tree-index-row { min-height: 53px; }
+  .asset-tree-index-row .asset-tree-select { padding: 10px; }
+  .asset-tree-inspector .asset-tree-advanced { flex-basis: auto; }
+}
+
+
+/* Workbench IA / phase 5: separate source navigation, active editing and
+   output decision. This rule block intentionally supersedes historical
+   desktop layout overrides; responsive DOM and runtime IDs stay intact. */
+.asset-inspector-host[hidden] { display: none !important; }
+.asset-inspector-host {
+  min-width: 0;
+  display: block;
+}
+.asset-inspector-host > .asset-tree-inspector { width: 100%; }
+.asset-tree-workspace { grid-template-columns: minmax(0, 1fr); }
+.asset-tree-list { gap: 10px; }
+.asset-tree-inspector-head strong { font-size: .9rem; }
+.asset-inspector-host .asset-tree-inspector {
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  padding: clamp(12px, 1.2vw, 18px);
+}
+.asset-tree-index-row .asset-tree-select {
+  min-height: 42px;
+}
+.asset-entry[data-kind="container"] .asset-tree-index-row {
+  min-width: 0;
+}
+.editor-column > .asset-inspector-host { grid-area: inspector; }
+.editor-column > .subtitle-preview-card { grid-area: preview; }
+.editor-column > .editor-grid { grid-area: editors; }
+.editor-column > .diagnostics-panel { grid-area: logs; }
+
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .topbar, .workspace {
+    width: min(calc(100% - 36px), 1820px);
+    max-width: 1820px;
+  }
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(320px, .93fr) minmax(410px, 1.35fr) minmax(300px, .82fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .workspace > .stage-input {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+  }
+  .workspace > .workbench-grid { display: contents; }
+  .workspace > .workbench-grid > .editor-column {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "editors" "preview" "logs";
+    align-content: start;
+    gap: 13px;
+  }
+  .workspace > .workbench-grid > .output-hub {
+    grid-column: 3;
+    grid-row: 1;
+    /* The old sticky rail could visually overlap the following batch row
+       while scrolling. Both sections share one page; let the rail remain in
+       normal grid flow so batch controls cannot be covered by prior output. */
+    position: static;
+    max-height: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+    margin: 0;
+    min-width: 0;
+  }
+  .workspace > .batch-workspace {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .editor-column > .editor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-grid > .config-card,
+  .editor-grid > .source-track-card { grid-column: 1; }
+  .editor-grid > .object-editor-nav { grid-column: 1; }
+  .stage-input, .editor-column, .output-hub { min-width: 0; }
+}
+
+@media (max-width: 1439px) {
+  .editor-column {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "preview" "editors" "logs";
+  }
+  .editor-column > .editor-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 601px) and (max-width: 1359px) and (hover: none) and (pointer: coarse) {
+  .editor-column {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "inspector" "preview" "editors" "logs";
+  }
+  .editor-column > .editor-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .asset-inspector-host > .asset-tree-inspector { padding: 12px; }
+  .asset-tree-select { scroll-margin-top: 76px; }
+  .asset-inspector-host { scroll-margin-top: 18px; }
+}
+
+
+/* Explicit action semantics: consequential export and download controls must
+   be legible without hover, icon interpretation or a screen reader. */
+.execution-panel .actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: stretch;
+}
+.execution-panel .action-icon-button {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  flex: 1 1 auto;
+  padding: 10px 13px;
+  display: inline-flex;
+  gap: 9px;
+  justify-content: center;
+  align-items: center;
+  font-weight: 750;
+  font-size: .9rem;
+  line-height: 1.3;
+}
+.execution-panel .danger-icon-button {
+  width: auto;
+  height: auto;
+  min-height: 48px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 7px;
+  padding: 10px 12px;
+  align-items: center;
+  justify-content: center;
+}
+.execution-panel .action-label { white-space: nowrap; }
+.execution-panel .download.icon-link,
+.execution-panel .report-download.icon-link {
+  width: auto;
+  height: auto;
+  max-width: none;
+  min-height: 38px;
+  display: inline-flex;
+  gap: 8px;
+  padding: 8px 11px;
+  font-size: .76rem;
+  font-weight: 650;
+  white-space: nowrap;
+  margin-top: 10px;
+}
+.execution-panel .download.icon-link svg,
+.execution-panel .report-download.icon-link svg { flex: 0 0 auto; }
+@media (max-width: 600px) {
+  .execution-panel .actions { grid-template-columns: minmax(0, 1fr) auto; }
+  .execution-panel .action-icon-button { min-height: 46px; font-size: .84rem; padding: 9px 10px; }
+  .execution-panel .danger-icon-button { min-height: 46px; padding: 9px; }
+}
+
+
+/* Task navigation on stacked workbenches. Native anchors preserve history,
+   keyboard activation, visible focus and source/editor/output DOM lifetimes. */
+.workbench-jump-nav { display: none; }
+@media (max-width: 1439px) {
+  .workbench-jump-nav {
+    box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    width: min(calc(100% - 32px), 1320px);
+    max-width: 100%;
+    margin: 0 auto 8px;
+    padding: 5px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--surface-0) 94%, var(--bg));
+    box-shadow: 0 4px 17px rgba(0, 0, 0, .22);
+  }
+  .workbench-jump-nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 39px;
+    min-width: 0;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: .79rem;
+    font-weight: 650;
+    text-decoration: none;
+  }
+  .workbench-jump-nav a:hover,
+  .workbench-jump-nav a:focus-visible {
+    background: var(--surface-2);
+    color: var(--text-strong);
+  }
+  .workbench-jump-nav a[aria-current="location"] {
+    background: var(--surface-3);
+    color: var(--text-strong);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  .workbench-jump-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  #source-title, #workbench-editor-title, #workbench-output-title, #batch-title {
+    scroll-margin-top: 72px;
+  }
+}
+@media (max-width: 600px) {
+  .workbench-jump-nav { width: calc(100% - 24px); margin-bottom: 5px; }
+  .workbench-jump-nav a { min-height: 42px; font-size: .8rem; }
+}
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .output-hub .execution-panel {
+    margin-top: 8px;
+    padding-top: 14px;
+  }
+}
+
+
+/* Batch and single-task import share a content-first entry vocabulary.
+   Existing category pickers remain only in an explicit compatibility drawer. */
+.batch-inputs {
+  /* Override the previous three visible category slots. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.batch-unified-intake,
+.batch-legacy-intake { grid-column: 1 / -1; }
+.batch-legacy-intake-body {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 760px) {
+  .batch-legacy-intake-body { grid-template-columns: minmax(0, 1fr); }
+}
+.batch-unified-intake {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+.batch-unified-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.batch-unified-head h3 { margin: 0 0 5px; font-size: .9rem; }
+.batch-unified-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.5;
+  max-width: 620px;
+}
+.batch-unified-intake .asset-entry { padding: 9px 11px; }
+.batch-unified-intake .asset-entry-desc { font-size: .72rem; }
+.batch-legacy-intake {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding: 8px 0 0;
+}
+.batch-legacy-intake > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: .74rem;
+  padding: 7px 4px;
+}
+.batch-legacy-intake > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.batch-legacy-intake-body {
+  display: grid;
+  gap: 12px;
+  padding: 10px 2px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .batch-unified-head { flex-direction: column; align-items: stretch; }
+  .batch-unified-head .unified-intake-buttons { width: 100%; }
+  .batch-unified-head .intake-picker { flex: 1 1 auto; }
+}
+@media (max-width: 600px) {
+  .batch-unified-intake { padding: 10px; }
+  .batch-unified-intake .asset-entry { grid-template-columns: minmax(0, 1fr); }
+  .batch-unified-intake .asset-entry-roles { justify-content: flex-start; }
+  .batch-unified-head p { font-size: .73rem; }
+}

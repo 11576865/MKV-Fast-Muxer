@@ -59,13 +59,20 @@
         </div>
       </header>
 
+      <nav class="workbench-jump-nav" aria-label="工作台区段导航">
+        <a href="#source-title">资源</a>
+        <a href="#workbench-editor-title">编辑</a>
+        <a href="#workbench-output-title">输出</a>
+        <a href="#batch-title">批量</a>
+      </nav>
+
       <main class="workspace">
         <section class="stage stage-input" aria-labelledby="source-title">
           <header class="stage-head">
             <div class="stage-title">
               <span class="section-index">01</span>
               <div>
-                <h2 id="source-title">素材</h2>
+                <h2 id="source-title" tabindex="-1">素材</h2>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -74,7 +81,38 @@
             </div>
           </header>
 
-          <div class="source-grid source-strip" aria-label="单次封装素材">
+          <section class="unified-intake" aria-labelledby="intake-title">
+            <div class="unified-intake-head">
+              <div>
+                <h3 id="intake-title">导入文件和容器</h3>
+                <p>无需预先区分视频、音频、字幕或字体。先识别文件内容，再选择 MKV 主源和附加资源。</p>
+              </div>
+              <div class="unified-intake-buttons">
+                <label class="button button-primary intake-picker">
+                  添加文件
+                  <input id="unifiedAssetInput" type="file" multiple aria-label="导入任意文件并识别内容" />
+                </label>
+                <label class="button button-secondary intake-picker">
+                  添加文件夹
+                  <input id="unifiedFolderInput" type="file" multiple webkitdirectory directory aria-label="导入文件夹并识别内容" />
+                </label>
+              </div>
+            </div>
+            <div id="assetDropzone" class="asset-dropzone" tabindex="0" role="button" aria-label="点击或拖放文件导入">
+              将文件拖到这里，或使用上方按钮导入。仅识别当前引擎支持的内容；未知文件会保留在清单中并提示。
+            </div>
+            <div class="asset-inventory-head">
+              <strong>已导入资源</strong>
+              <span id="assetImportStatus" role="status" aria-live="polite">尚未导入文件</span>
+            </div>
+            <div id="assetInventory" class="asset-inventory" aria-label="导入资源清单">
+              <div class="track-empty">导入后在此查看实际内容类型、主源选择和识别问题。</div>
+            </div>
+          </section>
+
+          <!-- Legacy DOM adapters retained for the existing audited FFmpeg workflow.
+               They are not user-facing categorized import gates. -->
+          <div class="source-grid source-strip legacy-source-picker" hidden aria-hidden="true" inert>
             <label class="source-item source-video source-primary">
               <input id="videoInput" type="file" />
               <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l3-2v9l-3-2V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span>
@@ -128,11 +166,13 @@
               <div class="stage-title">
                 <span class="section-index">02</span>
                 <div>
-                  <h2>预览与调整</h2>
+                  <h2 id="workbench-editor-title" tabindex="-1">预览与调整</h2>
                   
                 </div>
               </div>
             </header>
+
+            <section id="assetInspectorHost" class="asset-inspector-host" aria-label="当前容器对象属性" hidden></section>
 
             <section class="subtitle-preview-card" aria-labelledby="preview-title">
               <div class="preview-head">
@@ -306,7 +346,7 @@
               <div class="stage-title">
                 <span class="section-index">03</span>
                 <div>
-                  <h2>封装输出</h2>
+                  <h2 id="workbench-output-title" tabindex="-1">封装输出</h2>
                   
                 </div>
               </div>
@@ -321,6 +361,26 @@
                 <div><span>字体</span><strong id="fontSummary">—</strong></div>
                 <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
               </div>
+            </section>
+
+            <section class="output-section execution-panel">
+              <div class="execution-status">
+                <div>
+                  <div id="status" class="status" aria-live="polite">导入素材并确认主源后即可开始 MKV 封装，新增字幕可选。</div>
+                </div>
+                <div class="progress" aria-hidden="true"><div id="bar"></div></div>
+              </div>
+
+              <div class="actions">
+                <button id="muxBtn" class="icon-button action-icon-button" type="button" aria-label="开始封装" title="开始封装"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg><span class="action-label">开始封装 MKV</span></button>
+                <button id="cancelBtn" class="icon-button danger-icon-button" type="button" disabled aria-label="取消当前操作" title="取消当前操作"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6h12v12H6z"/></svg><span class="action-label">取消</span></button>
+              </div>
+
+              <a id="downloadLink" class="download icon-link hidden" href="#" download aria-label="保存生成的 MKV 到本机" title="保存成品"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 20h14v-2H5v2Zm7-18v10.17l3.59-3.58L17 10l-5 5-5-5 1.41-1.41L11 12.17V2h1Z"/></svg><span>下载 MKV</span></a>
+              <a id="reportLink" class="report-download icon-link hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告" title="保存封装报告"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v-2H8v2Zm0 4h8v-2H8v2Zm0 4h6v-2H8v2Z"/></svg><span>下载报告</span></a>
+              <div id="auditResult" class="audit-result hidden"></div>
+
+              
             </section>
 
             <section class="output-section plan-panel">
@@ -339,25 +399,7 @@
               </div>
             </section>
 
-            <section class="output-section execution-panel">
-              <div class="execution-status">
-                <div>
-                  <div id="status" class="status" aria-live="polite">选择视频和字幕后即可开始。</div>
-                </div>
-                <div class="progress" aria-hidden="true"><div id="bar"></div></div>
-              </div>
 
-              <div class="actions">
-                <button id="muxBtn" class="icon-button action-icon-button" type="button" aria-label="开始封装" title="开始封装"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
-                <button id="cancelBtn" class="icon-button danger-icon-button" type="button" disabled aria-label="取消当前操作" title="取消当前操作"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6h12v12H6z"/></svg></button>
-              </div>
-
-              <a id="downloadLink" class="download icon-link hidden" href="#" download aria-label="保存生成的 MKV 到本机" title="保存成品"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 20h14v-2H5v2Zm7-18v10.17l3.59-3.58L17 10l-5 5-5-5 1.41-1.41L11 12.17V2h1Z"/></svg></a>
-              <a id="reportLink" class="report-download icon-link hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告" title="保存封装报告"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v-2H8v2Zm0 4h8v-2H8v2Zm0 4h6v-2H8v2Z"/></svg></a>
-              <div id="auditResult" class="audit-result hidden"></div>
-
-              
-            </section>
           </aside>
         </div>
 
@@ -366,7 +408,7 @@
             <div class="stage-title">
               <span class="section-index">B</span>
               <div>
-                <h2 id="batch-title">批量封装</h2>
+                <h2 id="batch-title" tabindex="-1">批量封装</h2>
               </div>
             </div>
             <div class="batch-status-chip">
@@ -379,6 +421,38 @@
             <summary>展开批量工作区 <span aria-hidden="true">↗</span></summary>
           <div class="batch-layout">
             <div class="batch-inputs" aria-label="批量素材">
+              <section class="batch-unified-intake" aria-labelledby="batch-unified-title">
+                <div class="batch-unified-head">
+                  <div>
+                    <h3 id="batch-unified-title">导入批量素材</h3>
+                    <p>统一导入文件或文件夹；识别容器、字幕和字体，再按文件名自动配对。独立音频目前不属于批量封装能力。</p>
+                  </div>
+                  <div class="unified-intake-buttons">
+                    <label class="button button-primary intake-picker">
+                      添加文件
+                      <input id="batchUnifiedInput" type="file" multiple aria-label="统一导入批量文件"/>
+                    </label>
+                    <label class="button button-secondary intake-picker">
+                      添加文件夹
+                      <input id="batchUnifiedFolderInput" type="file" multiple webkitdirectory directory aria-label="统一导入批量文件夹"/>
+                    </label>
+                  </div>
+                </div>
+                <div id="batchAssetDropzone" class="asset-dropzone" role="button" tabindex="0" aria-label="点击或拖放批量素材">
+                  将批量素材拖入这里，按实际文件内容分类；识别结果和无法使用的文件会列在下方。
+                </div>
+                <div class="asset-inventory-head">
+                  <strong>批量资源</strong>
+                  <span id="batchAssetStatus" role="status" aria-live="polite">尚未导入</span>
+                </div>
+                <div id="batchAssetInventory" class="asset-inventory" aria-label="批量内容识别清单">
+                  <div class="track-empty">导入后显示文件内容身份；不能参与批量任务的文件不会被忽略。</div>
+                </div>
+              </section>
+
+              <details class="batch-legacy-intake">
+                <summary>分类导入（兼容旧批量流程）</summary>
+                <div class="batch-legacy-intake-body">
               <section class="batch-source-cluster batch-video-cluster">
                 <div class="batch-cluster-head">
                   <span class="source-type">VIDEO</span>
@@ -429,6 +503,8 @@
                   </label>
                 </div>
               </section>
+                </div>
+              </details>
             </div>
 
             <div class="batch-detail">
