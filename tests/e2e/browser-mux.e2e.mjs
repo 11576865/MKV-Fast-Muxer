@@ -1678,7 +1678,9 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     await tree.locator('[data-tree-preserve-all]').uncheck();
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), false);
     const audio = tree.locator('[data-tree-group="audio"] .asset-tree-row');
-    const inspector = tree.locator('.asset-tree-inspector');
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+    assert.equal(await inspector.isVisible(), true, 'active track inspector belongs to central edit workspace');
+    assert.equal(await tree.locator('.asset-tree-inspector').count(), 0, 'source inventory does not own the detailed editor');
     assert.equal(await tree.locator('[data-tree-group="audio"] [data-tree-track-field]').count(), 0,
       'compact list must not repeat one full editor per track');
     await audio.nth(0).locator('[data-tree-select]').click();
@@ -1745,7 +1747,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await tree.locator('[data-tree-preserve-all]').uncheck();
     const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
     assert.equal(await audioRows.count(), 2);
-    const inspector = tree.locator('.asset-tree-inspector');
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
     await audioRows.nth(0).locator('[data-tree-select]').click();
     assert.equal(await inspector.locator('[data-tree-track-move="-1"]').isDisabled(), true);
     await inspector.locator('[data-tree-track-field="title"]').fill('First tree audio');
@@ -1797,13 +1799,13 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     // Capture real populated UI evidence for visual review, not just markup
     // or success-state screenshots. Generated fixtures contain no user data.
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.locator('.unified-intake').screenshot({
+    await page.locator('.workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-desktop-1440.png'),
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
-    await page.locator('.unified-intake').screenshot({
+    await page.locator('.workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
       animations: 'disabled',
     });
@@ -1843,7 +1845,7 @@ async function scenarioUnifiedContainerAttachmentEditing(browser) {
     assert.equal(await attachmentRows.count(), 2);
 
     await tree.locator('[data-tree-preserve-all]').uncheck();
-    const inspector = tree.locator('.asset-tree-inspector');
+    const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
     const font = attachmentRows.filter({ hasText: 'fixture-original.ttf' });
     await font.locator('[data-tree-select]').click();
     await inspector.locator('[data-tree-attachment-include]').uncheck();
