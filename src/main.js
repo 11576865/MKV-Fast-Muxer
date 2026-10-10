@@ -4172,7 +4172,8 @@ function batchSubtitleFiles() {
 
 function batchFontCandidates() {
   const selected = mergeFileSelections(batchFontInput?.files, batchFontFolderInput?.files);
-  return selected.length ? selected : selectedFonts();
+  // Unified batch mode must never inherit invisible single-task fonts.
+  return selected.length || batchUnifiedMode ? selected : selectedFonts();
 }
 
 async function syncBatchPlan() {
