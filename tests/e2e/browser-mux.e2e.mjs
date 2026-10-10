@@ -1751,6 +1751,22 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
     assert.equal(await subAdvanced.getAttribute('open'), '');
 
+    // Capture real populated UI evidence for visual review, not just markup
+    // or success-state screenshots. Generated fixtures contain no user data.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.unified-intake').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-desktop-1440.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.locator('.unified-intake').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
+      animations: 'disabled',
+    });
+    assert.equal(await tree.isVisible(), true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     const output = path.join(outDir, 'container-tree-advanced-order.mkv');
