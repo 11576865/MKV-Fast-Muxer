@@ -292,6 +292,8 @@ let videoSniffPromise = Promise.resolve();
 let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
+const containerTreeSelectedItem = new Map();
+let showLegacySourceTools = false;
 let chosenImportSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
@@ -974,6 +976,37 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
   const disabled = locked || appendMode;
   const open = containerTreeExpansion.get(entry.key) ?? true;
   const badge = (status) => containerStatusBadge(status);
+  // The resource list is a navigable index; only ONE object's full editor is
+  // rendered. Selection is stable by scanned stream index, never row position.
+  const allItems = model.groups.flatMap((group) => group.items);
+  const preferred = allItems.find((item) => item.kind === 'audio')
+    || allItems.find((item) => item.kind === 'subtitle')
+    || allItems.find((item) => item.kind === 'attachment')
+    || allItems[0];
+  const identity = (item) => `${item.kind}:${item.index}`;
+  const stored = containerTreeSelectedItem.get(entry.key);
+  const current = allItems.find((item) => identity(item) === stored) || preferred;
+  if (current) containerTreeSelectedItem.set(entry.key, identity(current));
+  const listRow = (item) => {
+    const isActive = current && identity(item) === identity(current);
+    const title = item.kind === 'chapter' ? (item.chapter.tags?.title || `Chapter #${item.index + 1}`)
+      : item.kind === 'metadata' ? '全局元数据'
+      : item.attachment ? (item.attachment.filename || `附件 #${item.index}`)
+      : item.track?.title || containerStreamTitle(item.stream);
+    const meta = item.kind === 'chapter'
+      ? `${item.chapter.start_time ?? item.chapter.start ?? ''} → ${item.chapter.end_time ?? item.chapter.end ?? ''}`
+      : item.kind === 'metadata' ? `${item.tags.length} 个字段`
+      : item.attachment ? item.attachment.mimetype
+      : containerStreamMeta(item.stream);
+    return `<div class="asset-tree-row asset-tree-index-row" data-tree-stream-index="${item.index}" data-change="${item.status}">
+      <button type="button" class="asset-tree-select" data-tree-select="${escapeHtml(identity(item))}"
+        aria-pressed="${Boolean(isActive)}" aria-label="查看 ${escapeHtml(title)} 的属性">
+        <span class="asset-tree-index-name">${escapeHtml(title)}</span>
+        <small>${escapeHtml(String(meta || ''))}</small>
+      </button>
+      ${badge(item.status)}
+    </div>`;
+  };
   const row = (item) => {
     if (item.kind === 'chapter') {
       const ch = item.chapter;
@@ -1040,10 +1073,24 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
         保留全部原内容，仅追加新素材
       </label>
       ${appendMode ? '<p class="asset-tree-tip">当前为保留全部模式。取消上方勾选后，可调整音频、字幕和附件。</p>' : ''}
-      ${model.groups.map((group) => `<section class="asset-tree-group" data-tree-group="${group.key}">
-        <h4>${group.label} <span>${group.items.length}</span></h4>
-        ${group.items.map(row).join('')}
-      </section>`).join('')}
+      <div class="asset-tree-workspace">
+        <div class="asset-tree-list" aria-label="源容器轨道索引">
+          ${model.groups.map((group) => `<section class="asset-tree-group" data-tree-group="${group.key}">
+            <h4>${group.label} <span>${group.items.length}</span></h4>
+            ${group.items.map(listRow).join('')}
+          </section>`).join('')}
+        </div>
+        <section class="asset-tree-inspector" aria-label="当前资源的属性编辑器">
+          <div class="asset-tree-inspector-head">
+            <strong>当前对象</strong>
+            <span>${current ? escapeHtml(({video:'视频',audio:'音频',subtitle:'字幕',attachment:'附件',data:'数据',chapter:'章节',metadata:'元数据',other:'其他'})[current.kind] || '资源') : '无'}</span>
+          </div>
+          ${current ? row(current) : '<div class="track-empty">从左侧选择一项查看属性。</div>'}
+        </section>
+      </div>
+      <button type="button" class="asset-tree-more-tools" data-tree-legacy-tools aria-expanded="${showLegacySourceTools}">
+        ${showLegacySourceTools ? '收起' : '展开'}传统轨道批量工具
+      </button>
     </div>
   </details>`;
 }
@@ -1059,6 +1106,11 @@ function renderImportedAssetInventory() {
     containerTreeAdvancedExpansion.set(details.dataset.treeAdvanced, details.open);
   });
   const entries = importedAssetEntries;
+  const editorGrid = document.querySelector('.editor-grid');
+  if (editorGrid) {
+    editorGrid.dataset.intakeMode = entries.length ? 'unified' : 'legacy';
+    editorGrid.dataset.showLegacySource = String(showLegacySourceTools);
+  }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
   assetImportStatus.textContent = importInProgress
     ? `正在按内容识别 ${importPendingCount} 个文件…`
@@ -1246,6 +1298,28 @@ assetInventory?.addEventListener('change', (event) => {
   applyImportedAssetRoles();
 });
 assetInventory?.addEventListener('click', (event) => {
+  const selected = event.target.closest('button[data-tree-select]');
+  if (selected) {
+    const source = selected.closest('[data-source-tree]');
+    if (!source) return;
+    containerTreeSelectedItem.set(source.dataset.sourceTree, selected.dataset.treeSelect);
+    renderImportedAssetInventory();
+    // On narrow screens the inspector follows the compact list. Move to the
+    // newly selected editor rather than leaving it outside the visible region.
+    if (matchMedia('(max-width: 900px)').matches) {
+      assetInventory.querySelector('.asset-tree-inspector')?.scrollIntoView({ block: 'nearest' });
+    }
+    return;
+  }
+  const tools = event.target.closest('button[data-tree-legacy-tools]');
+  if (tools) {
+    showLegacySourceTools = !showLegacySourceTools;
+    renderImportedAssetInventory();
+    if (showLegacySourceTools) {
+      document.querySelector('.source-track-card')?.scrollIntoView({ block: 'nearest' });
+    }
+    return;
+  }
   const moveButton = event.target.closest('button[data-tree-track-move]');
   if (moveButton) {
     if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return;
