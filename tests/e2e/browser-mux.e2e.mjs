@@ -1755,6 +1755,8 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await audioRows.nth(1).locator('[data-tree-select]').click();
     assert.equal(await inspector.locator('[data-tree-track-move="1"]').isDisabled(), true);
     await inspector.locator('[data-tree-track-field="title"]').fill('Second tree audio');
+    assert.equal(await audioRows.nth(1).locator('.asset-tree-index-name').textContent(),
+      'Second tree audio', 'source index updates without remounting the edited text input');
 
     // The second included source audio must move above the first, not just
     // visually change position without affecting the mux output map.
@@ -1796,6 +1798,11 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await subAdvanced.locator('summary').click();
     await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
     assert.equal(await subAdvanced.getAttribute('open'), '');
+
+    // Visual acceptance captures the normal workbench, not the deliberately
+    // expanded compatibility editor used to test reverse synchronization.
+    await tree.locator('[data-tree-legacy-tools]').click();
+    assert.equal(await page.locator('.source-track-card').isVisible(), false);
 
     // Capture real populated UI evidence for visual review, not just markup
     // or success-state screenshots. Generated fixtures contain no user data.
