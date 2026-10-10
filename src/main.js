@@ -1347,11 +1347,17 @@ assetInventory?.addEventListener('click', (event) => {
   if (selected) {
     const source = selected.closest('[data-source-tree]');
     if (!source) return;
-    containerTreeSelectedItem.set(source.dataset.sourceTree, selected.dataset.treeSelect);
+    const targetKey = selected.dataset.treeSelect;
+    containerTreeSelectedItem.set(source.dataset.sourceTree, targetKey);
     renderImportedAssetInventory();
-    // On narrow screens the inspector follows the compact list. Move to the
-    // newly selected editor rather than leaving it outside the visible region.
-    if (matchMedia('(max-width: 900px)').matches) {
+    // Inventory list nodes are replaced during projection; return keyboard
+    // focus to the same logical item rather than dropping it to document.body.
+    const reselected = [...assetInventory.querySelectorAll('button[data-tree-select]')]
+      .find((button) => button.dataset.treeSelect === targetKey);
+    reselected?.focus({ preventScroll: true });
+    // At stacked widths the inspector is below the source list. Bring the
+    // active editor into view while keeping list focus for further navigation.
+    if (matchMedia('(max-width: 1439px)').matches) {
       assetInspectorHost?.scrollIntoView({ block: 'nearest' });
     }
     return;
