@@ -2045,6 +2045,14 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
       .getAttribute('data-tree-track-include');
     assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
+    // Preserve-all is the safe default: editing a source track is intentionally
+    // disabled until the user chooses selective modification.
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').isDisabled(), true);
+    await page.locator('[data-tree-preserve-all]').uncheck();
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#assetInspectorHost [data-tree-track-field="title"]');
+      return field && !field.disabled;
+    });
     await page.locator('#assetInspectorHost [data-tree-track-field="title"]').fill('Viewport persistent audio');
     assert.equal(await nav.nth(1).locator('.asset-tree-index-name').textContent(),
       'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
