@@ -1952,6 +1952,9 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       'execute/status must precede detailed plan in visual and DOM order');
     await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
     assert.equal(await page.evaluate(() => location.hash), '#workbench-output-title');
+    await page.waitForFunction(() =>
+      document.querySelector('.workbench-jump-nav a[href="#workbench-output-title"]')?.getAttribute('aria-current') === 'location'
+    );
     await page.waitForFunction(() => {
       const r = document.querySelector('#muxBtn').getBoundingClientRect();
       return r.height > 0 && r.top >= 40 && r.bottom <= innerHeight;
@@ -1959,6 +1962,10 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.evaluate(() => location.hash), '#workbench-editor-title');
+    await page.waitForFunction(() =>
+      document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.getAttribute('aria-current') === 'location'
+    );
+    assert.equal(await page.locator('.workbench-jump-nav a[aria-current="location"]').count(), 1);
     console.log('Three-zone MKV workbench, keyboard selection and mobile task jumps PASS');
   } finally {
     await context.close();
