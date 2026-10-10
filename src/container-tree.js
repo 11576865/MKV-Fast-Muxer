@@ -24,8 +24,9 @@ export function buildContainerTreeModel(trackState, {
     const attachment = attachmentByIndex.get(stream.index) || null;
     const status = appendMode ? 'keep'
       : track ? (!track.include ? 'remove' : (
-        ['language','title','default','forced','original','commentary','hearingImpaired']
-          .some((field) => track[field] !== track['original' + field[0].toUpperCase() + field.slice(1)])
+        (track.order !== track.index ||
+          ['language','title','default','forced','original','commentary','hearingImpaired']
+            .some((field) => track[field] !== track['original' + field[0].toUpperCase() + field.slice(1)]))
           ? 'modify' : 'keep'
       ))
         : attachment ? (!attachment.include ? 'remove'
@@ -33,6 +34,19 @@ export function buildContainerTreeModel(trackState, {
             attachment.mimetype !== attachment.originalMimetype ? 'modify' : 'keep')
           : ['video','data'].includes(kind) ? 'keep' : 'remove';
     groups.get(kind).items.push({ kind, index: stream.index, stream, track, attachment, status });
+  }
+
+  // Present the actual editable order, not only ffprobe's original stream order.
+  // Only included peers are movable; excluded rows remain visible for recovery.
+  for (const kind of ['audio', 'subtitle']) {
+    const group = groups.get(kind);
+    group.items.sort((left, right) => (left.track?.order ?? left.index) -
+      (right.track?.order ?? right.index));
+    const included = group.items.filter((item) => item.track?.include);
+    included.forEach((item, index) => {
+      item.canMoveUp = !appendMode && index > 0;
+      item.canMoveDown = !appendMode && index < included.length - 1;
+    });
   }
 
   for (const [index, chapter] of (trackState.chapters || []).entries()) {
