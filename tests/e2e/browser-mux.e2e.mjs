@@ -2045,8 +2045,19 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
       .getAttribute('data-tree-track-include');
     assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
+    await page.locator('#assetInspectorHost [data-tree-track-field="title"]').fill('Viewport persistent audio');
+    assert.equal(await nav.nth(1).locator('.asset-tree-index-name').textContent(),
+      'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForFunction(() => {
+      const inspector = document.querySelector('#assetInspectorHost');
+      return inspector && inspector.getBoundingClientRect().width > 0;
+    });
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'edited stream attributes survive desktop-to-phone reflow');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
+      'source track selection survives viewport changes');
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
     const mobile = await page.evaluate(() => {
       const top = selector => document.querySelector(selector).getBoundingClientRect().top;
@@ -2086,7 +2097,20 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.getAttribute('aria-current') === 'location'
     );
     assert.equal(await page.locator('.workbench-jump-nav a[aria-current="location"]').count(), 1);
-    console.log('Three-zone MKV workbench, keyboard selection and mobile task jumps PASS');
+
+    await page.setViewportSize({ width: 1600, height: 960 });
+    await page.waitForFunction(() => {
+      const nav = document.querySelector('.workbench-jump-nav');
+      return nav && getComputedStyle(nav).display === 'none' &&
+        document.documentElement.scrollWidth <= innerWidth;
+    });
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
+    assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
+      'source selection must be stable across both viewport transitions');
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'responsive reflow must not mount a second editable stream inspector');
+    console.log('Three-zone MKV workbench, responsive edit retention, keyboard selection and task jumps PASS');
   } finally {
     await context.close();
   }
