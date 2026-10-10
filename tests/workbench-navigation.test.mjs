@@ -32,6 +32,7 @@ function fixture() {
   const win = {
     innerHeight: 600,
     scrollY: 0,
+    location: { hash: '' },
     getComputedStyle: () => ({ display: visible ? 'grid' : 'none' }),
     requestAnimationFrame(fn) { const id = ++frameId; callbacks.set(id, fn); return id; },
     cancelAnimationFrame(id) { callbacks.delete(id); },
@@ -101,5 +102,27 @@ test('hidden desktop navigation is inert until the stacked breakpoint becomes ac
   f.resize();
   f.flush();
   assert.equal(f.active(), 0);
+  dispose();
+});
+
+test('native hash navigation remains current when scroll-margin places heading below sticky cutoff', () => {
+  const f = fixture();
+  const dispose = setupWorkbenchNavigation(f.nav, f.win, f.doc);
+  f.flush();
+
+  f.win.location.hash = '#workbench-editor-title';
+  f.win.scrollY = 350;
+  f.tops.splice(0, 4, -350, 132, 740, 1100);
+  f.scroll();
+  f.flush();
+  assert.equal(f.active(), 1, 'editor target is visible near the top even if it missed sticky cutoff');
+
+  // After the user manually scrolls farther, actual viewport ownership
+  // supersedes the stale hash; the location is never locked to the URL.
+  f.win.scrollY = 1050;
+  f.tops.splice(0, 4, -1050, -340, 48, 560);
+  f.scroll();
+  f.flush();
+  assert.equal(f.active(), 2);
   dispose();
 });
