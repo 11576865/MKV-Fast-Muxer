@@ -18,8 +18,9 @@ test('content-first MKV intake keeps live editors and output without category up
   for (const id of ['unifiedAssetInput', 'unifiedFolderInput', 'assetDropzone', 'assetInventory', 'assetImportStatus']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /legacy-source-picker" hidden aria-hidden="true" inert/);
-  assert.match(html, /导入文件和容器/);
+  assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
+  assert.doesNotMatch(html, /legacy-source-picker|source-grid source-strip/);
+  assert.match(html, /导入媒体资源/);
   assert.doesNotMatch(html, /id="outputName"[^>]*contenteditable|id="outputName"[^>]*type="text"/);
   for (const category of ['all', 'subtitle', 'audio', 'font', 'source']) {
     assert.match(html, new RegExp(`data-editor-filter="${category}"`));
@@ -60,7 +61,7 @@ test('modern desktop layout hides duplicate original editor by default while pre
   assert.match(modernCss, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
   assert.match(modernCss, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
   assert.match(modernCss, /\.workspace > \.workbench-grid > \.output-hub \{/);
-  // Secondary legacy and bulk controls are still real, reachable DOM nodes.
+  // Source-object and batch controls remain real, visible and operable.
   assert.match(html, /class="object-editor-nav"/);
   assert.match(html, /id="previewRefreshBtn"/);
   assert.match(html, /id="batchStartBtn"/);
