@@ -69,15 +69,40 @@ test('workbench styles are loaded after legacy CSS with one explicit authority',
   assert.match(navigation, /aria-current/);
 });
 
-test('redesigned overview is structural and navigation remains keyboard accessible', async () => {
+test('tool-first entry eliminates billboard copy and exposes file actions before editing', async () => {
   const [html, css] = await Promise.all([source('index.html'), source('src/workbench.css')]);
-  assert.match(html, /class="workspace-overview" aria-labelledby="workspace-overview-title"/);
-  assert.match(html, /<ol class="overview-steps" aria-label="工作流程">/);
-  assert.match(html, /从素材到可验证的 MKV/);
-  assert.match(html, /不暗中转码/);
-  assert.match(css, /\.workspace-overview \{/);
+  assert.doesNotMatch(html, /workspace-overview|overview-steps|overview-constraints|stage-deck/);
+  assert.doesNotMatch(html, /从素材到可验证的 MKV|识别素材|验证并导出|所有文件先识别内容/);
+  assert.doesNotMatch(css, /\.workspace-overview|\.overview-steps|\.stage-deck/);
+  assert.match(html, /<main class="workspace">[\s\S]*?<h2 id="source-title" tabindex="-1">文件<\/h2>/);
+  assert.match(html, /id="unifiedAssetInput"[^>]*type="file"/);
+  assert.match(html, /id="unifiedFolderInput"[^>]*type="file"/);
+  assert.match(html, /id="assetDropzone"[\s\S]*?<strong>拖放文件到这里<\/strong>/);
+  assert.ok(html.indexOf('id="unifiedAssetInput"') < html.indexOf('id="assetInspectorHost"'));
+  assert.ok(html.indexOf('id="assetInspectorHost"') < html.indexOf('id="muxBtn"'));
+  assert.ok(html.indexOf('class="output-section execution-panel"') <
+    html.indexOf('class="output-summary"'), 'start action must precede passive output properties');
+  assert.match(html, /<details class="format-reference"><summary>格式<\/summary>/);
+  assert.doesNotMatch(html, /<details class="format-reference" open/);
+  assert.match(css, /\.visually-hidden\s*\{/);
+  assert.match(css, /@media \(max-width: 1100px\)[\s\S]*?\.workbench-jump-nav\s*\{/);
   assert.match(css, /\.workbench-jump-nav a:focus-visible/);
-  assert.match(css, /\.workbench-jump-nav\s*\{[^}]*background:\s*var\(--surface-0\);/,
-    'sticky mobile and desktop navigation must fully cover scrolling text');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /\.workbench-jump-nav\s*\{[^}]*background:\s*var\(--surface-0\);/,
+    'mobile sticky navigation must hide scrolling content beneath it');
+});
+
+test('file identities and actions remain understandable without instructional cards', async () => {
+  const [html, css] = await Promise.all([source('index.html'), source('src/workbench.css')]);
+  for (const label of ['文件', '轨道', '输出', '批量封装']) {
+    assert.match(html, new RegExp('>' + label + '<'));
+  }
+  assert.match(html, /id="outputName"/);
+  assert.match(html, /id="fontSummary"/);
+  assert.match(html, /id="assetImportStatus"/);
+  assert.match(html, /id="batchAssetStatus"/);
+  assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
+  assert.match(css, /\.asset-dropzone:focus-visible/);
+  assert.match(html, /aria-label="点击或拖放文件导入"/);
+  assert.match(html, /aria-label="点击或拖放批量素材"/);
 });
