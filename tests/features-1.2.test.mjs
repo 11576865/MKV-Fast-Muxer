@@ -32,17 +32,18 @@ test('1.2 runtime handles binary subtitle streams without text decoding', () => 
 });
 
 
-test('1.2.1 keeps every batch capability visible without six full source cards', () => {
-  assert.match(html, /class="batch-source-cluster batch-video-cluster"/);
-  assert.match(html, /class="batch-source-cluster batch-subtitle-cluster"/);
-  assert.match(html, /class="batch-source-cluster batch-font-cluster"/);
-  assert.match(html, /id="batchVideoInput"/);
-  assert.match(html, /id="batchVideoFolderInput"/);
-  assert.match(html, /id="batchSubtitleInput"/);
-  assert.match(html, /id="batchSubtitleFolderInput"/);
-  assert.match(html, /id="batchFontInput"/);
-  assert.match(html, /id="batchFontFolderInput"/);
-  assert.doesNotMatch(html, /source-type">VIDEO DIR/);
-  assert.doesNotMatch(html, /source-type">SUB DIR/);
-  assert.doesNotMatch(html, /source-type">FONT DIR/);
+test('1.2.1 preserves batch capabilities under the sole content-first import surface', () => {
+  assert.match(html, /class="batch-unified-intake"/);
+  for (const id of ['batchUnifiedInput', 'batchUnifiedFolderInput', 'batchAssetDropzone',
+    'batchAssetInventory', 'batchStartBtn', 'batchOutputDirBtn']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.doesNotMatch(html, /batch-source-cluster|batch-legacy-intake/);
+  assert.match(html, /<div class="intake-runtime-adapters" hidden inert aria-hidden="true">[\s\S]*?id="batchVideoInput"/);
+  for (const id of ['batchVideoInput', 'batchVideoFolderInput', 'batchSubtitleInput',
+    'batchSubtitleFolderInput', 'batchFontInput', 'batchFontFolderInput']) {
+    assert.match(html, new RegExp(`id="${id}"`), `executor adapter ${id} must remain`);
+  }
+  assert.match(main, /resolveBatchImportedAssets/);
+  assert.match(main, /replaceBatchAdapterFiles/);
 });
