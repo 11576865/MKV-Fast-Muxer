@@ -2084,6 +2084,13 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     assert.ok(regions.inspector.x >= regions.editor.x && regions.inspector.right <= regions.editor.right + 2,
       'selected object inspector must live in the central editor');
     assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
+    const desktopFileActionTop = await page.evaluate(() => {
+      const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
+      return control.getBoundingClientRect().top + scrollY;
+    });
+    assert.ok(desktopFileActionTop < 210, 'file action must be at the top of the desktop tool');
+    assert.equal(await page.locator('.workspace-overview').count(), 0,
+      'retired descriptive billboard must not consume the workspace');
     assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
       'one visible editor, not repeated per stream');
     assert.equal(await page.locator('#muxBtn').getByText('开始封装 MKV').isVisible(), true);
@@ -2135,6 +2142,11 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
     assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true);
+    const mobileFileActionTop = await page.evaluate(() => {
+      const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
+      return control.getBoundingClientRect().top + scrollY;
+    });
+    assert.ok(mobileFileActionTop < 300, 'phone first screen must expose add-file action');
     const actionOrder = await page.evaluate(() => ({
       action: document.querySelector('.execution-panel').getBoundingClientRect().top,
       details: document.querySelector('.plan-panel').getBoundingClientRect().top,
@@ -2161,12 +2173,11 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.waitForFunction(() => {
       const nav = document.querySelector('.workbench-jump-nav');
-      return nav && getComputedStyle(nav).display !== 'none' &&
-        nav.getBoundingClientRect().width > 0 &&
+      return nav && getComputedStyle(nav).display === 'none' &&
         document.documentElement.scrollWidth <= innerWidth;
     });
-    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true,
-      'redesigned task navigation remains available in the wide desktop workbench');
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), false,
+      'desktop workbench must not waste an extra row on duplicate task navigation');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
       'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
