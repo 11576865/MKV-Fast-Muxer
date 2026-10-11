@@ -3,7 +3,7 @@ import { buildContainerTreeModel } from './container-tree.js';
 // The sole authority is still the existing FFprobe scan / source-track edits,
 // externalAudioState, newSubtitleState and selected fonts. This is an immutable
 // display projection, NOT a second editable track collection or a mux plan.
-const fileIdentity = (file) => {
+export const outputCompositionFileKey = (file) => {
   if (!file) return '';
   return `${file.webkitRelativePath || file.name || ''}|${file.size ?? 0}|${file.lastModified ?? 0}`;
 };
@@ -33,10 +33,11 @@ export function buildOutputComposition({
   unsupportedAssets = [],
 } = {}) {
   const items = [];
-  const sourceScanned = Boolean(video && trackState);
+  const sourceScanned = Boolean(video && trackState &&
+    (!trackState.fileKey || trackState.fileKey === `${video.name}|${video.size}|${video.lastModified}`));
   if (video && !sourceScanned) {
     items.push({
-      id: `source-pending:${fileIdentity(video)}`,
+      id: `source-pending:${outputCompositionFileKey(video)}`,
       kind: 'source', title: video.name,
       detail: '源轨道待核验', status: 'pending', included: true,
       target: null,
@@ -81,14 +82,14 @@ export function buildOutputComposition({
     for (const item of rows || []) {
       if (!item.file) continue;
       items.push({
-        id: `external:${kind}:${fileIdentity(item.file)}`,
+        id: `external:${kind}:${outputCompositionFileKey(item.file)}`,
         kind, title: label(item.title, item.displayName || item.file.name),
         detail: [
           kind === 'subtitle' ? label(item.format?.label, '字幕') : '外部音频',
           flagSummary(item),
         ].filter(Boolean).join(' · '),
         status: 'add', included: true,
-        target: { type: 'external', kind, fileKey: fileIdentity(item.file) },
+        target: { type: 'external', kind, fileKey: outputCompositionFileKey(item.file) },
       });
     }
   }
@@ -97,10 +98,10 @@ export function buildOutputComposition({
   const attachedFonts = fontMode === 'force' && subtitleNeedsFonts ? (fonts || []).slice(0, 1) : (fonts || []);
   for (const font of attachedFonts) {
     items.push({
-      id: `font:${fileIdentity(font)}`, kind: 'font',
+      id: `font:${outputCompositionFileKey(font)}`, kind: 'font',
       title: font.name, detail: '字体附件',
       status: 'add', included: true,
-      target: { type: 'font', fileKey: fileIdentity(font) },
+      target: { type: 'font', fileKey: outputCompositionFileKey(font) },
     });
   }
 
@@ -109,14 +110,14 @@ export function buildOutputComposition({
     if (item.included) counts[item.kind] = (counts[item.kind] || 0) + 1;
   }
   const diagnostics = (unsupportedAssets || []).map(asset => ({
-    id: `unusable:${asset.key || fileIdentity(asset.file)}`,
+    id: `unusable:${asset.key || outputCompositionFileKey(asset.file)}`,
     title: asset.file?.name || '未识别文件',
     reason: asset.detail || '此文件无法参与封装',
   }));
   const changes = items.filter(item => item.status === 'add' || item.status === 'modify' || item.status === 'remove')
     .map(item => ({ id: item.id, title: item.title, status: item.status }));
   return {
-    source: video ? { name: video.name, id: fileIdentity(video), scanned: sourceScanned } : null,
+    source: video ? { name: video.name, id: outputCompositionFileKey(video), scanned: sourceScanned } : null,
     items, counts, changes, diagnostics,
     // True only when actual stream data are known; never claim unscanned
     // container-specific track counts as verified.
