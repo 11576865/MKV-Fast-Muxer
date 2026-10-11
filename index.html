@@ -345,7 +345,7 @@
             <section class="output-section plan-panel">
               <div class="side-panel-head">
                 <div>
-                  <h3>封装计划</h3>
+                  <h3>检查</h3>
                 </div>
                 <div class="plan-head-actions">
                   <button id="refreshPlanBtn" class="icon-button" type="button" aria-label="刷新封装计划" title="刷新封装计划"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg></button>
@@ -353,9 +353,12 @@
                 </div>
               </div>
               <div id="planWarnings" class="plan-warnings hidden"></div>
-              <div id="muxPlan" class="mux-plan">
-                <div class="track-empty">暂无计划</div>
-              </div>
+              <details id="fullMuxPlanDetails" class="full-mux-plan-details">
+                <summary>查看完整轨道计划</summary>
+                <div id="muxPlan" class="mux-plan">
+                  <div class="track-empty">暂无计划</div>
+                </div>
+              </details>
             </section>
 
 
