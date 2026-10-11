@@ -308,7 +308,7 @@ let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
 const containerTreeSelectedItem = new Map();
-let showLegacySourceTools = false;
+let showAdvancedSourceTools = false;
 let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let importInProgress = false;
@@ -1109,8 +1109,8 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
         </div>
 
       </div>
-      <button type="button" class="asset-tree-more-tools" data-tree-legacy-tools aria-expanded="${showLegacySourceTools}">
-        ${showLegacySourceTools ? '收起' : '展开'}传统轨道批量工具
+      <button type="button" class="asset-tree-more-tools" data-tree-advanced-tools aria-expanded="${showAdvancedSourceTools}">
+        ${showAdvancedSourceTools ? '收起' : '展开'}高级轨道工具
       </button>
     </div>
   </details>`;
@@ -1130,8 +1130,8 @@ function renderImportedAssetInventory() {
   const entries = importedAssetEntries;
   const editorGrid = document.querySelector('.editor-grid');
   if (editorGrid) {
-    editorGrid.dataset.intakeMode = entries.length ? 'unified' : 'legacy';
-    editorGrid.dataset.showLegacySource = String(showLegacySourceTools);
+    editorGrid.dataset.intakeMode = entries.length ? 'unified' : 'empty';
+    editorGrid.dataset.showAdvancedSource = String(showAdvancedSourceTools);
   }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
   assetImportStatus.textContent = importInProgress
@@ -1385,11 +1385,11 @@ assetInventory?.addEventListener('click', (event) => {
     }
     return;
   }
-  const tools = event.target.closest('button[data-tree-legacy-tools]');
+  const tools = event.target.closest('button[data-tree-advanced-tools]');
   if (tools) {
-    showLegacySourceTools = !showLegacySourceTools;
+    showAdvancedSourceTools = !showAdvancedSourceTools;
     renderImportedAssetInventory();
-    if (showLegacySourceTools) {
+    if (showAdvancedSourceTools) {
       document.querySelector('.source-track-card')?.scrollIntoView({ block: 'nearest' });
     }
     return;
