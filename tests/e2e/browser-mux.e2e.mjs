@@ -2002,7 +2002,10 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     // Visual acceptance captures the normal workbench, not the deliberately
     // expanded advanced track tools used to test reverse synchronization.
     await tree.locator('[data-tree-advanced-tools]').click();
-    assert.equal(await page.locator('.source-track-card').isVisible(), false);
+    assert.equal(await page.locator('.source-track-card').isVisible(), true,
+      'source-level preserve and scan controls remain available for the active stream');
+    assert.equal(await page.locator('.source-track-card #trackList').isVisible(), false,
+      'the old full stream list must not compete with the single selected inspector');
 
     // Capture real populated UI evidence for visual review, not just markup
     // or success-state screenshots. Generated fixtures contain no user data.
@@ -2140,6 +2143,10 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-tree-select')),
       'audio:2', 'keyboard focus should survive navigator re-render');
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'source',
+      'selecting an MKV stream makes that source object the active editor, not the All form');
+    assert.equal(await page.locator('.source-track-card #trackList').isVisible(), false,
+      'the single source inspector must not have a competing full track list');
     const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
       .getAttribute('data-tree-track-include');
     assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
