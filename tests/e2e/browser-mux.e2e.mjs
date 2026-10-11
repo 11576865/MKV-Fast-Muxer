@@ -2022,8 +2022,10 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     assert.equal(await page.locator('.source-track-card #trackList').isVisible(), false,
       'the old full stream list must not compete with the single selected inspector');
 
-    // Capture real populated UI evidence for visual review, not just markup
-    // or success-state screenshots. Generated fixtures contain no user data.
+    // Capture the actual default composition view; source/probe evidence
+    // remains available from the secondary disclosure, not a duplicate list.
+    await page.locator('#sourceFilesDetails > summary').click();
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
@@ -2046,7 +2048,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
       path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
       animations: 'disabled',
     });
-    assert.equal(await tree.isVisible(), true);
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null);
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.locator('.workspace').screenshot({
       path: path.join(outDir, 'mkv-container-tree-editor-phone-390.png'),
@@ -2058,6 +2060,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('#sourceFilesDetails > summary').click();
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
