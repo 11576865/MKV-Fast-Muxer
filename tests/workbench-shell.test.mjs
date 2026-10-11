@@ -30,7 +30,7 @@ test('desktop uses three independent workbench zones, with a stacked mobile insp
   const css = await source('src/workbench.css');
   assert.match(css, /Workbench IA \/ phase 5/);
   assert.match(css, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
-  assert.match(css, /grid-template-areas: "head" "inspector" "editors" "preview" "logs"/);
+  assert.match(css, /grid-template-areas: "head" "inspector" "preview" "editors" "logs"/);
   assert.match(css, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
   assert.match(css, /\.asset-inspector-host\[hidden\] \{ display: none !important; \}/);
   assert.match(css, /@media \(max-width: 1439px\)[\s\S]*?grid-template-areas: "head" "inspector" "preview" "editors" "logs"/);
