@@ -1865,6 +1865,7 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.equal(await tree.getAttribute('open'), '');
@@ -1940,6 +1941,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
 
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
@@ -2069,6 +2071,7 @@ async function scenarioUnifiedContainerAttachmentEditing(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-with-attachments.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.equal(await tree.locator('[data-tree-group="chapter"] .asset-tree-row').count(), 2);
@@ -2107,6 +2110,13 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id="source:audio:2"]').count(), 1,
+      'composed output must have one stable source audio stream row');
+    await page.locator('.composition-select[data-composition-id="source:audio:2"]').click();
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(), true,
+      'composition row must activate the original inspector without a second editor');
+    await page.locator('#sourceFilesDetails > summary').click();
     const regions = await page.evaluate(() => {
       const bounds = selector => {
         const r = document.querySelector(selector).getBoundingClientRect();
@@ -2123,8 +2133,8 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     });
     assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
     assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
-    assert.equal(await page.locator('#assetInspectorHost').isVisible(), false,
-      'before explicit object selection there should be no empty inspector form');
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(), true,
+      'composition selected object must have an active inspector');
     assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
     const desktopFileActionTop = await page.evaluate(() => {
       const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
