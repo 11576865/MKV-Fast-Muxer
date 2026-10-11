@@ -1263,3 +1263,121 @@ body { background: var(--bg); }
 .editor-grid[data-intake-mode="unified"][data-show-advanced-source="false"][data-editor-focus="source"] > .source-track-card #trackBulkTools {
   display: none !important;
 }
+
+
+/* Output composition, not input/probe stages, owns primary visible tracks.
+   Every row projects domain state; only the original inspector edits values. */
+.output-composition[hidden],
+.composition-changes[hidden],
+.composition-issues[hidden],
+.object-selection-hint[hidden] { display: none !important; }
+.output-composition { min-width: 0; display: grid; gap: 7px; }
+.composition-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0 9px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.composition-head h3 { margin: 0; font-size: .96rem; color: var(--text-strong); }
+.composition-count { font-size: .72rem; color: var(--muted); overflow-wrap: anywhere; text-align: right; }
+.composition-tracks { display: grid; min-width: 0; }
+.composition-row {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+}
+.composition-select { cursor: pointer; }
+.composition-select:hover,
+.composition-select:focus-visible { background: var(--surface-2); }
+.composition-select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.composition-select[aria-pressed="true"] {
+  box-shadow: inset 3px 0 0 var(--accent);
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-0));
+}
+.composition-row[data-status="remove"] { opacity: .57; }
+.composition-row[data-status="remove"] .composition-track-main strong { text-decoration: line-through; }
+.composition-kind { font-size: .7rem; color: var(--muted); }
+.composition-track-main { display: grid; gap: 3px; min-width: 0; }
+.composition-track-main strong { font-size: .82rem; font-weight: 680; overflow-wrap: anywhere; }
+.composition-track-main small { font-size: .71rem; color: var(--muted); overflow-wrap: anywhere; }
+.composition-state { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.composition-row[data-status="remove"] .composition-state,
+.composition-row[data-status="modify"] .composition-state { color: var(--warning); }
+.composition-changes { font-size: .74rem; color: var(--text-strong); padding: 7px 0; overflow-wrap: anywhere; }
+.composition-issues { font-size: .76rem; color: var(--danger); padding: 7px; border-left: 2px solid var(--danger); overflow-wrap: anywhere; }
+.composition-actions { display: none; }
+.workspace[data-has-composition="true"] .stage-input .asset-dropzone { display: none; }
+.source-files-details { border-top: 1px solid var(--line); padding-top: 7px; }
+.source-files-details > summary {
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  padding: 6px 3px;
+  font-size: .76rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.source-files-details > summary:focus-visible { outline: 2px solid var(--accent); }
+.source-files-details[open] > summary { color: var(--text-strong); }
+.source-files-details .asset-inventory-head { margin-top: 8px; }
+.object-editor-actions { display: none; }
+.object-selection-hint { padding: 16px 12px; font-size: .84rem; color: var(--muted); }
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  .workspace { grid-template-columns: minmax(340px, 1fr) minmax(425px, 1.3fr) minmax(290px, .79fr); }
+  .stage-input { overflow: visible; }
+  .source-files-details[open] .asset-entry { background: transparent; }
+}
+@media (max-width: 600px) {
+  .workspace[data-mobile-view="source"] { padding-bottom: 88px; }
+  .output-composition { gap: 5px; }
+  .composition-head { flex-wrap: wrap; }
+  .composition-count { max-width: 100%; }
+  .composition-row {
+    min-height: 55px;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 9px 4px;
+  }
+  .composition-track-main strong { font-size: .82rem; }
+  .composition-actions {
+    display: flex;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: max(9px, env(safe-area-inset-bottom));
+    z-index: 35;
+    padding: 7px;
+    border: 1px solid var(--line-strong);
+    border-radius: 11px;
+    background: var(--surface-0);
+    box-shadow: 0 5px 22px rgba(0, 0, 0, .3);
+  }
+  .composition-actions > button { width: 100%; min-height: 45px; }
+  .object-editor-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .object-editor-actions > button { min-height: 38px; }
+  #editorMuxBtn { margin-left: auto; }
+  .workspace[data-mobile-view="edit"] { padding-bottom: 30px; }
+  .workspace[data-mobile-view="edit"] > .workbench-grid > .editor-column {
+    gap: 9px;
+    align-content: start;
+  }
+}
