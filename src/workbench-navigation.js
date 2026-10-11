@@ -8,6 +8,40 @@ export function setupWorkbenchNavigation(nav, win = window, doc = document) {
     .filter(({ heading }) => Boolean(heading));
   if (!sections.length) return () => {};
 
+  // Narrow screens use a single active work area rather than a four-stage
+  // document that forces the export action several screens below the files.
+  // All DOM nodes stay mounted: editor values, FFmpeg jobs and file inputs
+  // retain their original state and event listeners.
+  const workspace = doc.querySelector?.('.workspace');
+  let activeMobileView = 'source';
+  const sectionViews = new Map([
+    ['source-title', 'source'],
+    ['workbench-editor-title', 'edit'],
+    ['workbench-output-title', 'output'],
+    ['batch-title', 'batch'],
+  ]);
+  const isMobile = () => Boolean(win.matchMedia?.('(max-width: 600px)')?.matches);
+  const currentHashView = () => sectionViews.get(win.location?.hash?.slice(1));
+  const mobileView = (view) => {
+    if (!workspace || !sectionViews.has([...sectionViews].find(([, value]) => value === view)?.[0])) return;
+    activeMobileView = view;
+    workspace.dataset.mobileView = view;
+    for (const item of sections) {
+      const selected = sectionViews.get(item.heading.id) === view;
+      if (selected) {
+        item.link.setAttribute('aria-current', 'location');
+        item.link.setAttribute('aria-selected', 'true');
+      } else {
+        item.link.removeAttribute('aria-current');
+        item.link.setAttribute('aria-selected', 'false');
+      }
+    }
+    if (view === 'batch') {
+      const drawer = doc.querySelector?.('.batch-drawer');
+      if (drawer) drawer.open = true;
+    }
+  };
+  if (workspace && isMobile()) mobileView(currentHashView() || 'source');
   let pendingFrame = 0;
   const select = (active) => {
     for (const item of sections) {
@@ -17,6 +51,10 @@ export function setupWorkbenchNavigation(nav, win = window, doc = document) {
   };
   const update = () => {
     pendingFrame = 0;
+    if (isMobile() && workspace) {
+      mobileView(currentHashView() || activeMobileView);
+      return;
+    }
     if (win.getComputedStyle(nav).display === 'none') return;
     const cutoff = nav.getBoundingClientRect().bottom + 18;
     let active = sections[0];
@@ -48,8 +86,11 @@ export function setupWorkbenchNavigation(nav, win = window, doc = document) {
   const onClick = (event) => {
     const link = event.target.closest?.('a[href^="#"]');
     const item = sections.find(({ link: candidate }) => candidate === link);
+    if (item && isMobile() && workspace) {
+      mobileView(sectionViews.get(item.heading.id));
+      return; // native anchor navigation works after its target is revealed
+    }
     if (item) select(item);
-    // Let the browser handle real hash navigation and heading focus.
     schedule();
   };
   nav.addEventListener('click', onClick);
