@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "output-composition-projection-implemented-pending-ci-and-ui-integration",
-  "current_bounded_work_unit": "Issue #75 step 1: introduce a pure, non-editable output composition projection from the existing authoritative domain models, with stable identity, append safety and negative tests; do not falsely claim the rendered UI is replaced.",
+  "status": "composition-first-ui-integrated-pending-chromium-and-visual-acceptance",
+  "current_bounded_work_unit": "Issue #75: render a single derived MKV output-composition list as the primary visible track object; route rows to the original editing states, collapse redundant imported-source tree except when needed for errors or ambiguity, and provide direct phone mux actions.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -33,32 +33,32 @@
     "2026-10-12: reviewed Issue #75 and original model. Identified that the UI currently repeats source streams in import container tree, central inspector and read-only mux plan; tool-first text changes did not change work-object authority.",
     "2026-10-12: implemented src/output-composition.js, a pure display projection of source stream/attachment scan, existing edit-state arrays, pending source file and selected fonts. Stable IDs and source targets, no remounted inputs, no executable command duplication; chapter/metadata do not masquerade as output tracks.",
     "2026-10-12: added eight output-composition Node tests for empty source, unverified media, scanned MKV source, append-only override, selective deletion and stable reorder identities, ASS-like font policy, unsupported inputs, and purity.",
-    "2026-10-12: repaired stale Chromium batch test oracle that expected the previous long '1 项不可使用' phrase after actual batch status became '1 不可用'; batch-start blocking remains tested."
+    "2026-10-12: repaired stale Chromium batch test oracle that expected the previous long '1 项不可使用' phrase after actual batch status became '1 不可用'; batch-start blocking remains tested.",
+    "2026-10-12 composition integration: one #outputCompositionPanel renders the pure output composition from FFprobe tracks, source edit state, external subtitle/audio, and fonts; statuses and diagnostic reasons stay visible; no separate mutable UI track state.",
+    "New output-composition rows route source track identity into existing containerTreeSelectedItem and inspector; external resource identities route to original subtitle/audio/font fields; track and export state owners remain unchanged.",
+    "Imported resource/probe inventory moved into on-demand #sourceFilesDetails. Source ambiguity and unrecognized inputs auto-expand, large dropzone hides once composition has content, original hidden execution adapters preserved.",
+    "Phone source and editor views expose direct MKV mux controls that dispatch to the existing #muxBtn and mirror its enabled state, plus return-to-track action; original output rail remains source of progress/download/audit.",
+    "Updated Chromium tests for composition-first mixed audio/subtitle selection and source-stream inspector, secondary source tree disclosure, and actual default screenshots. Added composition workspace Node tests; source scan stale-state guard added."
   ],
   "next_units": [
-    "Read exact new-head Node/Chromium/Pages CI and repair any failures without weakening content/safety assertions.",
-    "Integrate the authoritative buildOutputComposition projection into one primary visible output-track list; replace rather than duplicate the import tree / detail-plan UI. A selected row must route to one existing editor with stable identity, including external subtitle and audio.",
-    "On phone, remove mandatory four-tab hopping for one mux task; keep MKV export action reachable while source/edit panel is open and retain keyboard/focus/selection across 390→1440→390.",
-    "Cover actual 320/390/900/1440/1600 viewport, source-only MKV, append safety, exclusion, batch, cancellation, external audio, subtitles, fonts and post-mux audit; do not merge without real screenshots.",
-    "Merge/supersede PR #74 only on full visual and browser acceptance; otherwise report Pending with exact blockers."
+    "Inspect exact-head Pages and Chromium Node+real-mux E2E results, repair concrete regressions without weakening safety or domain assertions.",
+    "Inspect fresh CJK screenshots at 390px and 1440px; specifically source list, selected editor, action reachability, warnings, density, overflow.",
+    "Validate external font, source append safety, dirty edits, plan/audit agreement and 320px accessibility; do not merge PR until product UI acceptance.",
+    "After validated rollout, update README architecture and close Issue #75 with evidence, then merge/supersede PR #74, post-merge main CI and task closure."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "7284dc91179937561c10e8b80db8d4bb94cf667c",
+  "latest_durable_commit": "c7bc201c538007c1553a049b53c68a6402cd44e5",
   "external_validation": {
-    "node": "previous head 204/204 pass, latest head pending",
-    "pages": "previous head success, latest pending",
-    "browser_e2e": "previous head failed due unsupported test Locator.isFocused, latest pending",
-    "visual": "previous rendered screenshots do not cover a composition-first UI; pending",
-    "status": "external-validation-pending",
-    "scope": "UI/navigation/selected inspector; FFmpeg, state models and post-mux audit unchanged",
-    "last_failed_head": "04ecc5585599fd1e5caab4945d344c3d859eb401: Chromium scenarioUnifiedBatchContentIntake timed out on stale status substring; actual Node tests passed up to browser start",
-    "current_head": "pending exact-head checks for source-only output composition module"
+    "previous_exact_head": "6967144b58d50727a6112ab10a11b082e7e834bc: Node 213/213 PASS; browser failed because preselection inspector was hidden (geometry 0), before composition UI wiring",
+    "current": "new composition-first UI head pending fresh CI",
+    "visual": "prior six screenshots do not show the output-composition UI; new screenshots pending",
+    "claims": "only source changes and assertions, not yet browser accepted"
   },
   "blockers": [
-    "Output-composition model not yet wired into visible UI (Issue #75 staged rollout)",
-    "Current exact-head Node/Chromium validation pending",
-    "PR #74 overall UI still not accepted, do not merge"
+    "Fresh exact-head Chromium E2E (real mux and new composition navigation) pending",
+    "Fresh actual composition-first CJK screenshots unreviewed",
+    "PR #74 must remain unmerged"
   ],
   "updated_at": "2026-10-12",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md",
