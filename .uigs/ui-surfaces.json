@@ -13,7 +13,7 @@
       "group": "FLOW",
       "status": "implemented",
       "intent": "将可执行的添加文件、添加文件夹和拖放入口直接放在工作区顶部；识别出的媒体和轨道在列表中进行直接操作。",
-      "implementation_effect": "取消介绍型流程卡，导入控件优先展示；格式支持移入按需展开的详情，旧文件输入只保留隐藏运行时适配器。",
+      "implementation_effect": "桌面左侧资源树负责选择对象；手机资源工作区只负责导入、浏览和选择轨道，轨道选择打开独立编辑工作区，保留文件与选择状态。",
       "source_refs": [
         {
           "path": "index.html",
@@ -30,7 +30,7 @@
       "group": "FLOW",
       "status": "implemented",
       "intent": "在封装前完成字幕/轨道/字体相关调整与预览。",
-      "implementation_effect": "主要编辑区包含预览与编辑卡片，不与最终输出区混成一列。",
+      "implementation_effect": "桌面中央只显示当前选中对象的真实编辑器；手机通过顶部区段导航切换至编辑工作区，选择源轨道直接打开现有 inspector，不复制或重挂载状态控件。",
       "source_refs": [
         {
           "path": "index.html",
@@ -122,7 +122,7 @@
       "group": "OUTPUT",
       "status": "implemented",
       "intent": "汇总检查、计划与封装操作。",
-      "implementation_effect": "主要封装按钮与状态先于静态输出属性及详细计划，编辑和导出控件保持原绑定。",
+      "implementation_effect": "桌面右侧是独立封装区；手机只显示当前工作区，输出按钮经顶部‘输出’一步抵达，不必滚动越过全部源轨道与编辑卡。",
       "source_refs": [
         {
           "path": "index.html",
