@@ -77,6 +77,15 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      - name: Upload MKV workbench visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkv-ui-container-tree-viewports
+          path: .e2e/output/mkv-container-tree-*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Print preview log on failure
         if: failure()
         run: cat /tmp/mkvfm-preview.log || true
