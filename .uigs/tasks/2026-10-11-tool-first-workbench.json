@@ -38,27 +38,27 @@
     "New output-composition rows route source track identity into existing containerTreeSelectedItem and inspector; external resource identities route to original subtitle/audio/font fields; track and export state owners remain unchanged.",
     "Imported resource/probe inventory moved into on-demand #sourceFilesDetails. Source ambiguity and unrecognized inputs auto-expand, large dropzone hides once composition has content, original hidden execution adapters preserved.",
     "Phone source and editor views expose direct MKV mux controls that dispatch to the existing #muxBtn and mirror its enabled state, plus return-to-track action; original output rail remains source of progress/download/audit.",
-    "Updated Chromium tests for composition-first mixed audio/subtitle selection and source-stream inspector, secondary source tree disclosure, and actual default screenshots. Added composition workspace Node tests; source scan stale-state guard added."
+    "Updated Chromium tests for composition-first mixed audio/subtitle selection and source-stream inspector, secondary source tree disclosure, and actual default screenshots. Added composition workspace Node tests; source scan stale-state guard added.",
+    "The redundant read-only #muxPlan is now behind a native closed-by-default Full Track Plan disclosure; compatibility warnings stay outside and visible, and existing mobile expansion toggles the same details state."
   ],
   "next_units": [
-    "Inspect exact-head Pages and Chromium Node+real-mux E2E results, repair concrete regressions without weakening safety or domain assertions.",
-    "Inspect fresh CJK screenshots at 390px and 1440px; specifically source list, selected editor, action reachability, warnings, density, overflow.",
-    "Validate external font, source append safety, dirty edits, plan/audit agreement and 320px accessibility; do not merge PR until product UI acceptance.",
-    "After validated rollout, update README architecture and close Issue #75 with evidence, then merge/supersede PR #74, post-merge main CI and task closure."
+    "Review exact-head Node and full Chromium E2E; repair concrete regressions (including original advanced source-tree tests now using explicit secondary disclosure).",
+    "Inspect the new populated mobile source/editor/output and desktop screenshots; confirm action reachability, single primary composition, disabled states, legible CJK, warning visibility.",
+    "Validate 320px widths and reconcile batch navigation before merging/superseding PR #74.",
+    "Once accepted, refresh README and Issue #75, merge, verify main and close task."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "c7bc201c538007c1553a049b53c68a6402cd44e5",
+  "latest_durable_commit": "964843baf20e9e49abb733dac7b29491362ef228",
   "external_validation": {
     "previous_exact_head": "6967144b58d50727a6112ab10a11b082e7e834bc: Node 213/213 PASS; browser failed because preselection inspector was hidden (geometry 0), before composition UI wiring",
-    "current": "new composition-first UI head pending fresh CI",
+    "current": "pending exact-head CI for rendered composition + native mux-plan disclosure; static/source assertions alone not acceptance",
     "visual": "prior six screenshots do not show the output-composition UI; new screenshots pending",
     "claims": "only source changes and assertions, not yet browser accepted"
   },
   "blockers": [
-    "Fresh exact-head Chromium E2E (real mux and new composition navigation) pending",
-    "Fresh actual composition-first CJK screenshots unreviewed",
-    "PR #74 must remain unmerged"
+    "new exact-head full Node/Chromium E2E and visible screenshot inspection pending",
+    "PR #74 must not merge while UI acceptance remains open"
   ],
   "updated_at": "2026-10-12",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md",
