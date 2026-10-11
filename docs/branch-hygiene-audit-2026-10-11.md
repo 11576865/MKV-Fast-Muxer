@@ -46,3 +46,19 @@ They require explicit investigation. Retain main, uigs-outbox and active PRs.
 4. Recount refs and check for newly active or protected branches.
 
 Branch cleanup remains **Pending Review**, not completed.
+
+
+## Later disposition of the 33 Git-unique heads
+
+The **Pending Review** conclusion above was accurate at the original
+branch audit. Subsequent explicit per-PR allowlisting and reversible tag
+archival was completed through [PR #72](https://github.com/11576865/MKV-Fast-Muxer/pull/72).
+Workflow [38117660994](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38117660994)
+confirmed the operation succeeded; the 33 original branch refs were
+removed only after their source SHAs were preserved in 33 exact archive tags.
+
+See `docs/branch-archive-review-2026-10-11.md` for the verified
+post-run inventory and restore instructions. The ordinary automated
+policy still retains branches when `ahead_by > 0`; it was **not**
+relaxed. Seven retained remote branches remain, including the
+maintenance archive branch exempted by `maintenance/*`.
