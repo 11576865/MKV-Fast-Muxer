@@ -12,15 +12,17 @@ test('content-first MKV intake keeps live editors and output without category up
     'muxPlan', 'muxBtn', 'downloadLink', 'auditResult']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /<span class="section-index">01<\/span>/);
-  assert.match(html, /<span class="section-index">02<\/span>/);
-  assert.match(html, /<span class="section-index">03<\/span>/);
+  for (const [id, title] of [['source-title', '文件'], ['workbench-editor-title', '轨道'],
+    ['workbench-output-title', '输出']]) {
+    assert.match(html, new RegExp(`id="${id}" tabindex="-1">${title}<\\/h2>`));
+  }
+  assert.doesNotMatch(html, /class="section-index"|class="workspace-overview"/);
   for (const id of ['unifiedAssetInput', 'unifiedFolderInput', 'assetDropzone', 'assetInventory', 'assetImportStatus']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
   assert.doesNotMatch(html, /legacy-source-picker|source-grid source-strip/);
-  assert.match(html, /导入媒体资源/);
+  assert.match(html, /id="intake-title" class="visually-hidden">文件导入/);
   assert.doesNotMatch(html, /id="outputName"[^>]*contenteditable|id="outputName"[^>]*type="text"/);
   for (const category of ['all', 'subtitle', 'audio', 'font', 'source']) {
     assert.match(html, new RegExp(`data-editor-filter="${category}"`));
@@ -59,7 +61,7 @@ test('modern desktop layout hides duplicate original editor by default while pre
   ]);
   assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-advanced-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
   assert.match(modernCss, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
-  assert.match(modernCss, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
+  assert.match(modernCss, /grid-template-columns: minmax\(340px, 1fr\) minmax\(425px, 1\.3fr\) minmax\(290px, \.79fr\)/);
   assert.match(modernCss, /\.workspace > \.workbench-grid > \.output-hub \{/);
   // Source-object and batch controls remain real, visible and operable.
   assert.match(html, /class="object-editor-nav"/);
