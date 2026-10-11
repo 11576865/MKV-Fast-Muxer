@@ -94,3 +94,22 @@ test('MKV execution actions are visibly named and preserve the container change 
   assert.match(main, /data-change="remove"/);
   assert.match(main, /streams: probe\.streams \|\| \[\]/);
 });
+
+
+test('retired categorized upload cards leave no orphan CSS selectors or visible DOM', async () => {
+  const [html, globalCss, workbenchCss] = await Promise.all([
+    source('index.html'), source('src/style.css'), source('src/workbench.css'),
+  ]);
+  // The runtime adapters are intentionally retained, but retired cards must not style anything.
+  const selector = new RegExp(
+    '\\.(?:source-grid|source-strip|source-item|source-body|source-type-icon|' +
+    'source-action-icon|source-primary|source-secondary|batch-source-cluster|' +
+    'batch-cluster-head|batch-picker-row|batch-picker|batch-video-cluster|' +
+    'batch-subtitle-cluster|batch-font-cluster)\\b',
+  );
+  assert.doesNotMatch(globalCss, selector);
+  assert.doesNotMatch(workbenchCss, selector);
+  assert.doesNotMatch(html, /batch-legacy-intake|legacy-source-picker|source-grid source-strip/);
+  assert.match(html, /class="batch-unified-intake"/);
+  assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
+});
