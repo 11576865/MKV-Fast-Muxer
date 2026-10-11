@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "ci-stale-oracles-repaired-external-validation-pending",
-  "current_bounded_work_unit": "Repair two obsolete copy-based Node assertions without restoring instructional UI; await fresh exact-head E2E, screenshots.",
+  "status": "visual-reviewed-density-refinement-pending-new-ci",
+  "current_bounded_work_unit": "Inspect verified browser screenshots, eliminate routine dynamic text redundancy in file/batch cards without suppressing unsupported-file reasons, request new exact-head CI.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -13,25 +13,30 @@
     "Added first-fold desktop/mobile browser assertions and action-first source contracts; static source IDs, balanced HTML sections and CSS braces checked.",
     "Shortened initial subtitle, source-track, preview and batch empty-state copy after primary restructuring.",
     "First full CI: runs 38131912879 and 38131912869 each reached Node 200 tests, 198 pass, 2 fail. Failures exclusively old visible-copy assertions for batch independent-audio limitation and preview '按需生成'; actual Chromium run was blocked at unit stage.",
-    "Moved batch unsupported external-audio rule into a discoverable collapsed Format details beside batch resources and updated the batch test; changed preview test to verify actual click control and JS binding rather than requiring explanatory prose."
+    "Moved batch unsupported external-audio rule into a discoverable collapsed Format details beside batch resources and updated the batch test; changed preview test to verify actual click control and JS binding rather than requiring explanatory prose.",
+    "Pre-density verified PR head c5ce99eba938af0fb2b4898a3530583121f3f6bd: Pages run 38132508661 and Chromium Browser E2E run 38132508666 both success; Node unit tests, build, all real browser mux scenarios pass; visual artifact 11699228516 captured six desktop/mobile and batch images.",
+    "Inspected six CJK-correct desktop/mobile screenshots (1440x900 and 390x844 viewport, full page and batch). First-screen Add File and folder actions visible on both, no apparent horizontal overflow, desktop source/editor/output are separate; dynamic routine batch cards still had unnecessary two-line technical explanation.",
+    "Shortened rendered source statuses and runtime cleared states; batch resource counts and supported-file rows now show concise status while unsupported entries still display their detail. Updated exact source and Chromium assertions for status contract."
   ],
   "next_units": [
-    "Read new exact-head CI once when the new run is complete; if pending report External Validation Pending.",
-    "Run and review real 1440px/390px populated screenshots after Chromium passes, including first-screen file action placement and horizontal overflow.",
-    "Do not merge until real mux, batch, preview, keyboard tests and UI appearance are green."
+    "Confirm new exact-head Pages and Chromium mux E2E, including 201+ Node tests; do not treat earlier c5ce99e CI as covering density changes.",
+    "Review fresh six desktop/mobile screenshots, especially batch resource rows and 390px file controls; reject if readability or layout regressions appear.",
+    "Merge PR #74 only if exact head passes and screenshots are visually acceptable; independently verify main and branch hygiene, then close task."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "872a3889dd450097179011c0342f06a4f925a573",
+  "latest_durable_commit": "dea2c6f1db67530176f41052f488e1fa9943548c",
   "external_validation": {
-    "node": "200 tests: previous head 198 pass/2 stale-copy assertion failures; current repair pending",
-    "browser_e2e": "previous run blocked by Node before browser execution; new run pending",
-    "visual": "pending real 1440x900 and 390x844 images",
-    "static": "verified exact runtime ID hierarchy, HTML element counts, CSS braces, first action DOM order and batch limitation in collapsed details"
+    "last_verified_head": "c5ce99eba938af0fb2b4898a3530583121f3f6bd",
+    "node": "passed in run 38132508666 before dynamic-copy refinement; latest-head pending",
+    "browser_e2e": "passed in run 38132508666 before dynamic-copy refinement; latest-head pending",
+    "visual": "baseline for revised tool-first shell inspected: artifact 11699228516, 1440px/390px including batch, all readable and no evident overflow; new runtime-copy screenshots pending",
+    "pages": "passed in run 38132508661 before dynamic-copy refinement; latest-head pending",
+    "static": "runtime asset status stays specific for unsupported media; required ID set unchanged"
   },
   "blockers": [
-    "Fresh exact-head Node/Chromium CI pending after assertion repair",
-    "New populated screenshots unreviewed"
+    "New exact-head CI pending after runtime status refinement",
+    "Fresh screenshots for condensed dynamic cards not yet inspected"
   ],
   "updated_at": "2026-10-11",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md"
