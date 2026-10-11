@@ -2161,9 +2161,12 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.waitForFunction(() => {
       const nav = document.querySelector('.workbench-jump-nav');
-      return nav && getComputedStyle(nav).display === 'none' &&
+      return nav && getComputedStyle(nav).display !== 'none' &&
+        nav.getBoundingClientRect().width > 0 &&
         document.documentElement.scrollWidth <= innerWidth;
     });
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true,
+      'redesigned task navigation remains available in the wide desktop workbench');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
       'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
