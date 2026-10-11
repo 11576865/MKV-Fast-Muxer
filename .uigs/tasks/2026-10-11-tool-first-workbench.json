@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-11-tool-first-workbench",
+  "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
+  "status": "submitted-pending-external-validation",
+  "current_bounded_work_unit": "Remove instructional hero, surface file controls above fold, compact responsive three-pane workspace, and update regression/capture contracts.",
+  "completed_units": [
+    "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
+    "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
+    "Retained runtime input and execution IDs; new visible source/editor/output headings are 文件, 轨道, 输出; batch remains a separate disclosure.",
+    "Replaced import and batch explanatory paragraphs with direct file/folder controls and drop cue; moved compatibility formats into collapsed details.",
+    "Moved primary MKV export action ahead of passive metadata; removed static codec claims and redundant placeholder copy.",
+    "Added first-fold desktop/mobile browser assertions and action-first source contracts; static source IDs, balanced HTML sections and CSS braces checked."
+  ],
+  "next_units": [
+    "Read CI for exact PR head once after opening PR; if failing, repair visible direct errors in next bounded unit.",
+    "Inspect populated 1440x900 and 390x844 screenshots for real placement, overflow and action discoverability.",
+    "Verify keyboard focus, drag-and-drop, track editing, batch jobs and real MKV audit via browser E2E before merge.",
+    "Merge only after browser/Node visual acceptance and then update task to complete."
+  ],
+  "branch": "ui/tool-first-direct-manipulation-20261011",
+  "pr": null,
+  "latest_durable_commit": "5ca7004e2c8f0bbfa1d3d20de48278213e1cf6c3",
+  "external_validation": {
+    "node": "pending exact-head CI",
+    "browser_e2e": "pending exact-head CI",
+    "visual": "pending actual new screenshots",
+    "static": "source-level layout and contract scan passed"
+  },
+  "blockers": [
+    "Exact-head Node/Chromium CI pending",
+    "Populated screenshots after redesign not yet reviewed"
+  ],
+  "updated_at": "2026-10-11"
+}
