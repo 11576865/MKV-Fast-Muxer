@@ -1233,7 +1233,7 @@ compositionTracks?.addEventListener('click', event => {
   });
   activateCompositionTrack(model.items.find(item => item.id === button.dataset.compositionId));
 });
-sourceFilesDetails?.addEventListener('toggle', () => {
+sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
 compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
@@ -1259,6 +1259,9 @@ function renderImportedAssetInventory() {
     editorGrid.dataset.showAdvancedSource = String(showAdvancedSourceTools);
   }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
+  if (sourceFilesDetails && !sourceFilesDetails.dataset.userToggled) {
+    sourceFilesDetails.open = Boolean(roles.needsSourceChoice || roles.unknown.length);
+  }
   assetImportStatus.textContent = importInProgress
     ? `正在按内容识别 ${importPendingCount} 个文件…`
     : !entries.length
@@ -1270,6 +1273,7 @@ function renderImportedAssetInventory() {
       assetInspectorHost.replaceChildren();
       assetInspectorHost.hidden = true;
     }
+    renderOutputComposition();
     return;
   }
   assetInventory.innerHTML = entries.map((entry) => {
@@ -1318,6 +1322,7 @@ function renderImportedAssetInventory() {
     assetInspectorHost.innerHTML = sourceInspectorMarkup;
     assetInspectorHost.hidden = !sourceInspectorMarkup;
   }
+  renderOutputComposition();
 }
 
 async function importUnifiedAssets(files) {
@@ -2956,6 +2961,7 @@ function renderMuxPlan() {
     planWarnings.textContent = '';
     planWarnings.classList.add('hidden');
   }
+  renderOutputComposition();
 }
 
 function renderTrackList() {
