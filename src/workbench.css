@@ -1157,7 +1157,7 @@ body { background: var(--bg); }
     font-weight: 650;
     color: var(--muted);
   }
-  .workbench-jump-nav a[aria-selected="true"] {
+  .workbench-jump-nav a[aria-current="location"] {
     color: var(--text-strong);
     background: var(--surface-3);
     box-shadow: inset 0 -2px 0 var(--accent);
