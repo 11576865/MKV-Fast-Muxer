@@ -1155,10 +1155,10 @@ function renderImportedAssetInventory() {
       audio: '独立音频', unknown: '未识别',
     }[entry.kind] || '未知';
     const sourceScanned = selected && trackState?.fileKey === fileKey(entry.file);
-    const statusLabel = sourceScanned ? '内部结构已扫描'
-      : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别内容'
-      : entry.status === ASSET_STATUS.UNVERIFIED ? '已识别文件头，内部流待核验'
-      : '不参与封装';
+    const statusLabel = sourceScanned ? '已扫描'
+      : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别'
+      : entry.status === ASSET_STATUS.UNVERIFIED ? '待核验'
+      : '不可用';
     const counts = sourceScanned
       ? Object.entries(
           (trackState.streams || []).reduce((all, stream) => {
@@ -1168,7 +1168,7 @@ function renderImportedAssetInventory() {
         ).map(([type, count]) => `${containerKindLabel(type)} ${count}`).join(' · ')
       : '';
     const sourceNote = entry.kind === 'container' && !selected
-      ? '此容器目前未分配为主源；不会自动追加其中的轨道。'
+      ? '未设为主源'
       : '';
     return `<div class="asset-entry" data-kind="${entry.kind}">
       <div class="asset-entry-main">
@@ -4064,11 +4064,11 @@ function renderBatchAssetInventory() {
   const roles = resolveBatchImportedAssets(entries);
   const blocked = roles.unsupported.length;
   batchAssetStatus.textContent = batchImportInProgress
-    ? '正在按内容识别批量文件…'
-    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '尚未导入')
-    : `${entries.length} 个文件 · ${roles.containers.length} 个容器候选 · ${roles.subtitles.length} 条字幕 · ${roles.fonts.length} 个字体${blocked ? ` · ${blocked} 项不可使用` : ''}`;
+    ? '识别中…'
+    : !entries.length ? '0 文件'
+    : `${entries.length} 文件 · ${roles.containers.length} 容器 · ${roles.subtitles.length} 字幕 · ${roles.fonts.length} 字体${blocked ? ` · ${blocked} 不可用` : ''}`;
   if (!entries.length) {
-    batchAssetInventory.innerHTML = '<div class="track-empty">批量导入后，文件内容类型及不支持项目在此列出。</div>';
+    batchAssetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     return;
   }
   const locked = batchRunning || isBusy() || batchImportInProgress;
@@ -4076,15 +4076,18 @@ function renderBatchAssetInventory() {
     const role = { container: '媒体容器候选', subtitle: '字幕', font: '字体', audio: '独立音频', unknown: '未识别' }[entry.kind] || '未知';
     const supported = ['container', 'subtitle', 'font'].includes(entry.kind);
     const state = supported
-      ? entry.kind === 'container' ? '视频轨待预检' : '进入配对预检'
-      : entry.kind === 'audio' ? '批量模式不支持追加独立音频' : '不参与批量任务';
+      ? '待预检'
+      : entry.kind === 'audio' ? '批量不支持独立音频' : '不可用'; 
+    // Routine recognized inputs only need their current state; keep the
+    // classifier's detailed reason visible for unsupported/unknown input.
+    const diagnosis = supported ? state : [state, entry.detail].filter(Boolean).join(' · ');
     return `<div class="asset-entry" data-kind="${entry.kind}">
       <div class="asset-entry-main">
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
           <span class="asset-entry-type">${role} · ${escapeHtml(entry.label)}</span>
         </div>
-        <div class="asset-entry-desc">${state} · ${escapeHtml(entry.detail || '')}</div>
+        <div class="asset-entry-desc">${escapeHtml(diagnosis)}</div>
       </div>
       <div class="asset-entry-roles">
         <button type="button" class="asset-remove" data-batch-asset-remove="${escapeHtml(entry.key)}"
