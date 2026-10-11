@@ -489,7 +489,7 @@
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "head" "inspector" "editors" "preview" "logs";
+    grid-template-areas: "head" "inspector" "preview" "editors" "logs";
     align-content: start;
     gap: 13px;
   }
