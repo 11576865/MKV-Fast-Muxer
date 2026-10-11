@@ -101,6 +101,7 @@
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>
               <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
+              <div class="composition-actions"><button id="compositionMuxBtn" type="button" class="button button-primary" disabled>封装 MKV</button></div>
             </section>
             <details id="sourceFilesDetails" class="source-files-details">
               <summary>来源文件与识别</summary>
@@ -129,9 +130,14 @@
           <section class="editor-column" aria-label="调整工作区">
             <header class="column-head">
               <div class="stage-title">
-                <h2 id="workbench-editor-title" tabindex="-1">轨道</h2>
+                <h2 id="workbench-editor-title" tabindex="-1">属性</h2>
+              </div>
+              <div class="object-editor-actions">
+                <button id="objectEditorBack" type="button" class="button button-small">轨道列表</button>
+                <button id="editorMuxBtn" type="button" class="button button-primary" disabled>封装 MKV</button>
               </div>
             </header>
+            <div id="objectSelectionHint" class="object-selection-hint">选择一条轨道</div>
 
             <section id="assetInspectorHost" class="asset-inspector-host" aria-label="当前容器对象属性" hidden></section>
 
