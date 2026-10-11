@@ -106,3 +106,17 @@ test('file identities and actions remain understandable without instructional ca
   assert.match(html, /aria-label="点击或拖放文件导入"/);
   assert.match(html, /aria-label="点击或拖放批量素材"/);
 });
+
+
+test('one selected MKV stream owns the inspector without a second source-track list', async () => {
+  const [main, css, html] = await Promise.all([
+    source('src/main.js'), source('src/workbench.css'), source('index.html'),
+  ]);
+  assert.match(main, /containerTreeSelectedItem\.set\(source\.dataset\.sourceTree, targetKey\);[\s\S]*?renderImportedAssetInventory\(\);[\s\S]*?querySelector\('\[data-editor-filter="source"\]'\)\?\.click\(\)/);
+  assert.match(css, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-advanced-source="false"\]\[data-editor-focus="source"\] > \.source-track-card \.container-inventory/);
+  assert.match(css, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-advanced-source="false"\]\[data-editor-focus="source"\] > \.source-track-card #trackBulkTools/);
+  assert.match(html, /id="scanTracksBtn"/);
+  assert.match(html, /id="appendPreserveAll"/);
+  assert.match(html, /id="assetInspectorHost"/);
+  assert.match(main, /showAdvancedSourceTools = !showAdvancedSourceTools/);
+});
