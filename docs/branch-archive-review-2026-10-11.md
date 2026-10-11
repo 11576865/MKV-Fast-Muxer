@@ -74,3 +74,33 @@ target overrides safety gates.
 
 UIGS intake: this is a product-specific **recoverable reconciliation case**,
 not a revision or automatic promotion of the general branch-hygiene Test.
+
+
+## Observed post-run verification — 2026-10-11
+
+This section supersedes the earlier *Pending* status for the specific
+33-entry one-time archive operation; it does **not** change the general
+ancestry-only branch-hygiene policy.
+
+- PR #72 merged to main at `68d885fdb8b681e86ed9969c0a76e895be3b6877`.
+- Archive workflow [run 38117660994](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38117660994): **completed / success**.
+- Compared the 33 immutable entries in
+  `branch-archive-allowlist-2026-10-11.json` against GitHub
+  `git/matching-refs/tags/archives/mkv-merged-pr-`: **33 tags found,
+  0 missing or mismatched SHAs**.
+- Compared the same manifest against GitHub's post-run remote branch list:
+  **0 of the 33 archived source branch refs remain**.
+- Main Browser E2E [run 38117661003](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38117661003) and Pages
+  [run 38117660997](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38117660997):
+  **completed / success**.
+- Post-run remote branches: **7**. The four unmatched historical refs,
+  `main` and `uigs-outbox` are intentionally retained. The seventh
+  is `maintenance/archive-reviewed-merged-pr-refs`, which has
+  `ahead_by = 0` but is still retained by the existing
+  `maintenance/*` exemption in the general Branch hygiene script.
+  Its rerun [38117661267](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38117661267)
+  completed successfully with zero deletions; it was not a CI failure.
+
+The archive operation is **complete** for the 33 reviewed refs. The
+remaining 7 refs are explicitly accounted for. No canonical UIGS policy
+is changed, and no unsupported historical branch was deleted.
