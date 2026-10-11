@@ -17,7 +17,7 @@ test('Chromium E2E reuses installed runner browser with an explicit fallback', a
   assert.match(workflow, /packages\+=\(python3-fonttools\)/);
   assert.match(workflow, /\/usr\/bin\/python3 -c 'from fontTools\.ttLib import TTFont, TTCollection'/);
   assert.match(workflow, /E2E_PYTHON=\/usr\/bin\/python3/);
-  assert.match(workflow, /packages\\+=\\(fonts-noto-cjk\\)/);
+  assert.match(workflow, /packages\+=\(fonts-noto-cjk\)/);
   assert.match(workflow, /fc-list :lang=zh-cn family/);
   assert.match(workflow, /fc-cache -f/);
   assert.match(workflow, /No Chinese-capable system font/);
