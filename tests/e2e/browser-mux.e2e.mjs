@@ -2123,8 +2123,8 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     });
     assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
     assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
-    assert.ok(regions.inspector.x >= regions.editor.x - 1 && regions.inspector.right <= regions.editor.right + 2,
-      `selected object inspector must live in the central editor: ${JSON.stringify(regions)}`);
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(), false,
+      'before explicit object selection there should be no empty inspector form');
     assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
     const desktopFileActionTop = await page.evaluate(() => {
       const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
@@ -2141,6 +2141,14 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await nav.nth(1).focus();
     await page.keyboard.press('Enter');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
+    const activeInspector = await page.evaluate(() => {
+      const editor = document.querySelector('.editor-column').getBoundingClientRect();
+      const inspector = document.querySelector('#assetInspectorHost').getBoundingClientRect();
+      return { editorLeft: editor.left, editorRight: editor.right, left: inspector.left, right: inspector.right, width: inspector.width };
+    });
+    assert.ok(activeInspector.width > 0 && activeInspector.left >= activeInspector.editorLeft - 1 &&
+      activeInspector.right <= activeInspector.editorRight + 2,
+      `selected object inspector must live inside the actual editor: ${JSON.stringify(activeInspector)}`);
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-tree-select')),
       'audio:2', 'keyboard focus should survive navigator re-render');
     assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'source',
