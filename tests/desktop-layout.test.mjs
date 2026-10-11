@@ -12,7 +12,7 @@ test('content-first MKV intake keeps live editors and output without category up
     'muxPlan', 'muxBtn', 'downloadLink', 'auditResult']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  for (const [id, title] of [['source-title', '文件'], ['workbench-editor-title', '轨道'],
+  for (const [id, title] of [['source-title', '文件'], ['workbench-editor-title', '属性'],
     ['workbench-output-title', '输出']]) {
     assert.match(html, new RegExp(`id="${id}" tabindex="-1">${title}<\\/h2>`));
   }
