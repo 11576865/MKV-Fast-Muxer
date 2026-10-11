@@ -311,6 +311,7 @@ const containerTreeSelectedItem = new Map();
 let showAdvancedSourceTools = false;
 let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
+let focusedImportedAssetKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1170,7 +1171,7 @@ function renderImportedAssetInventory() {
     const sourceNote = entry.kind === 'container' && !selected
       ? '未设为主源'
       : '';
-    return `<div class="asset-entry" data-kind="${entry.kind}">
+    return `<div class="asset-entry" data-kind="${entry.kind}" ${focusedImportedAssetKey === entry.key ? 'data-focused="true"' : ''}>
       <div class="asset-entry-main">
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
@@ -1179,6 +1180,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
       <div class="asset-entry-roles">
+        ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
         ${entry.kind === 'container' ? `<label class="asset-select-source">
           <input type="radio" name="assetMainSource" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
           设为主源
@@ -1366,6 +1368,31 @@ assetInspectorHost?.addEventListener('click', (event) => {
 });
 
 assetInventory?.addEventListener('click', (event) => {
+  const open = event.target.closest('button[data-asset-focus-key]');
+  if (open) {
+    const entry = importedAssetEntries.find(item => item.key === open.dataset.assetFocusKey);
+    if (!entry || !['subtitle', 'audio', 'font'].includes(entry.kind)) return;
+    focusedImportedAssetKey = entry.key;
+    document.querySelector(`[data-editor-filter="${entry.kind}"]`)?.click();
+    // Update the visual selection without rerendering or losing input focus.
+    assetInventory.querySelectorAll('.asset-entry').forEach(row => row.removeAttribute('data-focused'));
+    open.closest('.asset-entry')?.setAttribute('data-focused', 'true');
+    if (matchMedia('(max-width: 600px)').matches) {
+      document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.click();
+    }
+    const list = entry.kind === 'subtitle' ? newSubtitleList :
+      entry.kind === 'audio' ? newAudioList : null;
+    const states = entry.kind === 'subtitle' ? newSubtitleState :
+      entry.kind === 'audio' ? externalAudioState : [];
+    const index = states.findIndex(item => fileKey(item.file) === fileKey(entry.file));
+    const selector = entry.kind === 'subtitle' ? 'data-new-sub-field' : 'data-new-audio-field';
+    const control = index >= 0 ? list?.querySelector(`[data-index="${index}"][${selector}="title"]`)
+      : entry.kind === 'font' ? document.getElementById('fontMode') :
+        document.querySelector(`[data-editor-filter="${entry.kind}"]`);
+    control?.focus({ preventScroll: true });
+    control?.scrollIntoView({ block: 'nearest' });
+    return;
+  }
   const selected = event.target.closest('button[data-tree-select]');
   if (selected) {
     const source = selected.closest('[data-source-tree]');
