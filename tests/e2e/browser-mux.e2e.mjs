@@ -2135,6 +2135,7 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.waitForFunction(() => {
       const inspector = document.querySelector('#assetInspectorHost');
       return inspector && inspector.getBoundingClientRect().width > 0;
@@ -2155,16 +2156,22 @@ async function scenarioUnifiedWorkBenchZones(browser) {
         viewport: innerWidth,
       };
     });
-    assert.ok(mobile.sourceY < mobile.inspectorY && mobile.inspectorY < mobile.outputY,
-      'mobile must flow source > selected property editor > output');
+    assert.equal(await page.locator('.stage-input').isVisible(), false,
+      'mobile editor must not be buried under the file inventory');
+    assert.equal(await page.locator('.output-hub').isVisible(), false,
+      'mobile editing must not stack an unrelated output form');
+    assert.equal(await page.locator('.editor-column').isVisible(), true);
     assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
     assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     const mobileFileActionTop = await page.evaluate(() => {
       const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
       return control.getBoundingClientRect().top + scrollY;
     });
     assert.ok(mobileFileActionTop < 300, 'phone first screen must expose add-file action');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
     const actionOrder = await page.evaluate(() => ({
       action: document.querySelector('.execution-panel').getBoundingClientRect().top,
       details: document.querySelector('.plan-panel').getBoundingClientRect().top,
