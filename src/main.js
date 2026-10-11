@@ -4065,7 +4065,7 @@ function renderBatchAssetInventory() {
   const blocked = roles.unsupported.length;
   batchAssetStatus.textContent = batchImportInProgress
     ? '正在按内容识别批量文件…'
-    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '也可展开下方分类导入')
+    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '尚未导入')
     : `${entries.length} 个文件 · ${roles.containers.length} 个容器候选 · ${roles.subtitles.length} 条字幕 · ${roles.fonts.length} 个字体${blocked ? ` · ${blocked} 项不可使用` : ''}`;
   if (!entries.length) {
     batchAssetInventory.innerHTML = '<div class="track-empty">批量导入后，文件内容类型及不支持项目在此列出。</div>';
@@ -4469,8 +4469,8 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
   if (batchUnifiedMode) {
-    // Explicit legacy picker use switches mode; do not combine hidden unified
-    // assets with selected category files or silently keep stale source roles.
+    // Internal input-adapter updates (including regression fixtures) must
+    // invalidate an older unified inventory rather than mix incompatible roles.
     batchUnifiedMode = false;
     batchImportEntries = [];
     batchInternalAdapterUpdate = true;
