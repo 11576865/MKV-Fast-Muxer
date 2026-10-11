@@ -2257,6 +2257,21 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     );
     assert.equal(await page.locator('.workbench-jump-nav a[aria-current="location"]').count(), 1);
 
+    // The narrowest supported phone viewport must keep a real, reachable
+    // MKV action and selected inspector without horizontal page clipping.
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id="source:audio:2"]').count(), 1);
+    assert.equal(await page.locator('#compositionMuxBtn').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', '320px work-area switch must retain the selected track metadata');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.waitForFunction(() => {
       const nav = document.querySelector('.workbench-jump-nav');
