@@ -1905,6 +1905,8 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     assert.equal(await tree.isVisible(), true);
     assert.equal(await tree.getAttribute('open'), '');
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
     console.log('MKV container-tree source track editing and post-export retention PASS');
   } finally {
     await context.close();
@@ -1995,6 +1997,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: path.join(outDir, 'mkv-container-tree-phone-viewport-390.png'),
@@ -2005,6 +2008,16 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
       animations: 'disabled',
     });
     assert.equal(await tree.isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-editor-phone-390.png'),
+      animations: 'disabled',
+    });
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-output-phone-390.png'),
+      animations: 'disabled',
+    });
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.locator('#muxBtn').click();
