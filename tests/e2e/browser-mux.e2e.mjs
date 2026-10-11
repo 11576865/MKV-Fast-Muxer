@@ -1953,11 +1953,11 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const oldCommentary = page.locator(
       `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
     );
-    await tree.locator('[data-tree-legacy-tools]').click();
-    const legacyAudioRow = page.locator(
+    await tree.locator('[data-tree-advanced-tools]').click();
+    const advancedAudioRow = page.locator(
       `.track-row.track-audio:has(input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"])`
     );
-    await legacyAudioRow.locator('details.track-advanced > summary').click();
+    await advancedAudioRow.locator('details.track-advanced > summary').click();
     assert.equal(await oldCommentary.isChecked(), true);
     await oldCommentary.uncheck();
     assert.equal(await first.locator('[data-tree-track-flag="commentary"]').isChecked(), false);
@@ -1972,8 +1972,8 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     assert.equal(await subAdvanced.getAttribute('open'), '');
 
     // Visual acceptance captures the normal workbench, not the deliberately
-    // expanded compatibility editor used to test reverse synchronization.
-    await tree.locator('[data-tree-legacy-tools]').click();
+    // expanded advanced track tools used to test reverse synchronization.
+    await tree.locator('[data-tree-advanced-tools]').click();
     assert.equal(await page.locator('.source-track-card').isVisible(), false);
 
     // Capture real populated UI evidence for visual review, not just markup
