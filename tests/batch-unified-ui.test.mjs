@@ -14,7 +14,9 @@ test('batch uses a single visible import and stores executor adapters offscreen'
   for (const id of ['batchVideoInput', 'batchSubtitleInput', 'batchFontInput']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /独立音频目前不属于批量封装能力/);
+  assert.match(html, /<details class="format-reference batch-format-reference"><summary>格式<\/summary>/);
+  assert.match(html, /暂不支持独立音频/);
+  assert.doesNotMatch(html, /<details class="format-reference batch-format-reference" open/);
 });
 
 test('batch signature identity routes through existing pairing without invisible unsupported assets', async () => {
