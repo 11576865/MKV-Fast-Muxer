@@ -1768,18 +1768,18 @@ async function scenarioContentFirstMkvIntake(browser) {
     // without mounting duplicate forms or mutating mux state.
     await page.locator('.asset-entry[data-kind="subtitle"] [data-asset-focus-key]').click();
     assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
-    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').isFocused(), true);
+    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').evaluate(el => el === document.activeElement), true);
     assert.equal(await page.locator('.asset-entry[data-kind="subtitle"]').getAttribute('data-focused'), 'true');
     await page.locator('.asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
     assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'audio');
-    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').isFocused(), true);
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').evaluate(el => el === document.activeElement), true);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     await page.locator('.asset-entry[data-kind="font"] [data-asset-focus-key]').click();
     assert.equal(await page.locator('.editor-column').isVisible(), true);
     assert.equal(await page.locator('.stage-input').isVisible(), false);
     assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'font');
-    assert.equal(await page.locator('#fontMode').isFocused(), true);
+    assert.equal(await page.locator('#fontMode').evaluate(el => el === document.activeElement), true);
     await page.setViewportSize({ width: 1440, height: 900 });
 
     // Unrecognized content stays visible, blocks execution and can be removed.
