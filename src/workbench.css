@@ -1252,3 +1252,14 @@ body { background: var(--bg); }
 @media (max-width: 600px) {
   .asset-focus { min-height: 40px; }
 }
+
+
+/* Object selection owns a single editor. Under the normal unified intake,
+   retain container-level preserve/scan controls but do not project a second
+   complete track/attachment table below the selected stream inspector.
+   Advanced tools deliberately expose the full original source editor. */
+.editor-grid[data-intake-mode="unified"][data-show-advanced-source="false"][data-editor-focus="source"] > .source-track-card .container-inventory,
+.editor-grid[data-intake-mode="unified"][data-show-advanced-source="false"][data-editor-focus="source"] > .source-track-card .container-inventory-tail,
+.editor-grid[data-intake-mode="unified"][data-show-advanced-source="false"][data-editor-focus="source"] > .source-track-card #trackBulkTools {
+  display: none !important;
+}
