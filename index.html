@@ -46,8 +46,7 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">MKV</div>
           <div>
-            <span class="brand-overline">MEDIA TOOLS / LOCAL-FIRST</span>
-              <h1>Fast Muxer <span>v3</span></h1>
+            <h1>Fast Muxer <span>v3</span></h1>
           </div>
         </div>
 
@@ -66,45 +65,20 @@
         <a href="#workbench-output-title">输出</a>
         <a href="#batch-title">批量</a>
       </nav>
-
-      <section class="workspace-overview" aria-labelledby="workspace-overview-title">
-        <div class="overview-copy">
-          <span class="overview-kicker">MKV WORKBENCH / 本地媒体工作台</span>
-          <h2 id="workspace-overview-title">从素材到可验证的 MKV</h2>
-          <p>导入真实文件、检查容器轨道、编辑所需信息，最后无损封装并核验实际成品。不上传媒体，不暗中转码。</p>
-          <div class="overview-constraints" aria-label="工作模式">
-            <span>本地执行</span><span>Stream Copy</span><span>仅导出 MKV</span>
-          </div>
-        </div>
-        <ol class="overview-steps" aria-label="工作流程">
-          <li><span class="overview-step-number">01</span><span><strong>识别素材</strong><small>自动识别内容，选择主源</small></span></li>
-          <li><span class="overview-step-number">02</span><span><strong>检查与编辑</strong><small>轨道、字幕、字体和附件</small></span></li>
-          <li><span class="overview-step-number">03</span><span><strong>验证并导出</strong><small>审计成品，不掩盖偏差</small></span></li>
-        </ol>
-      </section>
       <main class="workspace">
         <section class="stage stage-input" aria-labelledby="source-title">
           <header class="stage-head">
             <div class="stage-title">
-              <span class="section-index">01</span>
-              <div>
-                <h2 id="source-title" tabindex="-1">导入与资源</h2>
-                  <p class="stage-deck">所有文件先识别内容，再决定用途。</p>
-              </div>
+              <h2 id="source-title" tabindex="-1">文件</h2>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
-              <strong>输入规模：—</strong>
-              <span>等待素材</span>
+              <strong>0 文件</strong><span></span>
             </div>
           </header>
 
           <section class="unified-intake" aria-labelledby="intake-title">
             <div class="unified-intake-head">
-              <div>
-                <h3 id="intake-title">导入媒体资源</h3>
-                <p>无需预先区分视频、音频、字幕或字体。按实际内容识别，再选择 MKV 主源和附加资源。</p>
-                <p class="intake-format-note">字幕支持识别 ASS / SSA / SRT / WebVTT 与 PGS / VobSub；具体可用性以内容扫描结果为准。</p>
-              </div>
+              <h3 id="intake-title" class="visually-hidden">文件导入</h3>
               <div class="unified-intake-buttons">
                 <label class="button button-primary intake-picker">
                   添加文件
@@ -117,15 +91,29 @@
               </div>
             </div>
             <div id="assetDropzone" class="asset-dropzone" tabindex="0" role="button" aria-label="点击或拖放文件导入">
-              <strong>拖放文件开始</strong><span>识别容器、字幕、字体及音频；无法识别的文件会明确标记。</span>
+              <strong>拖放文件到这里</strong>
             </div>
+            <section id="outputCompositionPanel" class="output-composition" aria-labelledby="composition-title" hidden>
+              <header class="composition-head">
+                <h3 id="composition-title">MKV 轨道</h3>
+                <span id="compositionCount" class="composition-count" aria-live="polite"></span>
+              </header>
+              <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
+              <div id="compositionChanges" class="composition-changes" hidden></div>
+              <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
+              <div class="composition-actions"><button id="compositionMuxBtn" type="button" class="button button-primary" disabled>封装 MKV</button></div>
+            </section>
+            <details id="sourceFilesDetails" class="source-files-details">
+              <summary>来源文件与识别</summary>
             <div class="asset-inventory-head">
-              <strong>已导入资源</strong>
-              <span id="assetImportStatus" role="status" aria-live="polite">尚未导入文件</span>
+              <strong>资源</strong>
+              <span id="assetImportStatus" role="status" aria-live="polite">0 文件</span>
+              <details class="format-reference"><summary>格式</summary><span>ASS / SSA / SRT / WebVTT · PGS / VobSub · 视频 · 音频 · 字体，按实际内容识别</span></details>
             </div>
             <div id="assetInventory" class="asset-inventory" aria-label="导入资源清单">
-              <div class="track-empty">导入后在此查看实际内容类型、主源选择和识别问题。</div>
+              <div class="track-empty">暂无文件</div>
             </div>
+            </details>
           </section>
 
           <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->
@@ -142,14 +130,14 @@
           <section class="editor-column" aria-label="调整工作区">
             <header class="column-head">
               <div class="stage-title">
-                <span class="section-index">02</span>
-                <div>
-                  <h2 id="workbench-editor-title" tabindex="-1">检查与编辑</h2>
-                  <p class="stage-deck">选择容器对象，查看并调整轨道属性。</p>
-                  
-                </div>
+                <h2 id="workbench-editor-title" tabindex="-1">属性</h2>
+              </div>
+              <div class="object-editor-actions">
+                <button id="objectEditorBack" type="button" class="button button-small">轨道列表</button>
+                <button id="editorMuxBtn" type="button" class="button button-primary" disabled>封装 MKV</button>
               </div>
             </header>
+            <div id="objectSelectionHint" class="object-selection-hint">选择一条轨道</div>
 
             <section id="assetInspectorHost" class="asset-inspector-host" aria-label="当前容器对象属性" hidden></section>
 
@@ -163,8 +151,7 @@
               <div class="preview-stage" id="previewStage">
                 <img id="previewImage" class="preview-image-trigger hidden" alt="字幕预览帧" role="button" tabindex="0" aria-label="放大查看字幕预览帧" title="点击放大查看原图" />
                 <div id="previewEmpty" class="preview-empty">
-                  <strong>选择视频与字幕</strong>
-                  <span>选择时间点后生成预览。</span>
+                  <strong>未生成预览</strong>
                 </div>
               </div>
               <div id="previewControls" class="preview-tools">
@@ -183,8 +170,8 @@
                 <button id="previewRefreshBtn" class="icon-button icon-button-accent" type="button" disabled aria-label="生成预览帧" title="生成预览帧"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
               </div>
               <div id="previewFooter" class="preview-footer">
-                <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA。</span>
-                <span>按需生成 · 本地处理</span>
+                <span id="previewStatus" aria-live="polite">未生成预览</span>
+                
               </div>
             </section>
 
@@ -219,7 +206,7 @@
                   <section data-object-panel="subtitle" aria-label="新增字幕属性">
                     <div class="subsection-label">字幕</div>
                     <div id="newSubtitleList" class="new-track-list">
-                      <div class="track-empty">添加字幕后编辑语言、标题与轨道标记。</div>
+                      <div class="track-empty">暂无字幕</div>
                     </div>
                   </section>
                   <section data-object-panel="audio" aria-label="外部音频属性">
@@ -245,7 +232,7 @@
                   <input id="fontSubsetEnabled" type="checkbox" />
                   <span>
                     <strong>字体子集化</strong>
-                    <small>可选 · 仅保留当前字幕需要的字形；TTC / OTC 暂保留完整字体</small>
+                    
                   </span>
                 </label>
                 </section>
@@ -270,7 +257,7 @@
                 <input id="preserveAttachments" type="checkbox" hidden disabled />
 
                 <div id="trackList" class="track-list container-inventory">
-                  <div class="track-empty">选择 MKV 后自动读取容器内容。</div>
+                  <div class="track-empty">暂无轨道</div>
                 </div>
                 <div id="attachmentList" class="attachment-list container-inventory-tail"></div>
 
@@ -314,7 +301,7 @@
             <details class="diagnostics-panel">
               <summary>
                 <span>诊断与日志</span>
-                <small>日志 · 字体检查 · 审计</small>
+                
               </summary>
               <pre id="log"></pre>
             </details>
@@ -323,30 +310,15 @@
           <aside class="output-hub" aria-label="检查与封装">
             <header class="output-hub-head">
               <div class="stage-title">
-                <span class="section-index">03</span>
-                <div>
-                  <h2 id="workbench-output-title" tabindex="-1">验证与导出</h2>
-                    <p class="stage-deck">检查计划与成品审计结果。</p>
-                  
-                </div>
+                <h2 id="workbench-output-title" tabindex="-1">输出</h2>
               </div>
               
             </header>
 
-            <section class="output-summary" aria-label="输出摘要">
-              <div class="manifest">
-                <div><span>视频</span><strong>Copy</strong></div>
-                <div><span>音频</span><strong>Copy</strong></div>
-                <div><span>字幕</span><strong>软字幕轨</strong></div>
-                <div><span>字体</span><strong id="fontSummary">—</strong></div>
-                <div class="manifest-output"><span>输出</span><strong id="outputName">—</strong></div>
-              </div>
-            </section>
-
-            <section class="output-section execution-panel">
+<section class="output-section execution-panel">
               <div class="execution-status">
                 <div>
-                  <div id="status" class="status" aria-live="polite">导入素材并确认主源后即可开始 MKV 封装，新增字幕可选。</div>
+                  <div id="status" class="status" aria-live="polite">等待文件</div>
                 </div>
                 <div class="progress" aria-hidden="true"><div id="bar"></div></div>
               </div>
@@ -363,10 +335,17 @@
               
             </section>
 
+            <section class="output-summary" aria-label="输出摘要">
+              <div class="manifest">
+                <div class="manifest-output"><span>文件</span><strong id="outputName">—</strong></div>
+                <div><span>字体</span><strong id="fontSummary">—</strong></div>
+              </div>
+            </section>
+
             <section class="output-section plan-panel">
               <div class="side-panel-head">
                 <div>
-                  <h3>封装计划</h3>
+                  <h3>检查</h3>
                 </div>
                 <div class="plan-head-actions">
                   <button id="refreshPlanBtn" class="icon-button" type="button" aria-label="刷新封装计划" title="刷新封装计划"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4V1L8 5l4 4V6a6 6 0 1 1-5.65 4H4.26A8 8 0 1 0 12 4Z"/></svg></button>
@@ -374,9 +353,12 @@
                 </div>
               </div>
               <div id="planWarnings" class="plan-warnings hidden"></div>
-              <div id="muxPlan" class="mux-plan">
-                <div class="track-empty">选择文件后显示最终 MKV 结构。</div>
-              </div>
+              <details id="fullMuxPlanDetails" class="full-mux-plan-details">
+                <summary>查看完整轨道计划</summary>
+                <div id="muxPlan" class="mux-plan">
+                  <div class="track-empty">暂无计划</div>
+                </div>
+              </details>
             </section>
 
 
@@ -386,28 +368,21 @@
         <section class="stage stage-batch batch-workspace" aria-labelledby="batch-title">
           <header class="stage-head batch-head">
             <div class="stage-title">
-              <span class="section-index">B</span>
-              <div>
-                <h2 id="batch-title" tabindex="-1">批量任务</h2>
-                  <p class="stage-deck">统一导入、自动配对、逐项保留结果。</p>
-              </div>
+              <h2 id="batch-title" tabindex="-1">批量封装</h2>
             </div>
             <div class="batch-status-chip">
               <span class="runtime-dot" aria-hidden="true"></span>
-              <span id="batchStatus" class="status" aria-live="polite">批量任务未开始。</span>
+              <span id="batchStatus" class="status" aria-live="polite">待命</span>
             </div>
           </header>
 
           <details class="batch-drawer">
-            <summary><span>展开批量工作区</span><span aria-hidden="true">↗</span></summary>
+            <summary><span>展开批量</span><span aria-hidden="true">↗</span></summary>
           <div class="batch-layout">
             <div class="batch-inputs" aria-label="批量素材">
               <section class="batch-unified-intake" aria-labelledby="batch-unified-title">
                 <div class="batch-unified-head">
-                  <div>
-                    <h3 id="batch-unified-title">导入批量素材</h3>
-                    <p>统一导入文件或文件夹；识别容器、字幕和字体，再按文件名自动配对。独立音频目前不属于批量封装能力。</p>
-                  </div>
+                  <h3 id="batch-unified-title" class="visually-hidden">批量文件导入</h3>
                   <div class="unified-intake-buttons">
                     <label class="button button-primary intake-picker">
                       添加文件
@@ -420,14 +395,15 @@
                   </div>
                 </div>
                 <div id="batchAssetDropzone" class="asset-dropzone" role="button" tabindex="0" aria-label="点击或拖放批量素材">
-                  <strong>拖放批量素材</strong><span>自动检测内容并生成配对计划；无法使用的项目会显示原因。</span>
+                  <strong>拖放文件到这里</strong>
                 </div>
                 <div class="asset-inventory-head">
                   <strong>批量资源</strong>
-                  <span id="batchAssetStatus" role="status" aria-live="polite">尚未导入</span>
+                  <span id="batchAssetStatus" role="status" aria-live="polite">0 文件</span>
+                  <details class="format-reference batch-format-reference"><summary>格式</summary><span>视频 · 字幕 · 字体；暂不支持独立音频</span></details>
                 </div>
                 <div id="batchAssetInventory" class="asset-inventory" aria-label="批量内容识别清单">
-                  <div class="track-empty">导入后显示文件内容身份；不能参与批量任务的文件不会被忽略。</div>
+                  <div class="track-empty">暂无文件</div>
                 </div>
               </section>
 
@@ -449,11 +425,11 @@
               <div class="batch-settings">
                 <label class="attachment-toggle">
                   <input id="batchPreserveAttachments" type="checkbox" checked />
-                  <span><strong>完整保留原 MKV，只追加</strong><small>原音频、字幕、附件、章节和元数据保持不动</small></span>
+                  <span><strong>保留原 MKV 轨道</strong></span>
                 </label>
                 <label class="attachment-toggle">
                   <input id="batchFontSubsetEnabled" type="checkbox" />
-                  <span><strong>字体子集化</strong><small>开启后可选择逐任务或整批共用</small></span>
+                  <span><strong>字体子集化</strong></span>
                 </label>
                 <label class="control-group compact-control batch-subset-control">
                   <span class="control-label">子集范围</span>
@@ -461,21 +437,21 @@
                     <option value="job" selected>每个任务独立</option>
                     <option value="group">整个批次共用</option>
                   </select>
-                  <small class="field-hint">整批共用会先汇总所有字幕字符，再生成一次字体子集。</small>
+                  
                 </label>
                 <div class="batch-output-tool">
                   <span class="control-label">输出目录</span>
                   <button id="batchOutputDirBtn" class="button button-small" type="button">选择输出文件夹</button>
-                  <small id="batchOutputDirStatus">未选择；默认仍提供逐项保存按钮。</small>
+                  <small id="batchOutputDirStatus">未选择</small>
                 </div>
               </div>
 
               <div class="batch-queue">
                 <div class="batch-queue-head">
                   <div><span class="panel-kicker">QUEUE</span><strong>任务配对</strong></div>
-                  <span>失败项会记录并继续后续任务</span>
+                  
                 </div>
-                <div id="batchPlan" class="mux-plan"><div class="track-empty">选择批量视频和字幕后显示配对结果。</div></div>
+                <div id="batchPlan" class="mux-plan"><div class="track-empty">暂无任务</div></div>
                 <div class="actions batch-actions">
                   <button id="batchStartBtn" class="button button-primary" type="button" disabled>开始批量封装</button>
                   <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消</button>

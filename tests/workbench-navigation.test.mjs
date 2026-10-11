@@ -126,3 +126,37 @@ test('native hash navigation remains current when scroll-margin places heading b
   assert.equal(f.active(), 2);
   dispose();
 });
+
+
+test('phone task links select one mounted work area without reconstructing its controls', () => {
+  const f = fixture();
+  const workspace = { dataset: {} };
+  const drawer = { open: false };
+  for (const id of ['source-title', 'workbench-editor-title', 'workbench-output-title', 'batch-title']) {
+    f.doc.getElementById(id).id = id;
+  }
+  f.doc.querySelector = selector => selector === '.workspace' ? workspace :
+    selector === '.batch-drawer' ? drawer : null;
+  f.win.matchMedia = query => ({ matches: query === '(max-width: 600px)' });
+  const dispose = setupWorkbenchNavigation(f.nav, f.win, f.doc);
+  f.flush();
+  assert.equal(workspace.dataset.mobileView, 'source');
+  assert.equal(f.active(), 0);
+
+  f.click(f.links[1]);
+  assert.equal(workspace.dataset.mobileView, 'edit');
+  assert.equal(f.active(), 1);
+
+  f.win.location.hash = '#workbench-output-title';
+  f.win.scrollY = 900;
+  f.scroll();
+  f.flush();
+  assert.equal(workspace.dataset.mobileView, 'output');
+  assert.equal(f.active(), 2);
+
+  f.click(f.links[3]);
+  assert.equal(workspace.dataset.mobileView, 'batch');
+  assert.equal(drawer.open, true);
+  assert.equal(f.active(), 3);
+  dispose();
+});

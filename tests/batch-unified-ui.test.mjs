@@ -14,7 +14,9 @@ test('batch uses a single visible import and stores executor adapters offscreen'
   for (const id of ['batchVideoInput', 'batchSubtitleInput', 'batchFontInput']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /独立音频目前不属于批量封装能力/);
+  assert.match(html, /<details class="format-reference batch-format-reference"><summary>格式<\/summary>/);
+  assert.match(html, /暂不支持独立音频/);
+  assert.doesNotMatch(html, /<details class="format-reference batch-format-reference" open/);
 });
 
 test('batch signature identity routes through existing pairing without invisible unsupported assets', async () => {
@@ -35,4 +37,12 @@ test('batch-specific UI owns its style rules in workbench.css, not global legacy
   assert.doesNotMatch(css, /\.batch-legacy-intake/);
   assert.match(css, /\.intake-runtime-adapters\[hidden\] \{ display: none !important; \}/);
   assert.ok(js.indexOf("import './style.css'") < js.indexOf("import './workbench.css'"));
+});
+
+test('recognized batch assets show concise state while unsupported assets retain diagnosis', async () => {
+  const main = await source('src/main.js');
+  assert.match(main, /const diagnosis = supported \? state : \[state, entry\.detail\]\.filter\(Boolean\)\.join\(' · '\)/);
+  assert.match(main, /\$\{escapeHtml\(diagnosis\)\}/);
+  assert.match(main, /'批量不支持独立音频'/);
+  assert.doesNotMatch(main, /视频轨待预检|进入配对预检/);
 });

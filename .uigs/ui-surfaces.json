@@ -4,40 +4,16 @@
   "repository": "11576865/MKV-Fast-Muxer",
   "platform": "web",
   "authority": "this repository",
-  "surface_count": 13,
+  "surface_count": 12,
   "surfaces": [
-    {
-      "id": "MKV.STAGE.OVERVIEW",
-      "kind": "navigation",
-      "name": "统一工作流程概览",
-      "group": "FLOW",
-      "status": "implemented",
-      "intent": "在资源导入前明确展示本地执行、Stream Copy 和 MKV-only 输出约束，并提供识别→编辑→验证的任务心智模型。",
-      "implementation_effect": "语义化独立 overview 区域采用响应式步骤结构；原生区段锚点与键盘导航保持独立可用。",
-      "source_refs": [
-        {
-          "path": "index.html",
-          "anchor": ".workspace-overview"
-        },
-        {
-          "path": "src/workbench.css",
-          "anchor": ".workspace-overview"
-        }
-      ],
-      "patterns": [],
-      "tests": [
-        "tests/workbench-shell.test.mjs"
-      ],
-      "visual_evidence": []
-    },
     {
       "id": "MKV.STAGE.INPUT",
       "kind": "stage",
-      "name": "统一媒体导入与资源清单",
+      "name": "文件导入与资源列表",
       "group": "FLOW",
       "status": "implemented",
-      "intent": "对导入文件做内容识别，呈现主容器、字幕、音频、字体及不能使用的项目，再允许选择源和编辑对象。",
-      "implementation_effect": "只呈现统一资源导入与结构化清单；分类文件输入仅作为隐藏执行适配节点保留。",
+      "intent": "将可执行的添加文件、添加文件夹和拖放入口直接放在工作区顶部；识别出的媒体和轨道在列表中进行直接操作。",
+      "implementation_effect": "桌面左侧资源树负责选择对象；手机资源工作区只负责导入、浏览和选择轨道，轨道选择打开独立编辑工作区，保留文件与选择状态。",
       "source_refs": [
         {
           "path": "index.html",
@@ -54,7 +30,7 @@
       "group": "FLOW",
       "status": "implemented",
       "intent": "在封装前完成字幕/轨道/字体相关调整与预览。",
-      "implementation_effect": "主要编辑区包含预览与编辑卡片，不与最终输出区混成一列。",
+      "implementation_effect": "桌面中央只显示当前选中对象的真实编辑器；手机通过顶部区段导航切换至编辑工作区，选择源轨道直接打开现有 inspector，不复制或重挂载状态控件。",
       "source_refs": [
         {
           "path": "index.html",
@@ -142,11 +118,11 @@
     {
       "id": "MKV.STAGE.OUTPUT_HUB",
       "kind": "supporting-pane",
-      "name": "检查与封装",
+      "name": "封装与下载",
       "group": "OUTPUT",
       "status": "implemented",
       "intent": "汇总检查、计划与封装操作。",
-      "implementation_effect": "根据 viewport/pointer 条件在 sticky bounded pane 与 static normal-flow 之间切换；宽桌面避免嵌套滚动。",
+      "implementation_effect": "桌面右侧是独立封装区；手机只显示当前工作区，输出按钮经顶部‘输出’一步抵达，不必滚动越过全部源轨道与编辑卡。",
       "source_refs": [
         {
           "path": "index.html",

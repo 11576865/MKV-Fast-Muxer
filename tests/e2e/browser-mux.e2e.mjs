@@ -1184,7 +1184,7 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     await page.waitForFunction(() => {
       const count = document.querySelectorAll('#batchAssetInventory .asset-entry').length;
       const status = document.querySelector('#batchAssetStatus')?.textContent || '';
-      return count === 4 && status.includes('1 项不可使用');
+      return count === 4 && status.includes('1 不可用');
     }, null, { timeout: 120_000 });
     assert.deepEqual(await page.locator('#batchAssetInventory .asset-entry').evaluateAll(items =>
       items.map(item => item.dataset.kind)
@@ -1225,7 +1225,10 @@ async function scenarioUnifiedBatchContentIntake(browser) {
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#batch-title"]').click();
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('.batch-workspace').isVisible(), true);
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
     assert.equal(await page.locator('#batchAssetInventory .asset-entry').count(), 3);
     await page.locator('.batch-unified-intake').screenshot({
       path: path.join(outDir, 'mkv-container-tree-batch-phone-390.png'),
@@ -1661,6 +1664,7 @@ async function scenarioResponsiveObjectEditor(browser) {
     }
     // mobile two-mode editor and disclosure behavior
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
     assert.equal(await page.locator('[data-editor-filter="source"]').isVisible(), true);
     assert.equal(await page.locator('[data-editor-filter="subtitle"]').isVisible(), false);
@@ -1674,9 +1678,11 @@ async function scenarioResponsiveObjectEditor(browser) {
       return rect.width / rect.height;
     });
     assert.ok(Math.abs(openPreviewRatio - 16 / 9) < .01, `mobile preview ratio: ${openPreviewRatio}`);
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
     assert.equal(await page.locator('#muxPlan').isVisible(), false);
     await page.locator('#mobilePlanToggle').click();
     assert.equal(await page.locator('#muxPlan').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.locator('[data-editor-filter="source"]').click();
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
     assert.equal(await page.locator('#fontMode').isVisible(), false);
@@ -1686,6 +1692,7 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
     // mobile all mode excludes source structure; source remains its own mode
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     const mobileIntake = await page.locator('.unified-intake').boundingBox();
     assert.ok(mobileIntake && mobileIntake.width > 250, 'unified intake should remain usable on phones');
     assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
@@ -1694,6 +1701,7 @@ async function scenarioResponsiveObjectEditor(browser) {
       await page.setViewportSize({ width, height: 1000 });
 
       if (width <= 600) {
+        await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
         await page.waitForFunction(() => {
           const card = document.querySelector('.subtitle-preview-card');
           return card?.dataset.mobileDisclosureInitialized === 'true';
@@ -1711,12 +1719,12 @@ async function scenarioResponsiveObjectEditor(browser) {
       const layout = await page.evaluate(() => {
         const rect = document.querySelector('#previewStage').getBoundingClientRect();
         const editor = document.querySelector('.editor-grid').getBoundingClientRect();
-        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewTop: rect.top, editorBottom: editor.bottom };
+        return { scroll: document.documentElement.scrollWidth, viewport: innerWidth, ratio: rect.width / rect.height, previewBottom: rect.bottom, editorTop: editor.top };
       });
       assert.ok(layout.scroll <= layout.viewport, `horizontal overflow at ${width}: ${JSON.stringify(layout)}`);
       assert.ok(Math.abs(layout.ratio - 16 / 9) < .01, `preview ratio at ${width}: ${layout.ratio}`);
-      if (width >= 1440) assert.ok(layout.editorBottom <= layout.previewTop + 2,
-        `desktop should place property editing above contextual preview at ${width}: ${JSON.stringify(layout)}`);
+      if (width >= 1440) assert.ok(layout.previewBottom <= layout.editorTop + 2,
+        `desktop should show subtitle preview before secondary configuration at ${width}: ${JSON.stringify(layout)}`);
     }
     console.log('Scenario 32 PASS');
   } finally {
@@ -1755,6 +1763,37 @@ async function scenarioContentFirstMkvIntake(browser) {
       fonts: ['DejaVuSans.ttf'],
     });
     assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="external:subtitle:"]').count(), 1);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="external:audio:"]').count(), 1);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="font:"]').count(), 1);
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null,
+      'source evidence is secondary when file recognition has no blocking conflict');
+    await page.locator('.composition-select[data-composition-id^="external:subtitle:"]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
+    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').evaluate(el => el === document.activeElement), true);
+    await page.locator('.composition-select[data-composition-id^="external:audio:"]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'audio');
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').evaluate(el => el === document.activeElement), true);
+    await page.locator('#sourceFilesDetails > summary').click();
+
+    // Resource inventory selection must land on the correct *existing* editor
+    // without mounting duplicate forms or mutating mux state.
+    await page.locator('.asset-entry[data-kind="subtitle"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
+    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').evaluate(el => el === document.activeElement), true);
+    assert.equal(await page.locator('.asset-entry[data-kind="subtitle"]').getAttribute('data-focused'), 'true');
+    await page.locator('.asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'audio');
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').evaluate(el => el === document.activeElement), true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.locator('.asset-entry[data-kind="font"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-column').isVisible(), true);
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'font');
+    assert.equal(await page.locator('#fontMode').evaluate(el => el === document.activeElement), true);
+    await page.setViewportSize({ width: 1440, height: 900 });
 
     // Unrecognized content stays visible, blocks execution and can be removed.
     await page.evaluate(() => {
@@ -1839,6 +1878,7 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.equal(await tree.getAttribute('open'), '');
@@ -1900,6 +1940,8 @@ async function scenarioUnifiedContainerTreeEditing(browser) {
     assert.equal(await tree.isVisible(), true);
     assert.equal(await tree.getAttribute('open'), '');
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
     console.log('MKV container-tree source track editing and post-export retention PASS');
   } finally {
     await context.close();
@@ -1912,11 +1954,12 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
 
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.match(await page.locator('.asset-entry[data-kind="container"] .asset-entry-type').textContent(),
-      /内部结构已扫描/, 'file identity label must reflect the completed actual source probe');
+      /已扫描/, 'file identity label must reflect the completed actual source probe');
     await tree.locator('[data-tree-preserve-all]').uncheck();
     const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
     assert.equal(await audioRows.count(), 2);
@@ -1974,10 +2017,15 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     // Visual acceptance captures the normal workbench, not the deliberately
     // expanded advanced track tools used to test reverse synchronization.
     await tree.locator('[data-tree-advanced-tools]').click();
-    assert.equal(await page.locator('.source-track-card').isVisible(), false);
+    assert.equal(await page.locator('.source-track-card').isVisible(), true,
+      'source-level preserve and scan controls remain available for the active stream');
+    assert.equal(await page.locator('.source-track-card #trackList').isVisible(), false,
+      'the old full stream list must not compete with the single selected inspector');
 
-    // Capture real populated UI evidence for visual review, not just markup
-    // or success-state screenshots. Generated fixtures contain no user data.
+    // Capture the actual default composition view; source/probe evidence
+    // remains available from the secondary disclosure, not a duplicate list.
+    await page.locator('#sourceFilesDetails > summary').click();
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
@@ -1990,6 +2038,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: path.join(outDir, 'mkv-container-tree-phone-viewport-390.png'),
@@ -1999,8 +2048,19 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
       path: path.join(outDir, 'mkv-container-tree-phone-390.png'),
       animations: 'disabled',
     });
-    assert.equal(await tree.isVisible(), true);
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-editor-phone-390.png'),
+      animations: 'disabled',
+    });
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    await page.locator('.workspace').screenshot({
+      path: path.join(outDir, 'mkv-container-tree-output-phone-390.png'),
+      animations: 'disabled',
+    });
     await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('#sourceFilesDetails > summary').click();
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -2027,6 +2087,7 @@ async function scenarioUnifiedContainerAttachmentEditing(browser) {
   try {
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-with-attachments.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.equal(await tree.locator('[data-tree-group="chapter"] .asset-tree-row').count(), 2);
@@ -2065,6 +2126,13 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id="source:audio:2"]').count(), 1,
+      'composed output must have one stable source audio stream row');
+    await page.locator('.composition-select[data-composition-id="source:audio:2"]').click();
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(), true,
+      'composition row must activate the original inspector without a second editor');
+    await page.locator('#sourceFilesDetails > summary').click();
     const regions = await page.evaluate(() => {
       const bounds = selector => {
         const r = document.querySelector(selector).getBoundingClientRect();
@@ -2081,9 +2149,16 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     });
     assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
     assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
-    assert.ok(regions.inspector.x >= regions.editor.x && regions.inspector.right <= regions.editor.right + 2,
-      'selected object inspector must live in the central editor');
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(), true,
+      'composition selected object must have an active inspector');
     assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
+    const desktopFileActionTop = await page.evaluate(() => {
+      const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
+      return control.getBoundingClientRect().top + scrollY;
+    });
+    assert.ok(desktopFileActionTop < 210, 'file action must be at the top of the desktop tool');
+    assert.equal(await page.locator('.workspace-overview').count(), 0,
+      'retired descriptive billboard must not consume the workspace');
     assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
       'one visible editor, not repeated per stream');
     assert.equal(await page.locator('#muxBtn').getByText('开始封装 MKV').isVisible(), true);
@@ -2092,8 +2167,20 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await nav.nth(1).focus();
     await page.keyboard.press('Enter');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true');
+    const activeInspector = await page.evaluate(() => {
+      const editor = document.querySelector('.editor-column').getBoundingClientRect();
+      const inspector = document.querySelector('#assetInspectorHost').getBoundingClientRect();
+      return { editorLeft: editor.left, editorRight: editor.right, left: inspector.left, right: inspector.right, width: inspector.width };
+    });
+    assert.ok(activeInspector.width > 0 && activeInspector.left >= activeInspector.editorLeft - 1 &&
+      activeInspector.right <= activeInspector.editorRight + 2,
+      `selected object inspector must live inside the actual editor: ${JSON.stringify(activeInspector)}`);
     assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-tree-select')),
       'audio:2', 'keyboard focus should survive navigator re-render');
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'source',
+      'selecting an MKV stream makes that source object the active editor, not the All form');
+    assert.equal(await page.locator('.source-track-card #trackList').isVisible(), false,
+      'the single source inspector must not have a competing full track list');
     const selectedSourceIndex = await page.locator('#assetInspectorHost [data-tree-track-include]')
       .getAttribute('data-tree-track-include');
     assert.equal(selectedSourceIndex, '2', 'keyboard selection must target the correct source stream');
@@ -2110,6 +2197,7 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.waitForFunction(() => {
       const inspector = document.querySelector('#assetInspectorHost');
       return inspector && inspector.getBoundingClientRect().width > 0;
@@ -2130,11 +2218,22 @@ async function scenarioUnifiedWorkBenchZones(browser) {
         viewport: innerWidth,
       };
     });
-    assert.ok(mobile.sourceY < mobile.inspectorY && mobile.inspectorY < mobile.outputY,
-      'mobile must flow source > selected property editor > output');
+    assert.equal(await page.locator('.stage-input').isVisible(), false,
+      'mobile editor must not be buried under the file inventory');
+    assert.equal(await page.locator('.output-hub').isVisible(), false,
+      'mobile editing must not stack an unrelated output form');
+    assert.equal(await page.locator('.editor-column').isVisible(), true);
     assert.ok(mobile.inspectorRight <= mobile.viewport + 1, 'mobile inspector must not clip');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-include]').isVisible(), true);
     assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    const mobileFileActionTop = await page.evaluate(() => {
+      const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
+      return control.getBoundingClientRect().top + scrollY;
+    });
+    assert.ok(mobileFileActionTop < 300, 'phone first screen must expose add-file action');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
     const actionOrder = await page.evaluate(() => ({
       action: document.querySelector('.execution-panel').getBoundingClientRect().top,
       details: document.querySelector('.plan-panel').getBoundingClientRect().top,
@@ -2158,21 +2257,43 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     );
     assert.equal(await page.locator('.workbench-jump-nav a[aria-current="location"]').count(), 1);
 
+    // The narrowest supported phone viewport must keep a real, reachable
+    // MKV action and selected inspector without horizontal page clipping.
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id="source:audio:2"]').count(), 1);
+    assert.equal(await page.locator('#compositionMuxBtn').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', '320px work-area switch must retain the selected track metadata');
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
+    assert.equal(await page.locator('#muxBtn').isVisible(), true);
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.waitForFunction(() => {
       const nav = document.querySelector('.workbench-jump-nav');
-      return nav && getComputedStyle(nav).display !== 'none' &&
-        nav.getBoundingClientRect().width > 0 &&
+      return nav && getComputedStyle(nav).display === 'none' &&
         document.documentElement.scrollWidth <= innerWidth;
     });
-    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true,
-      'redesigned task navigation remains available in the wide desktop workbench');
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), false,
+      'desktop workbench must not waste an extra row on duplicate task navigation');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
       'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',
       'source selection must be stable across both viewport transitions');
     assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
       'responsive reflow must not mount a second editable stream inspector');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.locator('[data-tree-group="subtitle"] [data-tree-select]').first().click();
+    assert.equal(await page.locator('.editor-column').isVisible(), true,
+      'choosing a source track on the phone opens the actual object editor');
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'phone source-to-editor transition must preserve one shared inspector');
     console.log('Three-zone MKV workbench, responsive edit retention, keyboard selection and task jumps PASS');
   } finally {
     await context.close();
@@ -2324,7 +2445,7 @@ async function scenarioRenamedMediaIdentity(browser) {
       return text.includes('Matroska / MKV') && text.includes('扩展名 .mp4');
     });
 
-    assert.equal(await page.locator('#scanTracksBtn').isEnabled(), true);
+    await page.waitForFunction(() => !document.querySelector('#scanTracksBtn')?.disabled);
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
     await waitForStatus(page, '轨道扫描完成：');
 

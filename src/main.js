@@ -31,6 +31,7 @@ import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { formatBatchTerminalStatus } from './batch-status.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
+import { buildOutputComposition, outputCompositionFileKey } from './output-composition.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -85,6 +86,16 @@ const assetDropzone = $('assetDropzone');
 const assetInventory = $('assetInventory');
 const assetInspectorHost = $('assetInspectorHost');
 const assetImportStatus = $('assetImportStatus');
+const outputCompositionPanel = $('outputCompositionPanel');
+const compositionTracks = $('compositionTracks');
+const compositionCount = $('compositionCount');
+const compositionChanges = $('compositionChanges');
+const compositionIssues = $('compositionIssues');
+const sourceFilesDetails = $('sourceFilesDetails');
+const compositionMuxBtn = $('compositionMuxBtn');
+const editorMuxBtn = $('editorMuxBtn');
+const objectEditorBack = $('objectEditorBack');
+const objectSelectionHint = $('objectSelectionHint');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const fontSubsetEnabled = $('fontSubsetEnabled');
@@ -167,6 +178,7 @@ const mobilePreviewToggle = $('mobilePreviewToggle');
 const mobilePlanToggle = $('mobilePlanToggle');
 const previewCard = document.querySelector('.subtitle-preview-card');
 const planPanel = document.querySelector('.output-section.plan-panel');
+const fullMuxPlanDetails = $('fullMuxPlanDetails');
 
 document.documentElement.dataset.theme = 'dark';
 document.documentElement.dataset.themePreference = 'dark';
@@ -217,7 +229,14 @@ mobilePreviewToggle?.addEventListener('click', () => {
 
 mobilePlanToggle?.addEventListener('click', () => {
   planPanel.dataset.mobileCollapsed = planPanel.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
+  if (fullMuxPlanDetails) fullMuxPlanDetails.open = planPanel.dataset.mobileCollapsed === 'false';
   applyResponsiveDisclosureState();
+});
+fullMuxPlanDetails?.addEventListener('toggle', () => {
+  if (phoneLayoutQuery.matches) {
+    planPanel.dataset.mobileCollapsed = fullMuxPlanDetails.open ? 'false' : 'true';
+    applyResponsiveDisclosureState();
+  }
 });
 
 phoneLayoutQuery.addEventListener?.('change', applyResponsiveDisclosureState);
@@ -311,6 +330,8 @@ const containerTreeSelectedItem = new Map();
 let showAdvancedSourceTools = false;
 let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
+let focusedImportedAssetKey = '';
+let selectedCompositionId = '';
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1116,6 +1137,118 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
   </details>`;
 }
 
+const compositionKindNames = {
+  video: '视频', audio: '音频', subtitle: '字幕',
+  attachment: '附件', font: '字体', source: '来源',
+};
+
+function renderOutputComposition() {
+  if (!outputCompositionPanel || !compositionTracks) return;
+  const source = videoInput.files?.[0] || null;
+  const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+  const model = buildOutputComposition({
+    video: source,
+    trackState: scanned,
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    externalAudio: externalAudioState,
+    newSubtitles: newSubtitleState,
+    fonts: selectedFonts(),
+    fontMode: fontMode.value,
+    unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
+      entry.status === ASSET_STATUS.UNSUPPORTED),
+  });
+  outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
+  const exists = model.items.some(item => item.id === selectedCompositionId);
+  if (!exists) selectedCompositionId = '';
+  const kinds = ['video', 'audio', 'subtitle', 'attachment', 'font'];
+  compositionCount.textContent = kinds
+    .filter(kind => model.counts[kind])
+    .map(kind => `${compositionKindNames[kind]} ${model.counts[kind]}`).join(' · ') || '待导入';
+  compositionTracks.innerHTML = model.items.map(item => {
+    const active = item.id === selectedCompositionId;
+    const label = compositionKindNames[item.kind] || item.kind;
+    const status = item.status === 'remove' ? '移除' :
+      item.status === 'add' ? '新增' : item.status === 'modify' ? '修改' :
+      item.status === 'pending' ? '待核验' : '';
+    const info = `<span class="composition-kind">${escapeHtml(label)}</span>
+      <span class="composition-track-main"><strong>${escapeHtml(item.title)}</strong>
+      <small>${escapeHtml(item.detail)}</small></span>
+      <span class="composition-state">${escapeHtml(status || (item.included ? '保留' : '排除'))}</span>`;
+    if (!item.target) return `<div class="composition-row composition-pending" data-status="${escapeHtml(item.status)}">${info}</div>`;
+    return `<button type="button" class="composition-row composition-select" data-composition-id="${escapeHtml(item.id)}"
+      data-status="${escapeHtml(item.status)}" aria-pressed="${active}"
+      aria-label="编辑${escapeHtml(label)}：${escapeHtml(item.title)}">${info}</button>`;
+  }).join('') || '<div class="track-empty">暂无可封装轨道</div>';
+  const meaningfulChanges = model.changes;
+  compositionChanges.hidden = !meaningfulChanges.length;
+  compositionChanges.textContent = meaningfulChanges.length
+    ? `变更 ${meaningfulChanges.length} · ${meaningfulChanges.map(item => item.title).join('、')}` : '';
+  compositionIssues.hidden = !model.diagnostics.length;
+  compositionIssues.textContent = model.diagnostics.map(issue =>
+    `${issue.title}：${issue.reason}`).join('；');
+  document.querySelector('.workspace')?.setAttribute('data-has-composition', String(model.items.length > 0));
+  if (compositionMuxBtn) compositionMuxBtn.disabled = muxBtn.disabled;
+  if (editorMuxBtn) editorMuxBtn.disabled = muxBtn.disabled;
+  if (objectSelectionHint) objectSelectionHint.hidden =
+    Boolean(selectedCompositionId || assetInspectorHost && !assetInspectorHost.hidden);
+  return model;
+}
+
+function activateCompositionTrack(item) {
+  if (!item?.target) return;
+  selectedCompositionId = item.id;
+  const target = item.target;
+  if (target.type === 'source') {
+    const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
+    if (!roles.sourceKey) return;
+    containerTreeSelectedItem.set(roles.sourceKey, target.key);
+    renderImportedAssetInventory();
+    document.querySelector('[data-editor-filter="source"]')?.click();
+  } else if (target.type === 'external') {
+    const entry = importedAssetEntries.find(entry => entry.kind === target.kind &&
+      outputCompositionFileKey(entry.file) === target.fileKey);
+    focusedImportedAssetKey = entry?.key || '';
+    document.querySelector(`[data-editor-filter="${target.kind}"]`)?.click();
+  } else if (target.type === 'font') {
+    document.querySelector('[data-editor-filter="font"]')?.click();
+  }
+  if (matchMedia('(max-width: 600px)').matches) {
+    document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.click();
+  }
+  const matched = target.type === 'external' ?
+    (target.kind === 'subtitle' ? newSubtitleState : externalAudioState).findIndex(row =>
+      outputCompositionFileKey(row.file) === target.fileKey) : -1;
+  const selector = target.type === 'source' ?
+    '#assetInspectorHost [data-tree-track-field="title"]:not(:disabled), #assetInspectorHost button:not(:disabled)' :
+    target.type === 'font' ? '#fontMode' :
+    `[data-index="${matched}"][data-new-${target.kind === 'subtitle' ? 'sub' : 'audio'}-field="title"]`;
+  const first = document.querySelector(selector);
+  first?.focus({ preventScroll: true });
+  first?.scrollIntoView({ block: 'nearest' });
+  renderOutputComposition();
+}
+compositionTracks?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-composition-id]');
+  if (!button) return;
+  const model = buildOutputComposition({
+    video: videoInput.files?.[0] || null,
+    trackState: trackState?.fileKey === fileKey(videoInput.files?.[0]) ? trackState : null,
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    externalAudio: externalAudioState,
+    newSubtitles: newSubtitleState,
+    fonts: selectedFonts(),
+    fontMode: fontMode.value,
+  });
+  activateCompositionTrack(model.items.find(item => item.id === button.dataset.compositionId));
+});
+sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
+  sourceFilesDetails.dataset.userToggled = 'true';
+});
+compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+objectEditorBack?.addEventListener('click', () =>
+  document.querySelector('.workbench-jump-nav a[href="#source-title"]')?.click());
+
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
   // Preserve both disclosure levels when replacing the list after a checkbox
@@ -1134,17 +1267,28 @@ function renderImportedAssetInventory() {
     editorGrid.dataset.showAdvancedSource = String(showAdvancedSourceTools);
   }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
+  // Choosing a source may clear the ambiguity that opened this disclosure.
+  // Do not collapse it under a focused keyboard control: that would remove
+  // the active radio from the accessibility tree mid-interaction.
+  const focusedSourceRadio = sourceFilesDetails?.contains(document.activeElement)
+    ? document.activeElement?.getAttribute('data-asset-source') : null;
+  if (sourceFilesDetails && !sourceFilesDetails.dataset.userToggled) {
+    sourceFilesDetails.open = Boolean(
+      roles.needsSourceChoice || roles.unknown.length || focusedSourceRadio
+    );
+  }
   assetImportStatus.textContent = importInProgress
     ? `正在按内容识别 ${importPendingCount} 个文件…`
     : !entries.length
       ? '尚未导入文件'
       : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
   if (!entries.length) {
-    assetInventory.innerHTML = '<div class="track-empty">导入后在此查看容器、轨道、附加资源和识别状态。</div>';
+    assetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     if (assetInspectorHost) {
       assetInspectorHost.replaceChildren();
       assetInspectorHost.hidden = true;
     }
+    renderOutputComposition();
     return;
   }
   assetInventory.innerHTML = entries.map((entry) => {
@@ -1155,10 +1299,10 @@ function renderImportedAssetInventory() {
       audio: '独立音频', unknown: '未识别',
     }[entry.kind] || '未知';
     const sourceScanned = selected && trackState?.fileKey === fileKey(entry.file);
-    const statusLabel = sourceScanned ? '内部结构已扫描'
-      : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别内容'
-      : entry.status === ASSET_STATUS.UNVERIFIED ? '已识别文件头，内部流待核验'
-      : '不参与封装';
+    const statusLabel = sourceScanned ? '已扫描'
+      : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别'
+      : entry.status === ASSET_STATUS.UNVERIFIED ? '待核验'
+      : '不可用';
     const counts = sourceScanned
       ? Object.entries(
           (trackState.streams || []).reduce((all, stream) => {
@@ -1168,9 +1312,9 @@ function renderImportedAssetInventory() {
         ).map(([type, count]) => `${containerKindLabel(type)} ${count}`).join(' · ')
       : '';
     const sourceNote = entry.kind === 'container' && !selected
-      ? '此容器目前未分配为主源；不会自动追加其中的轨道。'
+      ? '未设为主源'
       : '';
-    return `<div class="asset-entry" data-kind="${entry.kind}">
+    return `<div class="asset-entry" data-kind="${entry.kind}" ${focusedImportedAssetKey === entry.key ? 'data-focused="true"' : ''}>
       <div class="asset-entry-main">
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
@@ -1179,6 +1323,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
       <div class="asset-entry-roles">
+        ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
         ${entry.kind === 'container' ? `<label class="asset-select-source">
           <input type="radio" name="assetMainSource" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
           设为主源
@@ -1188,10 +1333,18 @@ function renderImportedAssetInventory() {
       ${renderSourceContainerTree(entry, selected, sourceScanned)}
     </div>`;
   }).join('');
+  if (focusedSourceRadio) {
+    const replacement = [...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(radio => radio.dataset.assetSource === focusedSourceRadio);
+    if (replacement && !replacement.disabled && sourceFilesDetails?.open) {
+      replacement.focus({ preventScroll: true });
+    }
+  }
   if (assetInspectorHost) {
     assetInspectorHost.innerHTML = sourceInspectorMarkup;
     assetInspectorHost.hidden = !sourceInspectorMarkup;
   }
+  renderOutputComposition();
 }
 
 async function importUnifiedAssets(files) {
@@ -1366,6 +1519,31 @@ assetInspectorHost?.addEventListener('click', (event) => {
 });
 
 assetInventory?.addEventListener('click', (event) => {
+  const open = event.target.closest('button[data-asset-focus-key]');
+  if (open) {
+    const entry = importedAssetEntries.find(item => item.key === open.dataset.assetFocusKey);
+    if (!entry || !['subtitle', 'audio', 'font'].includes(entry.kind)) return;
+    focusedImportedAssetKey = entry.key;
+    document.querySelector(`[data-editor-filter="${entry.kind}"]`)?.click();
+    // Update the visual selection without rerendering or losing input focus.
+    assetInventory.querySelectorAll('.asset-entry').forEach(row => row.removeAttribute('data-focused'));
+    open.closest('.asset-entry')?.setAttribute('data-focused', 'true');
+    if (matchMedia('(max-width: 600px)').matches) {
+      document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.click();
+    }
+    const list = entry.kind === 'subtitle' ? newSubtitleList :
+      entry.kind === 'audio' ? newAudioList : null;
+    const states = entry.kind === 'subtitle' ? newSubtitleState :
+      entry.kind === 'audio' ? externalAudioState : [];
+    const index = states.findIndex(item => fileKey(item.file) === fileKey(entry.file));
+    const selector = entry.kind === 'subtitle' ? 'data-new-sub-field' : 'data-new-audio-field';
+    const control = index >= 0 ? list?.querySelector(`[data-index="${index}"][${selector}="title"]`)
+      : entry.kind === 'font' ? document.getElementById('fontMode') :
+        document.querySelector(`[data-editor-filter="${entry.kind}"]`);
+    control?.focus({ preventScroll: true });
+    control?.scrollIntoView({ block: 'nearest' });
+    return;
+  }
   const selected = event.target.closest('button[data-tree-select]');
   if (selected) {
     const source = selected.closest('[data-source-tree]');
@@ -1373,14 +1551,22 @@ assetInventory?.addEventListener('click', (event) => {
     const targetKey = selected.dataset.treeSelect;
     containerTreeSelectedItem.set(source.dataset.sourceTree, targetKey);
     renderImportedAssetInventory();
+    // One selected source stream owns the center inspector. Keep container
+    // mode/probe controls available, without displaying a second full tree.
+    document.querySelector('[data-editor-filter="source"]')?.click();
     // Inventory list nodes are replaced during projection; return keyboard
     // focus to the same logical item rather than dropping it to document.body.
     const reselected = [...assetInventory.querySelectorAll('button[data-tree-select]')]
       .find((button) => button.dataset.treeSelect === targetKey);
     reselected?.focus({ preventScroll: true });
-    // At stacked widths the inspector is below the source list. Bring the
-    // active editor into view while keeping list focus for further navigation.
-    if (matchMedia('(max-width: 1439px)').matches) {
+    if (matchMedia('(max-width: 600px)').matches) {
+      // Phone: one work area at a time. Selecting a track opens its *existing*
+      // inspector; no secondary editor or copied form is instantiated.
+      const editorTab = document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]');
+      editorTab?.click();
+      assetInspectorHost?.querySelector('input:not([disabled]), select:not([disabled]), button:not([disabled])')
+        ?.focus({ preventScroll: true });
+    } else if (matchMedia('(max-width: 1439px)').matches) {
       assetInspectorHost?.scrollIntoView({ block: 'nearest' });
     }
     return;
@@ -1401,6 +1587,7 @@ assetInventory?.addEventListener('click', (event) => {
   const previousIndex = [...assetInventory.querySelectorAll('button[data-asset-remove]')].indexOf(button);
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
+  if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';
   applyImportedAssetRoles();
   focusUpdatedInventoryItem(assetInventory, {
     selector: 'button[data-asset-remove]',
@@ -2796,6 +2983,7 @@ function renderMuxPlan() {
     planWarnings.textContent = '';
     planWarnings.classList.add('hidden');
   }
+  renderOutputComposition();
 }
 
 function renderTrackList() {
@@ -4064,11 +4252,11 @@ function renderBatchAssetInventory() {
   const roles = resolveBatchImportedAssets(entries);
   const blocked = roles.unsupported.length;
   batchAssetStatus.textContent = batchImportInProgress
-    ? '正在按内容识别批量文件…'
-    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '尚未导入')
-    : `${entries.length} 个文件 · ${roles.containers.length} 个容器候选 · ${roles.subtitles.length} 条字幕 · ${roles.fonts.length} 个字体${blocked ? ` · ${blocked} 项不可使用` : ''}`;
+    ? '识别中…'
+    : !entries.length ? '0 文件'
+    : `${entries.length} 文件 · ${roles.containers.length} 容器 · ${roles.subtitles.length} 字幕 · ${roles.fonts.length} 字体${blocked ? ` · ${blocked} 不可用` : ''}`;
   if (!entries.length) {
-    batchAssetInventory.innerHTML = '<div class="track-empty">批量导入后，文件内容类型及不支持项目在此列出。</div>';
+    batchAssetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     return;
   }
   const locked = batchRunning || isBusy() || batchImportInProgress;
@@ -4076,15 +4264,18 @@ function renderBatchAssetInventory() {
     const role = { container: '媒体容器候选', subtitle: '字幕', font: '字体', audio: '独立音频', unknown: '未识别' }[entry.kind] || '未知';
     const supported = ['container', 'subtitle', 'font'].includes(entry.kind);
     const state = supported
-      ? entry.kind === 'container' ? '视频轨待预检' : '进入配对预检'
-      : entry.kind === 'audio' ? '批量模式不支持追加独立音频' : '不参与批量任务';
+      ? '待预检'
+      : entry.kind === 'audio' ? '批量不支持独立音频' : '不可用'; 
+    // Routine recognized inputs only need their current state; keep the
+    // classifier's detailed reason visible for unsupported/unknown input.
+    const diagnosis = supported ? state : [state, entry.detail].filter(Boolean).join(' · ');
     return `<div class="asset-entry" data-kind="${entry.kind}">
       <div class="asset-entry-main">
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
           <span class="asset-entry-type">${role} · ${escapeHtml(entry.label)}</span>
         </div>
-        <div class="asset-entry-desc">${state} · ${escapeHtml(entry.detail || '')}</div>
+        <div class="asset-entry-desc">${escapeHtml(diagnosis)}</div>
       </div>
       <div class="asset-entry-roles">
         <button type="button" class="asset-remove" data-batch-asset-remove="${escapeHtml(entry.key)}"
