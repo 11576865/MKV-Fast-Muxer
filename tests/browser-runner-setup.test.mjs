@@ -15,5 +15,10 @@ test('Chromium E2E reuses installed runner browser with an explicit fallback', a
   assert.match(workflow, /npx playwright install --with-deps chromium/);
   assert.match(workflow, /packages=\(\)/);
   assert.match(workflow, /packages\+=\(python3-fonttools\)/);
+  assert.match(workflow, /\/usr\/bin\/python3 -c 'from fontTools\.ttLib import TTFont, TTCollection'/);
+  assert.match(workflow, /E2E_PYTHON=\/usr\/bin\/python3/);
+  assert.doesNotMatch(workflow, /command -v pyftsubset/);
+  const fixtureGenerator = await source('tests/e2e/generate-fixtures.sh');
+  assert.match(fixtureGenerator, /E2E_PYTHON/);
   assert.match(workflow, /sudo apt-get install -y "\$\{packages\[@\]\}"/);
 });
