@@ -76,4 +76,32 @@ reachability and font/subtitle/mux execution controls.
 - Browser E2E must still produce actual MKV/JSON and verify stream/attachment/
   chapter semantics.
 
+## Real-browser evidence and typography recovery
+
+Exact head `24f124c069a22541cb588c315e5a4ff0d8ead15b` passed
+[Browser E2E run 38128420956](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38128420956):
+real Chromium import, source selection, editing, mux outputs and batch
+scenarios. The corresponding Pages workflow passed **199/199 Node
+tests** and its production build. The E2E screenshot artifact
+[11698715075](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38128420956/artifacts/11698715075)
+contains 1440px desktop, 390px phone, batch and full-page captures.
+Direct visual review confirmed Chinese copy rendered legibly, layout
+columns remained within viewport bounds, and the renamed source and
+batch intake surfaces were the only visible import flows.
+
+The preceding green E2E artifact
+[11695471162](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38120405869/artifacts/11695471162)
+was **not acceptable visual evidence**: nearly all Chinese glyphs were
+tofu squares because the Linux runner only had Western fonts.
+The browser workflow now provisions `fonts-noto-cjk` when
+`fc-list :lang=zh-cn family` is empty and fails if a usable font is
+still unavailable. This affects screenshot reliability, not a
+general claim of product font failure on end-user machines.
+
+The final visual pass also noticed faint content bleed below the
+semi-transparent sticky navigation in the scrolled batch phone shot.
+The navigation surface is now opaque, with a source regression.
+The post-polish exact-head CI and screenshot review remain
+**pending** as of this documentation edit.
+
 Implementation is a **PR**, not a claimed merged release until checks pass.
