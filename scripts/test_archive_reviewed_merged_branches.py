@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from scripts.archive_reviewed_merged_branches import (
     REPO, approved_identity, ensure_archive_tag, is_ancestor,
-    remove_with_lease, validate_manifest,
+    remove_with_lease, validate_manifest, q,
 )
 
 
@@ -74,6 +74,10 @@ class ReviewerTests(unittest.TestCase):
         altered["sha"] = "invalid"
         with self.assertRaises(RuntimeError):
             validate_manifest({**record, "entries": [altered]})
+
+    def test_git_ref_paths_retain_slash_components(self):
+        self.assertEqual(q("feature/multi-font"), "feature/multi-font")
+        self.assertEqual(q("feature/space name"), "feature/space%20name")
 
     def test_merge_commit_must_be_ancestor_of_main(self):
         class FakeApi:
