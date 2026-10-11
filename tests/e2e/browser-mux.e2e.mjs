@@ -1763,6 +1763,19 @@ async function scenarioContentFirstMkvIntake(browser) {
       fonts: ['DejaVuSans.ttf'],
     });
     assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="external:subtitle:"]').count(), 1);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="external:audio:"]').count(), 1);
+    assert.equal(await page.locator('.composition-select[data-composition-id^="font:"]').count(), 1);
+    assert.equal(await page.locator('#sourceFilesDetails').getAttribute('open'), null,
+      'source evidence is secondary when file recognition has no blocking conflict');
+    await page.locator('.composition-select[data-composition-id^="external:subtitle:"]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
+    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').evaluate(el => el === document.activeElement), true);
+    await page.locator('.composition-select[data-composition-id^="external:audio:"]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'audio');
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').evaluate(el => el === document.activeElement), true);
+    await page.locator('#sourceFilesDetails > summary').click();
 
     // Resource inventory selection must land on the correct *existing* editor
     // without mounting duplicate forms or mutating mux state.
