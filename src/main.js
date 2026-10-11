@@ -1267,8 +1267,15 @@ function renderImportedAssetInventory() {
     editorGrid.dataset.showAdvancedSource = String(showAdvancedSourceTools);
   }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
+  // Choosing a source may clear the ambiguity that opened this disclosure.
+  // Do not collapse it under a focused keyboard control: that would remove
+  // the active radio from the accessibility tree mid-interaction.
+  const focusedSourceRadio = sourceFilesDetails?.contains(document.activeElement)
+    ? document.activeElement?.getAttribute('data-asset-source') : null;
   if (sourceFilesDetails && !sourceFilesDetails.dataset.userToggled) {
-    sourceFilesDetails.open = Boolean(roles.needsSourceChoice || roles.unknown.length);
+    sourceFilesDetails.open = Boolean(
+      roles.needsSourceChoice || roles.unknown.length || focusedSourceRadio
+    );
   }
   assetImportStatus.textContent = importInProgress
     ? `正在按内容识别 ${importPendingCount} 个文件…`
@@ -1326,6 +1333,13 @@ function renderImportedAssetInventory() {
       ${renderSourceContainerTree(entry, selected, sourceScanned)}
     </div>`;
   }).join('');
+  if (focusedSourceRadio) {
+    const replacement = [...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(radio => radio.dataset.assetSource === focusedSourceRadio);
+    if (replacement && !replacement.disabled && sourceFilesDetails?.open) {
+      replacement.focus({ preventScroll: true });
+    }
+  }
   if (assetInspectorHost) {
     assetInspectorHost.innerHTML = sourceInspectorMarkup;
     assetInspectorHost.hidden = !sourceInspectorMarkup;
