@@ -1381,3 +1381,26 @@ body { background: var(--bg); }
     align-content: start;
   }
 }
+
+
+/* Full FFprobe/plan rows are evidence, not a second track navigator. */
+.full-mux-plan-details { border-top: 1px solid var(--line); padding-top: 7px; }
+.full-mux-plan-details > summary {
+  display: flex;
+  align-items: center;
+  min-height: 37px;
+  padding: 6px 3px;
+  cursor: pointer;
+  font-size: .76rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+.full-mux-plan-details > summary:focus-visible { outline: 2px solid var(--accent); }
+.full-mux-plan-details[open] > summary { color: var(--text-strong); }
+.full-mux-plan-details > .mux-plan { margin-top: 9px; }
+@media (max-width: 600px) {
+  .output-section.plan-panel .full-mux-plan-details[open] > .mux-plan {
+    display: block;
+    max-height: none;
+  }
+}
