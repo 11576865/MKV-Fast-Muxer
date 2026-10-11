@@ -802,7 +802,7 @@ body {
   z-index: 30;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-0) 95%, transparent);
+  background: var(--surface-0);
   box-shadow: 0 5px 20px rgba(1, 8, 17, .10);
 }
 .workbench-jump-nav a {
