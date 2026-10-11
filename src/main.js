@@ -1129,6 +1129,118 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
   </details>`;
 }
 
+const compositionKindNames = {
+  video: '视频', audio: '音频', subtitle: '字幕',
+  attachment: '附件', font: '字体', source: '来源',
+};
+
+function renderOutputComposition() {
+  if (!outputCompositionPanel || !compositionTracks) return;
+  const source = videoInput.files?.[0] || null;
+  const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+  const model = buildOutputComposition({
+    video: source,
+    trackState: scanned,
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    externalAudio: externalAudioState,
+    newSubtitles: newSubtitleState,
+    fonts: selectedFonts(),
+    fontMode: fontMode.value,
+    unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
+      entry.status === ASSET_STATUS.UNSUPPORTED),
+  });
+  outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
+  const exists = model.items.some(item => item.id === selectedCompositionId);
+  if (!exists) selectedCompositionId = '';
+  const kinds = ['video', 'audio', 'subtitle', 'attachment', 'font'];
+  compositionCount.textContent = kinds
+    .filter(kind => model.counts[kind])
+    .map(kind => `${compositionKindNames[kind]} ${model.counts[kind]}`).join(' · ') || '待导入';
+  compositionTracks.innerHTML = model.items.map(item => {
+    const active = item.id === selectedCompositionId;
+    const label = compositionKindNames[item.kind] || item.kind;
+    const status = item.status === 'remove' ? '移除' :
+      item.status === 'add' ? '新增' : item.status === 'modify' ? '修改' :
+      item.status === 'pending' ? '待核验' : '';
+    const info = `<span class="composition-kind">${escapeHtml(label)}</span>
+      <span class="composition-track-main"><strong>${escapeHtml(item.title)}</strong>
+      <small>${escapeHtml(item.detail)}</small></span>
+      <span class="composition-state">${escapeHtml(status || (item.included ? '保留' : '排除'))}</span>`;
+    if (!item.target) return `<div class="composition-row composition-pending" data-status="${escapeHtml(item.status)}">${info}</div>`;
+    return `<button type="button" class="composition-row composition-select" data-composition-id="${escapeHtml(item.id)}"
+      data-status="${escapeHtml(item.status)}" aria-pressed="${active}"
+      aria-label="编辑${escapeHtml(label)}：${escapeHtml(item.title)}">${info}</button>`;
+  }).join('') || '<div class="track-empty">暂无可封装轨道</div>';
+  const meaningfulChanges = model.changes;
+  compositionChanges.hidden = !meaningfulChanges.length;
+  compositionChanges.textContent = meaningfulChanges.length
+    ? `变更 ${meaningfulChanges.length} · ${meaningfulChanges.map(item => item.title).join('、')}` : '';
+  compositionIssues.hidden = !model.diagnostics.length;
+  compositionIssues.textContent = model.diagnostics.map(issue =>
+    `${issue.title}：${issue.reason}`).join('；');
+  document.querySelector('.workspace')?.setAttribute('data-has-composition', String(model.items.length > 0));
+  if (compositionMuxBtn) compositionMuxBtn.disabled = muxBtn.disabled;
+  if (editorMuxBtn) editorMuxBtn.disabled = muxBtn.disabled;
+  if (objectSelectionHint) objectSelectionHint.hidden =
+    Boolean(selectedCompositionId || assetInspectorHost && !assetInspectorHost.hidden);
+  return model;
+}
+
+function activateCompositionTrack(item) {
+  if (!item?.target) return;
+  selectedCompositionId = item.id;
+  const target = item.target;
+  if (target.type === 'source') {
+    const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
+    if (!roles.sourceKey) return;
+    containerTreeSelectedItem.set(roles.sourceKey, target.key);
+    renderImportedAssetInventory();
+    document.querySelector('[data-editor-filter="source"]')?.click();
+  } else if (target.type === 'external') {
+    const entry = importedAssetEntries.find(entry => entry.kind === target.kind &&
+      outputCompositionFileKey(entry.file) === target.fileKey);
+    focusedImportedAssetKey = entry?.key || '';
+    document.querySelector(`[data-editor-filter="${target.kind}"]`)?.click();
+  } else if (target.type === 'font') {
+    document.querySelector('[data-editor-filter="font"]')?.click();
+  }
+  if (matchMedia('(max-width: 600px)').matches) {
+    document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.click();
+  }
+  const matched = target.type === 'external' ?
+    (target.kind === 'subtitle' ? newSubtitleState : externalAudioState).findIndex(row =>
+      outputCompositionFileKey(row.file) === target.fileKey) : -1;
+  const selector = target.type === 'source' ?
+    '#assetInspectorHost [data-tree-track-field="title"]:not(:disabled), #assetInspectorHost button:not(:disabled)' :
+    target.type === 'font' ? '#fontMode' :
+    `[data-index="${matched}"][data-new-${target.kind === 'subtitle' ? 'sub' : 'audio'}-field="title"]`;
+  const first = document.querySelector(selector);
+  first?.focus({ preventScroll: true });
+  first?.scrollIntoView({ block: 'nearest' });
+  renderOutputComposition();
+}
+compositionTracks?.addEventListener('click', event => {
+  const button = event.target.closest('button[data-composition-id]');
+  if (!button) return;
+  const model = buildOutputComposition({
+    video: videoInput.files?.[0] || null,
+    trackState: trackState?.fileKey === fileKey(videoInput.files?.[0]) ? trackState : null,
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    externalAudio: externalAudioState,
+    newSubtitles: newSubtitleState,
+    fonts: selectedFonts(),
+    fontMode: fontMode.value,
+  });
+  activateCompositionTrack(model.items.find(item => item.id === button.dataset.compositionId));
+});
+sourceFilesDetails?.addEventListener('toggle', () => {
+  sourceFilesDetails.dataset.userToggled = 'true';
+});
+compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+objectEditorBack?.addEventListener('click', () =>
+  document.querySelector('.workbench-jump-nav a[href="#source-title"]')?.click());
+
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
   // Preserve both disclosure levels when replacing the list after a checkbox
