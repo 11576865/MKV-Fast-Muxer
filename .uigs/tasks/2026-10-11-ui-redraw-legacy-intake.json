@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-ui-redraw-legacy-intake",
   "goal": "Redraw MKV-Fast-Muxer content-first UI, remove obsolete visible single-task and batch categorized intake, preserve all existing mux/editor/export contracts and repair CI failures.",
-  "status": "release-candidate-final-CI-pending",
-  "current_bounded_work_unit": "Final visual evidence and sticky-nav polish after CJK font provisioning",
+  "status": "completed-external-validation-complete",
+  "current_bounded_work_unit": "Post-merge release acceptance: main Node, Chromium E2E, Pages deployment, and feature-branch hygiene verified",
   "completed_units": [
     "Grounded UI source inventory and identified obsolete visible category forms versus live executor adapters.",
     "Rebuilt workspace overview, shell tokens, source/editor/output visual hierarchy and responsive task navigation.",
@@ -18,25 +18,23 @@
     "Verified exact head 94bcea940023 fully green: 199/199 Node tests, Chromium mux E2E all scenarios, Pages build; original six screenshot artifacts rejected as CJK tofu due missing runner fonts.",
     "Provisioned Noto CJK runner fonts and fontconfig preflight. Exact head 24f124c069a2 passed 199/199 Node, production build and full Chromium E2E.",
     "Reviewed six new screenshot artifacts from run 38128420956: 1440px desktop, 390px mobile and batch resource list; all Chinese text rendered, no evident overflow or editor collisions.",
-    "Polished sticky task navigation to an opaque surface after mobile batch shot exposed low-contrast background bleed; added source regression."
+    "Polished sticky task navigation to an opaque surface after mobile batch shot exposed low-contrast background bleed; added source regression.",
+    "Final PR head f4ae5c1b7d89 validated with 199/199 Node tests, full Chromium mux E2E and Pages build; final Chinese desktop/mobile screenshot artifact 11698626440 inspected, with opaque sticky nav.",
+    "PR #73 merged into main as 60d41336ed7d6df5a422001289824510ea823d9e; main Browser E2E run 38129064341 passed 199/199 Node and all browser scenarios, Pages run 38129064270 deployed successfully, branch-hygiene run 38129064307 succeeded.",
+    "Checked no open PRs; feature branch ui/unified-workbench-redraw-legacy-cleanup no longer exists. Four older divergent branches with closed superseded PRs are distinct archival work and remain untouched."
   ],
-  "next_units": [
-    "Confirm final exact PR-head Pages Node/build and Chromium mux E2E results after opaque navigation polish.",
-    "Inspect final screenshot artifact for readable Chinese and opaque sticky nav; reject if real defects appear.",
-    "Merge PR #73 by merge commit when final validation is green; verify main SHA and branch cleanup/branch-hygiene.",
-    "Record any genuinely new reusable findings in UIGS Foundry after dedupe; no auto Canonical promotion."
-  ],
+  "next_units": [],
   "branch": "ui/unified-workbench-redraw-legacy-cleanup",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/73",
-  "latest_durable_commit": "48a48a94303901e1b59c050ad2a6a89515bb155c",
+  "latest_durable_commit": "60d41336ed7d6df5a422001289824510ea823d9e",
   "external_validation": {
-    "node_unit": "Previous head 24f124c passed 199/199; final nav change pending",
-    "browser_e2e": "Previous head 24f124c passed full E2E; final nav change pending",
-    "pages_build": "Previous head 24f124c passed; final nav change pending",
-    "manual_visual_review": "Previous head 24f124c screenshots reviewed; CJK fully legible, only sticky nav bleed polished on current head"
+    "node_unit": "complete: main 60d41336ed7d, 199/199 Node; Browser run 38129064341",
+    "browser_e2e": "complete: main run 38129064341, all real Chromium scenarios PASS",
+    "pages_build": "complete: main run 38129064270, both build and deploy jobs success",
+    "manual_visual_review": "complete: final PR-head artifact 11698626440 (Chinese CJK readable; opaque sticky nav), main artifact 11698926489 available",
+    "branch_hygiene": "complete: run 38129064307 success; PR #73 feature branch removed"
   },
-  "blockers": [
-    "Final exact head CI and final artifact recheck"
-  ],
-  "updated_at": "2026-10-11T09:33:00Z"
+  "blockers": [],
+  "updated_at": "2026-10-11T09:41:14Z",
+  "final_release_commit": "60d41336ed7d6df5a422001289824510ea823d9e"
 }
