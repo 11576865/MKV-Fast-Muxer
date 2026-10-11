@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "composition-first-ui-integrated-pending-chromium-and-visual-acceptance",
-  "current_bounded_work_unit": "Issue #75: render a single derived MKV output-composition list as the primary visible track object; route rows to the original editing states, collapse redundant imported-source tree except when needed for errors or ambiguity, and provide direct phone mux actions.",
+  "status": "composition-first-node-regression-repaired-browser-pending",
+  "current_bounded_work_unit": "Fix obsolete inspector-heading test after composition-first redesign; assert 320px phone composition, editor retention and mux accessibility; rerun exact-head CI before screenshot acceptance.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -39,26 +39,33 @@
     "Imported resource/probe inventory moved into on-demand #sourceFilesDetails. Source ambiguity and unrecognized inputs auto-expand, large dropzone hides once composition has content, original hidden execution adapters preserved.",
     "Phone source and editor views expose direct MKV mux controls that dispatch to the existing #muxBtn and mirror its enabled state, plus return-to-track action; original output rail remains source of progress/download/audit.",
     "Updated Chromium tests for composition-first mixed audio/subtitle selection and source-stream inspector, secondary source tree disclosure, and actual default screenshots. Added composition workspace Node tests; source scan stale-state guard added.",
-    "The redundant read-only #muxPlan is now behind a native closed-by-default Full Track Plan disclosure; compatibility warnings stay outside and visible, and existing mobile expansion toggles the same details state."
+    "The redundant read-only #muxPlan is now behind a native closed-by-default Full Track Plan disclosure; compatibility warnings stay outside and visible, and existing mobile expansion toggles the same details state.",
+    "2026-10-12 continued PR #74: exact head 3cb7675718ff80efff51ad145c8a14e14ae8e5ae had Node 216 tests/215 pass/1 fail (desktop-layout expected old ‘轨道’ heading though live editor now says ‘属性’). Pages CI and Browser CI both halted on this stale source oracle; Chromium had not run.",
+    "Updated source test to require the actual ‘属性’ inspector heading without altering UI behavior; added Chromium check at 320px for no horizontal overflow, one composed track list, direct mux action and selected-stream metadata retention across source/editor/output work areas."
   ],
   "next_units": [
-    "Review exact-head Node and full Chromium E2E; repair concrete regressions (including original advanced source-tree tests now using explicit secondary disclosure).",
-    "Inspect the new populated mobile source/editor/output and desktop screenshots; confirm action reachability, single primary composition, disabled states, legible CJK, warning visibility.",
-    "Validate 320px widths and reconcile batch navigation before merging/superseding PR #74.",
-    "Once accepted, refresh README and Issue #75, merge, verify main and close task."
+    "Verify latest exact-head Node and Browser CI, inspect any E2E failure details before making changes; avoid equating passing Node with rendered UI.",
+    "Review populated 1440px/390px screenshots from current composition branch plus 320px viewport assertions. Confirm action availability and warnings.",
+    "If visual and browser acceptance pass, update README, PR #74 and Issue #75 as appropriate; merge and verify main, then archive branch and close durable task."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "964843baf20e9e49abb733dac7b29491362ef228",
+  "latest_durable_commit": "7ef5c50fcf35feab498574e63811e1ba796a3be0",
   "external_validation": {
     "previous_exact_head": "6967144b58d50727a6112ab10a11b082e7e834bc: Node 213/213 PASS; browser failed because preselection inspector was hidden (geometry 0), before composition UI wiring",
     "current": "pending exact-head CI for rendered composition + native mux-plan disclosure; static/source assertions alone not acceptance",
     "visual": "prior six screenshots do not show the output-composition UI; new screenshots pending",
-    "claims": "only source changes and assertions, not yet browser accepted"
+    "claims": "only source changes and assertions, not yet browser accepted",
+    "last_known_red_sha": "3cb7675718ff80efff51ad145c8a14e14ae8e5ae: 215/216 Node passed; only obsolete inspector-title assertion failed, preflight blocked Chromium",
+    "latest_head": "pending after tests updated",
+    "ui_320": "new Chromium regression added, pending exact-head execution",
+    "node": "pending",
+    "browser": "pending",
+    "pages": "pending"
   },
   "blockers": [
-    "new exact-head full Node/Chromium E2E and visible screenshot inspection pending",
-    "PR #74 must not merge while UI acceptance remains open"
+    "Current exact-head Chromium E2E and Pages after title-assertion fix and 320px test are not yet verified.",
+    "New composition UI CJK screenshots not yet visually accepted."
   ],
   "updated_at": "2026-10-12",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md",
