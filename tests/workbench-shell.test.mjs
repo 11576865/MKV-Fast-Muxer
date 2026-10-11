@@ -57,7 +57,7 @@ test('workbench styles are loaded after legacy CSS with one explicit authority',
     'workbench overrides must load after the global stylesheet');
   for (const marker of [
     /Workbench IA \/ phase 5/,
-    /Content-first MKV intake: import is one action/,
+    /Content-first intake and container inventory/,
     /Live source-container hierarchy in the unified asset inventory/,
     /In-place track ordering and advanced stream dispositions/,
   ]) {
@@ -67,4 +67,17 @@ test('workbench styles are loaded after legacy CSS with one explicit authority',
   assert.match(css, /\.workbench-jump-nav a\[aria-current="location"\]/);
   assert.match(main, /setupWorkbenchNavigation\(document\.querySelector\('\.workbench-jump-nav'\)\)/);
   assert.match(navigation, /aria-current/);
+});
+
+test('redesigned overview is structural and navigation remains keyboard accessible', async () => {
+  const [html, css] = await Promise.all([source('index.html'), source('src/workbench.css')]);
+  assert.match(html, /class="workspace-overview" aria-labelledby="workspace-overview-title"/);
+  assert.match(html, /<ol class="overview-steps" aria-label="工作流程">/);
+  assert.match(html, /从素材到可验证的 MKV/);
+  assert.match(html, /不暗中转码/);
+  assert.match(css, /\.workspace-overview \{/);
+  assert.match(css, /\.workbench-jump-nav a:focus-visible/);
+  assert.match(css, /\.workbench-jump-nav\s*\{[^}]*background:\s*var\(--surface-0\);/,
+    'sticky mobile and desktop navigation must fully cover scrolling text');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });

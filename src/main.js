@@ -308,7 +308,7 @@ let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
 const containerTreeSelectedItem = new Map();
-let showLegacySourceTools = false;
+let showAdvancedSourceTools = false;
 let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let importInProgress = false;
@@ -1109,8 +1109,8 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
         </div>
 
       </div>
-      <button type="button" class="asset-tree-more-tools" data-tree-legacy-tools aria-expanded="${showLegacySourceTools}">
-        ${showLegacySourceTools ? '收起' : '展开'}传统轨道批量工具
+      <button type="button" class="asset-tree-more-tools" data-tree-advanced-tools aria-expanded="${showAdvancedSourceTools}">
+        ${showAdvancedSourceTools ? '收起' : '展开'}高级轨道工具
       </button>
     </div>
   </details>`;
@@ -1130,8 +1130,8 @@ function renderImportedAssetInventory() {
   const entries = importedAssetEntries;
   const editorGrid = document.querySelector('.editor-grid');
   if (editorGrid) {
-    editorGrid.dataset.intakeMode = entries.length ? 'unified' : 'legacy';
-    editorGrid.dataset.showLegacySource = String(showLegacySourceTools);
+    editorGrid.dataset.intakeMode = entries.length ? 'unified' : 'empty';
+    editorGrid.dataset.showAdvancedSource = String(showAdvancedSourceTools);
   }
   const roles = resolveImportedRoles(entries, chosenImportSourceKey);
   assetImportStatus.textContent = importInProgress
@@ -1385,11 +1385,11 @@ assetInventory?.addEventListener('click', (event) => {
     }
     return;
   }
-  const tools = event.target.closest('button[data-tree-legacy-tools]');
+  const tools = event.target.closest('button[data-tree-advanced-tools]');
   if (tools) {
-    showLegacySourceTools = !showLegacySourceTools;
+    showAdvancedSourceTools = !showAdvancedSourceTools;
     renderImportedAssetInventory();
-    if (showLegacySourceTools) {
+    if (showAdvancedSourceTools) {
       document.querySelector('.source-track-card')?.scrollIntoView({ block: 'nearest' });
     }
     return;
@@ -4065,7 +4065,7 @@ function renderBatchAssetInventory() {
   const blocked = roles.unsupported.length;
   batchAssetStatus.textContent = batchImportInProgress
     ? '正在按内容识别批量文件…'
-    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '也可展开下方分类导入')
+    : !entries.length ? (batchUnifiedMode ? '尚未导入' : '尚未导入')
     : `${entries.length} 个文件 · ${roles.containers.length} 个容器候选 · ${roles.subtitles.length} 条字幕 · ${roles.fonts.length} 个字体${blocked ? ` · ${blocked} 项不可使用` : ''}`;
   if (!entries.length) {
     batchAssetInventory.innerHTML = '<div class="track-empty">批量导入后，文件内容类型及不支持项目在此列出。</div>';
@@ -4469,8 +4469,8 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
   if (batchUnifiedMode) {
-    // Explicit legacy picker use switches mode; do not combine hidden unified
-    // assets with selected category files or silently keep stale source roles.
+    // Internal input-adapter updates (including regression fixtures) must
+    // invalidate an older unified inventory rather than mix incompatible roles.
     batchUnifiedMode = false;
     batchImportEntries = [];
     batchInternalAdapterUpdate = true;

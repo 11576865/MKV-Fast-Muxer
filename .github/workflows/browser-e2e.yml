@@ -46,11 +46,58 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Chromium and media tools
+      - name: Resolve browser and required media tools
+        shell: bash
         run: |
-          npx playwright install --with-deps chromium
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-dejavu-core python3-fonttools
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+            echo "Using preinstalled Google Chrome for real Chromium E2E."
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+            echo "Using preinstalled Chrome Stable for real Chromium E2E."
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+            echo "Using preinstalled Chromium for real Chromium E2E."
+          else
+            echo "No browser installed; falling back to Playwright Chromium installation."
+            npx playwright install --with-deps chromium
+          fi
+
+          packages=()
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            packages+=(ffmpeg)
+          fi
+          if ! dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
+            packages+=(fonts-dejavu-core)
+          fi
+          if ! /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection' >/dev/null 2>&1; then
+            packages+=(python3-fonttools)
+          fi
+          # A missing Chinese font rendered every Han character as a tofu box
+          # in both desktop and phone screenshots, despite passing browser E2E.
+          if ! command -v fc-list >/dev/null 2>&1; then
+            packages+=(fontconfig fonts-noto-cjk)
+          elif [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
+            packages+=(fonts-noto-cjk)
+          fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+          /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection'
+          echo "E2E_PYTHON=/usr/bin/python3" >> "$GITHUB_ENV"
+          # Screenshots are a visual acceptance artifact, not merely a CI file.
+          # Fail explicitly when the browser host cannot render Simplified Chinese.
+          fc-cache -f
+          cjk_fonts="$(fc-list :lang=zh-cn family)"
+          if [[ -z "$cjk_fonts" ]]; then
+            echo "::error::No Chinese-capable system font. UI visual evidence is unreadable."
+            exit 1
+          fi
+          printf '%s\n' "$cjk_fonts" | sed -n '1,3p'
 
       - name: Unit tests
         run: npm test

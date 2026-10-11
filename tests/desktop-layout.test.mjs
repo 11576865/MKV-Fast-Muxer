@@ -18,8 +18,9 @@ test('content-first MKV intake keeps live editors and output without category up
   for (const id of ['unifiedAssetInput', 'unifiedFolderInput', 'assetDropzone', 'assetInventory', 'assetImportStatus']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /legacy-source-picker" hidden aria-hidden="true" inert/);
-  assert.match(html, /导入文件和容器/);
+  assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
+  assert.doesNotMatch(html, /legacy-source-picker|source-grid source-strip/);
+  assert.match(html, /导入媒体资源/);
   assert.doesNotMatch(html, /id="outputName"[^>]*contenteditable|id="outputName"[^>]*type="text"/);
   for (const category of ['all', 'subtitle', 'audio', 'font', 'source']) {
     assert.match(html, new RegExp(`data-editor-filter="${category}"`));
@@ -56,11 +57,11 @@ test('modern desktop layout hides duplicate original editor by default while pre
   const [html, modernCss] = await Promise.all([
     source('index.html'), source('src/workbench.css'),
   ]);
-  assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-legacy-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
+  assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-advanced-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
   assert.match(modernCss, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
   assert.match(modernCss, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
   assert.match(modernCss, /\.workspace > \.workbench-grid > \.output-hub \{/);
-  // Secondary legacy and bulk controls are still real, reachable DOM nodes.
+  // Source-object and batch controls remain real, visible and operable.
   assert.match(html, /class="object-editor-nav"/);
   assert.match(html, /id="previewRefreshBtn"/);
   assert.match(html, /id="batchStartBtn"/);
@@ -92,4 +93,23 @@ test('MKV execution actions are visibly named and preserve the container change 
   assert.match(main, /data-change="add"/);
   assert.match(main, /data-change="remove"/);
   assert.match(main, /streams: probe\.streams \|\| \[\]/);
+});
+
+
+test('retired categorized upload cards leave no orphan CSS selectors or visible DOM', async () => {
+  const [html, globalCss, workbenchCss] = await Promise.all([
+    source('index.html'), source('src/style.css'), source('src/workbench.css'),
+  ]);
+  // The runtime adapters are intentionally retained, but retired cards must not style anything.
+  const selector = new RegExp(
+    '\\.(?:source-grid|source-strip|source-item|source-body|source-type-icon|' +
+    'source-action-icon|source-primary|source-secondary|batch-source-cluster|' +
+    'batch-cluster-head|batch-picker-row|batch-picker|batch-video-cluster|' +
+    'batch-subtitle-cluster|batch-font-cluster)\\b',
+  );
+  assert.doesNotMatch(globalCss, selector);
+  assert.doesNotMatch(workbenchCss, selector);
+  assert.doesNotMatch(html, /batch-legacy-intake|legacy-source-picker|source-grid source-strip/);
+  assert.match(html, /class="batch-unified-intake"/);
+  assert.match(html, /class="intake-runtime-adapters" hidden inert aria-hidden="true"/);
 });

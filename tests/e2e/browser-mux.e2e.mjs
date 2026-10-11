@@ -1194,7 +1194,8 @@ async function scenarioUnifiedBatchContentIntake(browser) {
       [...document.querySelector('#batchSubtitleInput').files].map(f => f.name),
       [...document.querySelector('#batchFontInput').files].map(f => f.name),
     ]), [['Batch S01E01.mp4'], ['Batch S01E01.zh-Hans.ass'], ['DejaVuSans.ttf']]);
-    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('.batch-legacy-intake').count(), 0);
+    assert.equal(await page.locator('#batchVideoInput').isVisible(), false);
     assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
 
     const removeUnsupportedBatch = page.locator('#batchAssetInventory .asset-entry[data-kind="audio"] [data-batch-asset-remove]');
@@ -1248,9 +1249,8 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     assert.ok(output.streams.some(stream => stream.codec_type === 'subtitle'));
     assert.ok(output.streams.some(stream => stream.codec_type === 'attachment'));
 
-    // Explicit use of the advanced category picker switches modes rather
-    // than mixing hidden unified adapters with stale manual selections.
-    await page.locator('.batch-legacy-intake > summary').click();
+    // Backward-compatible internal test injection must clear the earlier
+    // unified inventory; no categorized import form remains visible.
     await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E02.mp4'));
     await page.waitForFunction(() => {
       return document.querySelector('#batchVideoInput')?.files[0]?.name === 'Batch S01E02.mp4' &&
@@ -1267,7 +1267,7 @@ async function scenarioUnifiedBatchContentIntake(browser) {
         !text.includes('Batch S01E01.mp4') &&
         !document.querySelector('#batchStartBtn').disabled;
     });
-    console.log('Unified batch content-first import, MKV mux and legacy mode isolation PASS');
+    console.log('Unified batch import, MKV mux and internal adapter isolation PASS');
   } finally {
     await context.close();
   }
@@ -1651,12 +1651,13 @@ async function scenarioResponsiveObjectEditor(browser) {
     for (const selector of ['#batchUnifiedInput', '#batchUnifiedFolderInput', '#batchAssetDropzone', '#batchSubsetScope', '#batchOutputDirBtn']) {
       assert.equal(await page.locator(selector).isVisible(), true, selector);
     }
-    assert.equal(await page.locator('.batch-legacy-intake').getAttribute('open'), null);
+    assert.equal(await page.locator('.batch-legacy-intake').count(), 0);
+    assert.equal(await page.locator('#batchVideoInput').isVisible(), false);
     assert.equal(await page.locator('#batchVideoInput').isVisible(), false,
-      'legacy category slots must not appear as default batch import');
-    await page.locator('.batch-legacy-intake > summary').click();
+      'internal adapters must never appear as a user-facing batch import');
+    assert.equal(await page.locator('.batch-legacy-intake').count(), 0);
     for (const selector of ['#batchVideoInput', '#batchSubtitleFolderInput', '#batchFontFolderInput']) {
-      assert.equal(await page.locator(selector).isVisible(), true, selector);
+      assert.equal(await page.locator(selector).isVisible(), false, selector);
     }
     // mobile two-mode editor and disclosure behavior
     await page.setViewportSize({ width: 390, height: 844 });
@@ -1952,11 +1953,11 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const oldCommentary = page.locator(
       `.track-row.track-audio input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"]`
     );
-    await tree.locator('[data-tree-legacy-tools]').click();
-    const legacyAudioRow = page.locator(
+    await tree.locator('[data-tree-advanced-tools]').click();
+    const advancedAudioRow = page.locator(
       `.track-row.track-audio:has(input[data-track-action="commentary"][data-track-index="${editedSourceIndex}"])`
     );
-    await legacyAudioRow.locator('details.track-advanced > summary').click();
+    await advancedAudioRow.locator('details.track-advanced > summary').click();
     assert.equal(await oldCommentary.isChecked(), true);
     await oldCommentary.uncheck();
     assert.equal(await first.locator('[data-tree-track-flag="commentary"]').isChecked(), false);
@@ -1971,8 +1972,8 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     assert.equal(await subAdvanced.getAttribute('open'), '');
 
     // Visual acceptance captures the normal workbench, not the deliberately
-    // expanded compatibility editor used to test reverse synchronization.
-    await tree.locator('[data-tree-legacy-tools]').click();
+    // expanded advanced track tools used to test reverse synchronization.
+    await tree.locator('[data-tree-advanced-tools]').click();
     assert.equal(await page.locator('.source-track-card').isVisible(), false);
 
     // Capture real populated UI evidence for visual review, not just markup
@@ -2160,9 +2161,12 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.setViewportSize({ width: 1600, height: 960 });
     await page.waitForFunction(() => {
       const nav = document.querySelector('.workbench-jump-nav');
-      return nav && getComputedStyle(nav).display === 'none' &&
+      return nav && getComputedStyle(nav).display !== 'none' &&
+        nav.getBoundingClientRect().width > 0 &&
         document.documentElement.scrollWidth <= innerWidth;
     });
+    assert.equal(await page.locator('.workbench-jump-nav').isVisible(), true,
+      'redesigned task navigation remains available in the wide desktop workbench');
     assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
       'Viewport persistent audio', 'edited stream attributes survive phone-to-desktop reflow');
     assert.equal(await nav.nth(1).getAttribute('aria-pressed'), 'true',

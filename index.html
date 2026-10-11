@@ -46,7 +46,8 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">MKV</div>
           <div>
-            <h1>Fast Muxer <span>v3</span></h1>
+            <span class="brand-overline">MEDIA TOOLS / LOCAL-FIRST</span>
+              <h1>Fast Muxer <span>v3</span></h1>
           </div>
         </div>
 
@@ -66,13 +67,29 @@
         <a href="#batch-title">批量</a>
       </nav>
 
+      <section class="workspace-overview" aria-labelledby="workspace-overview-title">
+        <div class="overview-copy">
+          <span class="overview-kicker">MKV WORKBENCH / 本地媒体工作台</span>
+          <h2 id="workspace-overview-title">从素材到可验证的 MKV</h2>
+          <p>导入真实文件、检查容器轨道、编辑所需信息，最后无损封装并核验实际成品。不上传媒体，不暗中转码。</p>
+          <div class="overview-constraints" aria-label="工作模式">
+            <span>本地执行</span><span>Stream Copy</span><span>仅导出 MKV</span>
+          </div>
+        </div>
+        <ol class="overview-steps" aria-label="工作流程">
+          <li><span class="overview-step-number">01</span><span><strong>识别素材</strong><small>自动识别内容，选择主源</small></span></li>
+          <li><span class="overview-step-number">02</span><span><strong>检查与编辑</strong><small>轨道、字幕、字体和附件</small></span></li>
+          <li><span class="overview-step-number">03</span><span><strong>验证并导出</strong><small>审计成品，不掩盖偏差</small></span></li>
+        </ol>
+      </section>
       <main class="workspace">
         <section class="stage stage-input" aria-labelledby="source-title">
           <header class="stage-head">
             <div class="stage-title">
               <span class="section-index">01</span>
               <div>
-                <h2 id="source-title" tabindex="-1">素材</h2>
+                <h2 id="source-title" tabindex="-1">导入与资源</h2>
+                  <p class="stage-deck">所有文件先识别内容，再决定用途。</p>
               </div>
             </div>
             <div id="workloadNotice" class="workload-notice" data-level="normal" aria-live="polite">
@@ -84,8 +101,9 @@
           <section class="unified-intake" aria-labelledby="intake-title">
             <div class="unified-intake-head">
               <div>
-                <h3 id="intake-title">导入文件和容器</h3>
-                <p>无需预先区分视频、音频、字幕或字体。先识别文件内容，再选择 MKV 主源和附加资源。</p>
+                <h3 id="intake-title">导入媒体资源</h3>
+                <p>无需预先区分视频、音频、字幕或字体。按实际内容识别，再选择 MKV 主源和附加资源。</p>
+                <p class="intake-format-note">字幕支持识别 ASS / SSA / SRT / WebVTT 与 PGS / VobSub；具体可用性以内容扫描结果为准。</p>
               </div>
               <div class="unified-intake-buttons">
                 <label class="button button-primary intake-picker">
@@ -99,7 +117,7 @@
               </div>
             </div>
             <div id="assetDropzone" class="asset-dropzone" tabindex="0" role="button" aria-label="点击或拖放文件导入">
-              将文件拖到这里，或使用上方按钮导入。仅识别当前引擎支持的内容；未知文件会保留在清单中并提示。
+              <strong>拖放文件开始</strong><span>识别容器、字幕、字体及音频；无法识别的文件会明确标记。</span>
             </div>
             <div class="asset-inventory-head">
               <strong>已导入资源</strong>
@@ -110,53 +128,13 @@
             </div>
           </section>
 
-          <!-- Legacy DOM adapters retained for the existing audited FFmpeg workflow.
-               They are not user-facing categorized import gates. -->
-          <div class="source-grid source-strip legacy-source-picker" hidden aria-hidden="true" inert>
-            <label class="source-item source-video source-primary">
-              <input id="videoInput" type="file" />
-              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h11a2 2 0 0 1 2 2v2.5l3-2v9l-3-2V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span>
-              <span class="source-body">
-                <strong>视频</strong>
-                <small>MP4 / MKV / WebM / MOV / M4V</small>
-                <span id="videoName" class="filename">未选择</span>
-                <small id="videoIdentity" class="source-diagnostic" data-state="idle">实际内容：等待选择</small>
-              </span>
-              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
-            </label>
-
-            <label class="source-item source-subtitle source-primary">
-              <input id="subInput" type="file" multiple />
-              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h18v14H3V5Zm2 2v10h14V7H5Zm2 3h4v2H7v-2Zm6 0h4v2h-4v-2Zm-6 4h10v2H7v-2Z"/></svg></span>
-              <span class="source-body">
-                <strong>字幕</strong>
-                <small>ASS / SSA / SRT / WebVTT / PGS / VobSub · 按实际内容识别</small>
-                <span id="subName" class="filename">未选择</span>
-              </span>
-              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
-            </label>
-
-            <label class="source-item source-font source-secondary">
-              <input id="fontInput" type="file" multiple />
-              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4h6l5 16h-3l-1.4-4H8.4L7 20H4L9 4Zm.3 9h5.4L12 5.5 9.3 13Z"/></svg></span>
-              <span class="source-body">
-                <strong>字体</strong>
-                <small>可选 · TTF / OTF / TTC / OTC · 按实际结构识别</small>
-                <span id="fontName" class="filename">未选择</span>
-              </span>
-              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
-            </label>
-
-            <label class="source-item source-audio source-secondary">
-              <input id="audioInput" type="file" multiple accept="audio/*,.flac,.aac,.m4a,.mp3,.opus,.ogg,.wav,.ac3,.eac3,.dts,.mka" />
-              <span class="source-type source-type-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 10h4l5-4v12l-5-4H4v-4Zm12.5-2.5a6 6 0 0 1 0 9l-1.4-1.4a4 4 0 0 0 0-6.2l1.4-1.4Zm2.8-2.8a10 10 0 0 1 0 14.6l-1.4-1.4a8 8 0 0 0 0-11.8l1.4-1.4Z"/></svg></span>
-              <span class="source-body">
-                <strong>外部音频</strong>
-                <small>可选 · 多选 · 原码流</small>
-                <span id="audioName" class="filename">未选择</span>
-              </span>
-              <span class="source-action source-action-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 4l2 2h8v12H4V4h6Zm0 2H6v10h12V8h-6.8l-2-2H10Z"/></svg></span>
-            </label>
+          <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->
+          <div class="intake-runtime-adapters" hidden inert aria-hidden="true">
+            <input id="videoInput" type="file" /><span id="videoName"></span>
+            <span id="videoIdentity" data-state="idle"></span>
+            <input id="subInput" type="file" multiple /><span id="subName"></span>
+            <input id="fontInput" type="file" multiple /><span id="fontName"></span>
+            <input id="audioInput" type="file" multiple /><span id="audioName"></span>
           </div>
         </section>
 
@@ -166,7 +144,8 @@
               <div class="stage-title">
                 <span class="section-index">02</span>
                 <div>
-                  <h2 id="workbench-editor-title" tabindex="-1">预览与调整</h2>
+                  <h2 id="workbench-editor-title" tabindex="-1">检查与编辑</h2>
+                  <p class="stage-deck">选择容器对象，查看并调整轨道属性。</p>
                   
                 </div>
               </div>
@@ -346,7 +325,8 @@
               <div class="stage-title">
                 <span class="section-index">03</span>
                 <div>
-                  <h2 id="workbench-output-title" tabindex="-1">封装输出</h2>
+                  <h2 id="workbench-output-title" tabindex="-1">验证与导出</h2>
+                    <p class="stage-deck">检查计划与成品审计结果。</p>
                   
                 </div>
               </div>
@@ -408,7 +388,8 @@
             <div class="stage-title">
               <span class="section-index">B</span>
               <div>
-                <h2 id="batch-title" tabindex="-1">批量封装</h2>
+                <h2 id="batch-title" tabindex="-1">批量任务</h2>
+                  <p class="stage-deck">统一导入、自动配对、逐项保留结果。</p>
               </div>
             </div>
             <div class="batch-status-chip">
@@ -418,7 +399,7 @@
           </header>
 
           <details class="batch-drawer">
-            <summary>展开批量工作区 <span aria-hidden="true">↗</span></summary>
+            <summary><span>展开批量工作区</span><span aria-hidden="true">↗</span></summary>
           <div class="batch-layout">
             <div class="batch-inputs" aria-label="批量素材">
               <section class="batch-unified-intake" aria-labelledby="batch-unified-title">
@@ -439,7 +420,7 @@
                   </div>
                 </div>
                 <div id="batchAssetDropzone" class="asset-dropzone" role="button" tabindex="0" aria-label="点击或拖放批量素材">
-                  将批量素材拖入这里，按实际文件内容分类；识别结果和无法使用的文件会列在下方。
+                  <strong>拖放批量素材</strong><span>自动检测内容并生成配对计划；无法使用的项目会显示原因。</span>
                 </div>
                 <div class="asset-inventory-head">
                   <strong>批量资源</strong>
@@ -450,61 +431,18 @@
                 </div>
               </section>
 
-              <details class="batch-legacy-intake">
-                <summary>分类导入（兼容旧批量流程）</summary>
-                <div class="batch-legacy-intake-body">
-              <section class="batch-source-cluster batch-video-cluster">
-                <div class="batch-cluster-head">
-                  <span class="source-type">VIDEO</span>
-                  <div><strong>视频</strong><small>按实际内容识别 · 选择文件或整个文件夹</small></div>
-                </div>
-                <div class="batch-picker-row">
-                  <label class="batch-picker">
-                    <input id="batchVideoInput" type="file" multiple />
-                    <span>选择文件</span><small id="batchVideoName" class="filename">未选择</small>
-                  </label>
-                  <label class="batch-picker">
-                    <input id="batchVideoFolderInput" type="file" multiple webkitdirectory directory />
-                    <span>选择文件夹</span><small id="batchVideoFolderName" class="filename">未选择</small>
-                  </label>
-                </div>
-              </section>
-
-              <section class="batch-source-cluster batch-subtitle-cluster">
-                <div class="batch-cluster-head">
-                  <span class="source-type">SUB</span>
-                  <div><strong>字幕</strong><small>自动按同名 / SxxExx / EPxx 配对</small></div>
-                </div>
-                <div class="batch-picker-row">
-                  <label class="batch-picker">
-                    <input id="batchSubtitleInput" type="file" multiple />
-                    <span>选择文件</span><small id="batchSubtitleName" class="filename">未选择</small>
-                  </label>
-                  <label class="batch-picker">
-                    <input id="batchSubtitleFolderInput" type="file" multiple webkitdirectory directory />
-                    <span>选择文件夹</span><small id="batchSubtitleFolderName" class="filename">未选择</small>
-                  </label>
-                </div>
-              </section>
-
-              <section class="batch-source-cluster batch-font-cluster">
-                <div class="batch-cluster-head">
-                  <span class="source-type">FONT</span>
-                  <div><strong>字体</strong><small>可选 · 整个批次共享</small></div>
-                </div>
-                <div class="batch-picker-row">
-                  <label class="batch-picker">
-                    <input id="batchFontInput" type="file" multiple />
-                    <span>选择文件</span><small id="batchFontName" class="filename">未选择</small>
-                  </label>
-                  <label class="batch-picker">
-                    <input id="batchFontFolderInput" type="file" multiple webkitdirectory directory />
-                    <span>选择文件夹</span><small id="batchFontFolderName" class="filename">未选择</small>
-                  </label>
-                </div>
-              </section>
-                </div>
-              </details>
+              <!-- Internal executor adapters, not a second category-driven import UI. -->
+              <div class="intake-runtime-adapters" hidden inert aria-hidden="true">
+                <input id="batchVideoInput" type="file" multiple />
+                <input id="batchVideoFolderInput" type="file" multiple webkitdirectory directory />
+                <input id="batchSubtitleInput" type="file" multiple />
+                <input id="batchSubtitleFolderInput" type="file" multiple webkitdirectory directory />
+                <input id="batchFontInput" type="file" multiple />
+                <input id="batchFontFolderInput" type="file" multiple webkitdirectory directory />
+                <span id="batchVideoName"></span><span id="batchVideoFolderName"></span>
+                <span id="batchSubtitleName"></span><span id="batchSubtitleFolderName"></span>
+                <span id="batchFontName"></span><span id="batchFontFolderName"></span>
+              </div>
             </div>
 
             <div class="batch-detail">

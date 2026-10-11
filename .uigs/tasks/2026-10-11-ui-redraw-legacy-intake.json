@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-11-ui-redraw-legacy-intake",
+  "goal": "Redraw MKV-Fast-Muxer content-first UI, remove obsolete visible single-task and batch categorized intake, preserve all existing mux/editor/export contracts and repair CI failures.",
+  "status": "release-candidate-final-CI-pending",
+  "current_bounded_work_unit": "Final visual evidence and sticky-nav polish after CJK font provisioning",
+  "completed_units": [
+    "Grounded UI source inventory and identified obsolete visible category forms versus live executor adapters.",
+    "Rebuilt workspace overview, shell tokens, source/editor/output visual hierarchy and responsive task navigation.",
+    "Removed visible legacy single-task/batch categorized intake nodes and their workbench CSS rules.",
+    "Retained exact runtime file input IDs in hidden inert adapters and updated batch hint and advanced-track terminology.",
+    "Updated layout and browser regression tests, UIGS UI surface inventory and capture specs.",
+    "Investigated first exact-head CI: 197 Node tests, 192 pass, 5 fail on legacy UI source-shape oracles before Chromium execution.",
+    "Added truthful user-visible content identification and subtitle-format guidance; updated 1.2.1 test to require unified batch UI and all six nonvisual adapters.",
+    "Nine targeted source-contract assertions pass; registered Phase 9 stale-oracle evidence in UIGS Foundry existing Candidate.",
+    "Cross-checked old categorized-input CSS tokens against current index.html and src JS ownership. Removed 115 isolated obsolete rules and final mixed orphan selectors (more than 11 KB).",
+    "Added stylesheet/source regression asserting no removed categorized controls or orphan selectors survive.",
+    "Verified exact head 94bcea940023 fully green: 199/199 Node tests, Chromium mux E2E all scenarios, Pages build; original six screenshot artifacts rejected as CJK tofu due missing runner fonts.",
+    "Provisioned Noto CJK runner fonts and fontconfig preflight. Exact head 24f124c069a2 passed 199/199 Node, production build and full Chromium E2E.",
+    "Reviewed six new screenshot artifacts from run 38128420956: 1440px desktop, 390px mobile and batch resource list; all Chinese text rendered, no evident overflow or editor collisions.",
+    "Polished sticky task navigation to an opaque surface after mobile batch shot exposed low-contrast background bleed; added source regression."
+  ],
+  "next_units": [
+    "Confirm final exact PR-head Pages Node/build and Chromium mux E2E results after opaque navigation polish.",
+    "Inspect final screenshot artifact for readable Chinese and opaque sticky nav; reject if real defects appear.",
+    "Merge PR #73 by merge commit when final validation is green; verify main SHA and branch cleanup/branch-hygiene.",
+    "Record any genuinely new reusable findings in UIGS Foundry after dedupe; no auto Canonical promotion."
+  ],
+  "branch": "ui/unified-workbench-redraw-legacy-cleanup",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/73",
+  "latest_durable_commit": "48a48a94303901e1b59c050ad2a6a89515bb155c",
+  "external_validation": {
+    "node_unit": "Previous head 24f124c passed 199/199; final nav change pending",
+    "browser_e2e": "Previous head 24f124c passed full E2E; final nav change pending",
+    "pages_build": "Previous head 24f124c passed; final nav change pending",
+    "manual_visual_review": "Previous head 24f124c screenshots reviewed; CJK fully legible, only sticky nav bleed polished on current head"
+  },
+  "blockers": [
+    "Final exact head CI and final artifact recheck"
+  ],
+  "updated_at": "2026-10-11T09:33:00Z"
+}
