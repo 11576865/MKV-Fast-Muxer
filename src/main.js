@@ -1140,7 +1140,7 @@ function renderImportedAssetInventory() {
       ? '尚未导入文件'
       : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
   if (!entries.length) {
-    assetInventory.innerHTML = '<div class="track-empty">导入后在此查看容器、轨道、附加资源和识别状态。</div>';
+    assetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     if (assetInspectorHost) {
       assetInspectorHost.replaceChildren();
       assetInspectorHost.hidden = true;
