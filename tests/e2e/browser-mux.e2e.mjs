@@ -2212,6 +2212,14 @@ async function scenarioUnifiedWorkBenchZones(browser) {
       'source selection must be stable across both viewport transitions');
     assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
       'responsive reflow must not mount a second editable stream inspector');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.locator('[data-tree-group="subtitle"] [data-tree-select]').first().click();
+    assert.equal(await page.locator('.editor-column').isVisible(), true,
+      'choosing a source track on the phone opens the actual object editor');
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
+    assert.equal(await page.locator('.asset-tree-inspector').count(), 1,
+      'phone source-to-editor transition must preserve one shared inspector');
     console.log('Three-zone MKV workbench, responsive edit retention, keyboard selection and task jumps PASS');
   } finally {
     await context.close();
