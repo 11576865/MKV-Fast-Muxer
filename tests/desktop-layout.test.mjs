@@ -57,7 +57,7 @@ test('modern desktop layout hides duplicate original editor by default while pre
   const [html, modernCss] = await Promise.all([
     source('index.html'), source('src/workbench.css'),
   ]);
-  assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-legacy-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
+  assert.match(modernCss, /\.editor-grid\[data-intake-mode="unified"\]\[data-show-advanced-source="false"\]:not\(\[data-editor-focus="source"\]\)/);
   assert.match(modernCss, /@media \(min-width: 1440px\) and \(hover: hover\) and \(pointer: fine\)/);
   assert.match(modernCss, /grid-template-columns: minmax\(320px, \.93fr\) minmax\(410px, 1\.35fr\) minmax\(300px, \.82fr\)/);
   assert.match(modernCss, /\.workspace > \.workbench-grid > \.output-hub \{/);
