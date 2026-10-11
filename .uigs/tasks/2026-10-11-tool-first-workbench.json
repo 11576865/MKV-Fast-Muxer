@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "visual-reviewed-density-refinement-pending-new-ci",
-  "current_bounded_work_unit": "Inspect verified browser screenshots, eliminate routine dynamic text redundancy in file/batch cards without suppressing unsupported-file reasons, request new exact-head CI.",
+  "status": "mobile-work-areas-implemented-pending-exact-ci",
+  "current_bounded_work_unit": "Replace long mobile single-page stack with source/edit/output/batch work areas, automatic source-track inspector handoff, and desktop inspector-preview-secondary-settings hierarchy.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -16,27 +16,33 @@
     "Moved batch unsupported external-audio rule into a discoverable collapsed Format details beside batch resources and updated the batch test; changed preview test to verify actual click control and JS binding rather than requiring explanatory prose.",
     "Pre-density verified PR head c5ce99eba938af0fb2b4898a3530583121f3f6bd: Pages run 38132508661 and Chromium Browser E2E run 38132508666 both success; Node unit tests, build, all real browser mux scenarios pass; visual artifact 11699228516 captured six desktop/mobile and batch images.",
     "Inspected six CJK-correct desktop/mobile screenshots (1440x900 and 390x844 viewport, full page and batch). First-screen Add File and folder actions visible on both, no apparent horizontal overflow, desktop source/editor/output are separate; dynamic routine batch cards still had unnecessary two-line technical explanation.",
-    "Shortened rendered source statuses and runtime cleared states; batch resource counts and supported-file rows now show concise status while unsupported entries still display their detail. Updated exact source and Chromium assertions for status contract."
+    "Shortened rendered source statuses and runtime cleared states; batch resource counts and supported-file rows now show concise status while unsupported entries still display their detail. Updated exact source and Chromium assertions for status contract.",
+    "User rejected superficial copy/spacing pass; independent screenshot review identified full mobile workspace stacking, distant output action, and desktop preview hidden beneath unrelated secondary option cards.",
+    "Phone navigation now projects only the selected source/edit/output/batch stage without rebuilding DOM; native anchors retain keyboard/hash behavior and live input/editor/mux states. Batch tab opens the existing native drawer.",
+    "Clicking a source track at phone width opens the single active inspector. Source cards remain browsing/navigation; export is accessible in one tab selection.",
+    "Desktop central stage now orders active inspector → subtitle preview → secondary settings, and empty new-track placeholders are hidden on desktop/phone while underlying controls remain mounted.",
+    "Added independent Node navigation and work-area source tests; reworked E2E to cover actual phone tab switching, viewport screenshots for editor and export, batch tab, source-to-editor handoff and a race-safe source scan readiness assertion."
   ],
   "next_units": [
-    "Confirm new exact-head Pages and Chromium mux E2E, including 201+ Node tests; do not treat earlier c5ce99e CI as covering density changes.",
-    "Review fresh six desktop/mobile screenshots, especially batch resource rows and 390px file controls; reject if readability or layout regressions appear.",
-    "Merge PR #74 only if exact head passes and screenshots are visually acceptable; independently verify main and branch hygiene, then close task."
+    "Run latest-head Node, Pages build and full Chromium E2E; if a concrete new failure is visible, use one bounded repair and re-push.",
+    "Inspect the new screenshots for 390px source/editor/export and batch, plus 1440px desktop hierarchy and 320px overflow where possible.",
+    "Merge only after exact-head Node/browser and visual acceptance, then verify main CI and branch hygiene."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "dea2c6f1db67530176f41052f488e1fa9943548c",
+  "latest_durable_commit": "6dcf0ddfd4121bcde916256f6fffdf58abf790d7",
   "external_validation": {
-    "last_verified_head": "c5ce99eba938af0fb2b4898a3530583121f3f6bd",
-    "node": "passed in run 38132508666 before dynamic-copy refinement; latest-head pending",
-    "browser_e2e": "passed in run 38132508666 before dynamic-copy refinement; latest-head pending",
-    "visual": "baseline for revised tool-first shell inspected: artifact 11699228516, 1440px/390px including batch, all readable and no evident overflow; new runtime-copy screenshots pending",
-    "pages": "passed in run 38132508661 before dynamic-copy refinement; latest-head pending",
-    "static": "runtime asset status stays specific for unsupported media; required ID set unchanged"
+    "old_green_head": "c5ce99eba938af0fb2b4898a3530583121f3f6bd",
+    "old_red_head": "ad7d72ce188215a9f2b8025f8964c4b5bcde40fa: 201/201 Node PASS, Browser FAIL on media source scan readiness race in scenario 34",
+    "current_head": "pending latest head verification",
+    "visual": "previous six screenshots inspected; new mobile work-area images pending new CI",
+    "node": "pending",
+    "browser": "pending",
+    "pages": "pending"
   },
   "blockers": [
-    "New exact-head CI pending after runtime status refinement",
-    "Fresh screenshots for condensed dynamic cards not yet inspected"
+    "Latest-head Node/Chromium E2E not yet validated after functional mobile navigation change",
+    "Mobile source/editor/output screenshots not yet inspected"
   ],
   "updated_at": "2026-10-11",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md"
