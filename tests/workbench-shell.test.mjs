@@ -77,5 +77,7 @@ test('redesigned overview is structural and navigation remains keyboard accessib
   assert.match(html, /不暗中转码/);
   assert.match(css, /\.workspace-overview \{/);
   assert.match(css, /\.workbench-jump-nav a:focus-visible/);
+  assert.match(css, /\\.workbench-jump-nav\\s*\\{[^}]*background:\\s*var\\(--surface-0\\);/,
+    'sticky mobile and desktop navigation must fully cover scrolling text');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
