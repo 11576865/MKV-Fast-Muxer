@@ -23,17 +23,15 @@ export function setupWorkbenchNavigation(nav, win = window, doc = document) {
   const isMobile = () => Boolean(win.matchMedia?.('(max-width: 600px)')?.matches);
   const currentHashView = () => sectionViews.get(win.location?.hash?.slice(1));
   const mobileView = (view) => {
-    if (!workspace || !sectionViews.has([...sectionViews].find(([, value]) => value === view)?.[0])) return;
+    if (!workspace || ![...sectionViews.values()].includes(view)) return;
     activeMobileView = view;
     workspace.dataset.mobileView = view;
     for (const item of sections) {
       const selected = sectionViews.get(item.heading.id) === view;
       if (selected) {
         item.link.setAttribute('aria-current', 'location');
-        item.link.setAttribute('aria-selected', 'true');
       } else {
         item.link.removeAttribute('aria-current');
-        item.link.setAttribute('aria-selected', 'false');
       }
     }
     if (view === 'batch') {
