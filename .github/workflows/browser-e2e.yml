@@ -71,7 +71,7 @@ jobs:
           if ! dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
             packages+=(fonts-dejavu-core)
           fi
-          if ! command -v pyftsubset >/dev/null 2>&1; then
+          if ! /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection' >/dev/null 2>&1; then
             packages+=(python3-fonttools)
           fi
           if (("${#packages[@]}" > 0)); then
@@ -80,7 +80,8 @@ jobs:
           fi
           command -v ffmpeg
           command -v ffprobe
-          command -v pyftsubset
+          /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection'
+          echo "E2E_PYTHON=/usr/bin/python3" >> "$GITHUB_ENV"
 
       - name: Unit tests
         run: npm test
