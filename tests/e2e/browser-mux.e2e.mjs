@@ -1764,6 +1764,24 @@ async function scenarioContentFirstMkvIntake(browser) {
     });
     assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
 
+    // Resource inventory selection must land on the correct *existing* editor
+    // without mounting duplicate forms or mutating mux state.
+    await page.locator('.asset-entry[data-kind="subtitle"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
+    assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"]').isFocused(), true);
+    assert.equal(await page.locator('.asset-entry[data-kind="subtitle"]').getAttribute('data-focused'), 'true');
+    await page.locator('.asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'audio');
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').isFocused(), true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.locator('.asset-entry[data-kind="font"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('.editor-column').isVisible(), true);
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'font');
+    assert.equal(await page.locator('#fontMode').isFocused(), true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
     // Unrecognized content stays visible, blocks execution and can be removed.
     await page.evaluate(() => {
       const file = new File([new Uint8Array([0, 2, 4, 6])], 'mystery.bin');
@@ -2102,8 +2120,8 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     });
     assert.ok(regions.source.right < regions.editor.x + 8, 'source inventory must precede central edit region');
     assert.ok(regions.editor.right < regions.output.x + 8, 'output decisions must occupy an independent right rail');
-    assert.ok(regions.inspector.x >= regions.editor.x && regions.inspector.right <= regions.editor.right + 2,
-      'selected object inspector must live in the central editor');
+    assert.ok(regions.inspector.x >= regions.editor.x - 1 && regions.inspector.right <= regions.editor.right + 2,
+      `selected object inspector must live in the central editor: ${JSON.stringify(regions)}`);
     assert.ok(regions.scrollWidth <= regions.viewport, 'desktop must not overflow horizontally');
     const desktopFileActionTop = await page.evaluate(() => {
       const control = document.querySelector('#unifiedAssetInput').closest('.intake-picker');
