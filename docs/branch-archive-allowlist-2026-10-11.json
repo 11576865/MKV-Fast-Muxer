@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "repository": "11576865/MKV-Fast-Muxer",
+  "reviewed_from_main_sha": "4869f1ac6febf9781931d8815254840793c1608e",
+  "review_date": "2026-10-11",
+  "purpose": "One-time archive of exact-head same-repository squash-merged PR branch refs with verified restore tags",
+  "entries": [
+    {
+      "branch": "fix/mux-safety-ass-metadata",
+      "sha": "c0e9b9ed658a2e3d1d8ec08be208a7623ce332b5",
+      "pr": 1,
+      "merged_sha": "f399cef300e7501145d32b6dd0a4ce184e1290bc"
+    },
+    {
+      "branch": "feature/multi-font-ass-dependencies",
+      "sha": "4299a9dfb6dc0a6472aa86273994ed736c44e0f2",
+      "pr": 2,
+      "merged_sha": "2b5d76daf4b9d2a85fa9674ad5ae2eb8c880c878"
+    },
+    {
+      "branch": "feature/track-manager-font-faces",
+      "sha": "f9849a809beedc566c2892c4e5405e7f633db728",
+      "pr": 3,
+      "merged_sha": "146bde22fb4141e3581b5ec9bc0f125dabff1357"
+    },
+    {
+      "branch": "feature/mux-plan-track-metadata",
+      "sha": "77afff93ea9538552f3af4b218c8dfa808e90cc5",
+      "pr": 4,
+      "merged_sha": "09d033407e8e90fd35fb6e2bf5fbd353ab35c0ef"
+    },
+    {
+      "branch": "feature/postmux-audit-transform-fonts",
+      "sha": "15c921bcef2148eb5d95c70b95ac27ded2525cd2",
+      "pr": 5,
+      "merged_sha": "0e146a7233e7dfe7405859acd689f77d01a54a20"
+    },
+    {
+      "branch": "ui/workbench-redesign",
+      "sha": "294c7b753623203020702f62d8e58db9ffe7adb6",
+      "pr": 6,
+      "merged_sha": "ffe623c10a7bb11d82ee7fc37c172eade8fe8f12"
+    },
+    {
+      "branch": "ui/contrast-semantic-theme-system",
+      "sha": "809b854f1c43b71309760fb0b53de8dc09417e10",
+      "pr": 7,
+      "merged_sha": "52d49110404b601287ae0ba0ac096351a661be67"
+    },
+    {
+      "branch": "fix/av1-ffprobe-nonfatal-audit",
+      "sha": "88c090569c60ba9a47d7e46d55831049e2ecdc40",
+      "pr": 8,
+      "merged_sha": "2076294918a9c007396e835f3855bced93d30b94"
+    },
+    {
+      "branch": "ui/prominent-save-action",
+      "sha": "73f6f23367c0c7322e611b9e62ffe1fa9c94c449",
+      "pr": 9,
+      "merged_sha": "2c85550329bd52587d2c52b82e86f0b464be6244"
+    },
+    {
+      "branch": "design/unified-favicon",
+      "sha": "16ab67cc6f6389ffa350a6f09bb4188199b80b76",
+      "pr": 10,
+      "merged_sha": "c3d21f7dc21a54f91ebf84306c14778842571873"
+    },
+    {
+      "branch": "improve/reliability-audit-report",
+      "sha": "006a2b4e5b815aa5c4acd73d9046ccaef4128270",
+      "pr": 13,
+      "merged_sha": "06bb643e330b64e7ef3072c996f39674322a03f1"
+    },
+    {
+      "branch": "feature/multitrack-inputs-attachments",
+      "sha": "0137209f8cc5e31146998cad2614823e2f65e0df",
+      "pr": 14,
+      "merged_sha": "c1fd43d315efb10f4923dc975b62f5bc34b1491b"
+    },
+    {
+      "branch": "test/browser-e2e-mux",
+      "sha": "b16418d161b3232b013a087b6875412237287b19",
+      "pr": 15,
+      "merged_sha": "1d1641d918e61ca68488866ddb33da1f076e8287"
+    },
+    {
+      "branch": "test/browser-e2e-expanded-matrix",
+      "sha": "ae67fcf3effc82bbb81d4fc6d2725ae6a6d493c7",
+      "pr": 16,
+      "merged_sha": "3a0db9c9464a3e6258970f509e634a8c0fad03b2"
+    },
+    {
+      "branch": "test/browser-e2e-failure-recovery",
+      "sha": "d6584a91354b3f658f61a1e0805acb5236e6a229",
+      "pr": 17,
+      "merged_sha": "17d6e16ea644cfef191a6852b96225db0540b552"
+    },
+    {
+      "branch": "test/browser-e2e-hostile-inputs",
+      "sha": "af7d7ce3738fcc249b87a086ddf9c649f9b61b7e",
+      "pr": 18,
+      "merged_sha": "1436b1507441caa767b7981bd76bf984dfad491a"
+    },
+    {
+      "branch": "feature/font-collections-track-flags",
+      "sha": "ed6f5d8dc47a1380b870fc76f5120d282e37e05d",
+      "pr": 19,
+      "merged_sha": "2e1ac5bf8fadce3d7a72c5ba2d944178afa2ec19"
+    },
+    {
+      "branch": "feature/attachment-metadata-container-plan",
+      "sha": "5cddff002ae379dff22da4e2e0edb5b6941fb335",
+      "pr": 20,
+      "merged_sha": "458cc6033998d053109b0b4e44edda11ef058451"
+    },
+    {
+      "branch": "feature/large-file-guidance-bulk-metadata",
+      "sha": "6f52cd54f6722231827adf2f56aa7853e73fe60d",
+      "pr": 21,
+      "merged_sha": "71129e9b6e7301f74519cffc3220fcb3d97caf73"
+    },
+    {
+      "branch": "feature/final-workbench-efficiency",
+      "sha": "7ba4e1fa35fbd82394d981cc4225a3c3d406f899",
+      "pr": 22,
+      "merged_sha": "8e0a27abcb4bf56ad2d8ee81bcd6f7747991f6ea"
+    },
+    {
+      "branch": "ui/reorganize-workbench-v3",
+      "sha": "daa6419112e103a71a267dff7508094861729c87",
+      "pr": 23,
+      "merged_sha": "1ccb0a99948df71097d471ebc03c66083691e11f"
+    },
+    {
+      "branch": "codex/ui-redraw-1.2.2",
+      "sha": "7c1157e719957d9168dea4756cd14219c622f445",
+      "pr": 44,
+      "merged_sha": "728e1d7168863e3d1579e4dbe4520e46ee353ef8"
+    },
+    {
+      "branch": "fix/content-probed-media-identity",
+      "sha": "415b6aeb172e694979f67048a0e6822a487204b5",
+      "pr": 53,
+      "merged_sha": "8ba0464ac8bacaaaedafcf4d22fd2e41ed7cdb56"
+    },
+    {
+      "branch": "feat/batch-content-media-identity",
+      "sha": "83ec9eb552f2339b00eaa640cc0a3e7ac91083f9",
+      "pr": 54,
+      "merged_sha": "25fe3f0956ccb22837dc0d0693ca8e8f281a5df5"
+    },
+    {
+      "branch": "feat/compatibility-resolver",
+      "sha": "16334d9f0688d581870425c6c68bfdb44dde4848",
+      "pr": 55,
+      "merged_sha": "3955641f5cb6fee192acf3447d781cf6e615237a"
+    },
+    {
+      "branch": "feat/subtitle-content-identity",
+      "sha": "36b69fb61c39500712b66b9b6415626f0efe1c13",
+      "pr": 56,
+      "merged_sha": "a0c4f7247f081d720348280c17f62d97dd3f2fb8"
+    },
+    {
+      "branch": "fix/content-derived-font-identity",
+      "sha": "51f487938e80a4394c79f12cb365f64f813c5c8d",
+      "pr": 58,
+      "merged_sha": "a63dec997207515d37ca26939754fd73f4367a11"
+    },
+    {
+      "branch": "test/compatibility-evidence-matrix",
+      "sha": "92ea40561ff233f5fb23c8176935d79b4a8bb5af",
+      "pr": 59,
+      "merged_sha": "e858ffb31318fc5fb47cc6615d0d2b89905e8305"
+    },
+    {
+      "branch": "fix/responsive-e2e-disclosure-readiness",
+      "sha": "9473648dd5ce31667202ff472e06ac9b1979644c",
+      "pr": 60,
+      "merged_sha": "671bb6684c29403fbfca74e6fcf7f51c68d53d0e"
+    },
+    {
+      "branch": "feat/compact-container-inventory",
+      "sha": "9944512768d676348a938b497a3c177c7d1bcfbf",
+      "pr": 61,
+      "merged_sha": "8fc1da0c23f39ddbae8377ed43aed6cb5922b27a"
+    },
+    {
+      "branch": "fix/durable-agent-execution-boundary",
+      "sha": "034ea70d096915d87fcd2c585ecb644e86053050",
+      "pr": 63,
+      "merged_sha": "abc14462acfb132cafc540fc84b2155f882cb149"
+    },
+    {
+      "branch": "fix/batch-preparation-error-reporting",
+      "sha": "785d872e5d5bace96b3ebf12d3858b94506424c7",
+      "pr": 66,
+      "merged_sha": "966d387526ce189dc874c8b27dd60adef0089a49"
+    },
+    {
+      "branch": "ui/content-first-mkv-intake-slice",
+      "sha": "22ee88477c4d8ff64cefe6d21624414d310b2fb4",
+      "pr": 69,
+      "merged_sha": "eff57ae8ed14945f4c3e445e0828765a2b535f11"
+    }
+  ]
+}
