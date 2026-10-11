@@ -1433,6 +1433,7 @@ assetInventory?.addEventListener('click', (event) => {
   const previousIndex = [...assetInventory.querySelectorAll('button[data-asset-remove]')].indexOf(button);
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
+  if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';
   applyImportedAssetRoles();
   focusUpdatedInventoryItem(assetInventory, {
     selector: 'button[data-asset-remove]',
