@@ -37,7 +37,6 @@ test('preview stays 16:9 within the active edit workspace, not the source invent
   assert.match(html, /id="previewRefreshBtn"[^>]*aria-label="生成预览帧"/);
   assert.match(legacyCss, /\.subtitle-preview-card \.preview-stage \{[^}]*aspect-ratio: 16 \/ 9;/);
   assert.match(html, /class="editor-column"[\s\S]*id="assetInspectorHost"[\s\S]*class="subtitle-preview-card"/);
-  assert.match(modernCss, /grid-template-areas: "head" "inspector" "editors" "preview" "logs"/);
   assert.match(modernCss, /grid-template-areas: "head" "inspector" "preview" "editors" "logs"/);
 });
 test('narrow layouts keep content-first intake and batch remains separately expandable', async () => {
