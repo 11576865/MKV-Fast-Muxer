@@ -1112,3 +1112,100 @@ body { background: var(--bg); }
   .asset-inventory-head { flex-wrap: wrap; }
   .format-reference[open] { flex-basis: 100%; }
 }
+
+
+/* Recompose narrow screen into genuine work areas. Do not hide/clone inputs
+   globally; CSS visibility is scoped to the phone viewport and the explicit
+   area selected by the native task links. */
+@media (max-width: 600px) {
+  .workspace[data-mobile-view] {
+    display: block !important;
+    min-height: 50dvh;
+    padding-bottom: 24px;
+  }
+  .workspace[data-mobile-view] > .workbench-grid {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .workspace[data-mobile-view] > .stage-input,
+  .workspace[data-mobile-view] > .workbench-grid > .editor-column,
+  .workspace[data-mobile-view] > .workbench-grid > .output-hub,
+  .workspace[data-mobile-view] > .batch-workspace {
+    display: none !important;
+  }
+  .workspace[data-mobile-view="source"] > .stage-input { display: block !important; }
+  .workspace[data-mobile-view="edit"] > .workbench-grid > .editor-column {
+    display: grid !important;
+  }
+  .workspace[data-mobile-view="output"] > .workbench-grid > .output-hub {
+    display: block !important;
+  }
+  .workspace[data-mobile-view="batch"] > .batch-workspace { display: block !important; }
+  .workbench-jump-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    gap: 2px;
+    padding: 3px;
+    background: var(--surface-0);
+    box-shadow: 0 2px 12px rgba(0,0,0,.14);
+  }
+  .workbench-jump-nav a {
+    min-height: 42px;
+    font-weight: 650;
+    color: var(--muted);
+  }
+  .workbench-jump-nav a[aria-selected="true"] {
+    color: var(--text-strong);
+    background: var(--surface-3);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  .stage-input .asset-container-tree { margin-top: 5px; }
+  .stage-input .asset-tree-workspace { gap: 8px; }
+  .stage-input .asset-tree-list { gap: 6px; }
+  .stage-input .asset-tree-row { margin: 0; }
+  .stage-input .asset-tree-index-row { min-height: 46px; }
+  .stage-input .asset-container-tree > summary { padding: 5px 0; }
+  .stage-input .asset-entry[data-kind="container"] { padding: 10px; }
+  .stage-input .asset-container-tree { border-top-color: var(--line); }
+  .editor-column > .asset-inspector-host { scroll-margin-top: 68px; }
+  .editor-column .config-card {
+    border: 0;
+    padding-inline: 0;
+    background: transparent;
+  }
+  .editor-column .track-stack > section:has(> .new-track-list > .track-empty) {
+    display: none;
+  }
+  .editor-column .font-editor { margin-top: 0; }
+  .output-hub .execution-panel .actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .workspace[data-mobile-view="output"] .output-hub .output-summary {
+    margin-top: 12px;
+  }
+  .workspace[data-mobile-view="batch"] .batch-drawer > summary { display: none; }
+  .workspace[data-mobile-view="batch"] .batch-drawer[open] > .batch-layout {
+    display: grid;
+  }
+}
+@media (min-width: 1440px) and (hover: hover) and (pointer: fine) {
+  /* Left = source navigation, middle = chosen object, right = consequential
+     output. The file rail must not visually resemble nested editor cards. */
+  .stage-input .asset-entry[data-kind="container"] {
+    padding: 11px 8px;
+    background: transparent;
+    border-radius: 4px;
+  }
+  .stage-input .asset-tree-index-row { border-radius: 5px; }
+  .editor-column > .asset-inspector-host .asset-tree-inspector {
+    border-color: var(--line-strong);
+  }
+  .editor-column .track-stack > section:has(> .new-track-list > .track-empty) {
+    display: none;
+  }
+  .editor-column .config-card { border: 0; background: transparent; }
+  .editor-column .config-card .card-head { padding-inline: 0; }
+}
