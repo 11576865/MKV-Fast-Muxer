@@ -115,7 +115,7 @@
 
 
 /* Live source-container hierarchy in the unified asset inventory.
-   Container rows read/write the same trackState as the legacy editor. */
+   Container rows read/write the same trackState as the advanced editor. */
 .asset-container-tree,
 .asset-container-pending {
   grid-column: 1 / -1;
@@ -214,7 +214,7 @@
 
 
 /* In-place track ordering and advanced stream dispositions. These are
-   mutations of the same source track objects used by the legacy editor. */
+   mutations of the same source track objects used by the advanced editor. */
 .asset-tree-order-controls {
   display: inline-flex;
   flex: 0 0 auto;
@@ -282,7 +282,7 @@
 
 /* UI structural revision: compact index + one inspector, not one form per
    source stream. The existing batch/preview/editor IDs are preserved. */
-.editor-grid[data-intake-mode="unified"][data-show-legacy-source="false"]:not([data-editor-focus="source"]) > .source-track-card {
+.editor-grid[data-intake-mode="unified"][data-show-advanced-source="false"]:not([data-editor-focus="source"]) > .source-track-card {
   display: none !important;
 }
 
