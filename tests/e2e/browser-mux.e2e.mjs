@@ -1661,6 +1661,7 @@ async function scenarioResponsiveObjectEditor(browser) {
     }
     // mobile two-mode editor and disclosure behavior
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
     assert.equal(await page.locator('[data-editor-filter="source"]').isVisible(), true);
     assert.equal(await page.locator('[data-editor-filter="subtitle"]').isVisible(), false);
@@ -1674,9 +1675,11 @@ async function scenarioResponsiveObjectEditor(browser) {
       return rect.width / rect.height;
     });
     assert.ok(Math.abs(openPreviewRatio - 16 / 9) < .01, `mobile preview ratio: ${openPreviewRatio}`);
+    await page.locator('.workbench-jump-nav a[href="#workbench-output-title"]').click();
     assert.equal(await page.locator('#muxPlan').isVisible(), false);
     await page.locator('#mobilePlanToggle').click();
     assert.equal(await page.locator('#muxPlan').isVisible(), true);
+    await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.locator('[data-editor-filter="source"]').click();
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), true);
     assert.equal(await page.locator('#fontMode').isVisible(), false);
@@ -1686,6 +1689,7 @@ async function scenarioResponsiveObjectEditor(browser) {
     assert.equal(await page.locator('#newSubtitleList').isVisible(), true);
     // mobile all mode excludes source structure; source remains its own mode
     assert.equal(await page.locator('#appendPreserveAll').isVisible(), false);
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
     const mobileIntake = await page.locator('.unified-intake').boundingBox();
     assert.ok(mobileIntake && mobileIntake.width > 250, 'unified intake should remain usable on phones');
     assert.equal(await page.locator('.legacy-source-picker').isVisible(), false);
@@ -1694,6 +1698,7 @@ async function scenarioResponsiveObjectEditor(browser) {
       await page.setViewportSize({ width, height: 1000 });
 
       if (width <= 600) {
+        await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
         await page.waitForFunction(() => {
           const card = document.querySelector('.subtitle-preview-card');
           return card?.dataset.mobileDisclosureInitialized === 'true';
