@@ -125,7 +125,8 @@ async function scenarioMultiTrack(browser) {
     assert.equal(attachments[0].tags?.filename, 'DejaVuSans.ttf');
 
     const report = JSON.parse(await fs.readFile(reportPath, 'utf8'));
-    assert.equal(report.application.version, '1.2.0');
+    const manifest = JSON.parse(await fs.readFile(new URL('../../package.json', import.meta.url), 'utf8'));
+    assert.equal(report.application.version, manifest.version, 'exported report version must match package.json');
     assert.equal(report.compatibility?.state, 'DIRECT_COPY');
     assert.equal(report.compatibility?.execution?.muxSucceeded, true);
     assert.equal(report.compatibility?.playback?.verified, false);

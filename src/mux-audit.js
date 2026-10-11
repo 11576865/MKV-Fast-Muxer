@@ -154,6 +154,62 @@ function compareFormatTags(issues, expected, actual) {
   }
 }
 
+
+const CHAPTER_TIME_TOLERANCE_SECONDS = 0.002;
+
+// ffprobe exposes chapter timestamps in seconds, while Matroska/FFmpeg may
+// quantize their time bases. Do not mistake sub-millisecond remux rounding
+// for a chapter moved by a user-visible amount.
+export function chapterAuditExpectation(chapter) {
+  const expected = {
+    startTime: chapter?.start_time,
+    endTime: chapter?.end_time,
+  };
+  for (const key of ['title', 'language']) {
+    const value = tagValue(chapter?.tags, key);
+    if (value !== undefined) expected[key] = String(value);
+  }
+  // Chapter IDs are assigned by the muxer and are not stable identities.
+  return expected;
+}
+
+function compareChapters(issues, expected, actual) {
+  if (actual.length !== expected.length) {
+    issues.push('章节数量不一致：期望 ' + expected.length + ' 个，实际 ' + actual.length + ' 个。');
+  }
+
+  expected.forEach((chapter, index) => {
+    const output = actual[index];
+    if (!output) {
+      issues.push('章节 #' + (index + 1) + ' 缺失。');
+      return;
+    }
+    for (const [expectedKey, actualKey, label] of [
+      ['startTime', 'start_time', '起点'],
+      ['endTime', 'end_time', '终点'],
+    ]) {
+      if (!hasOwn(chapter, expectedKey)) continue;
+      const sourceTime = Number(chapter[expectedKey]);
+      const outputTime = Number(output[actualKey]);
+      if (!Number.isFinite(sourceTime) || !Number.isFinite(outputTime) ||
+          output[actualKey] == null || output[actualKey] === '' ||
+          Math.abs(sourceTime - outputTime) > CHAPTER_TIME_TOLERANCE_SECONDS + 1e-9) {
+        pushMismatch(issues, '章节 #' + (index + 1) + ' ' + label,
+          chapter[expectedKey] ?? '(缺失)', output[actualKey] ?? '(缺失)');
+      }
+    }
+    for (const key of ['title', 'language']) {
+      if (!hasOwn(chapter, key)) continue;
+      const sourceValue = String(chapter[key] ?? '');
+      const outputValue = String(tagValue(output.tags, key) ?? '');
+      if (sourceValue !== outputValue) {
+        pushMismatch(issues, '章节 #' + (index + 1) + ' ' + key,
+          sourceValue || '(空)', outputValue || '(空)');
+      }
+    }
+  });
+}
+
 function missingFromMultiset(expected, actual) {
   const counts = new Map();
   for (const value of actual) counts.set(value, (counts.get(value) || 0) + 1);
@@ -190,7 +246,9 @@ export function auditMuxProbe(probe, expected) {
   compareTrackGroup(issues, '数据', expected.data, data);
   compareOtherStreams(issues, expected.otherStreams, otherStreams);
 
-  if (Number.isInteger(expected.chapterCount) && chapters.length !== expected.chapterCount) {
+  if (Array.isArray(expected.chapters)) {
+    compareChapters(issues, expected.chapters, chapters);
+  } else if (Number.isInteger(expected.chapterCount) && chapters.length !== expected.chapterCount) {
     issues.push(`章节数量不一致：期望 ${expected.chapterCount} 个，实际 ${chapters.length} 个。`);
   }
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { auditMuxProbe } from '../src/mux-audit.js';
+import { auditMuxProbe, chapterAuditExpectation } from '../src/mux-audit.js';
 
 test('audit validates codecs, metadata, chapters and attachment filenames', () => {
   const probe = {
@@ -180,4 +180,69 @@ test('audit preserves otherwise unclassified source stream types', () => {
 
   assert.equal(result.ok, true, result.issues.join('\n'));
   assert.equal(result.counts.other, 1);
+});
+
+
+test('chapter audit detects timing drift even when chapter count stays the same', () => {
+  const source = [
+    { id: 3, start_time: '0.000000', end_time: '12.345000', tags: { title: 'Opening', LANGUAGE: 'eng' } },
+    { id: 4, start_time: '12.345000', end_time: '24.000000', tags: { title: 'Main part' } },
+  ];
+  const expected = { video: [{ codec: 'h264' }], chapters: source.map(chapterAuditExpectation) };
+  const result = auditMuxProbe({
+    streams: [{ codec_type: 'video', codec_name: 'h264' }],
+    chapters: [
+      { id: 1, start_time: '0.000000', end_time: '12.345000', tags: { title: 'Opening', language: 'eng' } },
+      { id: 2, start_time: '12.370000', end_time: '24.000000', tags: { title: 'Main part' } },
+    ],
+  }, expected);
+
+  assert.equal(result.ok, false);
+  assert.match(result.issues.join('\n'), /章节 #2 起点/);
+  assert.equal(result.issues.some((issue) => issue.includes('章节数量不一致')), false);
+});
+
+test('chapter audit verifies source titles and language regardless of ffprobe tag casing', () => {
+  const source = { start_time: '0', end_time: '5', tags: { TITLE: 'Opening', LANGUAGE: 'jpn' } };
+  const expected = { chapters: [chapterAuditExpectation(source)], videoMin: 0 };
+  const good = auditMuxProbe({
+    streams: [],
+    chapters: [{ start_time: '0', end_time: '5', tags: { title: 'Opening', language: 'jpn' } }],
+  }, expected);
+  assert.equal(good.ok, true, good.issues.join('\n'));
+
+  const changed = auditMuxProbe({
+    streams: [],
+    chapters: [{ start_time: '0', end_time: '5', tags: { title: 'Outro', language: 'eng' } }],
+  }, expected);
+  assert.equal(changed.ok, false);
+  assert.match(changed.issues.join('\n'), /章节 #1 title/);
+  assert.match(changed.issues.join('\n'), /章节 #1 language/);
+});
+
+test('chapter remux audit permits small timestamp quantization and ignores reassigned chapter IDs', () => {
+  const source = {
+    id: 8, start_time: '1.000000', end_time: '4.125000', tags: { title: 'Part A' },
+  };
+  const result = auditMuxProbe({
+    streams: [],
+    chapters: [{ id: 1, start_time: '1.001000', end_time: '4.124000', tags: { TITLE: 'Part A' } }],
+  }, { videoMin: 0, chapters: [chapterAuditExpectation(source)] });
+  assert.equal(result.ok, true, result.issues.join('\n'));
+});
+
+test('chapter audit rejects a missing timestamp and extra chapters', () => {
+  const expected = { videoMin: 0, chapters: [chapterAuditExpectation({ start_time: '0', end_time: '3' })] };
+  const missingTime = auditMuxProbe({
+    streams: [], chapters: [{ start_time: '0', tags: {} }],
+  }, expected);
+  assert.match(missingTime.issues.join('\n'), /章节 #1 终点/);
+
+  const extra = auditMuxProbe({
+    streams: [], chapters: [
+      { start_time: '0', end_time: '3' },
+      { start_time: '3', end_time: '4' },
+    ],
+  }, expected);
+  assert.match(extra.issues.join('\n'), /章节数量不一致/);
 });

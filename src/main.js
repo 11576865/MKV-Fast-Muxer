@@ -5,7 +5,7 @@ import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
-import { auditMuxProbe } from './mux-audit.js';
+import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
   audioIdentityFromProbe,
@@ -3825,6 +3825,7 @@ muxBtn.addEventListener('click', async () => {
             })),
           ],
       chapterCount: inputProbe.chapters.length,
+      chapters: inputProbe.chapters.map(chapterAuditExpectation),
       formatTitle: inputProbe.format?.tags?.title || '',
       formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
       attachmentCount: expectedOriginalAttachments.length + expectedFontAttachments.length,
@@ -3881,7 +3882,7 @@ muxBtn.addEventListener('click', async () => {
     );
 
     const report = createMuxReport({
-      appVersion: '1.2.0',
+      appVersion: '1.2.2',
       input: {
         name: video.name,
         sizeBytes: video.size,
