@@ -58,7 +58,7 @@ export function buildOutputComposition({
             `${label(stream.codec_name, kind)} #${item.index}`);
         items.push({
           id: `source:${kind}:${item.index}`,
-          kind: kind === 'attachment' ? 'font' : kind,
+          kind,
           title,
           detail: [
             label(stream.codec_name, kind),
@@ -104,7 +104,7 @@ export function buildOutputComposition({
     });
   }
 
-  const counts = { video: 0, audio: 0, subtitle: 0, font: 0, source: 0 };
+  const counts = { video: 0, audio: 0, subtitle: 0, font: 0, attachment: 0, source: 0 };
   for (const item of items) {
     if (item.included) counts[item.kind] = (counts[item.kind] || 0) + 1;
   }
