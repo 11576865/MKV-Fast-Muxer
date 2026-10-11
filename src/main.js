@@ -1378,9 +1378,14 @@ assetInventory?.addEventListener('click', (event) => {
     const reselected = [...assetInventory.querySelectorAll('button[data-tree-select]')]
       .find((button) => button.dataset.treeSelect === targetKey);
     reselected?.focus({ preventScroll: true });
-    // At stacked widths the inspector is below the source list. Bring the
-    // active editor into view while keeping list focus for further navigation.
-    if (matchMedia('(max-width: 1439px)').matches) {
+    if (matchMedia('(max-width: 600px)').matches) {
+      // Phone: one work area at a time. Selecting a track opens its *existing*
+      // inspector; no secondary editor or copied form is instantiated.
+      const editorTab = document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]');
+      editorTab?.click();
+      assetInspectorHost?.querySelector('input:not([disabled]), select:not([disabled]), button:not([disabled])')
+        ?.focus({ preventScroll: true });
+    } else if (matchMedia('(max-width: 1439px)').matches) {
       assetInspectorHost?.scrollIntoView({ block: 'nearest' });
     }
     return;
