@@ -1916,7 +1916,7 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const tree = page.locator('.asset-container-tree');
     await tree.waitFor({ state: 'visible' });
     assert.match(await page.locator('.asset-entry[data-kind="container"] .asset-entry-type').textContent(),
-      /内部结构已扫描/, 'file identity label must reflect the completed actual source probe');
+      /已扫描/, 'file identity label must reflect the completed actual source probe');
     await tree.locator('[data-tree-preserve-all]').uncheck();
     const audioRows = tree.locator('[data-tree-group="audio"] .asset-tree-row');
     assert.equal(await audioRows.count(), 2);
