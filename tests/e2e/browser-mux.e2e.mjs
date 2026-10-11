@@ -2335,7 +2335,7 @@ async function scenarioRenamedMediaIdentity(browser) {
       return text.includes('Matroska / MKV') && text.includes('扩展名 .mp4');
     });
 
-    assert.equal(await page.locator('#scanTracksBtn').isEnabled(), true);
+    await page.waitForFunction(() => !document.querySelector('#scanTracksBtn')?.disabled);
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
     await waitForStatus(page, '轨道扫描完成：');
 
