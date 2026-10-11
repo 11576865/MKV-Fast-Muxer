@@ -38,3 +38,11 @@ test('batch-specific UI owns its style rules in workbench.css, not global legacy
   assert.match(css, /\.intake-runtime-adapters\[hidden\] \{ display: none !important; \}/);
   assert.ok(js.indexOf("import './style.css'") < js.indexOf("import './workbench.css'"));
 });
+
+test('recognized batch assets show concise state while unsupported assets retain diagnosis', async () => {
+  const main = await source('src/main.js');
+  assert.match(main, /const diagnosis = supported \? state : \[state, entry\.detail\]\.filter\(Boolean\)\.join\(' · '\)/);
+  assert.match(main, /\$\{escapeHtml\(diagnosis\)\}/);
+  assert.match(main, /'批量不支持独立音频'/);
+  assert.doesNotMatch(main, /视频轨待预检|进入配对预检/);
+});
