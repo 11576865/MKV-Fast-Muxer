@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-ui-redraw-legacy-intake",
   "goal": "Redraw MKV-Fast-Muxer content-first UI, remove obsolete visible single-task and batch categorized intake, preserve all existing mux/editor/export contracts and repair CI failures.",
-  "status": "ci-failure-repaired-validation-pending",
-  "current_bounded_work_unit": "Reconcile first CI failure (five stale categorized-intake test oracles) while retaining visible format guidance and internal adapter assertions",
+  "status": "legacy-css-cleanup-submitted-validation-pending",
+  "current_bounded_work_unit": "Retired 115 obsolete global CSS declarations plus mixed orphan alternatives, with negative regression test; new exact-head CI pending",
   "completed_units": [
     "Grounded UI source inventory and identified obsolete visible category forms versus live executor adapters.",
     "Rebuilt workspace overview, shell tokens, source/editor/output visual hierarchy and responsive task navigation.",
@@ -12,7 +12,9 @@
     "Updated layout and browser regression tests, UIGS UI surface inventory and capture specs.",
     "Investigated first exact-head CI: 197 Node tests, 192 pass, 5 fail on legacy UI source-shape oracles before Chromium execution.",
     "Added truthful user-visible content identification and subtitle-format guidance; updated 1.2.1 test to require unified batch UI and all six nonvisual adapters.",
-    "Nine targeted source-contract assertions pass; registered Phase 9 stale-oracle evidence in UIGS Foundry existing Candidate."
+    "Nine targeted source-contract assertions pass; registered Phase 9 stale-oracle evidence in UIGS Foundry existing Candidate.",
+    "Cross-checked old categorized-input CSS tokens against current index.html and src JS ownership. Removed 115 isolated obsolete rules and final mixed orphan selectors (more than 11 KB).",
+    "Added stylesheet/source regression asserting no removed categorized controls or orphan selectors survive."
   ],
   "next_units": [
     "Read next exact-head Node/Chromium/Pages CI once; if pending report Pending External Validation, if red inspect the direct failure and repair in a fresh bounded unit.",
@@ -22,16 +24,16 @@
   ],
   "branch": "ui/unified-workbench-redraw-legacy-cleanup",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/73",
-  "latest_durable_commit": "163df46dad29eb109ce5846ad3a58bf725f77f2b",
+  "latest_durable_commit": "39f4e5779bd9f3fef52966bdc96d9eba52495a4c",
   "external_validation": {
-    "node_unit": "previous head 8073997d failed 5 obsolete source-oracle tests; repaired new head pending",
-    "browser_e2e": "previous head blocked by Node test stage; repaired new head pending",
-    "pages_build": "previous head blocked by Node test stage; repaired new head pending",
-    "manual_visual_review": "pending populated 1440px and 390px artifact inspection"
+    "node_unit": "previous head 5671a4d8 passed 197/197 and production build",
+    "browser_e2e": "previous head 5671a4d8 blocked in tool-install step; exact CSS-cleanup head pending",
+    "pages_build": "previous head 5671a4d8 passed; latest CSS-cleanup head pending",
+    "manual_visual_review": "old baseline screenshots inspected; latest populated 1440px and 390px pending"
   },
   "blockers": [
-    "CI for repaired code is not yet proven green",
-    "Actual rendered populated UI evidence not yet reviewed"
+    "Exact latest-head full CI pending after orphan CSS cleanup",
+    "Actual rendered updated design screenshots remain uninspected"
   ],
-  "updated_at": "2026-10-11T06:40:00Z"
+  "updated_at": "2026-10-11T06:58:00Z"
 }
