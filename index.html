@@ -93,6 +93,17 @@
             <div id="assetDropzone" class="asset-dropzone" tabindex="0" role="button" aria-label="点击或拖放文件导入">
               <strong>拖放文件到这里</strong>
             </div>
+            <section id="outputCompositionPanel" class="output-composition" aria-labelledby="composition-title" hidden>
+              <header class="composition-head">
+                <h3 id="composition-title">MKV 轨道</h3>
+                <span id="compositionCount" class="composition-count" aria-live="polite"></span>
+              </header>
+              <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
+              <div id="compositionChanges" class="composition-changes" hidden></div>
+              <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
+            </section>
+            <details id="sourceFilesDetails" class="source-files-details">
+              <summary>来源文件与识别</summary>
             <div class="asset-inventory-head">
               <strong>资源</strong>
               <span id="assetImportStatus" role="status" aria-live="polite">0 文件</span>
@@ -101,6 +112,7 @@
             <div id="assetInventory" class="asset-inventory" aria-label="导入资源清单">
               <div class="track-empty">暂无文件</div>
             </div>
+            </details>
           </section>
 
           <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->
