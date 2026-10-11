@@ -1184,7 +1184,7 @@ async function scenarioUnifiedBatchContentIntake(browser) {
     await page.waitForFunction(() => {
       const count = document.querySelectorAll('#batchAssetInventory .asset-entry').length;
       const status = document.querySelector('#batchAssetStatus')?.textContent || '';
-      return count === 4 && status.includes('1 项不可使用');
+      return count === 4 && status.includes('1 不可用');
     }, null, { timeout: 120_000 });
     assert.deepEqual(await page.locator('#batchAssetInventory .asset-entry').evaluateAll(items =>
       items.map(item => item.dataset.kind)
