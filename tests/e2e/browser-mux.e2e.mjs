@@ -1225,7 +1225,10 @@ async function scenarioUnifiedBatchContentIntake(browser) {
       animations: 'disabled',
     });
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.workbench-jump-nav a[href="#batch-title"]').click();
     await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('.batch-workspace').isVisible(), true);
+    assert.equal(await page.locator('.stage-input').isVisible(), false);
     assert.equal(await page.locator('#batchAssetInventory .asset-entry').count(), 3);
     await page.locator('.batch-unified-intake').screenshot({
       path: path.join(outDir, 'mkv-container-tree-batch-phone-390.png'),
