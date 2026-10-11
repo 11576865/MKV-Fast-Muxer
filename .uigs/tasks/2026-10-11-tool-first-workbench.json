@@ -19,8 +19,8 @@
     "Merge only after browser/Node visual acceptance and then update task to complete."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
-  "pr": null,
-  "latest_durable_commit": "5ca7004e2c8f0bbfa1d3d20de48278213e1cf6c3",
+  "pr": 74,
+  "latest_durable_commit": "7990d1ca825e0cb86d1cfa3b7a8fcbe65833fb9c",
   "external_validation": {
     "node": "pending exact-head CI",
     "browser_e2e": "pending exact-head CI",
