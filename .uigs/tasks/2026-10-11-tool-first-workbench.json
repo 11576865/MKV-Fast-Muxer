@@ -10,7 +10,8 @@
     "Retained runtime input and execution IDs; new visible source/editor/output headings are 文件, 轨道, 输出; batch remains a separate disclosure.",
     "Replaced import and batch explanatory paragraphs with direct file/folder controls and drop cue; moved compatibility formats into collapsed details.",
     "Moved primary MKV export action ahead of passive metadata; removed static codec claims and redundant placeholder copy.",
-    "Added first-fold desktop/mobile browser assertions and action-first source contracts; static source IDs, balanced HTML sections and CSS braces checked."
+    "Added first-fold desktop/mobile browser assertions and action-first source contracts; static source IDs, balanced HTML sections and CSS braces checked.",
+    "Shortened initial subtitle, source-track, preview and batch empty-state copy after primary restructuring."
   ],
   "next_units": [
     "Read CI for exact PR head once after opening PR; if failing, repair visible direct errors in next bounded unit.",
@@ -20,16 +21,17 @@
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "7990d1ca825e0cb86d1cfa3b7a8fcbe65833fb9c",
+  "latest_durable_commit": "08a147cbdc1ede1bede35c1df52531e77c7ef6bf",
   "external_validation": {
     "node": "pending exact-head CI",
     "browser_e2e": "pending exact-head CI",
     "visual": "pending actual new screenshots",
-    "static": "source-level layout and contract scan passed"
+    "static": "Targeted structural invariants verified for unique IDs, no overview DOM/CSS, balanced section/div/details tags and responsive CSS."
   },
   "blockers": [
     "Exact-head Node/Chromium CI pending",
     "Populated screenshots after redesign not yet reviewed"
   ],
-  "updated_at": "2026-10-11"
+  "updated_at": "2026-10-11",
+  "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md"
 }
