@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "object-editor-single-owner-awaiting-chromium-evidence",
-  "current_bounded_work_unit": "Repair focus assertion API and eliminate duplicate source track editor on selected MKV stream without changing source scan/safety or FFmpeg domain state.",
+  "status": "output-composition-projection-implemented-pending-ci-and-ui-integration",
+  "current_bounded_work_unit": "Issue #75 step 1: introduce a pure, non-editable output composition projection from the existing authoritative domain models, with stable identity, append safety and negative tests; do not falsely claim the rendered UI is replaced.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -29,13 +29,18 @@
     "PR #74 latest prior head 052189ed68e3be2836e9e8adb6b494737433ba61: Pages success, 204/204 Node pass; browser failed in newly added object focus E2E because Playwright Locator.isFocused is unsupported (TypeError), not yet a product failure.",
     "Replaced three browser focus assertions with locator.evaluate(el => el === document.activeElement), retaining correct expected keyboard focus rather than weakening assertions.",
     "Selecting an existing MKV track activates the source category in the existing editor and leaves the single inspector as the track metadata owner. Normal source mode retains scan and preserve-all controls but hides duplicate full #trackList / #attachmentList and batch edits; explicit advanced mode still reveals the full former editor.",
-    "Added Node source contract and updated actual browser assertions for source selection, inspector ownership, and preservation of source controls."
+    "Added Node source contract and updated actual browser assertions for source selection, inspector ownership, and preservation of source controls.",
+    "2026-10-12: reviewed Issue #75 and original model. Identified that the UI currently repeats source streams in import container tree, central inspector and read-only mux plan; tool-first text changes did not change work-object authority.",
+    "2026-10-12: implemented src/output-composition.js, a pure display projection of source stream/attachment scan, existing edit-state arrays, pending source file and selected fonts. Stable IDs and source targets, no remounted inputs, no executable command duplication; chapter/metadata do not masquerade as output tracks.",
+    "2026-10-12: added eight output-composition Node tests for empty source, unverified media, scanned MKV source, append-only override, selective deletion and stable reorder identities, ASS-like font policy, unsupported inputs, and purity.",
+    "2026-10-12: repaired stale Chromium batch test oracle that expected the previous long '1 项不可使用' phrase after actual batch status became '1 不可用'; batch-start blocking remains tested."
   ],
   "next_units": [
-    "Read the next exact-head Node and Chromium browser E2E results; fix actual failing source/layout/focus assertions, not remove coverage.",
-    "Inspect actual 1440/390 browser screenshots for object selection/edit work area, source controls, export and batch legibility.",
-    "Do not merge until exact-head browser, source-to-editor focus, mux and audit all pass and UI evidence is approved.",
-    "After acceptance, design true output-composition primary object in a distinct bounded next unit as requested by issue #75; avoid prematurely treating three-stage organization as final."
+    "Read exact new-head Node/Chromium/Pages CI and repair any failures without weakening content/safety assertions.",
+    "Integrate the authoritative buildOutputComposition projection into one primary visible output-track list; replace rather than duplicate the import tree / detail-plan UI. A selected row must route to one existing editor with stable identity, including external subtitle and audio.",
+    "On phone, remove mandatory four-tab hopping for one mux task; keep MKV export action reachable while source/edit panel is open and retain keyboard/focus/selection across 390→1440→390.",
+    "Cover actual 320/390/900/1440/1600 viewport, source-only MKV, append safety, exclusion, batch, cancellation, external audio, subtitles, fonts and post-mux audit; do not merge without real screenshots.",
+    "Merge/supersede PR #74 only on full visual and browser acceptance; otherwise report Pending with exact blockers."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
@@ -44,15 +49,19 @@
     "node": "previous head 204/204 pass, latest head pending",
     "pages": "previous head success, latest pending",
     "browser_e2e": "previous head failed due unsupported test Locator.isFocused, latest pending",
-    "visual": "previous screenshot evidence does not cover new selected stream mode",
+    "visual": "previous rendered screenshots do not cover a composition-first UI; pending",
     "status": "external-validation-pending",
-    "scope": "UI/navigation/selected inspector; FFmpeg, state models and post-mux audit unchanged"
+    "scope": "UI/navigation/selected inspector; FFmpeg, state models and post-mux audit unchanged",
+    "last_failed_head": "04ecc5585599fd1e5caab4945d344c3d859eb401: Chromium scenarioUnifiedBatchContentIntake timed out on stale status substring; actual Node tests passed up to browser start",
+    "current_head": "pending exact-head checks for source-only output composition module"
   },
   "blockers": [
-    "Exact-head Chromium validation pending after focus assertion and selected-track single-owner CSS change",
-    "New actual rendered screenshots unreviewed",
-    "User has not accepted PR #74 architecture as final"
+    "Output-composition model not yet wired into visible UI (Issue #75 staged rollout)",
+    "Current exact-head Node/Chromium validation pending",
+    "PR #74 overall UI still not accepted, do not merge"
   ],
-  "updated_at": "2026-10-11",
-  "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md"
+  "updated_at": "2026-10-12",
+  "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md",
+  "issue": 75,
+  "foundry_candidate": "11576865/UIGS-Foundry/inbox/candidates/2026-10-10-mkv-content-first-intake-metadata-role-separation.md"
 }
