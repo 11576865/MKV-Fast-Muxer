@@ -50,7 +50,8 @@ test('preview is explicitly on-demand rather than auto-started', async () => {
   ]);
 
   assert.match(html, /生成预览帧/);
-  assert.match(html, /按需生成/);
+  assert.match(html, /id="previewRefreshBtn"[^>]*type="button"[^>]*disabled[^>]*aria-label="生成预览帧"/);
+  assert.doesNotMatch(html, /自动开始预览/);
   assert.match(main, /previewRefreshBtn\?\.addEventListener\('click', refreshSubtitlePreview\)/);
   assert.doesNotMatch(main, /scheduleSubtitlePreview/);
   assert.match(main, /choosePreviewFrameTime/);
