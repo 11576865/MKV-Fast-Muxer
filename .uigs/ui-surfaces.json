@@ -4,16 +4,40 @@
   "repository": "11576865/MKV-Fast-Muxer",
   "platform": "web",
   "authority": "this repository",
-  "surface_count": 12,
+  "surface_count": 13,
   "surfaces": [
+    {
+      "id": "MKV.STAGE.OVERVIEW",
+      "kind": "navigation",
+      "name": "统一工作流程概览",
+      "group": "FLOW",
+      "status": "implemented",
+      "intent": "在资源导入前明确展示本地执行、Stream Copy 和 MKV-only 输出约束，并提供识别→编辑→验证的任务心智模型。",
+      "implementation_effect": "语义化独立 overview 区域采用响应式步骤结构；原生区段锚点与键盘导航保持独立可用。",
+      "source_refs": [
+        {
+          "path": "index.html",
+          "anchor": ".workspace-overview"
+        },
+        {
+          "path": "src/workbench.css",
+          "anchor": ".workspace-overview"
+        }
+      ],
+      "patterns": [],
+      "tests": [
+        "tests/workbench-shell.test.mjs"
+      ],
+      "visual_evidence": []
+    },
     {
       "id": "MKV.STAGE.INPUT",
       "kind": "stage",
-      "name": "输入",
+      "name": "统一媒体导入与资源清单",
       "group": "FLOW",
       "status": "implemented",
-      "intent": "选择视频、字幕、字体等输入资源。",
-      "implementation_effect": "作为三阶段层级的第一阶段，输入资源与后续调整/封装分离。",
+      "intent": "对导入文件做内容识别，呈现主容器、字幕、音频、字体及不能使用的项目，再允许选择源和编辑对象。",
+      "implementation_effect": "只呈现统一资源导入与结构化清单；分类文件输入仅作为隐藏执行适配节点保留。",
       "source_refs": [
         {
           "path": "index.html",
@@ -223,8 +247,8 @@
       "name": "批量工作区",
       "group": "BATCH",
       "status": "implemented",
-      "intent": "对多输入执行批量封装。",
-      "implementation_effect": "批量来源按视频、字幕、字体分 cluster，和单任务三阶段流分离。",
+      "intent": "在统一批量导入清单中识别媒体资源，自动配对并审计输出。",
+      "implementation_effect": "批量输入使用与单任务一致的内容识别清单；旧分类文件输入仅为不可视执行适配器，配对设置和批处理状态保留。",
       "source_refs": [
         {
           "path": "index.html",
