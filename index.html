@@ -152,7 +152,7 @@
                 <button id="previewRefreshBtn" class="icon-button icon-button-accent" type="button" disabled aria-label="生成预览帧" title="生成预览帧"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7L8 5Z"/></svg></button>
               </div>
               <div id="previewFooter" class="preview-footer">
-                <span id="previewStatus" aria-live="polite">等待视频与 ASS / SSA。</span>
+                <span id="previewStatus" aria-live="polite">未生成预览</span>
                 
               </div>
             </section>
@@ -188,7 +188,7 @@
                   <section data-object-panel="subtitle" aria-label="新增字幕属性">
                     <div class="subsection-label">字幕</div>
                     <div id="newSubtitleList" class="new-track-list">
-                      <div class="track-empty">添加字幕后编辑语言、标题与轨道标记。</div>
+                      <div class="track-empty">暂无字幕</div>
                     </div>
                   </section>
                   <section data-object-panel="audio" aria-label="外部音频属性">
@@ -239,7 +239,7 @@
                 <input id="preserveAttachments" type="checkbox" hidden disabled />
 
                 <div id="trackList" class="track-list container-inventory">
-                  <div class="track-empty">选择 MKV 后自动读取容器内容。</div>
+                  <div class="track-empty">暂无轨道</div>
                 </div>
                 <div id="attachmentList" class="attachment-list container-inventory-tail"></div>
 
@@ -351,7 +351,7 @@
             </div>
             <div class="batch-status-chip">
               <span class="runtime-dot" aria-hidden="true"></span>
-              <span id="batchStatus" class="status" aria-live="polite">批量任务未开始。</span>
+              <span id="batchStatus" class="status" aria-live="polite">待命</span>
             </div>
           </header>
 
@@ -378,7 +378,7 @@
                 </div>
                 <div class="asset-inventory-head">
                   <strong>批量资源</strong>
-                  <span id="batchAssetStatus" role="status" aria-live="polite">尚未导入</span>
+                  <span id="batchAssetStatus" role="status" aria-live="polite">0 文件</span>
                 </div>
                 <div id="batchAssetInventory" class="asset-inventory" aria-label="批量内容识别清单">
                   <div class="track-empty">暂无文件</div>
