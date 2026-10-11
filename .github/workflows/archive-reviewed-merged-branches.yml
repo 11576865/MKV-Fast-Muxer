@@ -1,0 +1,46 @@
+name: One-time reviewed merged-PR branch archive
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/archive_reviewed_merged_branches.py'
+      - 'scripts/test_archive_reviewed_merged_branches.py'
+      - 'docs/branch-archive-allowlist-2026-10-11.json'
+      - '.github/workflows/archive-reviewed-merged-branches.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/archive-reviewed-merged-branches.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mkv-reviewed-merged-pr-archive
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  safety-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise branch eligibility and archive safety guards
+        run: python3 -m unittest scripts.test_archive_reviewed_merged_branches -v
+
+  archive:
+    needs: safety-tests
+    if: github.repository == '11576865/MKV-Fast-Muxer' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Archive exact reviewed heads, then delete only via SHA lease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/archive_reviewed_merged_branches.py --apply
