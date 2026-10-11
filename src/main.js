@@ -178,6 +178,7 @@ const mobilePreviewToggle = $('mobilePreviewToggle');
 const mobilePlanToggle = $('mobilePlanToggle');
 const previewCard = document.querySelector('.subtitle-preview-card');
 const planPanel = document.querySelector('.output-section.plan-panel');
+const fullMuxPlanDetails = $('fullMuxPlanDetails');
 
 document.documentElement.dataset.theme = 'dark';
 document.documentElement.dataset.themePreference = 'dark';
@@ -228,7 +229,14 @@ mobilePreviewToggle?.addEventListener('click', () => {
 
 mobilePlanToggle?.addEventListener('click', () => {
   planPanel.dataset.mobileCollapsed = planPanel.dataset.mobileCollapsed === 'true' ? 'false' : 'true';
+  if (fullMuxPlanDetails) fullMuxPlanDetails.open = planPanel.dataset.mobileCollapsed === 'false';
   applyResponsiveDisclosureState();
+});
+fullMuxPlanDetails?.addEventListener('toggle', () => {
+  if (phoneLayoutQuery.matches) {
+    planPanel.dataset.mobileCollapsed = fullMuxPlanDetails.open ? 'false' : 'true';
+    applyResponsiveDisclosureState();
+  }
 });
 
 phoneLayoutQuery.addEventListener?.('change', applyResponsiveDisclosureState);
