@@ -111,7 +111,8 @@ def validate_manifest(manifest):
 
 
 def q(value):
-    return urllib.parse.quote(value, safe="")
+    # GitHub REST wildcard ref paths contain real slash-separated components.
+    return urllib.parse.quote(value, safe="/")
 
 
 def is_ancestor(api, earlier, later):
