@@ -2,8 +2,8 @@
   "schema_version": 1,
   "id": "2026-10-11-tool-first-workbench",
   "goal": "Replace explanation-first MKV UI with self-explanatory direct file/track/export affordances; reduce unnecessary copy while preserving mux/batch/preview interfaces and validating real desktop/mobile views.",
-  "status": "mobile-work-areas-implemented-pending-exact-ci",
-  "current_bounded_work_unit": "Replace long mobile single-page stack with source/edit/output/batch work areas, automatic source-track inspector handoff, and desktop inspector-preview-secondary-settings hierarchy.",
+  "status": "object-centric-navigation-implemented-awaiting-external-validation",
+  "current_bounded_work_unit": "Unify resource choice and property editing across physical assets; constrain selected inspector to central grid; preserve single source of edit state.",
   "completed_units": [
     "Inspected production-rendered 1440px and 390px screenshots from merged PR #73; observed hero pushing mobile file action below first viewport and occupying desktop tool space.",
     "Removed all explanatory hero DOM and 26 related CSS rules; retired overview-specific UIGS surface and two overview screenshots.",
@@ -21,28 +21,34 @@
     "Phone navigation now projects only the selected source/edit/output/batch stage without rebuilding DOM; native anchors retain keyboard/hash behavior and live input/editor/mux states. Batch tab opens the existing native drawer.",
     "Clicking a source track at phone width opens the single active inspector. Source cards remain browsing/navigation; export is accessible in one tab selection.",
     "Desktop central stage now orders active inspector → subtitle preview → secondary settings, and empty new-track placeholders are hidden on desktop/phone while underlying controls remain mounted.",
-    "Added independent Node navigation and work-area source tests; reworked E2E to cover actual phone tab switching, viewport screenshots for editor and export, batch tab, source-to-editor handoff and a race-safe source scan readiness assertion."
+    "Added independent Node navigation and work-area source tests; reworked E2E to cover actual phone tab switching, viewport screenshots for editor and export, batch tab, source-to-editor handoff and a race-safe source scan readiness assertion.",
+    "2026-10-11 evening: re-evaluated actual domain workflow and repeated selection: source browser, source-tree inspector, external asset metadata form and mux plan must not behave as independent unrelated stages.",
+    "CI regression before this unit: PR #74 head aec4a7bc53fe0da3a8476a3c022d8fc0d230209d had 203/203 Node tests PASS and Chromium failed in scenarioUnifiedWorkBenchZones at central inspector spatial boundary (line ~2105), despite successful Pages build. Exact rectangle debug added to assertion.",
+    "Added selected inspector min-width/width/border-box containment; linked subtitle/audio/font resource rows to their existing stateful editor controls (fileKey-matched row), preserving single input owner, keyboard focus and mobile editor view. Clear focus on remove.",
+    "Added true-browser mixed-media selection assertions and source resource-to-editor Node regression; wrote docs/mkv-object-centric-ui-contract-2026-10-11.md for the new bounded object model, not a claim of accepted visuals."
   ],
   "next_units": [
-    "Run latest-head Node, Pages build and full Chromium E2E; if a concrete new failure is visible, use one bounded repair and re-push.",
-    "Inspect the new screenshots for 390px source/editor/export and batch, plus 1440px desktop hierarchy and 320px overflow where possible.",
-    "Merge only after exact-head Node/browser and visual acceptance, then verify main CI and branch hygiene."
+    "Read exact-head Pages/Node/Chromium CI. If inspector spatial regression remains, use the printed rectangle metrics and repair the actual bounding CSS, not the threshold.",
+    "Verify 1440/1600px editor containment and 390px source->subtitle/audio/font editor focus, plus preserved stream-copy output and post-mux audit.",
+    "Inspect new screenshot artifact for mobile source/edit/output/batch and desktop; merge only after green and usable visuals.",
+    "Evaluate further consolidation of redundant object panels only after actual visual evidence."
   ],
   "branch": "ui/tool-first-direct-manipulation-20261011",
   "pr": 74,
-  "latest_durable_commit": "6dcf0ddfd4121bcde916256f6fffdf58abf790d7",
+  "latest_durable_commit": "d54e048e63a60c14a1208bdeffc15442b0b990e0",
   "external_validation": {
-    "old_green_head": "c5ce99eba938af0fb2b4898a3530583121f3f6bd",
-    "old_red_head": "ad7d72ce188215a9f2b8025f8964c4b5bcde40fa: 201/201 Node PASS, Browser FAIL on media source scan readiness race in scenario 34",
-    "current_head": "pending latest head verification",
-    "visual": "previous six screenshots inspected; new mobile work-area images pending new CI",
-    "node": "pending",
-    "browser": "pending",
-    "pages": "pending"
+    "node": "pending on latest object navigation head",
+    "pages": "pending on latest object navigation head",
+    "browser_e2e": "pending (previous head was red on inspector rectangle)",
+    "visual": "pending new screenshot inspection",
+    "last_failed_job": "38134061521",
+    "previous_node": "203/203 pass (previous head only)",
+    "scope": "UI/interaction only; mux engine and audit source unchanged"
   },
   "blockers": [
-    "Latest-head Node/Chromium E2E not yet validated after functional mobile navigation change",
-    "Mobile source/editor/output screenshots not yet inspected"
+    "New exact-head Chromium browser mux tests pending",
+    "Inspector geometry and direct resource-to-editor navigation not yet verified by running Chromium",
+    "New screenshot set unreviewed"
   ],
   "updated_at": "2026-10-11",
   "foundry_observation": "11576865/UIGS-Foundry/inbox/observations/2026-10-11-mkv-billboard-displaced-first-action.md"
