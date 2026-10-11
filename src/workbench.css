@@ -22,6 +22,11 @@
   font-size: .72rem;
   max-width: 650px;
 }
+.unified-intake-head .intake-format-note {
+  margin-top: 6px;
+  color: var(--muted-2);
+  font-size: .69rem;
+}
 .unified-intake-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .intake-picker {
   position: relative;
