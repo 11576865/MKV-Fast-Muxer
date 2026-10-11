@@ -28,6 +28,24 @@ retain the same source/editor/output lifecycle.
   dynamic state attributes.
 - Duplicate uploader instructions superseded by unified drop-target guidance.
 
+## Verified CSS retirement
+
+A selector-ownership scan across `index.html` and current `src/*.js`
+found no runtime HTML/class assignment for the removed `source-grid`,
+`source-item`, `source-strip`, `batch-picker`, `batch-source-cluster`
+or related categorized import card classes. The similarly named
+`source-video` / `source-audio` values in `compatibility.js` are
+**domain evidence strings**, not CSS classes.
+
+The global `src/style.css` now drops **115 exclusively orphaned CSS
+rules** (over 11 KB) plus remaining selectors in mixed rule groups,
+while preserving live selectors such as `.config-grid`, `.batch-queue`
+and `.output-summary .manifest`. The modern workbench stylesheet
+retains no orphaned category-card rules. A source regression checks both
+stylesheets and the public HTML for reintroduced categorized import CSS.
+This is a targeted deletion, **not** a blanket rewrite of all remaining
+global editor styling.
+
 ## What remains intentionally
 
 FFmpeg.js and the existing source/batch flow still use stable DOM IDs such as
