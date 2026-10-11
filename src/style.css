@@ -1245,8 +1245,7 @@ pre {
     gap: 7px;
   }
 
-  .source-grid,
-  .config-grid,
+.config-grid,
   .control-row,
   .workbench-side {
     grid-template-columns: 1fr;
@@ -2090,8 +2089,7 @@ pre {
     text-align: left;
   }
 
-  .source-grid,
-  .editor-grid,
+.editor-grid,
   .output-summary .manifest {
     grid-template-columns: 1fr;
   }
@@ -2312,8 +2310,7 @@ pre {
 }
 
 @media (max-width: 559px) {
-  .source-grid,
-  .output-summary .manifest {
+.output-summary .manifest {
     grid-template-columns: 1fr;
   }
 
@@ -3604,7 +3601,7 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 .batch-drawer > summary:hover, .batch-drawer > summary:focus-visible { border-color: var(--accent); }
 .batch-drawer[open] > summary { color: var(--accent); }
 .batch-layout { margin-top: 22px; gap: 18px; }
-.batch-source-cluster, .batch-queue { border-radius: 9px; overflow: hidden; }
+.batch-queue { border-radius: 9px; overflow: hidden; }
 
 .batch-settings { gap: 10px; }
 .batch-settings .attachment-toggle, .batch-settings .compact-control, .batch-settings .batch-output-tool { padding: 14px; border-radius: 8px; }
@@ -4511,9 +4508,6 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 
   /* Input cards were visually oversized on phones. Keep the one-column model,
      but reduce card height and internal chrome. */
-  .source-strip {
-    gap: 7px;
-  }
 
 
 
@@ -5162,25 +5156,6 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .container-item .track-controls {
     grid-column: 1 / -1;
   }
-}
-
-
-.source-type-icon,
-.source-action-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-
-
-.source-action-icon {
-  width: 30px;
-  height: 30px;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
 }
 
 
