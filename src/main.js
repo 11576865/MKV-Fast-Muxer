@@ -1400,6 +1400,9 @@ assetInventory?.addEventListener('click', (event) => {
     const targetKey = selected.dataset.treeSelect;
     containerTreeSelectedItem.set(source.dataset.sourceTree, targetKey);
     renderImportedAssetInventory();
+    // One selected source stream owns the center inspector. Keep container
+    // mode/probe controls available, without displaying a second full tree.
+    document.querySelector('[data-editor-filter="source"]')?.click();
     // Inventory list nodes are replaced during projection; return keyboard
     // focus to the same logical item rather than dropping it to document.body.
     const reselected = [...assetInventory.querySelectorAll('button[data-tree-select]')]
