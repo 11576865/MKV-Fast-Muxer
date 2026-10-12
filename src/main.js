@@ -2767,20 +2767,20 @@ function buildMuxPlan() {
       entries.push({
         kind: '章节',
         title: chapterCount ? `${chapterCount} 个 Chapter` : '无 Chapter',
-        meta: '保留源章节 · map_chapters 0',
+        meta: '请求映射源章节 · 未验证所有章节层级与 UID 关联',
         flags: 'copy',
       });
       entries.push({
         kind: '元数据',
         title: trackState.format?.tags?.title || `${Object.keys(tags).length} 个全局 tag`,
-        meta: `保留全局 metadata · ${Object.keys(tags).length} 个可审计 tag · map_metadata 0`,
+        meta: `请求映射部分全局 metadata · ${Object.keys(tags).length} 个可审计 tag；非完整 EBML 保留`,
         flags: 'copy',
       });
     } else {
       entries.push({
         kind: '容器',
         title: 'Chapters / 全局 metadata',
-        meta: '执行时从源容器读取并保留',
+        meta: '执行时尝试映射源章节与部分元数据；完整性待验证',
         flags: 'copy',
       });
     }
@@ -2790,7 +2790,7 @@ function buildMuxPlan() {
     entries.push({
       kind: '音频',
       title: '全部原音频轨',
-      meta: '完整保留并追加 · 保持源顺序与原 metadata / dispositions',
+      meta: '请求复制全部已识别原音频流；属性以输出审计为准',
       flags: 'source',
     });
   } else if (trackState) {
@@ -2833,7 +2833,7 @@ function buildMuxPlan() {
     entries.push({
       kind: '原字幕',
       title: '全部原字幕轨',
-      meta: '完整保留并追加 · 保持原 codec / metadata / dispositions',
+      meta: '请求复制全部已识别原字幕流；属性以输出审计为准',
       flags: 'source',
     });
   } else {
@@ -2851,7 +2851,7 @@ function buildMuxPlan() {
     entries.push({
       kind: '附件',
       title: '全部原 MKV 附件',
-      meta: '完整保留并追加 · 封装时全部保留',
+      meta: '请求映射原附件；不代表完整保留原 EBML 结构',
       flags: 'source',
     });
   } else if (trackState) {
@@ -3901,11 +3901,11 @@ muxBtn.addEventListener('click', async () => {
       logEl.textContent += `轨道方案：原音频 ${selectedAudio.length}/${scanned.tracks.filter((x) => x.type === 'audio').length}，外部音频 ${runtimeExternalAudio.length}，新增字幕 ${runtimeSubtitles.length}，原字幕 ${selectedSubtitles.length}/${scanned.tracks.filter((x) => x.type === 'subtitle').length}，原附件 ${originalAttachments.length}/${scanned.attachments.length}。\n`;
     } else if (isMatroskaIdentity(inputIdentity)) {
       logEl.textContent += appendMode
-        ? `INFO: 完整保留并追加模式：使用 -map 0 保留全部原 stream，并保留 Chapters 与 metadata；新增内容只追加。\n`
+        ? `INFO: 源流复制并追加：通过 -map 0 请求映射原 stream，并请求映射源章节与部分 metadata；重封装不保证原 EBML 结构或 UID 关系完整保留。\n`
         : `INFO: 未扫描轨道，兼容模式保留所有原音频、不保留原字幕；原附件${preserveAllOriginalAttachments ? '全部保留' : '不保留'}。\n`;
     }
 
-    status.textContent = '正在无损封装 MKV……';
+    status.textContent = '正在使用 FFmpeg 重封装 MKV……';
     bar.style.width = '40%';
 
     const fontAttachments = attachments.map((item, index) => ({
