@@ -26,6 +26,15 @@ export function describeOperationError(error, { phase = 'mux', logText = '' } = 
     raw,
   });
 
+  if (/^结构保留预检阻断/.test(raw)) {
+    return result(
+      'preservation-preflight-block',
+      raw,
+      '为避免丢失原 MKV 的章节、标签或关联关系，当前任务已在写入前停止。请保留原文件，并使用已验证的替代工具或等待保留能力支持。',
+      false
+    );
+  }
+
   if (/外部音频.*没有可用音频轨/.test(raw)) {
     return result(
       'external-audio-no-stream',
