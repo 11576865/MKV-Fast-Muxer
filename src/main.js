@@ -3568,8 +3568,11 @@ muxBtn.addEventListener('click', async () => {
       }
       const refusal = preservationBlockMessage(video.name, protection);
       if (refusal) throw new Error(refusal);
-      if (protection.state === 'NO_KNOWN_HAZARD') {
-        preservationInfo = 'INFO: 结构预检未发现已知嵌套章节与 UID 标签风险；不代表完整 EBML 保留已验证。\\n';
+      if (protection.state === 'UNVERIFIED_REFERENCES') {
+        preservationInfo = 'WARNING: ' + protection.warnings.join('；') +
+          '。封装仍可继续，但这些关联的保留未经独立验证；请复核输出。' + String.fromCharCode(10);
+      } else if (protection.state === 'NO_KNOWN_HAZARD') {
+        preservationInfo = 'INFO: 未检出当前硬阻断结构；不代表完整 EBML 保留已验证。' + String.fromCharCode(10);
       }
     }
   } catch (err) {
