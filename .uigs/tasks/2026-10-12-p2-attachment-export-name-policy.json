@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-attachment-export-name-policy",
+  "goal": "Create pure no-write filename and collision proposal for untrusted Matroska attachments so later extraction UI never uses FileName as a trusted path.",
+  "status": "submitted-pending-pr-ci",
+  "base": "main@fee72462c687181348f7f1f2e181816c1dc8d30d",
+  "completed_units": [
+    "Pure Unicode/path/device-name/UTF8 bounded sanitization of raw attachment metadata; maintains originalName and reasons.",
+    "Case/Unicode-aware proposed export dedup against caller-provided existing names.",
+    "No write authorization, no content type trust, no destination claim; immutable outputs.",
+    "Adversarial Node tests for paths, devices, controls, lengths, collisions, MIME and immutability."
+  ],
+  "next_work_unit": "Exact-head Node/Chromium/Build CI; later integration with PR #89 source reader after R-02 independent hash matches. Real browser save must be separate."
+}
