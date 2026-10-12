@@ -4694,8 +4694,11 @@ async function syncBatchPlan() {
   if (batchReviewSummary) {
     const globalProblems = pairing.ambiguousPairings.length + pairing.outputNameCollisions.length +
       pairing.directoryConflicts.length + Number(Boolean(pairing.directoryCheckError)) +
-      pairing.invalidSubtitles.length + (pairing.fontRecognition?.ignored?.length || 0);
-    batchReviewSummary.textContent = `${pairing.jobs.length} 个拟输出 · ${globalProblems ? `${globalProblems} 项待处理` : '配对无阻断'}` +
+      pairing.invalidSubtitles.length + (pairing.fontRecognition?.ignored?.length || 0) +
+      (unifiedRoles?.unsupported.length || 0) + recognition.ignored.length;
+    const readiness = !pairing.jobs.length ? '无可执行任务'
+      : globalProblems ? `${globalProblems} 项待处理` : '配对无阻断';
+    batchReviewSummary.textContent = `${pairing.jobs.length} 个拟输出 · ${readiness}` +
       ` · ${pairing.manuallyAssignedPairings.length} 项已人工确认`;
   }
   renderBatchJobInspector(pairing);
