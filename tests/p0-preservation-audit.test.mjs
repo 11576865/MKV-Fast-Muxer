@@ -58,3 +58,32 @@ test('P0 oracle detects attachment byte hash, filename and MIME differences', ()
   after.attachments[0].mimeType = 'application/octet-stream';
   assert.ok(compareRoundtripFacts(before, after).some((e) => e.field === 'attachmentNamesTypesAndBytes'));
 });
+
+test('P0 deep oracle compares nested chapter topology even when flat FFprobe facts match', () => {
+  const before = input();
+  const after = structuredClone(before);
+  const hierarchy = [{
+    editionUid: '510001', editionFlagDefault: '', editionFlagOrdered: '',
+    chapters: [{ uid: '510010', start: '00:00:00.000000000', end: '00:00:02.000000000',
+      displays: [{ name: 'Parent', language: 'eng', country: '' }],
+      children: [{ uid: '510011', start: '00:00:00.200000000', end: '00:00:01.000000000',
+        displays: [{ name: 'Nested', language: 'eng', country: '' }], children: [] }] }],
+  }];
+  before.deep = { chapterHierarchy: hierarchy, p0MarkedTags: [] };
+  after.deep = structuredClone(before.deep);
+  after.deep.chapterHierarchy[0].chapters[0].children = [];
+  const differences = compareRoundtripFacts(before, after);
+  assert.ok(differences.some((item) => item.field === 'chapterHierarchy'));
+});
+
+test('P0 deep oracle distinguishes targeted chapter tag missing from output', () => {
+  const before = input();
+  const after = structuredClone(before);
+  before.deep = { chapterHierarchy: [], p0MarkedTags: [
+    { name: 'P0_NESTED_CHAPTER_KEEP', string: 'linked-chapter-metadata',
+      targets: { ChapterUID: '510011' }, binary: '', language: '' },
+  ] };
+  after.deep = { chapterHierarchy: [], p0MarkedTags: [] };
+  const differences = compareRoundtripFacts(before, after);
+  assert.ok(differences.some((item) => item.field === 'p0MarkedTags'));
+});
