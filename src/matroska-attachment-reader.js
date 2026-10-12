@@ -1,5 +1,6 @@
 import { createSourceAssetSession } from './source-asset-session.js';
 import { inspectMatroskaPreservation } from './preservation-preflight.js';
+import { inspectMatroskaAttachmentRelations } from './matroska-attachment-relation-graph.js';
 
 // P2 bounded, seek-based *inspection*. Does not run FFmpeg, mutate the
 // source, deserialize chapters/tags, or certify Matroska conformance.
@@ -230,8 +231,14 @@ export function createMatroskaAttachmentReader(file, {
   // Structural risk preflight is separate from the attachment inventory;
   // neither reports authorization for an existing-MKV rewrite.
   const inspectPreservation = () => inspectMatroskaPreservation(file);
+  const inspectRelations = inventory => {
+    if (!isCurrentInspection(inventory)) {
+      throw new Error('RELATION_GRAPH_CURRENT_INSPECTION_REQUIRED');
+    }
+    return inspectMatroskaAttachmentRelations(file, inventory);
+  };
   return Object.freeze({
     source: asset, inspect, openAttachment,
-    isCurrentInspection, inspectPreservation,
+    isCurrentInspection, inspectPreservation, inspectRelations,
   });
 }
