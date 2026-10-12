@@ -61,6 +61,7 @@ import {
   buildBatchJobsFromCollected,
   identifyBatchFonts,
   identifyBatchVideos,
+  fileIdentity,
   mergeFileSelections,
 } from './batch.js';
 import {
@@ -305,6 +306,8 @@ let batchImportInProgress = false;
 let batchUnifiedMode = false;
 let batchInternalAdapterUpdate = false;
 let batchRunning = false;
+let batchStartPending = false;
+let batchStartCancelled = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
@@ -789,12 +792,12 @@ function isBusy() {
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing;
+  const sourceLocked = running || previewing || batchStartPending;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
   fontInput.disabled = sourceLocked;
-  const intakeLocked = disabled || batchRunning || importInProgress;
+  const intakeLocked = disabled || batchRunning || batchStartPending || batchStartPending || importInProgress;
   if (unifiedAssetInput) unifiedAssetInput.disabled = intakeLocked;
   if (unifiedFolderInput) unifiedFolderInput.disabled = intakeLocked;
   if (assetDropzone) assetDropzone.setAttribute('aria-disabled', String(intakeLocked));
@@ -812,19 +815,19 @@ function setInputsDisabled(disabled) {
   if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleTracks().some((track) => track.format?.previewable);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
-  if (batchUnifiedInput) batchUnifiedInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchUnifiedFolderInput) batchUnifiedFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchAssetDropzone) batchAssetDropzone.setAttribute('aria-disabled', String(sourceLocked || batchRunning || batchImportInProgress));
-  if (batchVideoInput) batchVideoInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchVideoFolderInput) batchVideoFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchSubtitleInput) batchSubtitleInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchFontInput) batchFontInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchFontFolderInput) batchFontFolderInput.disabled = sourceLocked || batchRunning || batchImportInProgress;
-  if (batchPreserveAttachments) batchPreserveAttachments.disabled = sourceLocked || batchRunning;
-  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = sourceLocked || batchRunning;
-  if (batchSubsetScope) batchSubsetScope.disabled = sourceLocked || batchRunning || !batchFontSubsetEnabled?.checked;
-  if (batchOutputDirBtn) batchOutputDirBtn.disabled = sourceLocked || batchRunning;
+  if (batchUnifiedInput) batchUnifiedInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchUnifiedFolderInput) batchUnifiedFolderInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchAssetDropzone) batchAssetDropzone.setAttribute('aria-disabled', String(sourceLocked || batchRunning || batchStartPending || batchImportInProgress));
+  if (batchVideoInput) batchVideoInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchVideoFolderInput) batchVideoFolderInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchSubtitleInput) batchSubtitleInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchSubtitleFolderInput) batchSubtitleFolderInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchFontInput) batchFontInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchFontFolderInput) batchFontFolderInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
+  if (batchPreserveAttachments) batchPreserveAttachments.disabled = sourceLocked || batchRunning || batchStartPending;
+  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = sourceLocked || batchRunning || batchStartPending;
+  if (batchSubsetScope) batchSubsetScope.disabled = sourceLocked || batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
+  if (batchOutputDirBtn) batchOutputDirBtn.disabled = sourceLocked || batchRunning || batchStartPending;
 }
 function resetTrackState() {
   trackState = null;
@@ -870,7 +873,7 @@ function updateUI() {
     videoSniffState.status === 'pending'
   );
   const mode = fontMode.value || 'preserve';
-  const busy = isBusy();
+  const busy = isBusy() || batchStartPending;
   const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
   const videoLabel = video?.name ?? '未选择';
@@ -4444,8 +4447,8 @@ async function syncBatchPlan() {
     ? `${Array.from(batchFontFolderInput.files).length} 个文件` : '未选择';
 
   batchStartBtn.disabled = true;
-  batchCancelBtn.disabled = !batchRunning;
-  if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
+  batchCancelBtn.disabled = !(batchRunning || batchStartPending);
+  if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   if (candidateVideos.length || subtitles.length) {
     batchPlan.innerHTML = '<div class="track-empty">正在读取实际视频容器与字幕格式…</div>';
@@ -4552,6 +4555,7 @@ async function syncBatchPlan() {
   if (notes.length) batchPlan.innerHTML += `<div class="track-empty">${escapeHtml(notes.join('；'))}</div>`;
   batchStartBtn.disabled =
     batchRunning ||
+    batchStartPending ||
     batchImportInProgress ||
     (batchUnifiedMode && Boolean(unifiedRoles?.unsupported.length || recognition.ignored.length)) ||
     isBusy() ||
@@ -4562,8 +4566,8 @@ async function syncBatchPlan() {
     Boolean(pairing.directoryCheckError) ||
     pairing.invalidSubtitles.length > 0 ||
     fontRecognition.ignored.length > 0;
-  batchCancelBtn.disabled = !batchRunning;
-  if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || !batchFontSubsetEnabled?.checked;
+  batchCancelBtn.disabled = !(batchRunning || batchStartPending);
+  if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
   return pairing;
@@ -4719,82 +4723,142 @@ batchSubsetScope?.addEventListener('change', () => {
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
 batchCancelBtn?.addEventListener('click', () => {
+  if (batchStartPending) {
+    batchStartCancelled = true;
+    batchStatus.textContent = '批量启动预检取消中；不会提交任何任务。';
+    return;
+  }
   if (!batchRunning) return;
   batchCancelRequested = true;
   if (running || scanning || previewing) cancelBtn.click();
   batchStatus.textContent = '正在取消批量任务……';
 });
 
-batchStartBtn?.addEventListener('click', async () => {
-  if (batchImportInProgress || isBusy()) return;
-  if (batchUnifiedMode && resolveBatchImportedAssets(batchImportEntries).unsupported.length) {
-    batchStatus.textContent = '批量未开始：请移除无法参与批量封装的文件。';
-    return;
-  }
-  const pairing = await requestBatchPlanSync();
-  if (!pairing) {
-    batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
-    return;
-  }
-  if (
-    !pairing.jobs.length ||
-    pairing.ambiguousPairings.length ||
-    pairing.outputNameCollisions.length ||
-    pairing.directoryConflicts.length ||
-    pairing.directoryCheckError ||
-    pairing.invalidSubtitles.length ||
-    pairing.fontRecognition?.ignored?.length ||
-    (batchUnifiedMode && pairing.videoRecognition?.ignored?.length)
-  ) {
-    batchStatus.textContent = '批量未开始：请先解决配对歧义、重名输出或无效输入。';
-    return;
-  }
-  if (isBusy() || batchRunning) return;
-  const selectedOutputDirectory = batchOutputDirectoryHandle;
-  if (selectedOutputDirectory) {
-    const planGeneration = batchPlanGeneration;
-    try {
-      const conflicts = await findExistingBatchOutputs(selectedOutputDirectory, pairing.jobs);
-      if (planGeneration !== batchPlanGeneration || isBusy() || batchRunning) {
-        batchStatus.textContent = '批量输入或执行状态已改变，请重新确认计划。';
-        return;
-      }
-      if (conflicts.length) {
-        batchStatus.textContent = `批量未开始：输出目录已有 ${conflicts.join('、')}；不会覆盖。`;
-        requestBatchPlanSync();
-        return;
-      }
-    } catch (error) {
-      batchStatus.textContent = `批量未开始：无法核对输出目录（${error?.message || error}）。`;
-      requestBatchPlanSync();
-      return;
-    }
-  }
+// The start lock is acquired before the first async plan build and released
+// only after the batch has been atomically marked running or refused.
+async function prepareBatchStart() {
+  if (batchStartPending || batchRunning || batchImportInProgress || isBusy()) return null;
+  batchStartPending = true;
+  batchStartCancelled = false;
+  batchStatus.textContent = '正在冻结批量计划并检查来源结构……';
+  updateUI();
+  batchStartBtn.disabled = true;
+  batchCancelBtn.disabled = false;
 
-  // P0: check every batch source BEFORE clearing prior completed results.
-  // A single unsupported MKV blocks this batch rather than silently
-  // publishing earlier items before the risky file is encountered.
-  for (const job of pairing.jobs) {
-    try {
-      const inspected = await sniffFileContainer(job.video);
-      if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
-      const protection = await inspectMatroskaPreservation(job.video);
-      const refusal = preservationBlockMessage(job.video.name, protection);
-      if (refusal) {
-        batchStatus.textContent = '批量未开始：' + refusal;
-        return;
-      }
-    } catch (error) {
-      batchStatus.textContent = '批量未开始：无法完成源结构风险预检：' + (error?.message || String(error));
-      return;
+  try {
+    if (batchUnifiedMode && resolveBatchImportedAssets(batchImportEntries).unsupported.length) {
+      batchStatus.textContent = '批量未开始：请移除无法参与批量封装的文件。';
+      return null;
     }
+    const pairing = await requestBatchPlanSync();
+    if (!pairing) {
+      batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
+      return null;
+    }
+    const generation = batchPlanGeneration;
+    const selectedOutputDirectory = batchOutputDirectoryHandle;
+    // The legacy executor reads live rules; freeze their identities too.
+    const snapshot = {
+      source: batchVideoFiles().map(fileIdentity).join('\u0000'),
+      subtitles: batchSubtitleFiles().map(fileIdentity).join('\u0000'),
+      fonts: batchFontCandidates().map(fileIdentity).join('\u0000'),
+      preserveAttachments: Boolean(batchPreserveAttachments?.checked),
+      subsetEnabled: Boolean(batchFontSubsetEnabled?.checked),
+      subsetScope: batchSubsetScope?.value || '',
+    };
+    const isCurrent = () => !batchStartCancelled &&
+      generation === batchPlanGeneration &&
+      selectedOutputDirectory === batchOutputDirectoryHandle &&
+      !batchImportInProgress && !batchRunning && !isBusy() &&
+      snapshot.source === batchVideoFiles().map(fileIdentity).join('\u0000') &&
+      snapshot.subtitles === batchSubtitleFiles().map(fileIdentity).join('\u0000') &&
+      snapshot.fonts === batchFontCandidates().map(fileIdentity).join('\u0000') &&
+      snapshot.preserveAttachments === Boolean(batchPreserveAttachments?.checked) &&
+      snapshot.subsetEnabled === Boolean(batchFontSubsetEnabled?.checked) &&
+      snapshot.subsetScope === (batchSubsetScope?.value || '');
+    const refuseStale = () => {
+      if (isCurrent()) return false;
+      batchStatus.textContent = batchStartCancelled
+        ? '批量启动预检已取消，没有执行任何任务。'
+        : '批量未开始：预检期间输入或规则发生变化，请重新审核新的计划。';
+      return true;
+    };
+    if (refuseStale()) return null;
+    if (
+      !pairing.jobs.length ||
+      pairing.ambiguousPairings.length ||
+      pairing.outputNameCollisions.length ||
+      pairing.directoryConflicts.length ||
+      pairing.directoryCheckError ||
+      pairing.invalidSubtitles.length ||
+      pairing.fontRecognition?.ignored?.length ||
+      (batchUnifiedMode && pairing.videoRecognition?.ignored?.length)
+    ) {
+      batchStatus.textContent = '批量未开始：请先解决配对歧义、重名输出或无效输入。';
+      return null;
+    }
+    if (selectedOutputDirectory) {
+      try {
+        const conflicts = await findExistingBatchOutputs(selectedOutputDirectory, pairing.jobs);
+        if (refuseStale()) return null;
+        if (conflicts.length) {
+          batchStatus.textContent = '批量未开始：输出目录已有 ' +
+            conflicts.join('、') + '；不会覆盖。';
+          requestBatchPlanSync();
+          return null;
+        }
+      } catch (error) {
+        if (refuseStale()) return null;
+        batchStatus.textContent = '批量未开始：无法核对输出目录（' +
+          (error?.message || error) + '）。';
+        requestBatchPlanSync();
+        return null;
+      }
+    }
+
+    // Revalidate after each awaited source sniff and EBML read.
+    for (const job of pairing.jobs) {
+      if (refuseStale()) return null;
+      try {
+        const inspected = await sniffFileContainer(job.video);
+        if (refuseStale()) return null;
+        if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
+        const protection = await inspectMatroskaPreservation(job.video);
+        if (refuseStale()) return null;
+        const refusal = preservationBlockMessage(job.video.name, protection);
+        if (refusal) {
+          batchStatus.textContent = '批量未开始：' + refusal;
+          return null;
+        }
+      } catch (error) {
+        if (refuseStale()) return null;
+        batchStatus.textContent = '批量未开始：无法完成源结构风险预检：' +
+          (error?.message || String(error));
+        return null;
+      }
+    }
+    if (refuseStale()) return null;
+    batchRunning = true;
+    batchCancelRequested = false;
+    return { pairing, selectedOutputDirectory };
+  } catch (error) {
+    batchStatus.textContent = '批量未开始：启动预检异常：' + (error?.message || String(error));
+    return null;
+  } finally {
+    batchStartPending = false;
+    batchStartCancelled = false;
+    updateUI();
+    batchCancelBtn.disabled = !batchRunning;
+    // The plan was recomputed with batchStartPending=true, so its start button
+    // remained disabled. Restore semantic readiness after any aborted start.
+    if (!batchRunning) void requestBatchPlanSync();
   }
-  if (isBusy() || batchRunning) {
-    batchStatus.textContent = '批量输入或执行状态已改变，请重新审核批量计划。';
-    return;
-  }
-  batchRunning = true;
-  batchCancelRequested = false;
+}
+
+batchStartBtn?.addEventListener('click', async () => {
+  const preparation = await prepareBatchStart();
+  if (!preparation) return;
+  const { pairing, selectedOutputDirectory } = preparation;
   // Old batch links remain valid until a replacement batch actually starts.
   // Clear them together with the old results to release large Blob references.
   batchResultUrls.releaseAll();

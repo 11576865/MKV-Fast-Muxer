@@ -2807,6 +2807,122 @@ async function scenarioP0PreservationBlocksWholeBatch(browser) {
   }
 }
 
+// Issue #79: deterministic preflight interleaving. Holding one File.slice()
+// read tests that batch startup remains locked, an input change invalidates the
+// approved plan, and stale jobs never begin after the read completes.
+async function scenarioP0BatchStartPlanInvalidation(browser) {
+  console.log('P0 batch preflight: delayed EBML read must not execute stale plan');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'p0-independent-mkvtoolnix.zh.ass'));
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return plan.includes('p0-independent-mkvtoolnix.mkv') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    }, null, { timeout: 90_000 });
+
+    await page.evaluate(() => {
+      let release;
+      const gate = new Promise((resolve) => { release = resolve; });
+      window.__p0BatchRead = { entered: false, release, used: false };
+      const originalSlice = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const part = originalSlice.apply(this, args);
+        if (this.name !== 'p0-independent-mkvtoolnix.mkv') return part;
+        const originalRead = part.arrayBuffer.bind(part);
+        part.arrayBuffer = async () => {
+          if (!window.__p0BatchRead.used) {
+            window.__p0BatchRead.used = true;
+            window.__p0BatchRead.entered = true;
+            await gate;
+          }
+          return originalRead();
+        };
+        return part;
+      };
+    });
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => window.__p0BatchRead?.entered, null, { timeout: 30000 });
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchVideoInput').isDisabled(), true);
+    assert.equal(await page.locator('#batchCancelBtn').isDisabled(), false);
+
+    // Simulate a programmatic replacement while native input is disabled.
+    // Locking the visible picker alone is not enough; generation must reject.
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.evaluate(() => window.__p0BatchRead.release());
+
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchStatus')?.textContent || '')
+        .includes('预检期间输入或规则发生变化'),
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+    const status = await page.locator('#batchStatus').textContent();
+    assert.match(status, /批量未开始/);
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return plan.includes('Batch S01E01.mp4') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    }, null, { timeout: 30000 });
+    console.log('P0 stale batch start PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioP0BatchStartCancellation(browser) {
+  console.log('P0 batch preflight: explicit cancellation while source read is pending');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'p0-independent-mkvtoolnix.zh.ass'));
+    await page.waitForFunction(() =>
+      !document.querySelector('#batchStartBtn')?.disabled &&
+      (document.querySelector('#batchPlan')?.textContent || '')
+        .includes('p0-independent-mkvtoolnix.mkv'),
+      null, { timeout: 90000 });
+    await page.evaluate(() => {
+      let resume;
+      const wait = new Promise((resolve) => { resume = resolve; });
+      window.__p0CancelRead = { entered: false, resume, used: false };
+      const original = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const piece = original.apply(this, args);
+        if (this.name !== 'p0-independent-mkvtoolnix.mkv') return piece;
+        const read = piece.arrayBuffer.bind(piece);
+        piece.arrayBuffer = async () => {
+          if (!window.__p0CancelRead.used) {
+            window.__p0CancelRead.used = true;
+            window.__p0CancelRead.entered = true;
+            await wait;
+          }
+          return read();
+        };
+        return piece;
+      };
+    });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => window.__p0CancelRead?.entered, null, { timeout: 30000 });
+    await page.locator('#batchCancelBtn').click();
+    await page.evaluate(() => window.__p0CancelRead.resume());
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchStatus')?.textContent || '')
+        .includes('批量启动预检已取消'),
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+    await page.waitForFunction(() => !document.querySelector('#batchStartBtn')?.disabled,
+      null, { timeout: 30000 });
+    console.log('P0 batch start cancellation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2861,6 +2977,8 @@ try {
   await scenarioPreserveAllAppend(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
+  await scenarioP0BatchStartPlanInvalidation(browser);
+  await scenarioP0BatchStartCancellation(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
