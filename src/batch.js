@@ -148,12 +148,13 @@ export function findBatchOutputNameCollisions(jobs = []) {
     }));
 }
 
-export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
+export function buildBatchJobsFromCollected(videoFiles = [], collected = {}, { manualAssignments = null } = {}) {
   const videos = Array.from(videoFiles || []);
   const subtitleTracks = Array.from(collected.tracks || []);
   const assignments = new Map(videos.map((video) => [video, []]));
   const unmatchedSubtitleTracks = [];
   const ambiguousPairings = [];
+  const manuallyAssignedPairings = [];
 
   for (const track of subtitleTracks) {
     let bestScore = -1;
@@ -171,8 +172,16 @@ export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
     if (bestVideos.length === 1) {
       assignments.get(bestVideos[0]).push(track);
     } else if (bestVideos.length > 1) {
-      // Never assign tied episode/stem matches based on input enumeration order.
-      ambiguousPairings.push({ track, candidates: bestVideos, score: bestScore });
+      // Explicit per-session choices can resolve an actual tie. A stale choice
+      // never overrides stronger evidence or points to a missing source file.
+      const chosen = manualAssignments?.get(track.file);
+      if (chosen && bestVideos.includes(chosen)) {
+        assignments.get(chosen).push(track);
+        manuallyAssignedPairings.push({ track, video: chosen, candidates: bestVideos, score: bestScore });
+      } else {
+        // Never assign tied episode/stem matches based on enumeration order.
+        ambiguousPairings.push({ track, candidates: bestVideos, score: bestScore });
+      }
     } else {
       unmatchedSubtitleTracks.push(track);
     }
@@ -202,6 +211,7 @@ export function buildBatchJobsFromCollected(videoFiles = [], collected = {}) {
     unmatchedVideos,
     unmatchedSubtitleTracks,
     ambiguousPairings,
+    manuallyAssignedPairings,
     outputNameCollisions: findBatchOutputNameCollisions(jobs),
     unmatchedSubtitles: unmatchedSubtitleTracks.map((track) => track.file),
     orphanSidecars: Array.from(collected.orphanSidecars || []),
