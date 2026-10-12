@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -2959,6 +2960,20 @@ async function scenarioP2R02BrowserCreateOnlyPng(browser) {
     execFileSync('mkvextract', ['attachments', candidateOutput,
       String(item.id) + ':' + extracted], { encoding: 'utf8', timeout: 30_000 });
     assert.deepEqual(await fs.readFile(extracted), pngBytes);
+    const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
+    await fs.writeFile(path.join(outDir, 'p2-r02-browser-candidate-report.json'),
+      JSON.stringify({
+        schema: 'r02-browser-candidate-writer-e2e-v0',
+        result: 'BROWSER_WRITER_INDEPENDENT_ZERO_TRACK_AND_PNG_BYTES_MATCH',
+        downloadedMkv: candidateOutput,
+        observedTracks: (info.tracks || []).length,
+        observedAttachments: (info.attachments || []).length,
+        sourceSha256: sha256(pngBytes),
+        independentExtractedSha256: sha256(await fs.readFile(extracted)),
+        browserDownloadedMkvSha256: sha256(await fs.readFile(candidateOutput)),
+        browserOnly: true,
+        generalMatroskaWriter: 'not-supported',
+      }, null, 2) + '\n');
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
 
     // Direct source change invalidates the approved candidate download.
