@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-13-p2-existing-void-layout-freshness-matrix",
+  "base": "main@35de55eae204b19e3e931d03033fa93373f86cef",
+  "status": "implementation-submitted-exact-head-node-chromium-and-independent-matrix-pending",
+  "goal": "Expand independently proven pre-Info Void one-attachment candidate to a bounded three-layout external-tool test corpus and reject stale source/payload bytes.",
+  "completed_units": [
+    "Candidate execution re-reads immutable-source raw-byte commitments and checks original source, including deliberately consumed Void, unchanged since plan",
+    "Candidate re-hashes <=4MiB new attachment Blob and refuses identical File object whose byte content changes after plan",
+    "Node tests for same-size source-Void mutation and same-size attachment-payload mutation after plan",
+    "Three independently MKVToolNix-authored default/no-Cues/disable-lacing existing MKVs with original video/audio, nested Chapters and targeted Tags; real output audit via mkvmerge/mkvextract/ffprobe",
+    "One fully independently authored existing-attachment refusal case and one derived valid two-Void pre-Info layout refusal, with original length preserved",
+    "Non-gating CI corpus JSON plus actual source/candidate artifacts; old P0/no-edit/full Browser E2E unaffected"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/full Chromium CI",
+    "Named corpus verdict P2_VOID_LAYOUT_CORPUS_INDEPENDENT_ROUNDTRIP_AND_REJECTIONS_MATCH",
+    "No general existing-MKV modification, broad format interoperability or #77 writer-level fix"
+  ]
+}
