@@ -68,6 +68,10 @@ jobs:
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
             packages+=(ffmpeg)
           fi
+          # P0 oracle must use a reader independent of the FFmpeg mux backend.
+          if ! command -v mkvmerge >/dev/null 2>&1 || ! command -v mkvextract >/dev/null 2>&1; then
+            packages+=(mkvtoolnix)
+          fi
           if ! dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
             packages+=(fonts-dejavu-core)
           fi
@@ -87,6 +91,8 @@ jobs:
           fi
           command -v ffmpeg
           command -v ffprobe
+          command -v mkvmerge
+          command -v mkvextract
           /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection'
           echo "E2E_PYTHON=/usr/bin/python3" >> "$GITHUB_ENV"
           # Screenshots are a visual acceptance artifact, not merely a CI file.
@@ -105,8 +111,21 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Generate tiny media fixtures
-        run: bash tests/e2e/generate-fixtures.sh
+      - name: Generate regular and independently authored Matroska fixtures
+        run: |
+          bash tests/e2e/generate-fixtures.sh
+          bash tests/e2e/generate-independent-matroska-fixture.sh
+
+      - name: Independent MKVToolNix no-edit control
+        id: independent_p0_control
+        continue-on-error: true
+        run: |
+          mkvmerge --quiet --output .e2e/fixtures/p0-mkvtoolnix-control.mkv .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+          mkdir -p .e2e/p0-control
+          node scripts/p0-compare-roundtrip.mjs \
+            .e2e/fixtures/p0-independent-mkvtoolnix.mkv \
+            .e2e/fixtures/p0-mkvtoolnix-control.mkv \
+            .e2e/p0-control/p0-mkvtoolnix-control-audit.json --deep
 
       - name: Start preview server
         run: |
@@ -124,6 +143,32 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      - name: Publish P0 real semantic outcomes
+        if: always()
+        env:
+          CONTROL_OUTCOME: ${{ steps.independent_p0_control.outcome }}
+        run: |
+          echo "## P0 independent Matroska preservation" >> "$GITHUB_STEP_SUMMARY"
+          echo "MKVToolNix control real execution outcome: **${CONTROL_OUTCOME}** (step may continue on error)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Source → writer | Independent audit | Difference fields |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          for name, path in [
+              ("FFmpeg-authored → browser", ".e2e/output/p0-preservation-audit.json"),
+              ("MKVToolNix-authored → mkvmerge", ".e2e/p0-control/p0-mkvtoolnix-control-audit.json"),
+              ("MKVToolNix-authored → browser", ".e2e/output/p0-independent-audit.json"),
+          ]:
+              p = Path(path)
+              if p.is_file():
+                  report = json.loads(p.read_text(encoding="utf-8"))
+                  fields = ", ".join(i.get("field", "?") for i in report.get("differences", [])) or "—"
+                  print(f"| {name} | **{report.get('outcome', 'UNKNOWN')}** | {fields} |")
+              else:
+                  print(f"| {name} | **NOT_RUN** | No report exists |")
+          PY
       - name: Upload MKV workbench visual evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -131,6 +176,17 @@ jobs:
           name: mkv-ui-container-tree-viewports
           path: .e2e/output/mkv-container-tree-*.png
           if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload P0 preservation comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkv-p0-preservation-audit
+          path: |
+            .e2e/output/p0-*.json
+            .e2e/p0-control/p0-*.json
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Print preview log on failure
