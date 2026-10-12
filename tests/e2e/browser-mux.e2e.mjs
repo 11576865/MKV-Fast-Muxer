@@ -2923,6 +2923,41 @@ async function scenarioP0BatchStartCancellation(browser) {
   }
 }
 
+// P0 independent evidence experiment: no nested chapters and a valid,
+// explicitly target-linked video TrackUID custom tag. Unlike the hard-blocked
+// ChapterUID fixture, this source is currently allowed with a warning.
+// Audit semantic target resolution, not raw UID equality after remux.
+async function scenarioP0TrackTargetedTagSurvival(browser) {
+  console.log('P0 experiment: preservation of a flat MKV video TrackUID-targeted tag');
+  const source = path.join(root, 'p0-independent-tracktag.mkv');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', source);
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      return button && !button.disabled;
+    }, null, { timeout: 90_000 });
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const logText = await page.locator('#log').textContent();
+    assert.match(logText, /WARNING: 指向特定轨道 UID 的标签/);
+    const output = path.join(outDir, 'p0-independent-tracktag-output.mkv');
+    const audit = path.join(outDir, 'p0-tracktag-relation-audit.json');
+    await saveDownload(page, '#downloadLink', output);
+    // Writes explicit JSON on pass, semantic difference, or audit inability.
+    // A difference is a real, independent P0 signal — not a reason to weaken
+    // the oracle or to assert all MkV files have this behavior.
+    execFileSync(process.env.E2E_PYTHON || 'python3', [
+      path.resolve('scripts/p0-audit-track-tag-relations.py'),
+      source, output, audit,
+    ], { stdio: 'inherit', timeout: 120_000 });
+    console.log('P0 TrackUID target relation PASS for checked fixture markers.');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2979,6 +3014,7 @@ try {
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
+  await scenarioP0TrackTargetedTagSurvival(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
