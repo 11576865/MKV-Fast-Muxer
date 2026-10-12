@@ -116,6 +116,15 @@ jobs:
           bash tests/e2e/generate-fixtures.sh
           bash tests/e2e/generate-independent-matroska-fixture.sh
 
+      - name: Independent MKVToolNix no-edit control
+        run: |
+          mkvmerge --quiet --output .e2e/fixtures/p0-mkvtoolnix-control.mkv .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+          mkdir -p .e2e/p0-control
+          node scripts/p0-compare-roundtrip.mjs \
+            .e2e/fixtures/p0-independent-mkvtoolnix.mkv \
+            .e2e/fixtures/p0-mkvtoolnix-control.mkv \
+            .e2e/p0-control/p0-mkvtoolnix-control-audit.json --deep
+
       - name: Start preview server
         run: |
           nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/mkvfm-preview.log 2>&1 &
@@ -146,7 +155,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mkv-p0-preservation-audit
-          path: .e2e/output/p0-*.json
+          path: |
+            .e2e/output/p0-*.json
+            .e2e/p0-control/p0-*.json
           if-no-files-found: warn
           retention-days: 14
 
