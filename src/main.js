@@ -34,6 +34,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
+import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
@@ -76,6 +77,12 @@ import {
 } from './ass-font-rewrite.js';
 
 const $ = (id) => document.getElementById(id);
+// Independent read-only tool: no mutation of the video-rooted FFmpeg inputs.
+setupAttachmentExtractionUI({
+  input: $('attachmentInspectInput'),
+  list: $('attachmentInspectList'),
+  status: $('attachmentInspectStatus'),
+});
 setupObjectEditor(document.querySelector('.editor-grid'));
 setupWorkbenchNavigation(document.querySelector('.workbench-jump-nav'));
 
