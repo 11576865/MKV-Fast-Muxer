@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-container-document-projection-v0",
+  "goal": "P1 first bounded vertical slice: source-scoped read-only ContainerDocument for existing MKV single-file authoring without replacing the legacy FFmpeg executor, batch path or P0 preservation gate.",
+  "status": "implementation-submitted-pending-ci",
+  "current_bounded_work_unit": "Review exact-head Node and Browser E2E, repair any regressions without weakening Issue #77 independent preservation oracle; after validation plan one editable subtitle intent dual-path equivalence slice.",
+  "completed_units": [
+    "Confirmed base main at 0b2d2a502e015374043f0bf664fbacd2cc14b82c and Issue #77 still open.",
+    "Added src/container-document.js immutable projection of existing legacy authoring state, scan observations and explicit writer uncertainty.",
+    "Integrated live composition display/click lookup through ContainerDocument; preserved original action handlers and selection routes.",
+    "Added scope-based stale selected-object rejection and identity-collision diagnostics; legacy file identity is not content-authenticated.",
+    "Added tests/container-document.test.mjs plus updated composition-workspace source contract.",
+    "Documented implementation and non-goals in docs/P1-CONTAINER-DOCUMENT-V0.md.",
+    "Queried UIGS-Foundry and updated existing legacy migration Candidate provenance rather than creating a duplicate Canonical rule."
+  ],
+  "not_claimed": [
+    "ContainerDocument writable authority, durable SourceAsset IDs, EditIntent and versioned JobPlan.",
+    "Writer preservation of nested Chapter/UID Tag, complete EBML roundtrip or Issue #77 root fix.",
+    "Resource-only Matroska writer support, batch executor replacement, UI redesign completion.",
+    "Passing exact-head CI, real-device or independent output verification for this branch."
+  ]
+}
