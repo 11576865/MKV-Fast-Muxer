@@ -180,7 +180,7 @@ test('expired inspection cannot be used to request a new graph', async () => {
   const reader = createMatroskaAttachmentReader(file(mkv()));
   const first = await reader.inspect();
   await reader.inspect();
-  assert.throws(() => reader.inspectRelations(first), /CURRENT_INSPECTION_REQUIRED/);
+  await assert.rejects(() => reader.inspectRelations(first), /CURRENT_INSPECTION_REQUIRED/);
 });
 
 test('bounded parser skips FileData and Cluster payloads during graph inspection', async () => {
