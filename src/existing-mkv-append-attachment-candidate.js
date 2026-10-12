@@ -13,6 +13,13 @@ const ID = { ebml: 0x1a45dfa3, segment: 0x18538067 };
 const MAX_SOURCE = 60 * 1024 * 1024;
 const MAX_PAYLOAD = 4 * 1024 * 1024;
 const mimetypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
+const hashBlob = async blob => {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw Error('APPEND_PAYLOAD_WEBCRYPTO_REQUIRED');
+  const source = await blob.slice(0, blob.size).arrayBuffer();
+  const digest = new Uint8Array(await subtle.digest('SHA-256', source));
+  return [...digest].map(n => n.toString(16).padStart(2, '0')).join('');
+};
 const freeze = x => {
   if (x && typeof x === 'object' && !Object.isFrozen(x)) {
     Object.values(x).forEach(freeze);
@@ -194,6 +201,9 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
   if (preflight.state === 'BLOCKED_UNKNOWN' || preflight.state === 'NOT_MATROSKA') {
     throw Error('APPEND_P0_SOURCE_UNVERIFIED');
   }
+  // Bind the bytes of the proposed attachment as well as its Blob identity.
+  // A plan that reads one FileData payload cannot execute with another.
+  const attachmentDigestAtPlan = await hashBlob(attachment);
   const plan = freeze({
     schema: APPEND_EXISTING_ATTACHMENT_SCHEMA,
     mode: 'experimental-new-copy-only',
@@ -206,6 +216,7 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
       preflightState: preflight.state,
       sourceTagUidCoverage: graph.coverage.tagTargets,
       observedAttachmentTagTargetCount: 0,
+      sourceByteIdentity: 'raw-elements-and-header-commitments-rechecked-at-execution',
     },
     addedAttachment: {
       filename: proposal.proposedSaveName,
@@ -214,6 +225,7 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
       mimeType: declaredType, byteLength: attachment.size,
       fileUid: '1', // no AttachedFile exists in permitted source Segment
       mimeAuthenticity: 'not-tested', executableSafety: 'not-tested',
+      payloadByteIdentity: 'sha256-checked-at-plan-and-execution',
     },
     output: {
       filename: 'reserved-void-one-attachment-research-candidate.mkv',
@@ -228,7 +240,10 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
     },
     execution: { approvedToWriteExistingFile: false, autoDownload: false },
   });
-  bindings.set(plan, { source, attachment, sourceScan, header, slot });
+  bindings.set(plan, {
+    source, attachment, sourceScan, header, slot,
+    attachmentDigestAtPlan,
+  });
   return plan;
 }
 
@@ -237,7 +252,21 @@ export async function executeExistingMkvAppendAttachmentCandidate(plan) {
       !Object.isFrozen(plan) || !bindings.has(plan)) {
     throw Error('APPEND_CANDIDATE_PLAN_FORGED_OR_STALE');
   }
-  const { source, attachment, sourceScan, slot } = bindings.get(plan);
+  const {
+    source, attachment, sourceScan, slot, attachmentDigestAtPlan,
+  } = bindings.get(plan);
+  // Snapshot validity is temporal. A genuine frozen plan and the same
+  // File object are insufficient if a synthetic source changes behind it.
+  const currentSource = await inspectRawSegmentPreservation(source);
+  const sourceComparison = compareRawSegmentPreservation(sourceScan, currentSource);
+  if (!sourceComparison.identicalScannedBytes ||
+      currentSource.state !== 'inspected') {
+    throw Error('APPEND_SOURCE_CHANGED_AFTER_PLAN');
+  }
+  if (attachment.size !== plan.addedAttachment.byteLength ||
+      await hashBlob(attachment) !== attachmentDigestAtPlan) {
+    throw Error('APPEND_ATTACHMENT_CHANGED_AFTER_PLAN');
+  }
   const attachedMaster = makeAttachment(
     plan.addedAttachment.filename, plan.addedAttachment.mimeType, attachment);
   const remaining = slot.byteLength - attachedMaster.size;

@@ -295,6 +295,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-V: independently authored MKVToolNix variant corpus. Green CI is
+      # not the oracle; named JSON verdict must be inspected separately.
+      - name: P2-V research — pre-Info Void layout and deny-only corpus
+        id: p2_existing_void_layout_matrix
+        continue-on-error: true
+        run: node scripts/p2-existing-void-layout-matrix.mjs
+
+      - name: Upload P2-V existing-MKV Void layout matrix and refusals
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-existing-void-layout-independent-matrix
+          path: |
+            .e2e/output/p2-void-existing-mkv-layout-matrix-report.json
+            .e2e/output/p2-layout-*-source.mkv
+            .e2e/output/p2-layout-*-candidate.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4

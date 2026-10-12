@@ -6,6 +6,7 @@ import {
   executeExistingMkvAppendAttachmentCandidate,
 } from '../src/existing-mkv-append-attachment-candidate.js';
 import { pngBytes } from '../scripts/r02-attachment-only-fixture.mjs';
+import { inspectRawSegmentPreservation } from '../src/matroska-raw-preservation-contract.js';
 
 const cat = (...args) => Buffer.concat(args);
 const lengthVint = n => {
@@ -148,4 +149,52 @@ test('missing or too-small reserved Void is refused rather than moving original 
     /APPEND_PRE_INFO_VOID_RESERVATION_REQUIRED/);
   await assert.rejects(() => prepare(asFile(mkv({ voidBytes: 8 }), 'insufficient-reservation.mkv')),
     /APPEND_VOID_SLOT_CAPACITY_EXCEEDED/);
+});
+
+
+class MutableObservedBlob extends Blob {
+  constructor(initial) {
+    super([initial]);
+    this.alternate = null;
+  }
+  replaceObservedBytes(value) {
+    if (value.length !== this.size) throw Error('test fixture must preserve byte length');
+    this.alternate = new Blob([value]);
+  }
+  slice(start, end, type) {
+    return Blob.prototype.slice.call(this.alternate || this, start, end, type);
+  }
+}
+
+test('source bytes changing only inside formerly reserved Void invalidate the authentic plan', async () => {
+  const initial = mkv({ voidBytes: 1024 });
+  const changed = Buffer.from(initial);
+  // Find the *first* Void after a real SeekHead rather than assuming offsets.
+  const scan = await inspectRawSegmentPreservation(new Blob([initial]));
+  assert.equal(scan.state, 'inspected');
+  const slot = scan.elements.find(el => el.id === '0xec');
+  assert.ok(slot?.byteLength >= 1000);
+  changed[slot.offset + slot.byteLength - 1] ^= 0x7f;
+  const source = new MutableObservedBlob(initial);
+  const plan = await prepare(source);
+  source.replaceObservedBytes(changed);
+  await assert.rejects(() => executeExistingMkvAppendAttachmentCandidate(plan),
+    /APPEND_SOURCE_CHANGED_AFTER_PLAN/);
+  assert.equal(plan.execution.approvedToWriteExistingFile, false);
+});
+
+test('attachment bytes swapped after plan creation are refused despite unchanged Blob reference and length', async () => {
+  const original = Buffer.from('attachment-safe');
+  const payload = new MutableObservedBlob(original);
+  payload.name = 'safe.bin';
+  const plan = await prepare(asFile(mkv(), 'stable-source.mkv'), payload, {
+    mimeType: 'application/octet-stream',
+  });
+  const changed = Buffer.from(original);
+  changed[2] ^= 0x01;
+  payload.replaceObservedBytes(changed);
+  await assert.rejects(() => executeExistingMkvAppendAttachmentCandidate(plan),
+    /APPEND_ATTACHMENT_CHANGED_AFTER_PLAN/);
+  assert.equal(plan.addedAttachment.payloadByteIdentity,
+    'sha256-checked-at-plan-and-execution');
 });
