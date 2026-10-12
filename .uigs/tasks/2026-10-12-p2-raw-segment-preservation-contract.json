@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-raw-preservation-contract",
+  "status": "submitted-pending-exact-head-CI-and-P0-independent-raw-protection-oracle",
+  "base": "main@0fe76f450d0f93002feef686308cdc351e682da6",
+  "goal": "Add bounded candidate-output comparison for non-attachment raw EBML with explicit fail-closed difference reports; no writer authorization.",
+  "implemented": [
+    "Immutable seek-based per-top-level element and EBML header fixed-chunk SHA256 tree commitments for real source and candidate, limited to 64 MiB research inputs",
+    "Differentiate protected non-attachment content changes and unrequested vs explicit-but-not-certified attachment changes",
+    "Always approvedToWrite=false and writer=null; offsets, SeekHead/Cues/CRC and semantic validity remain independently unverified",
+    "Unit tests for protected Chapter/Tag/Track/Cluster changes, attachment-only edits, big Cluster bounded reads, header alteration, no-edit identity and oversize refusal",
+    "Separate real MKVToolNix+mkvpropedit nested ChapterUID targeted tag and attachment fixture audit, requiring original SHA unchanged and explicit report",
+    "Non-gating GitHub Actions JSON evidence with full prior Chromium/P0/R02 checks untouched"
+  ],
+  "pending": [
+    "Exact-head 64-bit and chunked hash Node/Vite/full Chromium CI",
+    "Independent JSON INDEPENDENT_COMPLEX_MKV_RAW_PROTECTION_DIFFERENCES_DETECTED",
+    "No existing-MKV writer or save UI; byte-equality is insufficient for offsets/ref safety and semantic equivalence"
+  ]
+}
