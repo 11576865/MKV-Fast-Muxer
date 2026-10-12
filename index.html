@@ -124,6 +124,19 @@
               <div id="attachmentInspectStatus" role="status" aria-live="polite"></div>
               <div id="attachmentInspectList" class="attachment-extraction-list" aria-label="已检查的来源附件"></div>
             </details>
+            <details id="pngOnlyExperimentDetails" class="attachment-extraction" aria-labelledby="png-only-experiment-title">
+              <summary id="png-only-experiment-title">实验：创建仅含 PNG 附件的 Matroska</summary>
+              <p class="attachment-extraction-help">仅用于新建一个不含媒体轨的研究性 MKV，单个 PNG 最大 16 MiB。先准备并验证，再由用户明确点击保存。不属于常规可播放视频，也不修改现有视频封装工程。</p>
+              <label class="attachment-extraction-picker">
+                选择单张 PNG
+                <input id="pngOnlyCreateInput" type="file" accept=".png,image/png" aria-label="选择实验性 MKV 所包含的 PNG 附件" />
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="pngOnlyPrepareButton" type="button" class="button button-small" disabled>生成并本地验证</button>
+                <button id="pngOnlySaveButton" type="button" class="button button-small" disabled>下载实验性 MKV</button>
+              </div>
+              <div id="pngOnlyExperimentStatus" role="status" aria-live="polite" data-state="empty">尚未选择 PNG 图片。</div>
+            </details>
           </section>
 
           <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->
