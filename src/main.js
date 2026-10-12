@@ -35,6 +35,7 @@ import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
+import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -84,6 +85,12 @@ setupAttachmentExtractionUI({
   input: $('attachmentInspectInput'),
   list: $('attachmentInspectList'),
   status: $('attachmentInspectStatus'),
+});
+setupExistingAttachmentImpactUI({
+  input: $('existingImpactInput'),
+  inventory: $('existingImpactInventory'),
+  status: $('existingImpactStatus'),
+  summary: $('existingImpactSummary'),
 });
 setupPngOnlyExperimentUI({
   input: $('pngOnlyCreateInput'),
