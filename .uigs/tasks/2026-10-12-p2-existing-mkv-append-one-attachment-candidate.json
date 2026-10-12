@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-existing-mkv-append-one-attachment-candidate",
+  "status": "submitted-pending-exact-head-ci-and-independent-external-source-roundtrip",
+  "base": "main@2240ccb94bd6a2221a33956d85b7cc2f5b4f3a89",
+  "goal": "Research one tightly bounded existing-Matroska append-only AttachedFile writer candidate with immutable protected original elements and no production authority.",
+  "implemented": [
+    "Restricted to 60MiB attachment-free Matroska with Tracks/Cluster, no Segment CRC/unknown top-level/old TagAttachmentUID references, known Segment size with available fixed VINT width",
+    "Frozen genuine session-bound plan with no source File serialized, safe proposed FileName approval and untrusted declared MIME",
+    "Blob-copy writer changes only Segment size bytes of same width and appends a new AttachedFiles master at end, without remuxing source Cluster/Tags/Chapters",
+    "Existing #100 raw source/candidate contract checks all protected elements remain identical and result still denies writer approval",
+    "Node adversarial tests: nested Chapter/Tag byte preservation, extracted new FileData, existing attachments, orphan AttachmentUID tag, unknown EBML, CRC, VINT sizing, MIME and forged plan",
+    "Independent MKVToolNix/mkvpropedit real existing source with nested ChapterUID targeted tags; mkvmerge/mkvextract independently compare track UID/codec and extracted bytes, chapter/tag XML and appended attachment",
+    "Separate non-gating CI research JSON with preserved source and candidate MKV artifacts"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/full browser E2E results",
+    "Independent JSON INDEPENDENT_APPEND_ONLY_EXISTING_MKV_TAG_CHAPTER_MEDIA_AND_ATTACHMENT_MATCH",
+    "This is not a production existing MKV append/edit writer and not generalized Segment offset/conformance proof"
+  ]
+}
