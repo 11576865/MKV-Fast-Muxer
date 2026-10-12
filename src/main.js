@@ -36,6 +36,7 @@ import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
+import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
@@ -89,6 +90,14 @@ setupPngOnlyExperimentUI({
   prepare: $('pngOnlyPrepareButton'),
   save: $('pngOnlySaveButton'),
   status: $('pngOnlyExperimentStatus'),
+});
+setupMultiAttachmentExperimentUI({
+  input: $('multiAttachmentCreateInput'),
+  inventory: $('multiAttachmentCreateInventory'),
+  review: $('multiAttachmentReview'),
+  prepare: $('multiAttachmentPrepareButton'),
+  save: $('multiAttachmentSaveButton'),
+  status: $('multiAttachmentExperimentStatus'),
 });
 setupObjectEditor(document.querySelector('.editor-grid'));
 setupWorkbenchNavigation(document.querySelector('.workbench-jump-nav'));
