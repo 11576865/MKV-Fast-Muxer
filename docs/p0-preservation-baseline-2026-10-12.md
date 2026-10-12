@@ -111,3 +111,14 @@ PR #76 intentionally remains **Draft / red** with downloadable machine-readable 
 To localize the observed loss more accurately, Browser E2E CI now first remuxes the same `p0-independent-mkvtoolnix.mkv` with **mkvmerge itself** and runs the exact same `--deep` oracle. The JSON control report is placed in `.e2e/p0-control/p0-mkvtoolnix-control-audit.json` and collected even on CI failure.
 
 If this control is green but the FFmpeg/Wasm browser path is red, that narrows the difference to the tested execution paths for this fixture. If the control is red, re-check expected structural ID normalization and fixture authoring before assigning all loss to the browser. Do not treat an unexecuted control as proof.
+
+
+## Control-result qualification (same source, different writer)
+
+CI run `38195156550` confirmed that a **plain mkvmerge→mkvmerge remux** of the MKVToolNix fixture retains the tested nested chapter hierarchy (`chapterHierarchy` matched) but **loses the same `P0_NESTED_CHAPTER_KEEP` ChapterUID-targeted tag** (`p0MarkedTags` difference). Thus an unqualified statement that simply switching to mkvmerge preserves everything is not supported.
+
+For contrast, real browser FFmpeg/Wasm E2E run `38194692640` reported both differences: deleted nested chapter and deleted target-linked tag, plus edition/language changes.
+
+The independent control is marked `continue-on-error` **only** so that a red control still produces evidence and does not suppress the separate browser real-output test; it still reports a failing check, and the browser deep comparison remains a CI-blocking red. Passing CI would require a verified behavior change, not an assertion downgrade.
+
+The missing behavior must be treated as an unsolved general container-authoring problem with backend-specific detail. Candidate remediations (target-aware metadata reinsertion, limited structural edits, explicit unsupported-source guard) require separate research and independent output verification.
