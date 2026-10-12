@@ -184,6 +184,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-M: test-only writer candidate, separate independent-tool oracle.
+      # A successful workflow alone MUST NOT be called independent proof.
+      - name: P2-M research — generic attachment-only writer independent audit
+        id: p2_multi_attachment_writer
+        continue-on-error: true
+        run: node scripts/p2-multi-attachment-independent-audit.mjs
+
+      - name: Upload P2-M candidate writer external oracle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-generic-multi-attachment-writer-research
+          path: |
+            .e2e/output/p2-multi-attachment-candidate-report.json
+            .e2e/output/p2-multi-attachment-candidate.mkv
+            .e2e/output/p2-multi-attachment-extracted-png.png
+            .e2e/output/p2-multi-attachment-extracted-license.txt
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
