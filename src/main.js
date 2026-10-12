@@ -24,6 +24,7 @@ import {
   summarizeCompatibility,
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
+import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
@@ -3578,6 +3579,18 @@ muxBtn.addEventListener('click', async () => {
   const extraProbePaths = [];
 
   try {
+    // P0: check original EBML before allocating large Wasm input memory.
+    // This is a risk gate, NOT a full-structure preservation certificate.
+    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
+      status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
+      const protection = await inspectMatroskaPreservation(video);
+      if (cancelRequested) return;
+      const refusal = preservationBlockMessage(video.name, protection);
+      if (refusal) throw new Error(refusal);
+      if (protection.state === 'NO_KNOWN_HAZARD') {
+        logEl.textContent += 'INFO: 源 MKV 未检出当前预检识别的嵌套章节与 UID 标签风险；不代表完整 EBML 保留已验证。\n';
+      }
+    }
     status.textContent = '正在解析 ASS 与字体 face……';
     bar.style.width = '10%';
 
@@ -4738,6 +4751,28 @@ batchStartBtn?.addEventListener('click', async () => {
     }
   }
 
+  // P0: check every batch source BEFORE clearing prior completed results.
+  // A single unsupported MKV blocks this batch rather than silently
+  // publishing earlier items before the risky file is encountered.
+  for (const job of pairing.jobs) {
+    try {
+      const inspected = await sniffFileContainer(job.video);
+      if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
+      const protection = await inspectMatroskaPreservation(job.video);
+      const refusal = preservationBlockMessage(job.video.name, protection);
+      if (refusal) {
+        batchStatus.textContent = '批量未开始：' + refusal;
+        return;
+      }
+    } catch (error) {
+      batchStatus.textContent = '批量未开始：无法完成源结构风险预检：' + (error?.message || String(error));
+      return;
+    }
+  }
+  if (isBusy() || batchRunning) {
+    batchStatus.textContent = '批量输入或执行状态已改变，请重新审核批量计划。';
+    return;
+  }
   batchRunning = true;
   batchCancelRequested = false;
   // Old batch links remain valid until a replacement batch actually starts.
