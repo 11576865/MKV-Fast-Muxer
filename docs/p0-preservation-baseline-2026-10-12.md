@@ -89,3 +89,18 @@ A second, higher-risk scenario is implemented on this **Draft PR**, with CI resu
 If this hard fixture goes red, distinguish a **fixture-authoring failure**, **comparison/parser failure**, **Wasm writer failure**, and **verified content-preservation loss** before changing production claims. The report intentionally does not cover arbitrary unknown EBML elements or all Matroska tags and references. Even if the new hard fixture passes, P0 is not complete.
 
 Review PR head-specific CI and JSON artifact, not an earlier green commit. Remain Draft until the failure classification and safety policy are explicit.
+
+
+## Confirmed red: MKVToolNix source is not preserved by the browser writer
+
+**CI run:** https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38194692640
+**Tracked defect:** https://github.com/11576865/MKV-Fast-Muxer/issues/77
+**Outcome:** `DIFFERENCE_DETECTED`, `chapterHierarchy` and `p0MarkedTags` on actual browser-generated output.
+
+Independent XML source shows parent chapter UID `510010`, nested child UID `510011`, edition UID `510001`, and a `P0_NESTED_CHAPTER_KEEP` custom tag that targets `ChapterUID=510011`. The browser output has only the parent chapter and the targeted custom tag is missing; the parent language changed from `eng` to `und`, and the original edition UID was not retained. Global tag `P0_GLOBAL_KEEP` survived.
+
+This is a **reproduced P0 preservation red**. It is not an assertion that ordinary flat chapter workflows fail, nor a proof of a particular internal FFmpeg implementation defect; it establishes that the product's existing browser remux path cannot be trusted to retain this source's high-level relationships. The earlier simple fixture remains `CHECKED_FIELDS_MATCH`.
+
+**Release impact:** Do not approve the general-purpose source-container mutation path without an explicit detection/compatibility gate. If the tool cannot preserve the source semantics, it must block or obtain informed acceptance of an explicitly degraded *new* output; it cannot claim total preservation. No production fix or automatic detection path has been implemented by this P0 branch.
+
+PR #76 intentionally remains **Draft / red** with downloadable machine-readable JSON attached to the failed run. A later implementation PR should carry the actual guard or backend solution and prove the same fixture changes from fail to an explicitly supported outcome without hiding the source structure.
