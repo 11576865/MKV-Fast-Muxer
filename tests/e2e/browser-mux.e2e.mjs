@@ -2749,6 +2749,69 @@ async function scenarioCompatibilityEvidenceMatrix(browser) {
 
 // P0 regression: independently authored MKV contains nested Chapters and
 // UID-targeted Tags. The browser must reject before creating an output.
+// P1: holding a real MKV EBML preflight must never allow a different subtitle
+// selected during the await to enter the old writer or erase old artifacts.
+async function scenarioP1SubtitleIntentInvalidation(browser) {
+  console.log('P1 subtitle execution: delayed source preflight rejects stale subtitle edit');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      const subtitles = document.querySelector('#newSubtitleList')?.textContent || '';
+      return button && !button.disabled && subtitles.includes('zh.ass') &&
+        document.querySelector('#appendPreserveAll')?.checked;
+    }, null, { timeout: 90_000 });
+
+    await page.evaluate(() => {
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      window.__p1SubtitleRead = { entered: false, used: false, release };
+      const originalSlice = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const part = originalSlice.apply(this, args);
+        if (this.name !== 'source-multitrack.mkv') return part;
+        const originalRead = part.arrayBuffer.bind(part);
+        part.arrayBuffer = async () => {
+          if (!window.__p1SubtitleRead.used) {
+            window.__p1SubtitleRead.used = true;
+            window.__p1SubtitleRead.entered = true;
+            await gate;
+          }
+          return originalRead();
+        };
+        return part;
+      };
+    });
+
+    await page.locator('#muxBtn').click();
+    await page.waitForFunction(() => window.__p1SubtitleRead?.entered,
+      null, { timeout: 45_000 });
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+
+    // Deliberately change a disabled native picker programmatically. Browser
+    // disabling is not a trustworthy state/plan revision check.
+    await page.setInputFiles('#subInput', path.join(root, 'en.ass'));
+    await page.waitForFunction(() => {
+      const selected = document.querySelector('#subInput')?.files?.[0]?.name;
+      const displayed = document.querySelector('#newSubtitleList')?.textContent || '';
+      return selected === 'en.ass' && displayed.includes('en.ass');
+    }, null, { timeout: 45_000 });
+    await page.evaluate(() => window.__p1SubtitleRead.release());
+
+    await page.waitForFunction(() => {
+      const message = document.querySelector('#status')?.textContent || '';
+      return message.includes('执行准备期间字幕来源、格式或轨道选项已改变');
+    }, null, { timeout: 90_000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+    console.log('P1 subtitle stale-preflight rejection PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksSingle(browser) {
   console.log('P0 preservation gate: block high-risk original MKV in single mux');
   const { context, page } = await openApp(browser);
@@ -3041,6 +3104,7 @@ try {
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
+  await scenarioP1SubtitleIntentInvalidation(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);

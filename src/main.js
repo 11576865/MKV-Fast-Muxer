@@ -34,6 +34,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
+import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -3555,6 +3556,18 @@ muxBtn.addEventListener('click', async () => {
     status.textContent = `字幕“${invalidSubtitle.file.name}”的实际内容无法识别为支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub。`;
     return;
   }
+  const subtitleWitness = captureSubtitleExecutionWitness({
+    source: video, tracks: subtitleTracks, appendMode,
+  });
+  const assertCurrentSubtitleWitness = () => {
+    const fresh = validateSubtitleExecutionWitness(subtitleWitness, {
+      source: videoInput.files[0], tracks: newSubtitleState,
+      appendMode: Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked),
+    });
+    if (!fresh.ok) {
+      throw new Error('执行准备期间字幕来源、格式或轨道选项已改变，请重新核对并启动（' + fresh.reason + '）。');
+    }
+  };
   running = true;
   cancelRequested = false;
   updateUI();
@@ -3583,6 +3596,7 @@ muxBtn.addEventListener('click', async () => {
         preservationInfo = 'INFO: 未检出当前硬阻断结构；不代表完整 EBML 保留已验证。' + String.fromCharCode(10);
       }
     }
+    assertCurrentSubtitleWitness();
   } catch (err) {
     status.textContent = formatOperationError(err, { phase: 'mux' });
     bar.style.width = '0%';
@@ -3919,7 +3933,7 @@ muxBtn.addEventListener('click', async () => {
       filename: item.attachmentName,
     }));
 
-    const args = buildMuxCommand({
+    const commandOptions = {
       mainInputPath: videoPath,
       outputPath,
       sourceAudioCount: sourceAudios.length,
@@ -3935,6 +3949,15 @@ muxBtn.addEventListener('click', async () => {
       preserveOriginalDataStreams: isMatroskaIdentity(inputIdentity),
       originalAttachmentCount,
       fontAttachments,
+    };
+    const args = buildMuxCommand(commandOptions);
+    // A read-only independent descriptor mapping must produce exactly the
+    // legacy arguments. Refuse before ffmpeg.exec on any mismatch or stale
+    // subtitle/source edit; do not claim EBML output preservation.
+    assertCurrentSubtitleWitness();
+    verifyStagedSubtitleCommandParity({
+      source: video, runtimeSubtitles,
+      commandOptions, expectedArgs: args,
     });
 
     const code = await ffmpeg.exec(args);

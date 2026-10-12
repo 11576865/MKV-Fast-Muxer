@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p1-subtitle-execution-freshness",
+  "goal": "Assert current source/subtitle intent after async P0 preflight and immediately before FFmpeg execution; verify staged subtitle mapping yields identical legacy mux args without replacing writer.",
+  "status": "submitted-pending-exact-head-ci",
+  "base": "main@6ca303d2b9cc5e25d120d02d0843f34a1ad759ce",
+  "completed_units": [
+    "PR #86 exact-head Node 241/241 and Browser E2E passed; merged PR #86 to main.",
+    "Added source/subtitle File-reference+intent-revision witness and checks after P0 preflight and before ffmpeg.exec.",
+    "Added read-only staged subtitle argument parity verification against legacy buildMuxCommand.",
+    "Added pure regression tests for stale inputs, formats, edits, append-all/selective mode, source-only remux.",
+    "Kept original mux writer, Matroska preservation gate, and batch executor unchanged."
+  ],
+  "next_work_unit": "Validate exact-head CI and check real browser logs; repair regressions without weakening data-loss evidence. User-facing artifact equivalence remains future work.",
+  "outstanding": [
+    "GitHub issue #77 now marked closed without evidence of a writer-level repair; status requires separate owner review.",
+    "No immutable global JobPlan or content hashes.",
+    "No independent output semantic validation of a new writer route."
+  ]
+}
