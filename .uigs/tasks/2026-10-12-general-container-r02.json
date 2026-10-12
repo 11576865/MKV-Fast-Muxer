@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-general-container-r02",
+  "goal": "Restore user-approved universal Matroska domain model and advance one-PNG zero-track attachment-only experiment without pretending legacy FFmpeg supports it.",
+  "status": "implementation-submitted-pending-pr-ci-and-r02-independent-tool-evidence",
+  "base": "main@331e8fba98c2aa12007a7d24d14f9b298bfcf7b4",
+  "decision_basis": [
+    "2026-10-12 user-approved future-planning resolution D-01..D-10, P1/P2, R-02, T-012",
+    "Earlier '询问软封现状' conversation: universal container core, ASS authoring boundary, preserve batch, no-video/PNG-only intent"
+  ],
+  "completed_units": [
+    "Implemented pure video-free target composition projection with no-video, nonvideo, attachment and metadata cases; refuses unsupported legacy writer rather than inventing a video.",
+    "Submitted 7 Node cases including single PNG/zero tracks, audio-only, ordinary media, arbitrary attachments, UID knowledge gaps, missing source/media-type and empty draft.",
+    "Added test-only RFC 9559 research fixture generator and independent mkvmerge/mkvextract attachment SHA-256 check, preserving JSON for inconclusive results.",
+    "Added isolated non-gating CI experiment and artifact upload; existing full Chromium E2E remains authoritative.",
+    "Recorded corrected product-scope roadmap and unchanged #77 technical preservation risk."
+  ],
+  "pending": [
+    "Exact PR head Node/Vite/Chromium CI outcomes",
+    "R-02 JSON must be read independently of job green status",
+    "No actual product attachment-only writer, general attachment editor, or verified conformant no-media output",
+    "Full ContainerDocument mutation authority, durable source IDs and batch executor remain future"
+  ]
+}
