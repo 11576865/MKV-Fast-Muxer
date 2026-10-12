@@ -48,6 +48,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
       - name: Resolve browser and required media tools
         shell: bash
         run: |
@@ -103,12 +109,6 @@ jobs:
             exit 1
           fi
           printf '%s\n' "$cjk_fonts" | sed -n '1,3p'
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
 
       - name: Generate regular and independent Matroska fixtures
         run: |
