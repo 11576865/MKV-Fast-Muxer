@@ -217,6 +217,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-existing source modification stays BLOCKED until a verified
+      # relation-aware EBML writer exists. This source is authored externally.
+      - name: P2 existing attachment edit intent — tagged UID fail-closed audit
+        id: p2_existing_attachment_guard
+        continue-on-error: true
+        run: node scripts/p2-existing-attachment-edit-block-audit.mjs
+
+      - name: Upload P2 existing attachment edit fail-closed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-existing-attachment-edit-fail-closed
+          path: .e2e/output/p2-existing-attachment-edit-block-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
