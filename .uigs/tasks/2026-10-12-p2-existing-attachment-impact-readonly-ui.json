@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-existing-attachment-impact-readonly-ui",
+  "base": "main@0fc514e959d055fc510457945a7357a91d564fc7",
+  "status": "submitted-pending-exact-head-ci-and-real-browser-source-audit",
+  "objective": "Expose verified P2-RG source TagAttachmentUID graph and deny-only simulated removal impact through isolated browser read-only UI.",
+  "implemented": [
+    "Separate source file picker with no legacy writer/batch/edit state mutation",
+    "Renders actual source FileUID, declared metadata, known per-item Tag reference count, possible dangling impact, graph coverage and explicit unavailability of existing-MKV writer",
+    "Read-only retain/remove per-attachment simulation feeds original reader-backed immutable EditIntent",
+    "Source switching and async generation invalidation removes stale rows and stale apparent relationships",
+    "Real Chromium E2E on independently authored AttachmentUID-tagged source checks tagged vs decoy impact, SHA-256 unchanged and source switch isolation",
+    "Separate JSON evidence artifact upload; full old E2E untouched"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/full Chromium pass",
+    "Real browser JSON result BROWSER_UID_TARGET_GRAPH_IMPACT_AND_SOURCE_ISOLATION_MATCH plus prior independent source UID relation graph oracle",
+    "No existing Matroska write, replacement UI, metadata-safe remux or general full EBML preservation proof"
+  ]
+}

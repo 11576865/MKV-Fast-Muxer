@@ -5333,3 +5333,46 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 .multi-attachment-review input { flex: 0 0 auto; margin-top: 4px; }
 #multiAttachmentExperimentStatus[data-state="error"] { color: var(--danger, #d96a6a); }
 #multiAttachmentExperimentStatus[data-state="prepared"] { font-weight: 550; }
+
+/* Read-only source AttachmentUID relation/impact inspector, no writer. */
+.existing-impact-inventory {
+  display: grid;
+  gap: 10px;
+  margin-block: 10px;
+  min-width: 0;
+}
+.existing-impact-row {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.existing-impact-row label {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 7px 0;
+}
+.existing-impact-row select {
+  min-width: 120px;
+  max-width: 100%;
+}
+.existing-impact-name {
+  font-weight: 650;
+  unicode-bidi: plaintext;
+}
+.existing-impact-result,
+.existing-impact-summary {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.existing-impact-summary {
+  padding-block: 8px;
+}
+.existing-impact-summary > div + div { margin-top: 6px; }
+#existingImpactStatus[data-state="error"] { color: var(--danger, #d96a6a); }
+@media (max-width: 720px) {
+  .existing-impact-row label { flex-direction: column; }
+}

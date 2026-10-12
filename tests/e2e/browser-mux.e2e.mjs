@@ -3099,6 +3099,89 @@ async function scenarioP2MultiAttachmentBrowserCreate(browser) {
   }
 }
 
+async function scenarioP2ExistingAttachmentImpactReadonlyUI(browser) {
+  console.log('P2-RG UI: inspect real AttachmentUID-tagged MKV and distinguish linked vs decoy removal');
+  const sourcePath = path.join(root, 'p0-independent-attachmenttag.mkv');
+  const originalSha = createHash('sha256').update(await fs.readFile(sourcePath)).digest('hex');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#existingAttachmentImpactDetails > summary').click();
+    await page.setInputFiles('#existingImpactInput', sourcePath);
+    await page.waitForFunction(() =>
+      document.querySelector('#existingImpactStatus')?.dataset.state === 'inspected',
+      null, { timeout: 60_000 });
+    assert.equal(await page.locator('.existing-impact-row').count(), 2);
+    const linked = page.locator('.existing-impact-row')
+      .filter({ hasText: 'p0-attachment-evidence.bin' });
+    const decoy = page.locator('.existing-impact-row')
+      .filter({ hasText: 'p0-attachment-decoy.txt' });
+    assert.equal(await linked.count(), 1);
+    assert.equal(await decoy.count(), 1);
+    assert.match(await linked.locator('.existing-impact-result').textContent(),
+      /已观察到 1 个指向此 FileUID 的 Tag 目标/);
+    assert.match(await decoy.locator('.existing-impact-result').textContent(),
+      /不能据此断定修改安全/);
+    assert.equal(await page.locator('#existingImpactSummary').getAttribute('data-capability-code'),
+      'NO_WRITE_REQUESTED');
+
+    await linked.locator('select[data-impact-action]').selectOption('remove');
+    await page.waitForFunction(() =>
+      document.querySelector('#existingImpactSummary')?.dataset.danglingCount === '1',
+      null, { timeout: 60_000 });
+    assert.equal(await linked.locator('.existing-impact-result').getAttribute('data-tag-impact'),
+      'would-orphan-tag-attachment-uid');
+    assert.match(await linked.locator('.existing-impact-result').textContent(), /悬空/);
+    assert.equal(await page.locator('#existingImpactSummary').getAttribute('data-capability-code'),
+      'SOURCE_UID_RELATIONS_UNVERIFIED');
+
+    // A decoy removal never inherits the tagged source's identity.
+    await linked.locator('select[data-impact-action]').selectOption('retain');
+    await decoy.locator('select[data-impact-action]').selectOption('remove');
+    await page.waitForFunction(() =>
+      document.querySelector('#existingImpactSummary')?.dataset.danglingCount === '0' &&
+      document.querySelector('#existingImpactSummary')?.dataset.capabilityCode ===
+        'SOURCE_UID_RELATIONS_UNVERIFIED',
+      null, { timeout: 60_000 });
+    assert.equal(await decoy.locator('.existing-impact-result').getAttribute('data-tag-impact'),
+      'no-targeted-tag-observed-not-proof-of-safety');
+    assert.match(await page.locator('#existingImpactSummary').textContent(),
+      /真实写入器：不可用/);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    const after = createHash('sha256').update(await fs.readFile(sourcePath)).digest('hex');
+    assert.equal(after, originalSha);
+
+    // A new source invalidates all previous target identities/impact rows.
+    await page.setInputFiles('#existingImpactInput', {
+      name: 'single-png-attachment.mkv',
+      mimeType: 'application/octet-stream',
+      buffer: createResearchFixture(),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#existingImpactStatus')?.dataset.state === 'inspected' &&
+      document.querySelectorAll('.existing-impact-row').length === 1,
+      null, { timeout: 30_000 });
+    assert.match(await page.locator('#existingImpactInventory').textContent(), /pixel\.png/);
+    assert.doesNotMatch(await page.locator('#existingImpactInventory').textContent(),
+      /p0-attachment-evidence\.bin/);
+    assert.equal(await page.locator('#existingImpactSummary').getAttribute('data-capability-code'),
+      'NO_WRITE_REQUESTED');
+    await fs.writeFile(path.join(outDir, 'p2-existing-attachment-impact-browser-report.json'),
+      JSON.stringify({
+        schema: 'p2-existing-attachment-impact-browser-v0',
+        result: 'BROWSER_UID_TARGET_GRAPH_IMPACT_AND_SOURCE_ISOLATION_MATCH',
+        independentSourceSha256Before: originalSha,
+        independentSourceSha256After: after,
+        linkedRemovalWouldOrphanTag: true,
+        decoyRemovalWouldOrphanTag: false,
+        actualSourceWriterUsed: false,
+        existingMkvModificationEnabled: false,
+      }, null, 2) + '\n');
+    console.log('P2-RG UI actual tagged source read-only impact and decoy isolation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP2AttachmentInspectionStaleFile(browser) {
   console.log('P2: changing container while a seek-read is held never reveals stale attachments');
   const { context, page } = await openApp(browser);
@@ -3443,6 +3526,7 @@ try {
   await scenarioP2R02NoTrackAndMimeEvidence(browser);
   await scenarioP2R02BrowserCreateOnlyPng(browser);
   await scenarioP2MultiAttachmentBrowserCreate(browser);
+  await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);

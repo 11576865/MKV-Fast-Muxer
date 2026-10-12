@@ -156,6 +156,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload P2-RG actual source read-only browser UI impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-existing-attachment-impact-browser-ui
+          path: .e2e/output/p2-existing-attachment-impact-browser-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # Research evidence must not silently become a production release gate.
       # Report itself distinguishes tool limitations from verified content.
       - name: R-02 research — PNG-only Matroska independent reader/extractor
