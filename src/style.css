@@ -5284,3 +5284,52 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 @media (max-width: 720px) {
   .png-only-experiment-actions { align-items: stretch; }
 }
+
+/* P2-M: bounded, reviewed generic attachment creation experiment. */
+.multi-attachment-inventory {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  margin-block: 10px;
+}
+.multi-attachment-item {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+.multi-attachment-source {
+  font-weight: 650;
+  unicode-bidi: plaintext;
+}
+.multi-attachment-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin-block: 6px;
+}
+.multi-attachment-fields label {
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  flex-direction: column;
+}
+.multi-attachment-fields input {
+  width: 100%;
+  min-width: 0;
+}
+.multi-attachment-proposal {
+  overflow-wrap: anywhere;
+}
+.multi-attachment-review {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.multi-attachment-review input { flex: 0 0 auto; margin-top: 4px; }
+#multiAttachmentExperimentStatus[data-state="error"] { color: var(--danger, #d96a6a); }
+#multiAttachmentExperimentStatus[data-state="prepared"] { font-weight: 550; }
