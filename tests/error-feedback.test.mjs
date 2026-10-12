@@ -80,3 +80,14 @@ test('classifies malformed font files with an actionable replacement step', () =
   assert.match(feedback.action, /重新选择有效的 TTF \/ OTF \/ TTC \/ OTC/);
   assert.equal(feedback.canSave, false);
 });
+
+test('P0 preservation refusals are explicitly classified and never imply an output exists', () => {
+  const feedback = describeOperationError(
+    new Error('结构保留预检阻断“nested.mkv”：嵌套章节；指向特定章节 UID 的标签。原文件未被修改。'),
+    { phase: 'mux' }
+  );
+  assert.equal(feedback.category, 'preservation-preflight-block');
+  assert.equal(feedback.canSave, false);
+  assert.match(feedback.cause, /嵌套章节/);
+  assert.match(feedback.action, /当前任务已在写入前停止/);
+});

@@ -24,6 +24,7 @@ import {
   summarizeCompatibility,
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
+import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
@@ -3549,11 +3550,43 @@ muxBtn.addEventListener('click', async () => {
   running = true;
   cancelRequested = false;
   updateUI();
+  let preservationInfo = '';
+  try {
+    // Preserve a previous successful download until the new source passes
+    // preflight. Never revoke prior artifacts merely to refuse an unsafe MKV.
+    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
+      status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
+      const protection = await inspectMatroskaPreservation(video);
+      if (cancelRequested) {
+        status.textContent = '源结构预检已取消。';
+        running = false;
+        updateUI();
+        return;
+      }
+      if (fileKey(videoInput.files[0]) !== fileKey(video)) {
+        throw new Error('预检期间来源已改变，请重新确认当前输入。');
+      }
+      const refusal = preservationBlockMessage(video.name, protection);
+      if (refusal) throw new Error(refusal);
+      if (protection.state === 'UNVERIFIED_REFERENCES') {
+        preservationInfo = 'WARNING: ' + protection.warnings.join('；') +
+          '。封装仍可继续，但这些关联的保留未经独立验证；请复核输出。' + String.fromCharCode(10);
+      } else if (protection.state === 'NO_KNOWN_HAZARD') {
+        preservationInfo = 'INFO: 未检出当前硬阻断结构；不代表完整 EBML 保留已验证。' + String.fromCharCode(10);
+      }
+    }
+  } catch (err) {
+    status.textContent = formatOperationError(err, { phase: 'mux' });
+    bar.style.width = '0%';
+    running = false;
+    updateUI();
+    return;
+  }
   downloadLink.classList.add('hidden');
   reportLink.classList.add('hidden');
   auditResult.className = 'audit-result hidden';
   auditResult.textContent = '';
-  logEl.textContent = '';
+  logEl.textContent = preservationInfo;
   bar.style.width = '4%';
 
   if (outputURL) {
@@ -4738,6 +4771,28 @@ batchStartBtn?.addEventListener('click', async () => {
     }
   }
 
+  // P0: check every batch source BEFORE clearing prior completed results.
+  // A single unsupported MKV blocks this batch rather than silently
+  // publishing earlier items before the risky file is encountered.
+  for (const job of pairing.jobs) {
+    try {
+      const inspected = await sniffFileContainer(job.video);
+      if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
+      const protection = await inspectMatroskaPreservation(job.video);
+      const refusal = preservationBlockMessage(job.video.name, protection);
+      if (refusal) {
+        batchStatus.textContent = '批量未开始：' + refusal;
+        return;
+      }
+    } catch (error) {
+      batchStatus.textContent = '批量未开始：无法完成源结构风险预检：' + (error?.message || String(error));
+      return;
+    }
+  }
+  if (isBusy() || batchRunning) {
+    batchStatus.textContent = '批量输入或执行状态已改变，请重新审核批量计划。';
+    return;
+  }
   batchRunning = true;
   batchCancelRequested = false;
   // Old batch links remain valid until a replacement batch actually starts.

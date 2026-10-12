@@ -2747,6 +2747,66 @@ async function scenarioCompatibilityEvidenceMatrix(browser) {
   }
 }
 
+// P0 regression: independently authored MKV contains nested Chapters and
+// UID-targeted Tags. The browser must reject before creating an output.
+async function scenarioP0PreservationBlocksSingle(browser) {
+  console.log('P0 preservation gate: block high-risk original MKV in single mux');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      return button && !button.disabled;
+    }, null, { timeout: 90_000 });
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('结构保留预检阻断'),
+      null, { timeout: 90_000 });
+    const message = await page.locator('#status').textContent();
+    assert.match(message, /嵌套章节/);
+    assert.match(message, /指向特定章节 UID 的标签/);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+    console.log('P0 single preservation gate PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioP0PreservationBlocksWholeBatch(browser) {
+  console.log('P0 preservation gate: reject batch before any output is started');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', [
+      path.join(root, 'Batch S01E01.mp4'),
+      path.join(root, 'p0-independent-mkvtoolnix.mkv'),
+    ]);
+    await page.setInputFiles('#batchSubtitleInput', [
+      path.join(root, 'Batch S01E01.zh-Hans.ass'),
+      path.join(root, 'p0-independent-mkvtoolnix.zh.ass'),
+    ]);
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      const button = document.querySelector('#batchStartBtn');
+      return button && !button.disabled &&
+        plan.includes('Batch S01E01.mp4') &&
+        plan.includes('p0-independent-mkvtoolnix.mkv');
+    }, null, { timeout: 90_000 });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchStatus')?.textContent || '').includes('结构保留预检阻断'),
+      null, { timeout: 90_000 });
+    assert.match(await page.locator('#batchStatus').textContent(), /批量未开始/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(), 0);
+    console.log('P0 whole-batch preservation gate PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2799,6 +2859,8 @@ try {
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
+  await scenarioP0PreservationBlocksSingle(browser);
+  await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
