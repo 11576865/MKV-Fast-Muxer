@@ -7,6 +7,7 @@ ROOT=".e2e/fixtures"
 if [[ $# -gt 0 ]]; then ROOT="$1"; fi
 command -v mkvmerge >/dev/null
 command -v mkvextract >/dev/null
+command -v mkvpropedit >/dev/null
 test -f "$ROOT/base.mp4"
 test -f "$ROOT/notes.txt"
 
@@ -65,17 +66,21 @@ XML
 mkvmerge --quiet \
   --output "$ROOT/p0-independent-mkvtoolnix.mkv" \
   --chapters "$ROOT/p0-independent-chapters.xml" \
-  --global-tags "$ROOT/p0-independent-tags.xml" \
   --attachment-name p0-generic-report.bin \
   --attachment-mime-type application/octet-stream \
   --attach-file "$ROOT/notes.txt" \
   "$ROOT/base.mp4"
 
+# --global-tags intentionally strips tag Targets; use an explicit tag edit
+# so the test really contains a ChapterUID relationship.
+mkvpropedit "$ROOT/p0-independent-mkvtoolnix.mkv" --tags "all:$ROOT/p0-independent-tags.xml"
+
 # Assert the independent writer actually emitted the proposed adversarial
 # features. If it did not, fail at fixture creation, not after browser mux.
-mkvextract "$ROOT/p0-independent-mkvtoolnix.mkv" chapters \
-  | grep -q 'P0 nested chapter'
-mkvextract "$ROOT/p0-independent-mkvtoolnix.mkv" tags \
-  | grep -q 'P0_NESTED_CHAPTER_KEEP'
+mkvextract "$ROOT/p0-independent-mkvtoolnix.mkv" chapters "$ROOT/p0-check-chapters.xml"
+mkvextract "$ROOT/p0-independent-mkvtoolnix.mkv" tags "$ROOT/p0-check-tags.xml"
+grep -q 'P0 nested chapter' "$ROOT/p0-check-chapters.xml"
+grep -q 'P0_NESTED_CHAPTER_KEEP' "$ROOT/p0-check-tags.xml"
+grep -q '<ChapterUID>510011</ChapterUID>' "$ROOT/p0-check-tags.xml"
 
 echo "Independent Matroska P0 fixture generated."
