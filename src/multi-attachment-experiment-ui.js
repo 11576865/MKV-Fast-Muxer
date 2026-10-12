@@ -30,8 +30,13 @@ export function setupMultiAttachmentExperimentUI({
     generation++;
     prepared = null;
     save.disabled = true;
-    prepare.disabled = !review.checked || rows.length < 2 ||
-      rows.length > MAX_ATTACHED_FILES;
+    const bytes = rows.reduce((sum, row) => sum + row.file.size, 0);
+    const validBudget = rows.length >= 2 &&
+      rows.length <= MAX_ATTACHED_FILES &&
+      bytes <= MAX_TOTAL_ATTACHMENT_BYTES &&
+      rows.every(row => row.file.size > 0 &&
+        row.file.size <= MAX_SINGLE_ATTACHMENT_BYTES);
+    prepare.disabled = !review.checked || !validBudget;
   }
   function sameSources(files, token) {
     const now = [...(input.files || [])];
