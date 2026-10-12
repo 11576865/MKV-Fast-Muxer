@@ -11,7 +11,7 @@ const mkvPath = path.join(outDir, 'r02-attachment-only-research.mkv');
 const extractedPath = path.join(outDir, 'r02-extracted.png');
 const reportPath = path.join(outDir, 'r02-attachment-only-report.json');
 const pngBytes = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOQTX3+HwAEdQJpxgFBFwAAAABJRU5ErkJggg==',
   'base64',
 );
 
