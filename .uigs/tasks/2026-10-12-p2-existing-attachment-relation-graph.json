@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-existing-matroska-tag-reference-graph",
+  "base": "main@b58e5f4101245dc1da567e6d48b5ba1f45ade679",
+  "status": "implementation-submitted-pending-exact-head-ci-and-independent-relation-graph-audit",
+  "goal": "Read-only bounded Matroska TagUID->attachment reference graph and impact explanations for retain/remove/replace without writer permission.",
+  "implemented": [
+    "Bounded seek-based scanner reads exact uint64 Tag Attachment/Track/Chapter/Edition UID targets, maps against current FileUID inventory and flags orphans/unknown target types",
+    "Reader-owned latest source-inspection witness required for graph inspection",
+    "Immutable existing attachment intents carry per-source referenced Tag IDs and would-orphan impact summaries; fail-closed graph incompleteness denied",
+    "Synthetic Node suite for match vs decoy, orphan, uint64, malformed and unknown targets, source freshness and bounded no-FileData/no-Cluster reads",
+    "Real independently MKVToolNix-authored tagged-source control script asserts linked vs decoy impact and unchanged source hash",
+    "Non-gating JSON artifact and preservation of old P0/Browser E2E gates"
+  ],
+  "pending": [
+    "Exact PR head full Node/Build/Chromium",
+    "Independent JSON INDEPENDENT_ATTACHMENT_UID_TAG_GRAPH_AND_CHANGE_IMPACT_MATCH",
+    "No existing Matroska edit or output writer; no unknown EBML/Chapter graph preservation proof"
+  ]
+}
