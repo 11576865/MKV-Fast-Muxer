@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize independently extracted Matroska XML for scoped P0 audit.
 
-Reads XML written by \`mkvextract FILE chapters\` or \`mkvextract FILE tags\`
+Reads XML written by `mkvextract FILE chapters` or `mkvextract FILE tags`
 on stdin; writes JSON on stdout. Uses Python standard library only.
 """
 import json
