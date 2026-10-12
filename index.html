@@ -137,6 +137,24 @@
               </div>
               <div id="pngOnlyExperimentStatus" role="status" aria-live="polite" data-state="empty">尚未选择 PNG 图片。</div>
             </details>
+            <details id="multiAttachmentExperimentDetails" class="attachment-extraction" aria-labelledby="multi-attachment-experiment-title">
+              <summary id="multi-attachment-experiment-title">实验：创建包含多个通用附件的 Matroska</summary>
+              <p class="attachment-extraction-help">新建零媒体轨 Matroska，支持 2–8 个不同附件，单个最大 16 MiB，合计最大 32 MiB。文件名与 MIME 仅供审查，不代表内容安全。任何获得输出文件的人通常都能提取全部附件。</p>
+              <label class="attachment-extraction-picker">
+                选择多个附件
+                <input id="multiAttachmentCreateInput" type="file" multiple aria-label="选择要放进新 Matroska 的多个附件文件" />
+              </label>
+              <div id="multiAttachmentCreateInventory" class="multi-attachment-inventory" aria-label="拟写入附件的独立审查清单"></div>
+              <label class="multi-attachment-review">
+                <input id="multiAttachmentReview" type="checkbox" />
+                我已逐项检查来源文件、拟写入名称、MIME 声明与可能一同分发的敏感内容，并同意必要的文件名调整。
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="multiAttachmentPrepareButton" type="button" class="button button-small" disabled>生成并逐附件验证</button>
+                <button id="multiAttachmentSaveButton" type="button" class="button button-small" disabled>下载实验性多附件 MKV</button>
+              </div>
+              <div id="multiAttachmentExperimentStatus" role="status" aria-live="polite" data-state="empty">尚未选择多附件文件。</div>
+            </details>
           </section>
 
           <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->

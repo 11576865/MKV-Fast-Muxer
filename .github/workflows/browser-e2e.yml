@@ -143,6 +143,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload P2-M browser-created generic attachment output evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-browser-multi-attachment-independent-audit
+          path: |
+            .e2e/output/p2-multi-browser-candidate-report.json
+            .e2e/output/p2-multi-real-browser-created.mkv
+            .e2e/output/p2-multi-browser-extracted-0.bin
+            .e2e/output/p2-multi-browser-extracted-1.bin
+          if-no-files-found: warn
+          retention-days: 14
+
       # Research evidence must not silently become a production release gate.
       # Report itself distinguishes tool limitations from verified content.
       - name: R-02 research — PNG-only Matroska independent reader/extractor

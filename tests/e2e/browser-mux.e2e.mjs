@@ -2995,6 +2995,110 @@ async function scenarioP2R02BrowserCreateOnlyPng(browser) {
   }
 }
 
+async function scenarioP2MultiAttachmentBrowserCreate(browser) {
+  console.log('P2-M: Chromium reviewed two-file Matroska creation with external attachment extraction');
+  const { context, page } = await openApp(browser);
+  const licenseBytes = Buffer.from('Browser license test: unencrypted generic attached document.\n');
+  try {
+    await page.locator('#multiAttachmentExperimentDetails > summary').click();
+    await page.setInputFiles('#multiAttachmentCreateInput', [
+      { name: 'cover.png', mimeType: 'image/png', buffer: pngBytes },
+      { name: 'LICENSE.txt', mimeType: 'text/plain', buffer: licenseBytes },
+    ]);
+    assert.equal(await page.locator('.multi-attachment-item').count(), 2);
+    assert.equal(await page.locator('#multiAttachmentPrepareButton').isDisabled(), true,
+      'review must precede output creation');
+    assert.match(await page.locator('#multiAttachmentCreateInventory').textContent(),
+      /拟写入名称：cover\.png/);
+    assert.match(await page.locator('#multiAttachmentCreateInventory').textContent(),
+      /拟写入名称：LICENSE\.txt/);
+    await page.locator('#multiAttachmentReview').check();
+    assert.equal(await page.locator('#multiAttachmentPrepareButton').isEnabled(), true);
+    await page.locator('#multiAttachmentPrepareButton').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#multiAttachmentExperimentStatus')?.dataset.state === 'prepared',
+      null, { timeout: 60_000 });
+    assert.match(await page.locator('#multiAttachmentExperimentStatus').textContent(),
+      /全部经本地 SHA-256 回读一致/);
+
+    const output = path.join(outDir, 'p2-multi-real-browser-created.mkv');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#multiAttachmentSaveButton').click(),
+    ]);
+    assert.equal(download.suggestedFilename(), 'multiple-attachments-only.mkv');
+    await download.saveAs(output);
+    const parsed = JSON.parse(execFileSync('mkvmerge', ['-J', output],
+      { encoding: 'utf8', timeout: 30_000 }));
+    assert.equal((parsed.tracks || []).length, 0,
+      'browser writer cannot smuggle in video/audio tracks');
+    const attachments = parsed.attachments || [];
+    assert.equal(attachments.length, 2);
+    const expected = [
+      { name: 'cover.png', mime: 'image/png', bytes: pngBytes },
+      { name: 'LICENSE.txt', mime: 'text/plain', bytes: licenseBytes },
+    ];
+    const extracted = [];
+    for (let index = 0; index < 2; index++) {
+      const a = attachments[index];
+      assert.equal(a.file_name, expected[index].name);
+      assert.equal(a.content_type, expected[index].mime);
+      assert.equal(a.size, expected[index].bytes.length);
+      assert.ok(Number.isInteger(a.id));
+      const pathTo = path.join(outDir, 'p2-multi-browser-extracted-' + index + '.bin');
+      execFileSync('mkvextract', ['attachments', output, String(a.id) + ':' + pathTo],
+        { encoding: 'utf8', timeout: 30_000 });
+      const got = await fs.readFile(pathTo);
+      assert.deepEqual(got, expected[index].bytes);
+      extracted.push({
+        file_name: a.file_name,
+        sha256: createHash('sha256').update(got).digest('hex'),
+      });
+    }
+    await fs.writeFile(path.join(outDir, 'p2-multi-browser-candidate-report.json'),
+      JSON.stringify({
+        schema: 'p2-multi-attachment-browser-external-audit-v0',
+        result: 'BROWSER_MULTI_ATTACHMENT_INDEPENDENT_UIDS_AND_BYTES_MATCH',
+        tracks: (parsed.tracks || []).length,
+        attachments: extracted,
+        downloadSha256: createHash('sha256')
+          .update(await fs.readFile(output)).digest('hex'),
+        nonMediaContainer: true,
+        productionGeneralWriter: false,
+      }, null, 2) + '\n');
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+
+    // Edits to metadata revoke authorization; the old Blob may not be saved.
+    await page.locator('input[data-multi-attachment-mime="1"]').fill('application/json');
+    assert.equal(await page.locator('#multiAttachmentSaveButton').isDisabled(), true);
+    assert.equal(await page.locator('#multiAttachmentReview').isChecked(), false);
+    await page.locator('#multiAttachmentReview').check();
+    assert.equal(await page.locator('#multiAttachmentSaveButton').isDisabled(), true,
+      'review alone cannot reuse a stale prepared artifact');
+
+    // Case-colliding filenames are disclosed and require a new review.
+    await page.setInputFiles('#multiAttachmentCreateInput', [
+      { name: 'cover.png', mimeType: 'image/png', buffer: pngBytes },
+      { name: 'COVER.PNG', mimeType: 'image/png', buffer: pngBytes },
+    ]);
+    assert.match(await page.locator('#multiAttachmentCreateInventory').textContent(),
+      /COVER \(2\)\.PNG/);
+    assert.match(await page.locator('#multiAttachmentCreateInventory').textContent(),
+      /collision-renamed/);
+    assert.equal(await page.locator('#multiAttachmentPrepareButton').isDisabled(), true);
+
+    // A single resource never enters the multi-file writer.
+    await page.setInputFiles('#multiAttachmentCreateInput', [
+      { name: 'solo.png', mimeType: 'image/png', buffer: pngBytes },
+    ]);
+    await page.locator('#multiAttachmentReview').check();
+    assert.equal(await page.locator('#multiAttachmentPrepareButton').isDisabled(), true);
+    console.log('P2-M browser multi-attachment byte audit + review invalidation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP2AttachmentInspectionStaleFile(browser) {
   console.log('P2: changing container while a seek-read is held never reveals stale attachments');
   const { context, page } = await openApp(browser);
@@ -3338,6 +3442,7 @@ try {
   await scenarioP2GenericAttachmentExtraction(browser);
   await scenarioP2R02NoTrackAndMimeEvidence(browser);
   await scenarioP2R02BrowserCreateOnlyPng(browser);
+  await scenarioP2MultiAttachmentBrowserCreate(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
