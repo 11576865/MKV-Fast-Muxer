@@ -68,6 +68,10 @@ jobs:
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
             packages+=(ffmpeg)
           fi
+          # P0 oracle must use a reader independent of the FFmpeg mux backend.
+          if ! command -v mkvmerge >/dev/null 2>&1 || ! command -v mkvextract >/dev/null 2>&1; then
+            packages+=(mkvtoolnix)
+          fi
           if ! dpkg -s fonts-dejavu-core >/dev/null 2>&1; then
             packages+=(fonts-dejavu-core)
           fi
@@ -87,6 +91,8 @@ jobs:
           fi
           command -v ffmpeg
           command -v ffprobe
+          command -v mkvmerge
+          command -v mkvextract
           /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection'
           echo "E2E_PYTHON=/usr/bin/python3" >> "$GITHUB_ENV"
           # Screenshots are a visual acceptance artifact, not merely a CI file.
@@ -131,6 +137,15 @@ jobs:
           name: mkv-ui-container-tree-viewports
           path: .e2e/output/mkv-container-tree-*.png
           if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload P0 preservation comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mkv-p0-preservation-audit
+          path: .e2e/output/p0-preservation-audit.json
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Print preview log on failure
