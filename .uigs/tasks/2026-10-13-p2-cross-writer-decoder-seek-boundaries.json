@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-13-p2-cross-writer-decoder-seek-boundaries",
+  "base": "main@ec65c26f6affd265aeb693b5c066166132b12c91",
+  "status": "submitted-pending-exact-head-ci-and-named-matrix-result",
+  "objective": "Independently distinguish valid FFmpeg-authored MKVs that fail narrow pre-Info Void writer eligibility from MKVToolNix candidates that show identical decoded media and indexed seek behavior.",
+  "implemented": [
+    "FFmpeg-native Matroska source cohort default and reserve-index-space; independent mkvmerge parse, FFmpeg decode and explicit allowed source-layout denial",
+    "Consumes previous P2-V corpus only when upstream named independent result passed",
+    "Default Cues and disable-lacing full source/candidate packet hashes and ffmpeg decoded video/audio at two concrete seek times, plus ffprobe indexed packet seek parity",
+    "No Cues corpus is checked for full decode parity but not mislabelled seek validated",
+    "Separate non-gating machine report and two source MKVs uploaded, no production writer capability introduced"
+  ],
+  "pending": [
+    "Exact head full Node/Vite/Chromium CI",
+    "Non-gating verdict CROSS_WRITER_FFMPEG_LAYOUT_REFUSALS_AND_MKVTOOLNIX_DECODER_SEEK_MATCH",
+    "No generalized cross-writer editing or playback-device proof; old FFmpeg/Wasm #77 persists"
+  ]
+}
