@@ -13,10 +13,10 @@ The real browser writer successfully remuxed a file created by MKVToolNix but ch
 The gate refuses:
 - nested chapters (including the independently reproduced case);
 - ordered/multiple chapter editions and chapter-processing elements, which have not been proven safe;
-- Tags targeting a *nonzero* TrackUID, EditionUID, ChapterUID, or AttachmentUID;
+- Tags targeting a *nonzero* EditionUID or ChapterUID (known structural association risk);
 - structures it cannot safely inspect: malformed EBML, unknown-size segment children, excessively large metadata, invalid/unsupported DocType, missing segment or unreadable source.
 
-Zero UID targets have wildcard semantics and do not trigger UID-specific refusal. Generic, unrelated metadata is not deleted or modified by the preflight. Native `webm` DocType bypasses this **Matroska-specific** protection; it is not a claim of full WebM preservation.
+Zero UID targets have wildcard semantics and do not trigger UID-specific refusal. Ordinary nonzero TrackUID and AttachmentUID targets produce explicit UNVERIFIED_REFERENCES warnings rather than hard blocks, because the existing old regression fixture contains track UID metadata without any confirmed loss for that specific class. Their preservation is **not guaranteed**. Generic, unrelated metadata is not deleted or modified by the preflight. Native `webm` DocType bypasses this **Matroska-specific** protection; it is not a claim of full WebM preservation.
 
 The result `NO_KNOWN_HAZARD` means only that these specific risk patterns were not found. It must **never** be displayed or reported as verified all-element retention.
 
@@ -29,7 +29,7 @@ The result `NO_KNOWN_HAZARD` means only that these specific risk patterns were n
 
 ## Explicit non-goals and known false positives
 
-This is intentionally conservative. Files written by MKVToolNix can contain benign-looking track-targeted statistics Tags with nonzero TrackUIDs; these may be rejected until an independently proven remux-and-repair strategy exists. It is preferable to block than silently discard metadata, but the resulting workflow friction should be measured, not concealed.
+This is intentionally conservative. Files written by MKVToolNix (and the old FFmpeg-authored regression fixture) can include track-targeted statistics or language Tags with nonzero TrackUIDs. Initially blocking all UID target types **broke an existing browser E2E case**; the guard now warns, but does not assert preservation, for TrackUID/AttachmentUID. ChapterUID/EditionUID remain hard-blocked based on reproduced chapter/tag data-loss risk and related UID identity changes. Any further expansion must be justified by independent output comparisons rather than a desire to make CI green.
 
 This gate does **not** detect every legal EBML feature which a rewriter might drop: simple Chapter UID changes, every language/format field, unknown EBML extensions, track codec-private content, exact timestamp packet fidelity, multi-segment linked files, all Tag variants, or player/ASS rendering behavior. Any affirmative complete-preservation claim still requires independent artifact auditing. The gate is not a substitute for a Matroska-aware execution backend or fully scoped preservation policy.
 
