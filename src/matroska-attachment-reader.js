@@ -231,11 +231,15 @@ export function createMatroskaAttachmentReader(file, {
   // Structural risk preflight is separate from the attachment inventory;
   // neither reports authorization for an existing-MKV rewrite.
   const inspectPreservation = () => inspectMatroskaPreservation(file);
-  const inspectRelations = inventory => {
+  const inspectRelations = async inventory => {
     if (!isCurrentInspection(inventory)) {
       throw new Error('RELATION_GRAPH_CURRENT_INSPECTION_REQUIRED');
     }
-    return inspectMatroskaAttachmentRelations(file, inventory);
+    const graph = await inspectMatroskaAttachmentRelations(file, inventory);
+    if (!isCurrentInspection(inventory)) {
+      throw new Error('RELATION_GRAPH_INSPECTION_CHANGED_DURING_SCAN');
+    }
+    return graph;
   };
   return Object.freeze({
     source: asset, inspect, openAttachment,
