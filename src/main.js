@@ -3550,11 +3550,40 @@ muxBtn.addEventListener('click', async () => {
   running = true;
   cancelRequested = false;
   updateUI();
+  let preservationInfo = '';
+  try {
+    // Preserve a previous successful download until the new source passes
+    // preflight. Never revoke prior artifacts merely to refuse an unsafe MKV.
+    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
+      status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
+      const protection = await inspectMatroskaPreservation(video);
+      if (cancelRequested) {
+        status.textContent = '源结构预检已取消。';
+        running = false;
+        updateUI();
+        return;
+      }
+      if (fileKey(videoInput.files[0]) !== fileKey(video)) {
+        throw new Error('预检期间来源已改变，请重新确认当前输入。');
+      }
+      const refusal = preservationBlockMessage(video.name, protection);
+      if (refusal) throw new Error(refusal);
+      if (protection.state === 'NO_KNOWN_HAZARD') {
+        preservationInfo = 'INFO: 结构预检未发现已知嵌套章节与 UID 标签风险；不代表完整 EBML 保留已验证。\\n';
+      }
+    }
+  } catch (err) {
+    status.textContent = formatOperationError(err, { phase: 'mux' });
+    bar.style.width = '0%';
+    running = false;
+    updateUI();
+    return;
+  }
   downloadLink.classList.add('hidden');
   reportLink.classList.add('hidden');
   auditResult.className = 'audit-result hidden';
   auditResult.textContent = '';
-  logEl.textContent = '';
+  logEl.textContent = preservationInfo;
   bar.style.width = '4%';
 
   if (outputURL) {
@@ -3579,18 +3608,6 @@ muxBtn.addEventListener('click', async () => {
   const extraProbePaths = [];
 
   try {
-    // P0: check original EBML before allocating large Wasm input memory.
-    // This is a risk gate, NOT a full-structure preservation certificate.
-    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
-      status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
-      const protection = await inspectMatroskaPreservation(video);
-      if (cancelRequested) return;
-      const refusal = preservationBlockMessage(video.name, protection);
-      if (refusal) throw new Error(refusal);
-      if (protection.state === 'NO_KNOWN_HAZARD') {
-        logEl.textContent += 'INFO: 源 MKV 未检出当前预检识别的嵌套章节与 UID 标签风险；不代表完整 EBML 保留已验证。\n';
-      }
-    }
     status.textContent = '正在解析 ASS 与字体 face……';
     bar.style.width = '10%';
 
