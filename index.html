@@ -124,6 +124,17 @@
               <div id="attachmentInspectStatus" role="status" aria-live="polite"></div>
               <div id="attachmentInspectList" class="attachment-extraction-list" aria-label="已检查的来源附件"></div>
             </details>
+            <details id="existingAttachmentImpactDetails" class="attachment-extraction" aria-labelledby="existing-impact-title">
+              <summary id="existing-impact-title">检查已有 MKV 附件的 UID 引用与变更影响（只读）</summary>
+              <p class="attachment-extraction-help">分析已有 Matroska 内 TagAttachmentUID 指向的实际 FileUID。可模拟“保留／移除”，但不执行修改、不生成输出、不覆盖源文件。未发现已识别引用不代表安全；复杂章节、未知 EBML 仍受阻断。</p>
+              <label class="attachment-extraction-picker">
+                选择已有 Matroska
+                <input id="existingImpactInput" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择要查看附件 UID 关联的原始 Matroska 文件" />
+              </label>
+              <div id="existingImpactStatus" role="status" aria-live="polite" data-state="empty">请选择已有 Matroska 文件以查看只读附件引用。</div>
+              <div id="existingImpactInventory" class="existing-impact-inventory" aria-label="附件 UID 与模拟影响清单"></div>
+              <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
+            </details>
             <details id="pngOnlyExperimentDetails" class="attachment-extraction" aria-labelledby="png-only-experiment-title">
               <summary id="png-only-experiment-title">实验：创建仅含 PNG 附件的 Matroska</summary>
               <p class="attachment-extraction-help">仅用于新建一个不含媒体轨的研究性 MKV，单个 PNG 最大 16 MiB。先准备并验证，再由用户明确点击保存。不属于常规可播放视频，也不修改现有视频封装工程。</p>
