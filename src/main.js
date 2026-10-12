@@ -4849,6 +4849,9 @@ async function prepareBatchStart() {
     batchStartCancelled = false;
     updateUI();
     batchCancelBtn.disabled = !batchRunning;
+    // The plan was recomputed with batchStartPending=true, so its start button
+    // remained disabled. Restore semantic readiness after any aborted start.
+    if (!batchRunning) void requestBatchPlanSync();
   }
 }
 
