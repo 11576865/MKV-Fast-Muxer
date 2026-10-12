@@ -25,3 +25,9 @@ The shadow mapper takes **already staged runtime subtitle paths and FFmpeg input
 - Both append-all and selective mux command parity; source-only remux remains accepted.
 - Current P0 loss-preflight browser scenarios remain green and independent hard-source evidence is untouched.
 - Browser real-output parity between any future *new writer route* and legacy artifacts is a later, separate phase. This does not claim such a route exists.
+
+## Real-browser stale-preflight regression added
+
+`tests/e2e/browser-mux.e2e.mjs` now includes `scenarioP1SubtitleIntentInvalidation`. In Chromium, an independently generated *ordinary* MKV preflight is held using a deterministic `File.slice().arrayBuffer()` gate. While preflight awaits, the test programmatically replaces a subtitle inside the disabled input and waits for the new subtitle row to appear, then releases the gate. Expected behavior: the task reports changed subtitle execution intent and produces no new download or audit artifact. This is a real asynchronous interleaving test, not a static selector assertion.
+
+The exact-head CI for commit `1651a4641355cd20f892127931196e2f4fb6be25` remains Pending as of this documentation update.
