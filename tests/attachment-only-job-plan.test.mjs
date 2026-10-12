@@ -43,7 +43,7 @@ test('compiles a single-PNG attachment-only JobPlan without media tracks or File
 test('cannot hijack a different File using cloned plan or same metadata', () => {
   const original = file(pngBytes);
   const plan = preparePngAttachmentOnlyPlan({ file: original });
-  const clone = structuredClone(plan);
+  const clone = Object.freeze(structuredClone(plan));
   assert.throws(() => getBoundPngSourceForCandidate(clone),
     /BINDING_STALE_OR_FOREIGN/);
   const replacement = file(pngBytes);
