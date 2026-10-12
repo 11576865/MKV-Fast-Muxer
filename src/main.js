@@ -151,6 +151,8 @@ const batchSubtitleFolderName = $('batchSubtitleFolderName');
 const batchFontName = $('batchFontName');
 const batchFontFolderName = $('batchFontFolderName');
 const batchPlan = $('batchPlan');
+const batchReviewSummary = $('batchReviewSummary');
+const batchJobInspector = $('batchJobInspector');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
 const batchPreserveAttachments = $('batchPreserveAttachments');
@@ -346,6 +348,8 @@ const batchResultUrls = createBatchResultUrlRegistry();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
+const batchManualAssignments = new Map();
+let selectedBatchVideoFile = null;
 const batchVideoIdentityCache = new Map();
 const batchFontIdentityCache = new Map();
 let fontInspectGeneration = 0;
@@ -4380,6 +4384,10 @@ function renderBatchAssetInventory() {
 }
 
 function replaceBatchAdapterFiles() {
+  // Import/removal starts a new source selection; a choice for an older File
+  // object must never silently authorize a different batch.
+  batchManualAssignments.clear();
+  selectedBatchVideoFile = null;
   const roles = resolveBatchImportedAssets(batchImportEntries);
   batchInternalAdapterUpdate = true;
   try {
@@ -4482,6 +4490,54 @@ function batchFontCandidates() {
   return selected.length || batchUnifiedMode ? selected : selectedFonts();
 }
 
+function renderBatchJobInspector(pairing) {
+  if (!batchJobInspector) return;
+  const job = pairing?.jobs?.find((item) => item.video === selectedBatchVideoFile);
+  if (!job) {
+    batchJobInspector.innerHTML = '<div class="track-empty">请选择任务，查看拟输出容器与字幕配对。</div>';
+    return;
+  }
+  const confirmed = (pairing.manuallyAssignedPairings || [])
+    .map((entry, index) => ({ ...entry, index }))
+    .filter((entry) => entry.video === job.video);
+  const filenameCollision = pairing.outputNameCollisions?.some((entry) => entry.videos.includes(job.video));
+  const directoryCollision = pairing.directoryConflicts?.includes(job.outputName);
+  const unresolvedTie = pairing.ambiguousPairings?.some((entry) => entry.candidates.includes(job.video));
+  const warnings = [
+    filenameCollision ? '当前输出名与批内其他任务冲突' : '',
+    directoryCollision ? '输出目录存在同名文件，禁止覆盖' : '',
+    unresolvedTie ? '仍有字幕可匹配此来源，需先人工确认' : '',
+    pairing.directoryCheckError ? '输出目录尚未安全核验' : '',
+  ].filter(Boolean);
+  batchJobInspector.innerHTML = `
+    <div class="batch-inspector-head">
+      <strong>任务检查 · ${escapeHtml(job.outputName)}</strong>
+      <span class="batch-review-state" data-state="${warnings.length ? 'blocked' : 'review'}">${warnings.length ? '需要处理' : '计划预览'}</span>
+    </div>
+    <dl class="batch-job-facts">
+      <div><dt>来源</dt><dd>${escapeHtml(job.video.webkitRelativePath || job.video.name)}</dd></div>
+      <div><dt>实际类型</dt><dd>${escapeHtml(job.videoIdentity?.containerLabel || '待识别')}${job.videoIdentityMismatch ? ' · 扩展名不一致' : ''}</dd></div>
+      <div><dt>字幕</dt><dd>${job.subtitleTracks.length} 条 · ${escapeHtml(batchSubtitleSummary(job))}</dd></div>
+      <div><dt>字体策略</dt><dd>${escapeHtml(pairing.fonts?.length
+        ? `${pairing.fonts.length} 个 · ${batchFontSubsetEnabled?.checked ? (batchSubsetScope?.value === 'group' ? 'Group 子集' : '逐任务子集') : '完整字体'}`
+        : '无新字体')}</dd></div>
+    </dl>
+    <div class="batch-inspector-subtitles">
+      ${job.subtitleTracks.map((track) =>
+        `<div class="batch-inspector-subtitle">${escapeHtml(track.displayName || track.file.name)}</div>`
+      ).join('')}
+    </div>
+    ${confirmed.map((entry) =>
+      `<div class="batch-reviewed-choice">
+        <span>已人工确认：${escapeHtml(entry.track.file.name)}</span>
+        <button type="button" data-batch-revoke="${entry.index}" data-batch-generation="${batchPlanGeneration}"
+          ${batchRunning || batchStartPending ? 'disabled' : ''}>撤销配对</button>
+      </div>`
+    ).join('')}
+    ${warnings.length ? `<div class="batch-review-warnings">${warnings.map((w) => `<p>${escapeHtml(w)}</p>`).join('')}</div>` : ''}
+    <p class="batch-review-disclaimer">此处仅审核配对与目标构成；点击开始时仍重新执行来源结构和输出冲突预检。</p>`;
+}
+
 async function syncBatchPlan() {
   if (!batchVideoInput || !batchSubtitleInput || !batchPlan) return null;
 
@@ -4532,7 +4588,7 @@ async function syncBatchPlan() {
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
-  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition);
+  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition, { manualAssignments: batchManualAssignments });
   pairing.videoRecognition = recognition;
   pairing.subtitleRecognition = subtitleRecognition;
   pairing.fontRecognition = fontRecognition;
@@ -4558,20 +4614,45 @@ async function syncBatchPlan() {
   }
   if (generation !== batchPlanGeneration) return null;
 
+  // The matrix is a projection of the same pairing that the existing executor
+  // will freeze, not a second mutable job plan.
+  if (!pairing.jobs.some((job) => job.video === selectedBatchVideoFile)) {
+    selectedBatchVideoFile = pairing.jobs[0]?.video || null;
+  }
   const rows = pairing.jobs.map((job, index) => {
-    const identityText = job.videoIdentity?.containerLabel
-      ? `实际：${job.videoIdentity.containerLabel}${job.videoIdentityMismatch ? ' · 扩展名不一致' : ''}`
-      : '实际容器：未识别';
+    const outputCollision = pairing.outputNameCollisions.some((entry) => entry.videos.includes(job.video));
+    const directoryCollision = pairing.directoryConflicts.includes(job.outputName);
+    const hasTie = pairing.ambiguousPairings.some((entry) => entry.candidates.includes(job.video));
+    const state = outputCollision || directoryCollision ? '输出冲突' : hasTie ? '待确认' : '待执行';
+    const selected = selectedBatchVideoFile === job.video;
     return `
-    <div class="plan-row plan-video">
+    <button type="button" class="plan-row plan-video batch-job-row" data-batch-job-index="${index}"
+      data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}">
       <span class="plan-kind">#${index + 1}</span>
       <span class="plan-main">
-        <strong>${escapeHtml(job.video.name)}</strong>
-        <small>${escapeHtml(identityText)} · ${escapeHtml(batchSubtitleSummary(job))} · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
+        <strong>${escapeHtml(job.outputName)}</strong>
+        <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · ${escapeHtml(batchSubtitleSummary(job))}
+          · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
-      <span class="plan-flags">→ ${escapeHtml(job.outputName)}</span>
-    </div>`;
+      <span class="plan-flags batch-review-state" data-state="${state === '待执行' ? 'review' : 'blocked'}">${state}</span>
+    </button>`;
   }).join('');
+
+  const tieReview = pairing.ambiguousPairings.length ? `
+    <section class="batch-review-conflicts" aria-label="需要人工确认的字幕配对">
+      <h4>待确认的字幕配对 · ${pairing.ambiguousPairings.length}</h4>
+      ${pairing.ambiguousPairings.map(({ track, candidates }, index) => `
+        <label class="batch-pairing-choice">
+          <span>${escapeHtml(track.file.name)} · 未自动选择来源</span>
+          <select data-batch-tie-index="${index}" data-batch-generation="${generation}"
+            ${batchRunning || batchStartPending ? 'disabled' : ''} aria-label="选择字幕 ${escapeHtml(track.file.name)} 对应的来源视频">
+            <option value="">选择目标视频以解除歧义</option>
+            ${candidates.map((video, candidateIndex) =>
+              `<option value="${candidateIndex}">${escapeHtml(video.webkitRelativePath || video.name)}</option>`
+            ).join('')}
+          </select>
+        </label>`).join('')}
+    </section>` : '';
 
   const notes = [];
   const mismatchCount = recognition.recognized.filter((entry) => entry.mismatch).length;
@@ -4609,7 +4690,15 @@ async function syncBatchPlan() {
   }
   if (batchOutputDirectoryHandle) notes.push(`输出目录：${batchOutputDirectoryHandle.name}`);
 
-  batchPlan.innerHTML = rows || '<div class="track-empty">没有形成可执行配对。</div>';
+  batchPlan.innerHTML = (rows || '<div class="track-empty">没有形成可执行配对。</div>') + tieReview;
+  if (batchReviewSummary) {
+    const globalProblems = pairing.ambiguousPairings.length + pairing.outputNameCollisions.length +
+      pairing.directoryConflicts.length + Number(Boolean(pairing.directoryCheckError)) +
+      pairing.invalidSubtitles.length + (pairing.fontRecognition?.ignored?.length || 0);
+    batchReviewSummary.textContent = `${pairing.jobs.length} 个拟输出 · ${globalProblems ? `${globalProblems} 项待处理` : '配对无阻断'}` +
+      ` · ${pairing.manuallyAssignedPairings.length} 项已人工确认`;
+  }
+  renderBatchJobInspector(pairing);
   if (notes.length) batchPlan.innerHTML += `<div class="track-empty">${escapeHtml(notes.join('；'))}</div>`;
   batchStartBtn.disabled =
     batchRunning ||
@@ -4630,6 +4719,42 @@ async function syncBatchPlan() {
   latestBatchPairing = pairing;
   return pairing;
 }
+
+batchPlan?.addEventListener('change', (event) => {
+  const select = event.target.closest('select[data-batch-tie-index]');
+  if (!select || batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
+  if (Number(select.dataset.batchGeneration) !== batchPlanGeneration) return;
+  const ambiguous = latestBatchPairing?.ambiguousPairings[Number(select.dataset.batchTieIndex)];
+  const candidateIndex = Number(select.value);
+  if (!ambiguous || select.value === '' || !Number.isInteger(candidateIndex)) return;
+  const video = ambiguous.candidates[candidateIndex];
+  if (!video) return;
+  batchManualAssignments.set(ambiguous.track.file, video);
+  selectedBatchVideoFile = video;
+  requestBatchPlanSync();
+});
+batchPlan?.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-batch-job-index]');
+  if (!button || !latestBatchPairing) return;
+  const job = latestBatchPairing.jobs[Number(button.dataset.batchJobIndex)];
+  if (!job) return;
+  selectedBatchVideoFile = job.video;
+  for (const row of batchPlan.querySelectorAll('button[data-batch-job-index]')) {
+    const selected = row === button;
+    row.dataset.selected = String(selected);
+    row.setAttribute('aria-pressed', String(selected));
+  }
+  renderBatchJobInspector(latestBatchPairing);
+});
+batchJobInspector?.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-batch-revoke]');
+  if (!button || batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
+  if (Number(button.dataset.batchGeneration) !== batchPlanGeneration) return;
+  const confirmed = latestBatchPairing?.manuallyAssignedPairings[Number(button.dataset.batchRevoke)];
+  if (!confirmed) return;
+  batchManualAssignments.delete(confirmed.track.file);
+  requestBatchPlanSync();
+});
 
 function requestBatchPlanSync() {
   batchPlanPromise = syncBatchPlan();
@@ -4754,6 +4879,8 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
   batchFontFolderInput,
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
+  batchManualAssignments.clear();
+  selectedBatchVideoFile = null;
   if (batchUnifiedMode) {
     // Internal input-adapter updates (including regression fixtures) must
     // invalidate an older unified inventory rather than mix incompatible roles.
