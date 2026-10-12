@@ -72,3 +72,20 @@ The source fixture was itself created using system FFmpeg. For truly independent
 - **Green for this slice** requires passing current-head unit + Chromium E2E, visible audit artifact, and independently reproduced results. “Green for this slice” is **not** P0 completion.
 
 Do not merge a failing comparison merely to turn CI green. Do not remove existing browser or batch tests. Branch and PR status require confirmation after async CI; historic CI screenshots are not proof for the new commit.
+
+
+## P0 expansion — independently authored Matroska (2026-10-12)
+
+The initial Chromium roundtrip has now been observed **green** at commit `7291eb587a309c62a0a82407251a34c45fd24d13`: 220/220 Node tests, Browser E2E all scenarios including the basic no-edit roundtrip, and `CHECKED_FIELDS_MATCH` in job logs. That result applies only to the simple FFmpeg-authored fixture and the comparator's explicitly checked fields.
+
+A second, higher-risk scenario is implemented on this **Draft PR**, with CI result to be observed independently:
+
+- `tests/e2e/generate-independent-matroska-fixture.sh` uses **mkvmerge** to author MKV from standard media inputs with intentionally nested chapter atoms and a binary attachment; **mkvpropedit** injects `P0_*` custom tags with a `ChapterUID` target. We explicitly do **not** use `mkvmerge --global-tags` for chapter-linked tags, since that option removes all tag targets.
+- An explicit fixture self-check extracts independent chapter and tag XML and checks that both nested chapter and `ChapterUID` marker actually exist **before** browser processing.
+- `scripts/p0-summarize-ebml-xml.py` (stdlib-only) projects extracted chapter hierarchy and `P0_*` tag/target relationships to JSON.
+- `scripts/p0-compare-roundtrip.mjs --deep` compares this real extracted information before and after browser remux, in addition to earlier FFprobe fields and attachment bytes.
+- The browser E2E scenario saves `p0-independent-audit.json` even on semantic difference; CI must not silently turn dropped data into success.
+
+If this hard fixture goes red, distinguish a **fixture-authoring failure**, **comparison/parser failure**, **Wasm writer failure**, and **verified content-preservation loss** before changing production claims. The report intentionally does not cover arbitrary unknown EBML elements or all Matroska tags and references. Even if the new hard fixture passes, P0 is not complete.
+
+Review PR head-specific CI and JSON artifact, not an earlier green commit. Remain Draft until the failure classification and safety policy are explicit.
