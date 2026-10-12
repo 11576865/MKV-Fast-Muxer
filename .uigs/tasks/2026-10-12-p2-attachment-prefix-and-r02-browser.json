@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-attachment-prefix-and-r02-browser",
+  "goal": "Add opt-in bounded signature observations to generic Matroska attachment extraction and validate no-video PNG-only real browser flow plus declared MIME conflict.",
+  "status": "submitted-pending-exact-head-CI",
+  "base": "main@8c3de2e86173693b936009c3210d4a4ee30eb6ab",
+  "completed_units": [
+    "Bounded <=64-byte prefix inspector with known signatures and explicitly uncertain MIME comparison.",
+    "Opt-in per-attachment UI check and warning, no preview/execute or full FileData read on import.",
+    "Node tests for known matches, MIME spoofing, unknown types, truncation, read failure and read budget.",
+    "Shared deterministic R-02 fixture encoder for independent MKVToolNix and Chromium scenario.",
+    "Chromium scenario for zero-track PNG-only MKV inspect, opt-in prefix match, download byte equality, and false MIME mismatch."
+  ],
+  "pending": [
+    "Exact-head Node/Vite/Chromium CI",
+    "Independent R-02 and model-reader JSON results after fixture helper refactor",
+    "No production attachment-only writer or full content validation",
+    "No actual destination overwrite check or general Chapter/Tag semantic preservation"
+  ]
+}
