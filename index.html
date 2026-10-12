@@ -114,6 +114,16 @@
               <div class="track-empty">暂无文件</div>
             </div>
             </details>
+            <details id="attachmentExtractionDetails" class="attachment-extraction" aria-labelledby="attachment-extraction-title">
+              <summary id="attachment-extraction-title">检查与提取容器附件</summary>
+              <p class="attachment-extraction-help">独立检查任意 Matroska 来源（可没有视频轨）。不改变封装工程，也不执行附件；声明类型与文件名均未验证。</p>
+              <label class="attachment-extraction-picker">
+                选择容器文件
+                <input id="attachmentInspectInput" type="file" aria-label="选择要检查附件的 Matroska 文件" />
+              </label>
+              <div id="attachmentInspectStatus" role="status" aria-live="polite"></div>
+              <div id="attachmentInspectList" class="attachment-extraction-list" aria-label="已检查的来源附件"></div>
+            </details>
           </section>
 
           <!-- Non-visual execution adapters: stable IDs for FFmpeg and regression fixtures. -->
