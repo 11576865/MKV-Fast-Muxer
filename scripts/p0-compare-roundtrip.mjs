@@ -104,15 +104,22 @@ function runJson(command, args) {
   return JSON.parse(stdout);
 }
 
-function deepXmlFacts(file) {
+function deepXmlFacts(file, temp, prefix) {
   const helper = fileURLToPath(new URL('./p0-summarize-ebml-xml.py', import.meta.url));
   const result = {};
   for (const [kind, field] of [['chapters', 'chapterHierarchy'], ['tags', 'p0MarkedTags']]) {
-    const xml = execFileSync('mkvextract', [file, kind], {
+    const output = path.join(temp, prefix + '-' + kind + '.xml');
+    // Current mkvextract syntax writes the XML to an explicit output path.
+    execFileSync('mkvextract', [file, kind, output], {
       encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 60000,
     });
+    if (!fs.existsSync(output)) {
+      result[field] = [];
+      continue;
+    }
     const normalized = execFileSync(process.env.E2E_PYTHON || 'python3', [helper, kind], {
-      input: xml, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 60000,
+      input: fs.readFileSync(output, 'utf8'), encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024, timeout: 60000,
     });
     result[field] = JSON.parse(normalized);
   }
@@ -139,7 +146,7 @@ function inspect(file, temporaryDir, prefix, deep = false) {
       size: bytes.length,
     });
   }
-  return { ffprobe, attachments, ...(deep ? { deep: deepXmlFacts(file) } : {}) };
+  return { ffprobe, attachments, ...(deep ? { deep: deepXmlFacts(file, temporaryDir, prefix) } : {}) };
 }
 
 export function checkRoundtrip(sourcePath, outputPath, { deep = false } = {}) {
