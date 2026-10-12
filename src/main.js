@@ -32,7 +32,8 @@ import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { formatBatchTerminalStatus } from './batch-status.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
-import { buildOutputComposition, outputCompositionFileKey } from './output-composition.js';
+import { outputCompositionFileKey } from './output-composition.js';
+import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
@@ -336,6 +337,7 @@ let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
+let lastCompositionSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1150,7 +1152,7 @@ function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
   const source = videoInput.files?.[0] || null;
   const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
-  const model = buildOutputComposition({
+  const document = buildContainerDocument({
     video: source,
     trackState: scanned,
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
@@ -1161,6 +1163,9 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
+  const model = document.composition;
+  selectedCompositionId = reconcileContainerSelection(document, lastCompositionSourceKey, selectedCompositionId);
+  lastCompositionSourceKey = document.sourceKey;
   outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
   const exists = model.items.some(item => item.id === selectedCompositionId);
   if (!exists) selectedCompositionId = '';
@@ -1234,7 +1239,7 @@ function activateCompositionTrack(item) {
 compositionTracks?.addEventListener('click', event => {
   const button = event.target.closest('button[data-composition-id]');
   if (!button) return;
-  const model = buildOutputComposition({
+  const currentDocument = buildContainerDocument({
     video: videoInput.files?.[0] || null,
     trackState: trackState?.fileKey === fileKey(videoInput.files?.[0]) ? trackState : null,
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
@@ -1243,7 +1248,7 @@ compositionTracks?.addEventListener('click', event => {
     fonts: selectedFonts(),
     fontMode: fontMode.value,
   });
-  activateCompositionTrack(model.items.find(item => item.id === button.dataset.compositionId));
+  activateCompositionTrack(currentDocument.composition.items.find(item => item.id === button.dataset.compositionId));
 });
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
