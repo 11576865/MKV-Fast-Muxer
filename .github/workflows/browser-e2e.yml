@@ -314,6 +314,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-X cross-writer boundaries: valid FFmpeg-native sources can be
+      # ineligible while MKVToolNix candidates retain tested decode/seek.
+      # Not a product-capability gate: inspect the named JSON verdict.
+      - name: P2-X research — FFmpeg writer layouts and decoder seek parity
+        id: p2_cross_writer_decode_seek
+        continue-on-error: true
+        run: node scripts/p2-cross-writer-decode-seek-matrix.mjs
+
+      - name: Upload P2-X independent cross-writer and seek report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-cross-writer-decode-seek-matrix
+          path: |
+            .e2e/output/p2-cross-writer-decode-seek-report.json
+            .e2e/output/p2-cross-writer-ffmpeg-*.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
