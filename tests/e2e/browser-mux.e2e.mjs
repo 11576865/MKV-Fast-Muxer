@@ -5,6 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
 import { verifiedCompatibilityEvidence } from '../../src/compatibility-evidence.js';
+import { createResearchFixture, pngBytes } from '../../scripts/r02-attachment-only-fixture.mjs';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
@@ -2858,6 +2859,64 @@ async function scenarioP2GenericAttachmentExtraction(browser) {
   }
 }
 
+async function scenarioP2R02NoTrackAndMimeEvidence(browser) {
+  console.log('P2 R-02: no-video PNG-only Matroska real browser inspect, prefix check and byte download');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#attachmentExtractionDetails > summary').click();
+    await page.setInputFiles('#attachmentInspectInput', {
+      name: 'r02-attachment-only.mkv', mimeType: 'application/octet-stream',
+      buffer: createResearchFixture(),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'ready' &&
+      document.querySelectorAll('.attachment-extraction-row').length === 1,
+      null, { timeout: 45_000 });
+    const row = page.locator('.attachment-extraction-row').first();
+    assert.match(await row.textContent(), /pixel\.png/);
+    assert.match(await row.textContent(), /未检查/);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    await row.locator('button[data-attachment-check]').click();
+    await page.waitForFunction(() =>
+      document.querySelector('.attachment-extraction-row')?.textContent?.includes('PNG 文件头'),
+      null, { timeout: 30_000 });
+    assert.match(await row.textContent(), /仅文件头匹配/);
+
+    const downloaded = path.join(outDir, 'p2-r02-browser-no-video-pixel.png');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      row.locator('button[data-attachment-download]').click(),
+    ]);
+    assert.equal(download.suggestedFilename(), 'pixel.png');
+    await download.saveAs(downloaded);
+    assert.deepEqual(await fs.readFile(downloaded), pngBytes);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+
+    // Same PNG FileData, deliberately false Matroska MIME declaration.
+    await page.setInputFiles('#attachmentInspectInput', {
+      name: 'r02-declared-pdf.mkv', mimeType: 'application/octet-stream',
+      buffer: createResearchFixture({ declaredMimeType: 'application/pdf' }),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'ready' &&
+      document.querySelectorAll('.attachment-extraction-row').length === 1,
+      null, { timeout: 45_000 });
+    const mismatchRow = page.locator('.attachment-extraction-row').first();
+    await mismatchRow.locator('button[data-attachment-check]').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'warning',
+      null, { timeout: 30_000 });
+    assert.match(await mismatchRow.textContent(), /内容警告/);
+    assert.match(await mismatchRow.textContent(), /application\/pdf/);
+    assert.match(await mismatchRow.textContent(), /image\/png/);
+    assert.equal(await page.locator('#attachmentInspectList .attachment-extraction-warning').count(), 1);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    console.log('P2 R-02 no-track browser extract + MIME mismatch warning PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP2AttachmentInspectionStaleFile(browser) {
   console.log('P2: changing container while a seek-read is held never reveals stale attachments');
   const { context, page } = await openApp(browser);
@@ -3199,6 +3258,7 @@ try {
   await scenarioPreserveAllAppend(browser);
   await scenarioP1SubtitleIntentInvalidation(browser);
   await scenarioP2GenericAttachmentExtraction(browser);
+  await scenarioP2R02NoTrackAndMimeEvidence(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
