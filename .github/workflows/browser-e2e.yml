@@ -258,6 +258,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-PC: necessary-only raw EBML preservation evidence on an externally
+      # authored nested-Chapter/ChapterUID-targeted-Tag source.
+      - name: P2-PC research — independent complex MKV raw protection contract
+        id: p2_raw_preservation_contract
+        continue-on-error: true
+        run: node scripts/p2-raw-preservation-contract-independent-audit.mjs
+
+      - name: Upload P2-PC protected metadata and attachment byte gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-complex-mkv-raw-protection-contract
+          path: .e2e/output/p2-raw-preservation-contract-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
