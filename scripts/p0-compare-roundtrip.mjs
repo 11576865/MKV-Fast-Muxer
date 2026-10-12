@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const COVERAGE = [
   'ffprobe ordered video/audio/subtitle codec types and names',
@@ -24,6 +24,14 @@ const NOT_COVERED = [
   'file byte identity, SeekHead/Cues/layout, writing application and transient mux metadata',
 ];
 
+const DEEP_COVERAGE = [
+  'mkvextract independently recovered nested chapter/edition hierarchy and UIDs',
+  'mkvextract independently recovered P0_* tag values with chapter target links',
+];
+const DEEP_NOT_COVERED = [
+  'arbitrary/non-P0_* tags or their complete target graphs',
+  'unknown EBML elements, packet bit identity, timecode-level parity, or playback rendering',
+];
 const relevantTags = (tags, keys) => Object.fromEntries(keys
   .filter((key) => tags && tags[key] !== undefined)
   .map((key) => [key, String(tags[key])]));
@@ -76,6 +84,16 @@ export function compareRoundtripFacts(before, after) {
       source: sourceAttachments, output: outputAttachments,
     });
   }
+  if (before.deep || after.deep) {
+    for (const field of ['chapterHierarchy', 'p0MarkedTags']) {
+      const a = before.deep?.[field];
+      const b = after.deep?.[field];
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        differences.push({ code: 'EBML_SEMANTIC_DIFFERENCE', field,
+          source: a ?? null, output: b ?? null });
+      }
+    }
+  }
   return differences;
 }
 
@@ -86,7 +104,22 @@ function runJson(command, args) {
   return JSON.parse(stdout);
 }
 
-function inspect(file, temporaryDir, prefix) {
+function deepXmlFacts(file) {
+  const helper = fileURLToPath(new URL('./p0-summarize-ebml-xml.py', import.meta.url));
+  const result = {};
+  for (const [kind, field] of [['chapters', 'chapterHierarchy'], ['tags', 'p0MarkedTags']]) {
+    const xml = execFileSync('mkvextract', [file, kind], {
+      encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 60000,
+    });
+    const normalized = execFileSync(process.env.E2E_PYTHON || 'python3', [helper, kind], {
+      input: xml, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 60000,
+    });
+    result[field] = JSON.parse(normalized);
+  }
+  return result;
+}
+
+function inspect(file, temporaryDir, prefix, deep = false) {
   const ffprobe = runJson('ffprobe', [
     '-v', 'error', '-show_streams', '-show_chapters', '-show_format', '-of', 'json', file,
   ]);
@@ -106,14 +139,14 @@ function inspect(file, temporaryDir, prefix) {
       size: bytes.length,
     });
   }
-  return { ffprobe, attachments };
+  return { ffprobe, attachments, ...(deep ? { deep: deepXmlFacts(file) } : {}) };
 }
 
-export function checkRoundtrip(sourcePath, outputPath) {
+export function checkRoundtrip(sourcePath, outputPath, { deep = false } = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'p0-matroska-audit-'));
   try {
-    const before = inspect(sourcePath, temp, 'source');
-    const after = inspect(outputPath, temp, 'output');
+    const before = inspect(sourcePath, temp, 'source', deep);
+    const after = inspect(outputPath, temp, 'output', deep);
     const differences = compareRoundtripFacts(before, after);
     return {
       schemaVersion: 1,
@@ -123,8 +156,8 @@ export function checkRoundtrip(sourcePath, outputPath) {
       outputBytes: fs.statSync(outputPath).size,
       outcome: differences.length ? 'DIFFERENCE_DETECTED' : 'CHECKED_FIELDS_MATCH',
       differences,
-      checked: COVERAGE,
-      notChecked: NOT_COVERED,
+      checked: deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
+      notChecked: deep ? DEEP_NOT_COVERED : NOT_COVERED,
       caution: 'CHECKED_FIELDS_MATCH is not proof of lossless Matroska roundtrip.',
       tools: {
         ffprobe: execFileSync('ffprobe', ['-version'], { encoding: 'utf8' }).split('\n')[0],
@@ -138,15 +171,16 @@ export function checkRoundtrip(sourcePath, outputPath) {
 }
 
 function cli() {
-  const [source, output, reportFile] = process.argv.slice(2);
-  if (!source || !output || !reportFile) {
-    console.error('Usage: node scripts/p0-compare-roundtrip.mjs SOURCE.mkv OUTPUT.mkv REPORT.json');
+  const [source, output, reportFile, mode] = process.argv.slice(2);
+  const deep = mode === '--deep';
+  if (!source || !output || !reportFile || (mode && !deep)) {
+    console.error('Usage: node scripts/p0-compare-roundtrip.mjs SOURCE.mkv OUTPUT.mkv REPORT.json [--deep]');
     process.exitCode = 3;
     return;
   }
   let report;
   try {
-    report = checkRoundtrip(source, output);
+    report = checkRoundtrip(source, output, { deep });
     console.log('P0 preservation comparison: ' + report.outcome);
     if (report.differences.length) {
       console.error(JSON.stringify(report.differences, null, 2));
@@ -156,7 +190,8 @@ function cli() {
     report = {
       schemaVersion: 1, sourceFile: path.basename(source), outputFile: path.basename(output),
       outcome: 'CHECK_UNAVAILABLE', error: String(error?.message || error),
-      checked: COVERAGE, notChecked: NOT_COVERED,
+      checked: deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
+      notChecked: deep ? DEEP_NOT_COVERED : NOT_COVERED,
     };
     process.exitCode = 3;
     console.error('P0 comparison unavailable: ' + report.error);
