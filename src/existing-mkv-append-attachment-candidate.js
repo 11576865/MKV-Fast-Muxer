@@ -3,6 +3,7 @@ import {
   inspectRawSegmentPreservation, compareRawSegmentPreservation,
 } from './matroska-raw-preservation-contract.js';
 import { inspectMatroskaPreservation } from './preservation-preflight.js';
+import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
 
 export const APPEND_EXISTING_ATTACHMENT_SCHEMA =
   'existing-mkv-append-one-attachment-research-plan-v0';
@@ -141,6 +142,21 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
   if (sourceScan.coverage.unknownTopElementIds.length) {
     throw Error('APPEND_UNKNOWN_TOP_LEVEL_ELEMENT_NOT_SUPPORTED');
   }
+  // A previously orphaned TagAttachmentUID must not silently become a valid
+  // relationship merely because the added AttachedFile receives FileUID=1.
+  const reader = createMatroskaAttachmentReader(source);
+  const inventory = await reader.inspect();
+  if (inventory.state !== 'inspected' || inventory.attachments.length !== 0) {
+    throw Error('APPEND_SOURCE_ATTACHMENT_INVENTORY_UNVERIFIED');
+  }
+  const graph = await reader.inspectRelations(inventory);
+  if (graph.state !== 'inspected' ||
+      graph.coverage.tagTargets !== 'known-targets-enumerated') {
+    throw Error('APPEND_TAG_TARGET_GRAPH_UNVERIFIED');
+  }
+  if (graph.edges.some(edge => edge.targetKind === 'attachment')) {
+    throw Error('APPEND_SOURCE_ATTACHMENT_UID_TARGET_EXISTS');
+  }
   const header = await sourceHeader(source, sourceScan);
   const preflight = await inspectMatroskaPreservation(source);
   if (preflight.state === 'BLOCKED_UNKNOWN' || preflight.state === 'NOT_MATROSKA') {
@@ -156,6 +172,8 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
       originalElementCount: sourceScan.elements.length,
       originalUidAndChaptersPreservation: 'requires-independent-candidate-audit',
       preflightState: preflight.state,
+      sourceTagUidCoverage: graph.coverage.tagTargets,
+      observedAttachmentTagTargetCount: 0,
     },
     addedAttachment: {
       filename: proposal.proposedSaveName,
