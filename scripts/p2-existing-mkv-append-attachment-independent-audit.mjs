@@ -79,7 +79,10 @@ try {
   report.plan = plan;
   const candidate = await executeExistingMkvAppendAttachmentCandidate(plan);
   if (candidate.status !== 'CREATED_AWAITING_INDEPENDENT_SEMANTIC_AUDIT' ||
-      !candidate.rawComparison.protectedTopLevelEqual ||
+      candidate.rawComparison.protectedTopLevelEqual ||
+      candidate.rawComparison.state !== 'BLOCKED_PROTECTED_BYTES_CHANGED' ||
+      !candidate.evidence.originalNonVoidElementByteCommitmentsAndOffsetsMatch ||
+      !candidate.evidence.originalSeekHeadAndSegmentHeaderBytesUntouched ||
       candidate.rawComparison.approvedToWrite) {
     throw Error('EXPERIMENTAL_WRITER_RAW_CONTRACT_NOT_MET');
   }
@@ -89,6 +92,11 @@ try {
   report.candidateBytes = bytes.length;
   const observed = inspect(candidatePath);
   const attached = observed.attachments || [];
+  report.externallyObservedAttachments = attached.map(item => ({
+    fileName: item.file_name, contentType: item.content_type,
+    size: item.size, id: item.id,
+    uid: item.properties?.uid ?? null,
+  }));
   if (attached.length !== 1 || attached[0].file_name !== 'append-evidence.txt' ||
       attached[0].content_type !== 'text/plain' ||
       attached[0].size !== payload.length || !Number.isInteger(attached[0].id)) {
@@ -137,12 +145,15 @@ try {
     addedAttachmentSha256: sha(actualFileData),
     addedAttachmentFileUid: exactPositiveUid(attached[0].properties?.uid),
     existingSourceSha256Unchanged: sha(await fs.readFile(sourcePath)) === report.sourceSha256,
-    untouchedOriginalSegmentChildren: candidate.rawComparison.protectedTopLevelEqual,
+    untouchedOriginalNonVoidSegmentChildren:
+      candidate.evidence.originalNonVoidElementByteCommitmentsAndOffsetsMatch,
+    reservedVoidConsumed: true,
+    originalFileByteLengthUnchanged: bytes.length === sourceBytes.length,
     publicationAuthorized: false,
   };
   if (!report.independentEvidence.existingSourceSha256Unchanged ||
-      candidate.rawComparison.state !==
-        'ATTACHMENT_DELTA_NEEDS_REFERENCES_OFFSETS_AND_WRITER_PROOF') {
+      !report.independentEvidence.originalFileByteLengthUnchanged ||
+      candidate.rawComparison.state !== 'BLOCKED_PROTECTED_BYTES_CHANGED') {
     throw Error('SOURCE_CHANGED_OR_WRITER_UNJUSTIFIABLY_APPROVED');
   }
   report.state = 'INDEPENDENT_APPEND_ONLY_EXISTING_MKV_TAG_CHAPTER_MEDIA_AND_ATTACHMENT_MATCH';
