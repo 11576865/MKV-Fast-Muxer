@@ -33,7 +33,9 @@ concurrency:
 jobs:
   chromium-mux:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Avoid terminating large-dependency cold runners before E2E starts.
+    # Media/font apt downloads have shown >15m mirror latency.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -135,6 +137,15 @@ jobs:
         with:
           name: p0-trackuid-target-relation-audit
           path: .e2e/output/p0-tracktag-relation-audit.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload P0 AttachmentUID relation preservation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-attachmentuid-target-relation-audit
+          path: .e2e/output/p0-attachmenttag-relation-audit.json
           if-no-files-found: warn
           retention-days: 14
 

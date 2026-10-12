@@ -2958,6 +2958,37 @@ async function scenarioP0TrackTargetedTagSurvival(browser) {
   }
 }
 
+// P0: a flat MKV has two distinct attachments, and exactly one P0 marker
+// targets the binary attachment UID. Verify the browser output independently
+// by extracted payload SHA-256 and semantic target, not original UID number.
+async function scenarioP0AttachmentTargetedTagSurvival(browser) {
+  console.log('P0 experiment: flat MKV AttachmentUID-targeted custom tag');
+  const source = path.join(root, 'p0-independent-attachmenttag.mkv');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', source);
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      return button && !button.disabled;
+    }, null, { timeout: 90_000 });
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const log = await page.locator('#log').textContent();
+    assert.match(log, /WARNING: 指向特定附件 UID 的标签/);
+    const output = path.join(outDir, 'p0-independent-attachmenttag-output.mkv');
+    const audit = path.join(outDir, 'p0-attachmenttag-relation-audit.json');
+    await saveDownload(page, '#downloadLink', output);
+    execFileSync(process.env.E2E_PYTHON || 'python3', [
+      path.resolve('scripts/p0-audit-attachment-tag-relations.py'),
+      source, output, audit,
+    ], { stdio: 'inherit', timeout: 120_000 });
+    console.log('P0 AttachmentUID relation PASS for the checked source/output.');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -3015,6 +3046,7 @@ try {
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
   await scenarioP0TrackTargetedTagSurvival(browser);
+  await scenarioP0AttachmentTargetedTagSurvival(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
