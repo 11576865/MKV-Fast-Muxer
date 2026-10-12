@@ -1404,3 +1404,95 @@ body { background: var(--bg); }
     max-height: none;
   }
 }
+
+
+/* Batch review slice: one derived job matrix, one contextual inspector.
+   The legacy executor remains the only execution authority. */
+.batch-review-summary {
+  margin: 8px 0;
+  font-size: .78rem;
+  color: var(--muted);
+}
+.batch-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+.batch-review-matrix { min-width: 0; }
+.batch-job-row {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+  color: var(--text-strong);
+  text-align: start;
+  font: inherit;
+  width: 100%;
+  cursor: pointer;
+}
+.batch-job-row:hover, .batch-job-row:focus-visible {
+  border-color: var(--accent);
+  outline-offset: 2px;
+}
+.batch-job-row[data-selected="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-0));
+}
+.batch-review-state {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: .7rem;
+  color: var(--muted);
+}
+.batch-review-state[data-state="blocked"] { color: var(--warning); }
+.batch-review-conflicts {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+}
+.batch-review-conflicts h4 { margin: 0; font-size: .85rem; }
+.batch-pairing-choice { display: grid; gap: 6px; font-size: .78rem; }
+.batch-pairing-choice select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px;
+  background: var(--surface-1);
+  color: var(--text-strong);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+.batch-job-inspector {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-1);
+  display: grid;
+  gap: 10px;
+}
+.batch-inspector-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.batch-inspector-head strong { overflow-wrap: anywhere; }
+.batch-job-facts { display: grid; gap: 7px; margin: 0; }
+.batch-job-facts > div { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 8px; }
+.batch-job-facts dt { color: var(--muted); font-size: .72rem; }
+.batch-job-facts dd { margin: 0; font-size: .77rem; overflow-wrap: anywhere; }
+.batch-inspector-subtitles { display: grid; gap: 5px; }
+.batch-inspector-subtitle {
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: var(--surface-0);
+  overflow-wrap: anywhere;
+  font-size: .75rem;
+}
+.batch-reviewed-choice { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: .72rem; }
+.batch-reviewed-choice button { min-height: 32px; background: var(--surface-0); color: var(--text-strong); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.batch-review-warnings { color: var(--warning); font-size: .74rem; }
+.batch-review-warnings p { margin: 0 0 4px; }
+.batch-review-disclaimer { margin: 0; font-size: .7rem; color: var(--muted); line-height: 1.5; }
+@media (max-width: 960px) {
+  .batch-review-layout { grid-template-columns: minmax(0, 1fr); }
+}
