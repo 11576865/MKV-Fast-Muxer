@@ -131,6 +131,18 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      - name: Upload R-02 browser-created writer candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r02-browser-png-only-candidate-audit
+          path: |
+            .e2e/output/p2-r02-browser-candidate-report.json
+            .e2e/output/p2-r02-real-browser-writer.mkv
+            .e2e/output/p2-r02-real-browser-extracted.png
+          if-no-files-found: warn
+          retention-days: 14
+
       # Research evidence must not silently become a production release gate.
       # Report itself distinguishes tool limitations from verified content.
       - name: R-02 research — PNG-only Matroska independent reader/extractor

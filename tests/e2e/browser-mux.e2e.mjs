@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -2917,6 +2918,83 @@ async function scenarioP2R02NoTrackAndMimeEvidence(browser) {
   }
 }
 
+async function scenarioP2R02BrowserCreateOnlyPng(browser) {
+  console.log('P2 R-02-CREATE: browser experimental JobPlan writer and independent MKVToolNix audit');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#pngOnlyExperimentDetails > summary').click();
+    assert.equal(await page.locator('#pngOnlySaveButton').isDisabled(), true);
+    await page.setInputFiles('#pngOnlyCreateInput', {
+      name: 'pixel.png', mimeType: 'image/png', buffer: pngBytes,
+    });
+    await page.locator('#pngOnlyPrepareButton').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#pngOnlyExperimentStatus')?.dataset.state === 'prepared',
+      null, { timeout: 60_000 });
+    assert.match(await page.locator('#pngOnlyExperimentStatus').textContent(),
+      /SHA-256 对照通过/);
+    assert.equal(await page.locator('#pngOnlySaveButton').isEnabled(), true);
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+
+    const candidateOutput = path.join(outDir, 'p2-r02-real-browser-writer.mkv');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#pngOnlySaveButton').click(),
+    ]);
+    assert.equal(download.suggestedFilename(), 'attachments-only.mkv');
+    await download.saveAs(candidateOutput);
+
+    // Independent reader/extractor of a real BROWSER-produced candidate Blob.
+    const info = JSON.parse(execFileSync('mkvmerge', ['-J', candidateOutput], {
+      encoding: 'utf8', timeout: 30_000,
+    }));
+    assert.equal((info.tracks || []).length, 0,
+      'candidate writer must not invent a video/audio/subtitle track');
+    assert.equal((info.attachments || []).length, 1);
+    const item = info.attachments[0];
+    assert.equal(item.file_name, 'pixel.png');
+    assert.equal(item.content_type, 'image/png');
+    assert.equal(item.size, pngBytes.length);
+    assert.ok(Number.isInteger(item.id));
+    const extracted = path.join(outDir, 'p2-r02-real-browser-extracted.png');
+    execFileSync('mkvextract', ['attachments', candidateOutput,
+      String(item.id) + ':' + extracted], { encoding: 'utf8', timeout: 30_000 });
+    assert.deepEqual(await fs.readFile(extracted), pngBytes);
+    const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
+    await fs.writeFile(path.join(outDir, 'p2-r02-browser-candidate-report.json'),
+      JSON.stringify({
+        schema: 'r02-browser-candidate-writer-e2e-v0',
+        result: 'BROWSER_WRITER_INDEPENDENT_ZERO_TRACK_AND_PNG_BYTES_MATCH',
+        downloadedMkv: candidateOutput,
+        observedTracks: (info.tracks || []).length,
+        observedAttachments: (info.attachments || []).length,
+        sourceSha256: sha256(pngBytes),
+        independentExtractedSha256: sha256(await fs.readFile(extracted)),
+        browserDownloadedMkvSha256: sha256(await fs.readFile(candidateOutput)),
+        browserOnly: true,
+        generalMatroskaWriter: 'not-supported',
+      }, null, 2) + '\n');
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+
+    // Direct source change invalidates the approved candidate download.
+    await page.setInputFiles('#pngOnlyCreateInput', {
+      name: 'not-really-png.png', mimeType: 'image/png',
+      buffer: Buffer.from('%PDF-malicious-mislabeled-input'),
+    });
+    assert.equal(await page.locator('#pngOnlySaveButton').isDisabled(), true);
+    await page.locator('#pngOnlyPrepareButton').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#pngOnlyExperimentStatus')?.dataset.state === 'error',
+      null, { timeout: 30_000 });
+    assert.match(await page.locator('#pngOnlyExperimentStatus').textContent(),
+      /SIGNATURE_MISMATCH/);
+    assert.equal(await page.locator('#pngOnlySaveButton').isDisabled(), true);
+    console.log('P2 R-02 browser-produced candidate independently extracted bytes PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP2AttachmentInspectionStaleFile(browser) {
   console.log('P2: changing container while a seek-read is held never reveals stale attachments');
   const { context, page } = await openApp(browser);
@@ -3259,6 +3337,7 @@ try {
   await scenarioP1SubtitleIntentInvalidation(browser);
   await scenarioP2GenericAttachmentExtraction(browser);
   await scenarioP2R02NoTrackAndMimeEvidence(browser);
+  await scenarioP2R02BrowserCreateOnlyPng(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);

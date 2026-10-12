@@ -5257,3 +5257,30 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 @media (max-width: 720px) {
   .attachment-extraction-actions { align-self: stretch; }
 }
+
+/* R-02: explicit two-stage experimental create + save, isolated from mux. */
+.png-only-experiment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
+.png-only-experiment-actions button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+#pngOnlyExperimentStatus {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  padding-block: 4px;
+}
+#pngOnlyExperimentStatus[data-state="error"] {
+  color: var(--danger, #d96a6a);
+}
+#pngOnlyExperimentStatus[data-state="prepared"] {
+  font-weight: 550;
+}
+@media (max-width: 720px) {
+  .png-only-experiment-actions { align-items: stretch; }
+}
