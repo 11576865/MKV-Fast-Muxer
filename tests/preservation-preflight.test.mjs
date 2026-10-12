@@ -49,11 +49,21 @@ test('P0 detects nested chapters even without any chapter target tag', async () 
   assert.match(preservationBlockMessage('a.mkv', check), /结构保留预检阻断/);
 });
 
-test('P0 detects nonzero UID tag targets for chapters, tracks, editions, attachments', async () => {
-  for (const tagId of [0x63c4, 0x63c5, 0x63c6, 0x63c9]) {
+test('P0 blocks confirmed high-risk chapter and edition target UIDs', async () => {
+  for (const tagId of [0x63c4, 0x63c9]) {
     const check = await inspectMatroskaPreservation(source(linkedTag(tagId, 7)));
     assert.equal(check.state, 'BLOCKED_RISK', tagId.toString(16));
     assert.ok(check.reasons.some((reason) => reason.includes('UID')));
+  }
+});
+
+test('P0 does not hard-block ordinary track/attachment targets without independent loss evidence', async () => {
+  for (const tagId of [0x63c5, 0x63c6]) {
+    const check = await inspectMatroskaPreservation(source(linkedTag(tagId, 7)));
+    assert.equal(check.state, 'UNVERIFIED_REFERENCES', tagId.toString(16));
+    assert.equal(check.reasons.length, 0);
+    assert.ok(check.warnings.some((reason) => reason.includes('UID')));
+    assert.equal(preservationBlockMessage('track.mkv', check), '');
   }
 });
 
