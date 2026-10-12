@@ -1,6 +1,8 @@
 # P0 experiment: TrackUID-targeted custom Tag survival in ordinary Matroska
 
-Status: evidence-gathering Draft PR / **no production mux code or UI modification**.
+Status: independently verified **CHECKED_RELATIONS_MATCH** for this fixture / no production mux code or UI modification.
+
+**Recorded result:** Browser E2E workflow https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38202212178, head c75a68a0b7a614436ec06164f4fa8fec397f3b35, 228/228 Node tests, Chromium E2E PASS; actual run reported `P0 track-tag semantic relation: CHECKED_RELATIONS_MATCH`. The P0 JSON audit artifact was uploaded under `p0-trackuid-target-relation-audit`. This confirms only the tagged video-target relation of this fixture.
 
 ## Why this matters
 
@@ -25,6 +27,6 @@ A red `DIFFERENCE_DETECTED` is actionable reproduction against a currently **war
 
 `CHECK_UNAVAILABLE` (missing tool, fixture invalid, source marker not present, malformed XML, etc.) is a test infrastructure failure, not evidence of a product loss.
 
-The known chapter-linked source loss remains in Issue #77 and Draft PR #76. This test branch is an independent observation and should remain Draft until its CI artifacts have been interpreted.
+The known chapter-linked source loss remains in Issue #77 and Draft PR #76. The CI artifact has been interpreted as a narrowly scoped positive control. Its test can be retained as a regression guard, without declaring Issue #77 resolved or broadening the feature guarantee.
 
 References: https://github.com/11576865/MKV-Fast-Muxer/issues/77
