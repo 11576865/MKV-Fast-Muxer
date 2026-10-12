@@ -5238,3 +5238,22 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .attachment-extraction-field { grid-template-columns: minmax(0, 1fr); gap: 1px; }
   .attachment-extraction-download { align-self: start; }
 }
+
+/* P2: untrusted FileMediaType vs bounded prefix evidence. */
+.attachment-extraction-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.attachment-extraction-warning {
+  color: var(--danger, #d96a6a);
+  font-weight: 600;
+}
+#attachmentInspectStatus[data-state="warning"] {
+  color: var(--danger, #d96a6a);
+}
+@media (max-width: 720px) {
+  .attachment-extraction-actions { align-self: stretch; }
+}
