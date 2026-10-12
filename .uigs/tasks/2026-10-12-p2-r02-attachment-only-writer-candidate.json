@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-r02-attachment-only-writer-candidate",
+  "status": "implementation-submitted-pending-exact-head-ci-and-independent-extractor",
+  "base": "main@f8ccc15c5d304d2d63034fe1f4f2f53360274c9d",
+  "objective": "Implement a single-PNG, zero-media Matroska experimental JobPlan and separately auditable Blob/EBML candidate writer, retaining old FFmpeg/Batch and P0 guard.",
+  "implemented": [
+    "Session-bound immutable PNG-only JobPlan with no source File in serializable plan and explicit source/identity/size gates",
+    "New EBML Blob-composition candidate writer using 8-byte PNG prefix gate, single FileUID and strictly zero Tracks/Cluster",
+    "Node suite for plan identity, negative inputs and no-video output",
+    "Independent mkvmerge/mkvextract output-oracle plus separate project reader crosscheck and machine JSON evidence",
+    "Non-gating separate CI research step and artifact upload; old Node, Build and Chromium remain unchanged"
+  ],
+  "pending": [
+    "Exact PR head Node/Vite/Chromium success",
+    "Independent candidate writer JSON result must report CANDIDATE_WRITER_INDEPENDENT_ZERO_TRACK_AND_PNG_BYTES_MATCH",
+    "No browser UI or production writer for attachment-only target",
+    "No multi-attachment support, full PNG decode, performance/cancel/memory proof or existing Matroska edits",
+    "Unknown EBML/ChapterUID loss #77 remains outside this slice"
+  ]
+}
