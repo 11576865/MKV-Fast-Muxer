@@ -2874,6 +2874,55 @@ async function scenarioP0BatchStartPlanInvalidation(browser) {
   }
 }
 
+async function scenarioP0BatchStartCancellation(browser) {
+  console.log('P0 batch preflight: explicit cancellation while source read is pending');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'p0-independent-mkvtoolnix.zh.ass'));
+    await page.waitForFunction(() =>
+      !document.querySelector('#batchStartBtn')?.disabled &&
+      (document.querySelector('#batchPlan')?.textContent || '')
+        .includes('p0-independent-mkvtoolnix.mkv'),
+      null, { timeout: 90000 });
+    await page.evaluate(() => {
+      let resume;
+      const wait = new Promise((resolve) => { resume = resolve; });
+      window.__p0CancelRead = { entered: false, resume, used: false };
+      const original = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const piece = original.apply(this, args);
+        if (this.name !== 'p0-independent-mkvtoolnix.mkv') return piece;
+        const read = piece.arrayBuffer.bind(piece);
+        piece.arrayBuffer = async () => {
+          if (!window.__p0CancelRead.used) {
+            window.__p0CancelRead.used = true;
+            window.__p0CancelRead.entered = true;
+            await wait;
+          }
+          return read();
+        };
+        return piece;
+      };
+    });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => window.__p0CancelRead?.entered, null, { timeout: 30000 });
+    await page.locator('#batchCancelBtn').click();
+    await page.evaluate(() => window.__p0CancelRead.resume());
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchStatus')?.textContent || '')
+        .includes('批量启动预检已取消'),
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+    await page.waitForFunction(() => !document.querySelector('#batchStartBtn')?.disabled,
+      null, { timeout: 30000 });
+    console.log('P0 batch start cancellation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2929,6 +2978,7 @@ try {
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
+  await scenarioP0BatchStartCancellation(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
