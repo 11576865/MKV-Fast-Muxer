@@ -129,6 +129,15 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      - name: Upload P0 TrackUID relation preservation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-trackuid-target-relation-audit
+          path: .e2e/output/p0-tracktag-relation-audit.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload MKV workbench visual evidence
         if: always()
         uses: actions/upload-artifact@v4

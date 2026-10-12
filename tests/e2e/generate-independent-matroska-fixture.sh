@@ -85,3 +85,40 @@ grep -q '<ChapterUID>510011</ChapterUID>' "$ROOT/p0-check-tags.xml"
 
 cp "$ROOT/zh.ass" "$ROOT/p0-independent-mkvtoolnix.zh.ass"
 echo "Independent Matroska P0 fixture generated."
+
+
+# Second corpus member: flat/no ChapterAtom hierarchy but an explicitly linked
+# P0_TRACK_RELATION tag. The existing guard must only warn for TrackUID risk.
+# The marker is dynamically linked to the real video's writer-generated UID.
+mkvmerge --quiet --output "$ROOT/p0-independent-tracktag.mkv" "$ROOT/base.mp4"
+python3 - "$ROOT/p0-independent-tracktag.mkv" "$ROOT/p0-independent-tracktag-tags.xml" <<'PY'
+import json
+import subprocess
+import sys
+from xml.etree import ElementTree as ET
+
+source, destination = sys.argv[1:]
+info = json.loads(subprocess.check_output(["mkvmerge", "-J", source], text=True))
+videos = [track for track in info["tracks"] if track["type"] == "video"]
+if len(videos) != 1:
+    raise SystemExit("P0 track-tag fixture requires exactly one video")
+uid = videos[0].get("properties", {}).get("uid")
+if not isinstance(uid, int) or uid <= 0:
+    raise SystemExit("P0 track-tag fixture lacks video UID")
+root = ET.Element("Tags")
+tag = ET.SubElement(root, "Tag")
+targets = ET.SubElement(tag, "Targets")
+ET.SubElement(targets, "TargetTypeValue").text = "30"
+ET.SubElement(targets, "TrackUID").text = str(uid)
+simple = ET.SubElement(tag, "Simple")
+ET.SubElement(simple, "Name").text = "P0_TRACK_RELATION"
+ET.SubElement(simple, "String").text = "only-video"
+tree = ET.ElementTree(root)
+tree.write(destination, encoding="UTF-8", xml_declaration=True)
+PY
+mkvpropedit "$ROOT/p0-independent-tracktag.mkv" \
+  --tags "all:$ROOT/p0-independent-tracktag-tags.xml"
+mkvextract "$ROOT/p0-independent-tracktag.mkv" tags "$ROOT/p0-tracktag-check.xml"
+grep -q 'P0_TRACK_RELATION' "$ROOT/p0-tracktag-check.xml"
+grep -q 'TrackUID' "$ROOT/p0-tracktag-check.xml"
+echo "P0 flat TrackUID-targeted tag fixture generated."
