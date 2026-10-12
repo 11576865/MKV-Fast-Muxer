@@ -104,3 +104,10 @@ This is a **reproduced P0 preservation red**. It is not an assertion that ordina
 **Release impact:** Do not approve the general-purpose source-container mutation path without an explicit detection/compatibility gate. If the tool cannot preserve the source semantics, it must block or obtain informed acceptance of an explicitly degraded *new* output; it cannot claim total preservation. No production fix or automatic detection path has been implemented by this P0 branch.
 
 PR #76 intentionally remains **Draft / red** with downloadable machine-readable JSON attached to the failed run. A later implementation PR should carry the actual guard or backend solution and prove the same fixture changes from fail to an explicitly supported outcome without hiding the source structure.
+
+
+## Independent writer control experiment (new; CI pending)
+
+To localize the observed loss more accurately, Browser E2E CI now first remuxes the same `p0-independent-mkvtoolnix.mkv` with **mkvmerge itself** and runs the exact same `--deep` oracle. The JSON control report is placed in `.e2e/p0-control/p0-mkvtoolnix-control-audit.json` and collected even on CI failure.
+
+If this control is green but the FFmpeg/Wasm browser path is red, that narrows the difference to the tested execution paths for this fixture. If the control is red, re-check expected structural ID normalization and fixture authoring before assigning all loss to the browser. Do not treat an unexecuted control as proof.
