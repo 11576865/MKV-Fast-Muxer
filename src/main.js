@@ -1152,7 +1152,7 @@ function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
   const source = videoInput.files?.[0] || null;
   const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
-  const document = buildContainerDocument({
+  const containerDocument = buildContainerDocument({
     video: source,
     trackState: scanned,
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
@@ -1163,9 +1163,9 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
-  const model = document.composition;
-  selectedCompositionId = reconcileContainerSelection(document, lastCompositionSourceKey, selectedCompositionId);
-  lastCompositionSourceKey = document.sourceKey;
+  const model = containerDocument.composition;
+  selectedCompositionId = reconcileContainerSelection(containerDocument, lastCompositionSourceKey, selectedCompositionId);
+  lastCompositionSourceKey = containerDocument.sourceKey;
   outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
   const exists = model.items.some(item => item.id === selectedCompositionId);
   if (!exists) selectedCompositionId = '';
