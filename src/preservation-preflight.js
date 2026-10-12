@@ -10,7 +10,12 @@ const E = {
   ordered: 0x45dd, tags: 0x1254c367, tag: 0x7373, targets: 0x63c0,
 };
 const uidTargets = new Map([
-  [0x63c4, '章节'], [0x63c5, '轨道'], [0x63c6, '附件'], [0x63c9, '章节版本'],
+  [0x63c4, { name: '章节', blocking: true }],
+  [0x63c9, { name: '章节版本', blocking: true }],
+  // Track/attachment UID tags are common even in old passing fixtures.
+  // Their exact survival still needs separate independent comparison.
+  [0x63c5, { name: '轨道', blocking: false }],
+  [0x63c6, { name: '附件', blocking: false }],
 ]);
 const LIMIT = 8 * 1024 * 1024;
 const MAX_ELEMENTS = 100000;
@@ -74,14 +79,17 @@ function chapters(bytes, issues) {
   });
   if (editions > 1) issues.add('多个章节版本');
 }
-function tags(bytes, issues) {
+function tags(bytes, issues, warnings) {
   walk(bytes, 0, bytes.length, (tag, children) => {
     if (tag.id !== E.tag) return;
     children((el, targetChildren) => {
       if (el.id !== E.targets) return;
       targetChildren((target) => {
         const kind = uidTargets.get(target.id);
-        if (kind && uint(bytes, target) !== 0n) issues.add('指向特定' + kind + ' UID 的标签');
+        if (!kind || uint(bytes, target) === 0n) return;
+        const label = '指向特定' + kind.name + ' UID 的标签';
+        if (kind.blocking) issues.add(label);
+        else warnings.add(label + '；当前路径尚未完成该类关联的独立保留验证');
       });
     });
   });
@@ -93,10 +101,10 @@ async function fileHeader(file, offset, parentEnd) {
   if (end !== null && end > parentEnd) throw Error('EBML 元素越界');
   return { id: el.id, dataStart: offset + el.dataStart, end, unknown: el.unknown };
 }
-function make(state, reasons = []) {
-  return { state, reasons,
+function make(state, reasons = [], warnings = []) {
+  return { state, reasons, warnings,
     evidence: 'raw-ebml-structural-preflight',
-    caveat: '未发现这些风险不等于源容器整体结构可无损保留。' };
+    caveat: '未发现已证实的阻断风险不等于源容器整体结构可无损保留。' };
 }
 
 export async function inspectMatroskaPreservation(file) {
@@ -120,6 +128,7 @@ export async function inspectMatroskaPreservation(file) {
     }
     if (!segment) throw Error('未找到 Segment');
     const issues = new Set();
+    const warnings = new Set();
     const segmentEnd = segment.end ?? file.size;
     let inspected = 0;
     for (let at = segment.dataStart; at < segmentEnd;) {
@@ -131,17 +140,21 @@ export async function inspectMatroskaPreservation(file) {
         if (size > LIMIT) throw Error('章节或标签超出有界解析大小');
         const content = new Uint8Array(await file.slice(item.dataStart, item.end).arrayBuffer());
         if (item.id === E.chapters) chapters(content, issues);
-        else tags(content, issues);
+        else tags(content, issues, warnings);
       }
       at = item.end;
     }
-    return issues.size ? make('BLOCKED_RISK', [...issues].sort()) : make('NO_KNOWN_HAZARD');
+    return issues.size
+      ? make('BLOCKED_RISK', [...issues].sort(), [...warnings].sort())
+      : warnings.size
+        ? make('UNVERIFIED_REFERENCES', [], [...warnings].sort())
+        : make('NO_KNOWN_HAZARD');
   } catch (err) {
     return make('BLOCKED_UNKNOWN', [err?.message || String(err)]);
   }
 }
 export function preservationBlockMessage(name, inspection) {
-  if (inspection.state === 'NO_KNOWN_HAZARD' || inspection.state === 'NOT_MATROSKA') return '';
+  if (['NO_KNOWN_HAZARD', 'UNVERIFIED_REFERENCES', 'NOT_MATROSKA'].includes(inspection.state)) return '';
   return '结构保留预检阻断“' + name + '”：' + inspection.reasons.join('；') +
     '。当前 FFmpeg/Wasm 重封装未证明能安全保留这些结构；原文件未被修改。';
 }
