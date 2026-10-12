@@ -60,7 +60,9 @@ export function projectMatroskaTarget({
       id: 'target-attachment:' + ordinal, sourceAssetId,
       sourceKey: file ? outputCompositionFileKey(file) : label(item?.sourceKey),
       filename, mimeType,
-      declaredSize: Number.isSafeInteger(file?.size) && file.size >= 0 ? file.size : null,
+      declaredSize: Number.isSafeInteger(file?.size) && file.size >= 0 ? file.size
+        : Number.isSafeInteger(item?.declaredSize) && item.declaredSize >= 0
+          ? item.declaredSize : null,
       inclusion: 'requested', bytesEvidence: 'not-inspected', fileUid: 'not-assigned',
     };
   });
