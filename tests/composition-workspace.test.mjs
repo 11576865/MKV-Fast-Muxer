@@ -36,7 +36,7 @@ test('one output track routes to its existing stream or external editor; export 
 
 test('invalid input and ambiguous main source must expand secondary source evidence', async () => {
   const main = await source('src/main.js');
-  assert.match(main, /sourceFilesDetails\.open = Boolean\(roles\.needsSourceChoice \|\| roles\.unknown\.length\)/);
+  assert.match(main, /sourceFilesDetails\.open = Boolean\(\s*roles\.needsSourceChoice \|\| roles\.unknown\.length \|\| focusedSourceRadio\s*\)/);
   assert.match(main, /entry\.kind === 'unknown' \|\|/);
   assert.match(main, /status === ASSET_STATUS\.UNSUPPORTED/);
   assert.match(main, /compositionIssues\.textContent = model\.diagnostics/);
