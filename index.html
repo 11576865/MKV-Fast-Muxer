@@ -503,7 +503,13 @@
                   <div><span class="panel-kicker">QUEUE</span><strong>任务配对</strong></div>
                   
                 </div>
-                <div id="batchPlan" class="mux-plan"><div class="track-empty">暂无任务</div></div>
+                <div id="batchReviewSummary" class="batch-review-summary" role="status" aria-live="polite">等待配对审核</div>
+                <div class="batch-review-layout">
+                  <div id="batchPlan" class="mux-plan batch-review-matrix" aria-label="拟输出 MKV 任务矩阵"><div class="track-empty">暂无任务</div></div>
+                  <section id="batchJobInspector" class="batch-job-inspector" aria-label="选中任务检查器">
+                    <div class="track-empty">选择任务以检查来源、字幕、字体策略及阻断原因。</div>
+                  </section>
+                </div>
                 <div class="actions batch-actions">
                   <button id="batchStartBtn" class="button button-primary" type="button" disabled>开始批量封装</button>
                   <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消</button>
