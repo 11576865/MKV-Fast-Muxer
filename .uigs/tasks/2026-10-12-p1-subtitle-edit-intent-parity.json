@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p1-subtitle-edit-intent-parity",
+  "goal": "Add immutable scoped external-subtitle EditIntent draft and compare emitted FFmpeg command with legacy behavior, without changing writer or source of edit truth.",
+  "status": "submitted-pending-pr-ci",
+  "base": "main@8ab92c0798f944d01dd4f3ad2fa99f409ca62219",
+  "completed_units": [
+    "Confirmed PR #85 head CI with 235/235 Node tests plus full Chromium E2E; squash merged PR #85 to main.",
+    "Added src/subtitle-edit-intent.js to describe new subtitle requests with source scope, ordinal, normalized metadata and draft fingerprint.",
+    "Integrated subtitleEditIntents into read-only ContainerDocument.",
+    "Added Node tests comparing generated legacy mux commands under append-all vs selective mapping with multiple subtitles and WebVTT→SRT override.",
+    "Added stale draft and staging identity/collision tests; documented fingerprint's limits and no runtime writer handoff.",
+    "Documented exact scope in docs/P1-SUBTITLE-EDIT-INTENT-PARITY.md."
+  ],
+  "next_work_unit": "Validate exact PR-head Node, build and Chromium E2E; correct failures if any. No merge until verified and independent Issue #77 protection remains unchanged.",
+  "not_claimed": [
+    "End-to-end output artifact equivalence",
+    "Cryptographic file identity, source bytes revision tracking or executor authorization",
+    "True general EditIntent write authority; independent batch runner; Issue #77 root fix"
+  ]
+}

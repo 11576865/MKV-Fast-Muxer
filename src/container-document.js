@@ -1,4 +1,5 @@
 import { buildOutputComposition, outputCompositionFileKey } from './output-composition.js';
+import { buildSubtitleEditIntentSnapshot } from './subtitle-edit-intent.js';
 
 // P1 vertical slice: this is a read-only snapshot, not an independent store of
 // editable tracks. The existing trackState and external-resource editors remain
@@ -40,6 +41,7 @@ export function buildContainerDocument({
     video, trackState, appendMode, externalAudio, newSubtitles, fonts,
     fontMode, unsupportedAssets,
   });
+  const subtitleEditIntents = buildSubtitleEditIntentSnapshot({ source: video, newSubtitles });
   const sourceKey = outputCompositionFileKey(video);
   const scope = 'container:' + encodeURIComponent(sourceKey || 'empty');
   const observed = composition.verifiedTrackStructure;
@@ -125,6 +127,7 @@ export function buildContainerDocument({
     objects,
     composition,
     identityDiagnostics,
+    subtitleEditIntents,
     execution: {
       authority: 'legacy-single-file-executor',
       state: video ? 'not-validated-by-this-projection' : 'requires-video-source',
