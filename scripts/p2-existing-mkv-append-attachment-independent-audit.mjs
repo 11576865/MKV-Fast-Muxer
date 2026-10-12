@@ -116,18 +116,43 @@ try {
   if (!dstChapters.equals(srcChapters) || !dstTags.equals(srcTags)) {
     throw Error('INDEPENDENT_CHAPTER_OR_TAG_XML_DIFFERENCE');
   }
-  // Compare actual independently extracted compressed video track bytes,
-  // not merely metadata or a successful parser return code.
-  const extractedTracks = [];
-  for (const t of originalTracks) {
-    const a = path.join(out, 'p2-existing-append-original-track-' + t.id + '.bin');
-    const b = path.join(out, 'p2-existing-append-candidate-track-' + t.id + '.bin');
-    run('mkvextract', [sourcePath, 'tracks', t.id + ':' + a]);
-    run('mkvextract', [candidatePath, 'tracks', t.id + ':' + b]);
-    const [before, after] = await Promise.all([fs.readFile(a), fs.readFile(b)]);
-    if (!before.equals(after)) throw Error('INDEPENDENT_TRACK_PACKET_BYTES_DIFFER_' + t.id);
-    extractedTracks.push({ id: t.id, sha256: sha(before), bytes: before.length });
+  // The independently authored MPEG-4 Part 2 sample is not guaranteed to
+  // expose a raw 'mkvextract tracks 0:*.bin' extraction mode. Instead require
+  // a *stronger* codec-agnostic per-packet proof using independent ffprobe:
+  // every original media packet's SHA-256, PTS, DTS, duration, stream index
+  // and size must match in original ordering after the Void-slot edit.
+  const packetFacts = filePath => {
+    const json = JSON.parse(run('ffprobe', [
+      '-v', 'error',
+      '-show_packets', '-show_data_hash', 'sha256',
+      '-show_entries', 'packet=stream_index,pts,dts,duration,size,data_hash',
+      '-of', 'json', filePath,
+    ]));
+    const rows = json.packets || [];
+    if (!rows.length || rows.some(p =>
+      !Number.isInteger(p.stream_index) ||
+      !/^SHA256:[0-9a-f]{64}$/i.test(p.data_hash || '') ||
+      !p.size || p.pts === undefined || p.dts === undefined ||
+      p.duration === undefined)) {
+      throw Error('INDEPENDENT_MEDIA_PACKET_HASH_OR_TIMING_UNAVAILABLE');
+    }
+    return rows;
+  };
+  const sourcePackets = packetFacts(sourcePath);
+  const outputPackets = packetFacts(candidatePath);
+  if (JSON.stringify(sourcePackets) !== JSON.stringify(outputPackets)) {
+    throw Error('INDEPENDENT_MEDIA_PACKET_HASH_OR_TIMING_MISMATCH');
   }
+  const extractedTracks = originalTracks.map(t => {
+    const packets = sourcePackets.filter(row => row.stream_index === t.id);
+    if (!packets.length) throw Error('INDEPENDENT_SOURCE_TRACK_WITHOUT_PACKETS_' + t.id);
+    return {
+      id: t.id,
+      packetCount: packets.length,
+      packetHashAndTimingSha256: sha(Buffer.from(JSON.stringify(packets))),
+      verified: true,
+    };
+  });
   run('mkvextract', [candidatePath, 'attachments',
     String(attached[0].id) + ':' + extractedPath]);
   const actualFileData = await fs.readFile(extractedPath);
@@ -137,10 +162,12 @@ try {
   report.independentEvidence = {
     authoringTool: 'mkvmerge + mkvpropedit',
     inspectingTool: 'mkvmerge -J',
-    extractingTool: 'mkvextract chapters/tags/tracks/attachments',
+    extractingTool: 'mkvextract chapters/tags/attachments; ffprobe per-packet SHA256 and PTS/DTS/duration',
     sourceTrackCount: originalTracks.length,
     chapterXmlSha256: sha(srcChapters),
     tagXmlSha256: sha(srcTags),
+    mediaPacketCount: sourcePackets.length,
+    mediaPacketHashAndTimingParity: true,
     trackByteHashes: extractedTracks,
     addedAttachmentSha256: sha(actualFileData),
     addedAttachmentFileUid: exactPositiveUid(attached[0].properties?.uid),
