@@ -48,6 +48,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
       - name: Resolve browser and required media tools
         shell: bash
         run: |
@@ -104,12 +110,6 @@ jobs:
           fi
           printf '%s\n' "$cjk_fonts" | sed -n '1,3p'
 
-      - name: Unit tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
       - name: Generate regular and independent Matroska fixtures
         run: |
           bash tests/e2e/generate-fixtures.sh
@@ -136,7 +136,9 @@ jobs:
       - name: R-02 research — PNG-only Matroska independent reader/extractor
         id: r02_attachment_only
         continue-on-error: true
-        run: node scripts/r02-attachment-only-experiment.mjs
+        run: |
+          node scripts/r02-attachment-only-experiment.mjs
+          node scripts/r02-container-reader-crosscheck.mjs
 
       - name: Upload R-02 attachment-only reader evidence
         if: always()
@@ -145,6 +147,7 @@ jobs:
           name: r02-png-only-matroska-experiment
           path: |
             .e2e/output/r02-attachment-only-report.json
+            .e2e/output/r02-container-reader-crosscheck.json
             .e2e/output/r02-attachment-only-research.mkv
             .e2e/output/r02-extracted.png
           if-no-files-found: warn

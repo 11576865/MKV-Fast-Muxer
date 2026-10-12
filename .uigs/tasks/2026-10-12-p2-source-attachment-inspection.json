@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-source-attachment-inspection",
+  "goal": "Implement session-scoped SourceAsset identity and bounded pure Matroska generic attachment source inspector/extract-as-Blob capability; connect verified inventory to read-only target intent without changing writer.",
+  "status": "submitted-pending-pr-ci-and-r02-crosscheck",
+  "base": "main@fee72462c687181348f7f1f2e181816c1dc8d30d",
+  "implemented": [
+    "Session File reference identity separate from filename/size/mtime",
+    "EBML seek-based generic attachment metadata reader with fails-closed truncation/unknown-size policy",
+    "Opt-in Blob.slice attachment view, no eager file-data read",
+    "Read-only generic attachment copy target projection without writer authority",
+    "Node tests for PNG-only, multiple resources, large file-data, source swaps, malformed/duplicate EBML and target selection",
+    "R02 model-vs-MKVToolNix crosscheck script and non-gating CI evidence upload"
+  ],
+  "outstanding": [
+    "Real Browser and Node exact head test results",
+    "R02 crosscheck reported verdict",
+    "UI extraction controls and user-side file lifetime acceptance",
+    "Full ChapterUID / TrackUID / AttachmentUID target relation graph",
+    "Production general writer and PNG-only execution",
+    "SourceAsset persistent content hash or portable stable identity"
+  ]
+}
