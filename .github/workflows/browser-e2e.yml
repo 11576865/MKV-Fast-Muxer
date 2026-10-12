@@ -117,6 +117,7 @@ jobs:
           bash tests/e2e/generate-independent-matroska-fixture.sh
 
       - name: Independent MKVToolNix no-edit control
+        id: independent_p0_control
         continue-on-error: true
         run: |
           mkvmerge --quiet --output .e2e/fixtures/p0-mkvtoolnix-control.mkv .e2e/fixtures/p0-independent-mkvtoolnix.mkv
@@ -142,6 +143,32 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      - name: Publish P0 real semantic outcomes
+        if: always()
+        env:
+          CONTROL_OUTCOME: ${{ steps.independent_p0_control.outcome }}
+        run: |
+          echo "## P0 independent Matroska preservation" >> "$GITHUB_STEP_SUMMARY"
+          echo "MKVToolNix control real execution outcome: **${CONTROL_OUTCOME}** (step may continue on error)." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Source → writer | Independent audit | Difference fields |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          for name, path in [
+              ("FFmpeg-authored → browser", ".e2e/output/p0-preservation-audit.json"),
+              ("MKVToolNix-authored → mkvmerge", ".e2e/p0-control/p0-mkvtoolnix-control-audit.json"),
+              ("MKVToolNix-authored → browser", ".e2e/output/p0-independent-audit.json"),
+          ]:
+              p = Path(path)
+              if p.is_file():
+                  report = json.loads(p.read_text(encoding="utf-8"))
+                  fields = ", ".join(i.get("field", "?") for i in report.get("differences", [])) or "—"
+                  print(f"| {name} | **{report.get('outcome', 'UNKNOWN')}** | {fields} |")
+              else:
+                  print(f"| {name} | **NOT_RUN** | No report exists |")
+          PY
       - name: Upload MKV workbench visual evidence
         if: always()
         uses: actions/upload-artifact@v4
