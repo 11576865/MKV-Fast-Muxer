@@ -12,7 +12,7 @@ const encoder = new TextEncoder();
 const ID = { ebml: 0x1a45dfa3, segment: 0x18538067 };
 const MAX_SOURCE = 60 * 1024 * 1024;
 const MAX_PAYLOAD = 4 * 1024 * 1024;
-const mimetypePattern = /^[a-z0-9][a-z0-9!#const mimetypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;^_.+-]*\/[a-z0-9][a-z0-9!#const mimetypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;^_.+-]*$/;
+const mimetypePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
 const hashBlob = async blob => {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) throw Error('APPEND_PAYLOAD_WEBCRYPTO_REQUIRED');
