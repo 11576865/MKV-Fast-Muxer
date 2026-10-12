@@ -47,7 +47,7 @@ export async function createExistingAttachmentEditIntent({
   reader, actions = [], approveFilenameAdjustments = false,
 } = {}) {
   if (!reader?.inspect || !reader?.inspectPreservation ||
-      !reader?.isCurrentInspection || !Array.isArray(actions)) {
+      !reader?.inspectRelations || !reader?.isCurrentInspection || !Array.isArray(actions)) {
     throw new Error('EXISTING_ATTACHMENT_SOURCE_OR_ACTIONS_INVALID');
   }
   const inventory = await reader.inspect();
@@ -56,6 +56,7 @@ export async function createExistingAttachmentEditIntent({
     throw new Error('EXISTING_ATTACHMENT_SOURCE_UNVERIFIED');
   }
   const preservation = await reader.inspectPreservation();
+  const relationGraph = await reader.inspectRelations(inventory);
   if (!reader.isCurrentInspection(inventory)) {
     throw new Error('EXISTING_ATTACHMENT_SOURCE_REINSPECTED_DURING_PLAN');
   }
@@ -141,6 +142,16 @@ export async function createExistingAttachmentEditIntent({
     fileBindings.push(item.file);
   });
 
+  const sourceEdges = new Map(inventory.attachments.map(item => [item.id, []]));
+  if (relationGraph.state === 'inspected') {
+    for (const edge of relationGraph.edges) {
+      if (edge.targetKind === 'attachment' && edge.targetAttachmentId) {
+        sourceEdges.get(edge.targetAttachmentId)?.push({
+          tagId: edge.sourceTagId, uid: edge.targetUid, evidence: edge.evidence,
+        });
+      }
+    }
+  }
   const sourceEffects = inventory.attachments.map(item => {
     const action = perId.get(item.id)?.kind || 'retain';
     return {
@@ -152,6 +163,12 @@ export async function createExistingAttachmentEditIntent({
       action,
       result: action === 'replace' ? newByOldId.get(item.id) : null,
       uidRelations: 'unverified',
+      observedTargetedTags: sourceEdges.get(item.id) || [],
+      tagImpact: (sourceEdges.get(item.id)?.length || 0) === 0
+        ? 'no-targeted-tag-observed-not-proof-of-safety'
+        : action === 'remove' || action === 'replace'
+          ? 'would-orphan-tag-attachment-uid'
+          : 'observed-target-is-retained',
       preservation: action === 'retain'
         ? 'requires-whole-container-writer-proof'
         : 'requires-reference-impact-and-writer-proof',
@@ -166,7 +183,10 @@ export async function createExistingAttachmentEditIntent({
     evidence: preservation.evidence || 'unknown',
   };
   const relationRisk = preservation.state === 'UNVERIFIED_REFERENCES' ||
-    preservationReport.warnings.some(text => /UID|关联|附件|轨道/.test(text));
+    preservationReport.warnings.some(text => /UID|关联|附件|轨道/.test(text)) ||
+    relationGraph.edges?.some(edge => edge.targetKind === 'attachment') === true;
+  const graphUnverified = relationGraph.state !== 'inspected' ||
+    relationGraph.coverage?.tagTargets !== 'known-targets-enumerated';
   let capability;
   if (!changed) capability = block('NO_WRITE_REQUESTED', [
     'This is a read-only source plan; no output transaction is authorized.',
@@ -175,6 +195,10 @@ export async function createExistingAttachmentEditIntent({
       preservation.state === 'BLOCKED_UNKNOWN' ||
       preservation.state === 'NOT_MATROSKA') {
     capability = block('SOURCE_STRUCTURAL_PRESERVATION_BLOCKED', preservationReport.reasons);
+  } else if (graphUnverified) {
+    capability = block('SOURCE_REFERENCE_GRAPH_UNVERIFIED', [
+      relationGraph.diagnostic?.code || relationGraph.coverage.tagTargets,
+    ]);
   } else if (relationRisk) {
     capability = block('SOURCE_UID_RELATIONS_UNVERIFIED', preservationReport.warnings);
   } else {
@@ -197,9 +221,22 @@ export async function createExistingAttachmentEditIntent({
       hasTracksElement: inventory.structure.hasTracksElement,
       hasClusterElement: inventory.structure.hasClusterElement,
       wholeEbmlPreservation: 'unverified',
-      uidTagRelations: relationRisk ? 'observed-unverified' : 'not-proven',
+      uidTagRelations: graphUnverified ? 'graph-incomplete'
+        : relationRisk ? 'observed-unverified' : 'no-known-target-uid-observed-not-proven',
     },
     preservationPreflight: preservationReport,
+    relationGraph,
+    impactSummary: {
+      targetedAttachmentCount: sourceEffects.filter(x => x.observedTargetedTags.length).length,
+      orphanedTagTargetCountIfApplied: sourceEffects.reduce((sum, effect) =>
+        sum + (effect.tagImpact === 'would-orphan-tag-attachment-uid'
+          ? effect.observedTargetedTags.length : 0), 0),
+      unresolvedTagTargetCount: relationGraph.edges?.filter(edge =>
+        edge.targetKind === 'attachment' && edge.resolution === 'orphan').length || 0,
+      unknownTargetElements: relationGraph.coverage?.unknownTargetElementIds || [],
+      unknownEbmlPreservation: 'not-proven',
+      executableWriter: false,
+    },
     proposedChanges: {
       effects: sourceEffects,
       additions,
