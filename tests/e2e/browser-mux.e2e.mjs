@@ -2777,6 +2777,36 @@ async function scenarioP0NoEditRoundtrip(browser) {
   }
 }
 
+// P0 hard fixture: Matroska created with MKVToolNix, including nested chapters,
+// chapter-targeted custom tags and a non-font generic binary attachment.
+// A red result is retained as independent preservation evidence, not skipped.
+async function scenarioP0IndependentMatroska(browser) {
+  console.log('P0 hard scenario: mkvmerge-authored nested chapters and targeted tags');
+  const source = path.join(root, 'p0-independent-mkvtoolnix.mkv');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', source);
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      return button && !button.disabled;
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'p0-independent-output.mkv');
+    const audit = path.join(outDir, 'p0-independent-audit.json');
+    await saveDownload(page, '#downloadLink', output);
+    // Always writes independent JSON findings before failing CI on differences.
+    execFileSync(process.execPath, [
+      path.resolve('scripts/p0-compare-roundtrip.mjs'),
+      source, output, audit, '--deep',
+    ], { stdio: 'inherit', timeout: 180_000 });
+    console.log('P0 hard roundtrip PASS for scoped nested-chapter/tag/attachment fields.');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2830,6 +2860,7 @@ try {
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
   await scenarioP0NoEditRoundtrip(browser);
+  await scenarioP0IndependentMatroska(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
