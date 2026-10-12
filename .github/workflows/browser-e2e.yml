@@ -233,6 +233,22 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-RG: independently authored AttachmentUID-tagged source with a
+      # real decoy. Green workflow alone is not sufficient: inspect JSON.
+      - name: P2-RG research — AttachmentUID target graph and impact external audit
+        id: p2_attachment_relation_graph
+        continue-on-error: true
+        run: node scripts/p2-attachment-relation-graph-independent-audit.mjs
+
+      - name: Upload P2-RG source relation and change-impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-existing-attachment-relation-graph-audit
+          path: .e2e/output/p2-attachment-relation-graph-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
