@@ -37,6 +37,7 @@ export function setupAttachmentExtractionUI({ input, list, status }) {
     data.dir = 'auto';
     row.append(name, data);
     parent.append(row);
+    return row; // Required for attaching scoped warning semantics after rendering.
   }
   function render() {
     list.replaceChildren();
