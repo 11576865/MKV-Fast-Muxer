@@ -22,7 +22,7 @@ The strict equivalence criterion is intentionally stronger than Matroska semanti
 
 ## Resource / conformance limitations
 
-The first evidence scope is a **64 MiB research budget per file**, 256 KiB maximum read slice, 20,000 element headers, known EBML DocType `matroska`, one bounded Segment and no unsupported unknown-length children. Sources over budget and malformed inputs report `state:'unverified'`; no optimistic empty/equal report is created. The budget does not imply the product generally rejects video files over 64 MiB — it applies only to this research comparator.
+The first evidence scope is a **64 MiB research budget per file**, 256 KiB maximum read slice, 20,000 element headers, known EBML DocType `matroska`, one bounded Segment and no unsupported unknown-length children. Sources over budget, malformed inputs **and otherwise valid pre-Segment elements that are not yet fingerprinted** report `state:'unverified'`; no optimistic empty/equal report is created. The budget does not imply the product generally rejects video files over 64 MiB — it applies only to this research comparator.
 
 Any future writer must separately prove source session ownership, authorized changes, TagUID/TrackUID/ChapterUID/EditionUID relations, seek/index/offset and CRC validity, stream packet semantics, decoded media if promised, FileData hashes, destination transaction, rollback, and independent exact-output validation. The #77 risk remains technically unresolved.
 
