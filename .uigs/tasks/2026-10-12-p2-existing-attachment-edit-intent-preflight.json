@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-existing-attachment-edit-intent-preflight",
+  "base": "main@9c414517e97e0fc7c14a926dc5b0dc9c3e08aeb4",
+  "status": "implementation-submitted-pending-pr-exact-head-ci-and-uid-targeted-external-source-audit",
+  "objective": "Create an immutable read-only edit-intent/provenance layer for existing MKV generic attachments, separating source UID-target references and known P0 EBML loss from candidate create-new writers.",
+  "completed_units": [
+    "Reader last-inspection identity witness and explicit raw source P0 preservation preflight, with no source File alias in public snapshots",
+    "Propose retain/remove/replace/add with implicit retain and FileUID provenance, explicit new-file UID unassigned, safe name-review policy and add-budget checks",
+    "Fail-closed capability states NO_WRITE_REQUESTED, SOURCE_UID_RELATIONS_UNVERIFIED, SOURCE_STRUCTURAL_PRESERVATION_BLOCKED, EXISTING_MATROSKA_WRITER_NOT_PROVEN; every draft writer=null",
+    "Node tests for source IDs, UID targeted tags, nested chapters, repeated FileUID, stale selectors and reinspection, collision confirmation and source byte immutability",
+    "Independent MKVToolNix+mkvpropedit two-attachment UID Tag fixture audit with blocked remove/replace and SHA-256 unchanged",
+    "Non-gating external case JSON artifact upload; existing Node/Vite/Chromium/P0 and attachment-only creation tests unaffected"
+  ],
+  "pending": [
+    "Exact head Node/Vite/full Chromium CI pass",
+    "Independent source audit JSON must explicitly log UID_TAGGED_EXISTING_ATTACHMENT_EDIT_BLOCKED_SOURCE_UNCHANGED",
+    "No executable existing-container writer, no UI mutation action or linked Tag rewrite",
+    "No general EBML relation graph or arbitrary sample/source conformance certification"
+  ]
+}
