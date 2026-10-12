@@ -83,4 +83,5 @@ grep -q 'P0 nested chapter' "$ROOT/p0-check-chapters.xml"
 grep -q 'P0_NESTED_CHAPTER_KEEP' "$ROOT/p0-check-tags.xml"
 grep -q '<ChapterUID>510011</ChapterUID>' "$ROOT/p0-check-tags.xml"
 
+cp "$ROOT/zh.ass" "$ROOT/p0-independent-mkvtoolnix.zh.ass"
 echo "Independent Matroska P0 fixture generated."
