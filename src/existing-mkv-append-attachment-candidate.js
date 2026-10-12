@@ -57,6 +57,24 @@ const element = (id, payload) => {
 };
 const str = (id, value) => element(id, encoder.encode(value));
 const uint = (id, value) => element(id, unsigned(value));
+const makeAttachment = (name, type, payload) => element('1941A469',
+  element('61A7', new Blob([
+    str('466E', name), str('4660', type),
+    element('465C', payload), uint('46AE', 1),
+  ])));
+// Encode a replacement Void with EXACTLY the remaining original slot bytes,
+// not a changed offset for the following Info/Tracks/Cluster/Chapters/Tags.
+function replacementVoid(totalBytes) {
+  for (let width = 1; width <= 8; width++) {
+    const payloadSize = totalBytes - 1 - width;
+    if (payloadSize >= 0 &&
+        BigInt(payloadSize) < (1n << BigInt(width * 7)) - 1n) {
+      return new Blob([Uint8Array.of(0xec), vint(payloadSize, width),
+        new Uint8Array(payloadSize)]);
+    }
+  }
+  throw Error('APPEND_VOID_REMAINDER_UNENCODABLE');
+}
 
 async function sourceHeader(source, scan) {
   const prefix = new Uint8Array(await source.slice(0, 12).arrayBuffer());
@@ -158,6 +176,20 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
     throw Error('APPEND_SOURCE_ATTACHMENT_UID_TARGET_EXISTS');
   }
   const header = await sourceHeader(source, sourceScan);
+  // SeekHead is retained byte-exactly. Replacing a *pre-Info* Void slot
+  // preserves every existing EBML child byte offset. A tail append proved
+  // insufficient for discovery by external MKVToolNix on independent source.
+  const prefixIds = sourceScan.elements.slice(0, 3).map(x => x.id);
+  if (prefixIds[0] !== '0x114d9b74' ||
+      prefixIds[1] !== '0xec' || prefixIds[2] !== '0x1549a966') {
+    throw Error('APPEND_PRE_INFO_VOID_RESERVATION_REQUIRED');
+  }
+  const slot = sourceScan.elements[1];
+  const requiredElement = makeAttachment(
+    proposal.proposedSaveName, declaredType, attachment);
+  if (slot.byteLength < requiredElement.size + 2) {
+    throw Error('APPEND_VOID_SLOT_CAPACITY_EXCEEDED');
+  }
   const preflight = await inspectMatroskaPreservation(source);
   if (preflight.state === 'BLOCKED_UNKNOWN' || preflight.state === 'NOT_MATROSKA') {
     throw Error('APPEND_P0_SOURCE_UNVERIFIED');
@@ -184,14 +216,19 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
       mimeAuthenticity: 'not-tested', executableSafety: 'not-tested',
     },
     output: {
-      filename: 'append-one-attachment-research-candidate.mkv',
-      sourceBytesReusedWithoutModification: true,
+      filename: 'reserved-void-one-attachment-research-candidate.mkv',
+      originalFileByteLengthPreserved: true,
+      originalSegmentSizeHeaderPreserved: true,
+      originalNonVoidElementOffsetsPreserved: true,
+      consumedVoidOffset: slot.offset,
+      consumedVoidBytes: slot.byteLength,
+      untouchedOriginalVoidBytes: false,
       writerProof: 'not-proven',
       outputPublicationAuthorized: false,
     },
     execution: { approvedToWriteExistingFile: false, autoDownload: false },
   });
-  bindings.set(plan, { source, attachment, sourceScan, header });
+  bindings.set(plan, { source, attachment, sourceScan, header, slot });
   return plan;
 }
 
@@ -200,42 +237,63 @@ export async function executeExistingMkvAppendAttachmentCandidate(plan) {
       !Object.isFrozen(plan) || !bindings.has(plan)) {
     throw Error('APPEND_CANDIDATE_PLAN_FORGED_OR_STALE');
   }
-  const { source, attachment, sourceScan, header } = bindings.get(plan);
-  const newAttachedFile = element('61A7', new Blob([
-    str('466E', plan.addedAttachment.filename),
-    str('4660', plan.addedAttachment.mimeType),
-    element('465C', attachment),
-    uint('46AE', 1),
-  ]));
-  const attachments = element('1941A469', newAttachedFile);
-  if (source.size + attachments.size > 64 * 1024 * 1024) {
-    throw Error('APPEND_CANDIDATE_TOTAL_RESEARCH_BUDGET');
-  }
-  const newSize = header.oldBodyBytes + attachments.size;
-  const newSizeBytes = vint(newSize, header.sizeWidth);
+  const { source, attachment, sourceScan, slot } = bindings.get(plan);
+  const attachedMaster = makeAttachment(
+    plan.addedAttachment.filename, plan.addedAttachment.mimeType, attachment);
+  const remaining = slot.byteLength - attachedMaster.size;
+  if (remaining < 2) throw Error('APPEND_VOID_SLOT_CAPACITY_EXCEEDED');
+  const tailVoid = replacementVoid(remaining);
+  if (tailVoid.size !== remaining) throw Error('APPEND_VOID_LENGTH_MISMATCH');
   const output = new Blob([
-    source.slice(0, header.segmentStart + 4),
-    newSizeBytes,
-    source.slice(header.bodyStart),
-    attachments,
+    source.slice(0, slot.offset),
+    attachedMaster,
+    tailVoid,
+    source.slice(slot.offset + slot.byteLength),
   ], { type: 'application/octet-stream' });
+  if (output.size !== source.size) throw Error('APPEND_OUTPUT_SOURCE_LENGTH_DIFFER');
   const candidateScan = await inspectRawSegmentPreservation(output);
-  const compared = compareRawSegmentPreservation(sourceScan, candidateScan, {
+  const rawComparison = compareRawSegmentPreservation(sourceScan, candidateScan, {
     attachmentChangesRequested: true,
   });
-  if (compared.state !== 'ATTACHMENT_DELTA_NEEDS_REFERENCES_OFFSETS_AND_WRITER_PROOF' ||
-      !compared.protectedTopLevelEqual || compared.approvedToWrite ||
-      candidateScan.elements.at(-1)?.id !== '0x1941a469') {
-    throw Error('APPEND_ORIGINAL_PROTECTED_BYTES_NOT_PRESERVED');
+  // The strict v0 comparator MUST report protected changes because the
+  // former Void is deliberately consumed. Never override its result to
+  // "all protected equal". Instead compare all other original elements
+  // by original absolute offset, EBML ID, byte length and commitment.
+  if (rawComparison.state !== 'BLOCKED_PROTECTED_BYTES_CHANGED' ||
+      rawComparison.approvedToWrite || candidateScan.state !== 'inspected' ||
+      sourceScan.ebmlHeaderCommitment !== candidateScan.ebmlHeaderCommitment ||
+      sourceScan.segmentHeaderCommitment !== candidateScan.segmentHeaderCommitment) {
+    throw Error('APPEND_RAW_VOID_REPLACEMENT_CONTRACT_INVALID');
+  }
+  const beforeProtected = sourceScan.elements.filter(el => el.id !== '0xec');
+  const afterProtected = candidateScan.elements.filter(el =>
+    el.id !== '0xec' && el.id !== '0x1941a469');
+  if (beforeProtected.length !== afterProtected.length ||
+      beforeProtected.some((before, i) => {
+        const after = afterProtected[i];
+        return before.id !== after.id || before.offset !== after.offset ||
+          before.byteLength !== after.byteLength ||
+          before.byteCommitment !== after.byteCommitment;
+      })) {
+    throw Error('APPEND_ORIGINAL_NONVOID_ELEMENTS_CHANGED');
+  }
+  if (candidateScan.elements.filter(el => el.id === '0x1941a469').length !== 1 ||
+      candidateScan.elements.find(el => el.id === '0x1941a469')?.offset !== slot.offset) {
+    throw Error('APPEND_ATTACHMENT_NOT_EXACT_VOID_SLOT');
   }
   return Object.freeze({
     schema: 'existing-mkv-append-attachment-candidate-artifact-v0',
     status: 'CREATED_AWAITING_INDEPENDENT_SEMANTIC_AUDIT',
-    filename: plan.output.filename, output, byteLength: output.size,
+    filename: plan.output.filename,
+    output,
+    byteLength: output.size,
     sourceBytesRemainUntouched: true,
-    rawComparison: compared,
+    rawComparison,
     evidence: Object.freeze({
-      sourceByteCommitmentsMatch: true,
+      originalNonVoidElementByteCommitmentsAndOffsetsMatch: true,
+      originalVoidConsumedAsAuthorizedResearchChange: true,
+      sourceTotalLengthUnchanged: true,
+      originalSeekHeadAndSegmentHeaderBytesUntouched: true,
       externalMkvmerge: 'not-yet-run',
       externalMkvextract: 'not-yet-run',
       chapterTagRelations: 'not-yet-verified',
