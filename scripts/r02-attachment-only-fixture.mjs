@@ -34,7 +34,7 @@ const unsigned = number => {
 const text = value => Buffer.from(value, 'utf8');
 const all = parts => Buffer.concat(parts);
 
-export function createResearchFixture() {
+export function createResearchFixture({ declaredMimeType = 'image/png' } = {}) {
   const header = element('1A45DFA3', all([
     element('4286', unsigned(1)), element('42F7', unsigned(1)),
     element('42F2', unsigned(4)), element('42F3', unsigned(8)),
@@ -48,7 +48,7 @@ export function createResearchFixture() {
   ]));
   const attachedFile = element('61A7', all([
     element('466E', text('pixel.png')),
-    element('4660', text('image/png')),
+    element('4660', text(declaredMimeType)),
     element('465C', pngBytes),
     element('46AE', unsigned(42)),
   ]));
