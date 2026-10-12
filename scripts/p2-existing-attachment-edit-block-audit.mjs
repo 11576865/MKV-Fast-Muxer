@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { createMatroskaAttachmentReader } from '../src/matroska-attachment-reader.js';
 import { createExistingAttachmentEditIntent } from '../src/existing-attachment-edit-intent.js';
+import { parseMkvmergeJsonWithExactUids, exactPositiveUid } from '../src/mkvmerge-exact-uid-json.js';
 
 const fixtureDir = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outputDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
@@ -29,17 +30,18 @@ try {
   file.name = path.basename(sourcePath);
   file.lastModified = 123;
   report.originalSha256 = originalHash;
-  const source = JSON.parse(execFileSync('mkvmerge', ['-J', sourcePath], {
+  const source = parseMkvmergeJsonWithExactUids(execFileSync('mkvmerge', ['-J', sourcePath], {
     encoding: 'utf8', timeout: 30000,
   }));
   const attachments = source.attachments || [];
   if (attachments.length !== 2) throw new Error('P0_INDEPENDENT_ATTACHMENT_COUNT_UNEXPECTED');
   report.independentAttachments = attachments.map(a => ({
-    name: a.file_name, uid: String(a.properties?.uid || ''),
+    name: a.file_name, uid: exactPositiveUid(a.properties?.uid),
   }));
   const evidence = attachments.find(x => x.file_name === 'p0-attachment-evidence.bin');
   const decoy = attachments.find(x => x.file_name === 'p0-attachment-decoy.txt');
-  if (!evidence || !decoy || evidence.properties?.uid === decoy.properties?.uid) {
+  if (!evidence || !decoy ||
+      exactPositiveUid(evidence.properties?.uid) === exactPositiveUid(decoy.properties?.uid)) {
     throw new Error('P0_ATTACHMENT_UID_PROVENANCE_MISSING');
   }
 
@@ -88,6 +90,7 @@ try {
   await fs.writeFile(reportPath, JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({
     result: report.result,
+    error: report.error || null,
     removeCode: report.removeCapability?.code,
     replaceCode: report.replaceCapability?.code,
     reportPath,
