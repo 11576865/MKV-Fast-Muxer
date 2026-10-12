@@ -2747,6 +2747,36 @@ async function scenarioCompatibilityEvidenceMatrix(browser) {
   }
 }
 
+// P0: No requested edits. Inspect the resulting MKV with independently
+// installed Matroska tools; no change to the production mux command.
+async function scenarioP0NoEditRoundtrip(browser) {
+  console.log('P0 scenario: unedited Matroska with chapters, tags and attachments');
+  const source = path.join(root, 'source-with-attachments.mkv');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', source);
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#muxBtn');
+      return button && !button.disabled;
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'p0-preservation-output.mkv');
+    const audit = path.join(outDir, 'p0-preservation-audit.json');
+    await saveDownload(page, '#downloadLink', output);
+    // CLI writes a JSON artifact even on semantic mismatch. Its exit code
+    // intentionally fails CI rather than converting a red result to success.
+    execFileSync(process.execPath, [
+      path.resolve('scripts/p0-compare-roundtrip.mjs'),
+      source, output, audit,
+    ], { stdio: 'inherit', timeout: 180_000 });
+    console.log('P0 no-edit roundtrip PASS for checked fields; unsupported fields remain unverified.');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -2799,6 +2829,7 @@ try {
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
+  await scenarioP0NoEditRoundtrip(browser);
   await scenarioBatchGroupSubset(browser);
   await scenarioBatchGroupSubsetPreparationFailure(browser);
   console.log('All browser E2E scenarios PASS');
