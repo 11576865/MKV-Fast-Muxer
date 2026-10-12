@@ -153,6 +153,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # R-02-W: a different candidate implementation from the R-02 fixture.
+      # This remains research only; JSON verdict is required in addition to CI.
+      - name: R-02-W research — JobPlan candidate writer independent audit
+        id: r02_candidate_writer
+        continue-on-error: true
+        run: node scripts/r02-candidate-writer-independent-audit.mjs
+
+      - name: Upload R-02-W candidate writer independent evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r02-candidate-jobplan-writer-audit
+          path: |
+            .e2e/output/r02-writer-candidate-report.json
+            .e2e/output/r02-writer-candidate.mkv
+            .e2e/output/r02-writer-candidate-extracted.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
