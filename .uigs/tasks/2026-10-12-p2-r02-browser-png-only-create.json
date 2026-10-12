@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-r02-browser-png-only-create",
+  "base": "main@a2823e5c1f0d07c9913d3f7cbfd002832490af30",
+  "status": "implementation-submitted-exact-head-ci-pending",
+  "goal": "Expose a deliberately experimental two-step PNG-only Matroska creator that validates local no-media structure and SHA-256 prior to allowing explicit browser download; independently verify actual Chromium-produced artifact in CI.",
+  "implemented": [
+    "New isolated experimental one-PNG create UI with no mutation of legacy mux and batch fields",
+    "Two distinct user controls: prepare+verify, then manual save; source-switch generation/ref invalidation",
+    "Reader reopens candidate output requiring one PNG attachment and zero Tracks/Cluster; SHA-256 checks FileData vs user input",
+    "Real Chromium E2E calls mkvmerge and mkvextract on downloaded artifact, and denies mislabelled non-PNG bytes",
+    "Upload real browser-created MKV, independent extracted PNG and JSON report in CI"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/full Chromium E2E result and separately named browser candidate proof JSON",
+    "No general production writer or complex Matroska remux",
+    "No 16MB stress, mobile/persistent destination or any full PNG safety/codec verification"
+  ]
+}
