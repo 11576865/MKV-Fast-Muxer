@@ -122,3 +122,52 @@ mkvextract "$ROOT/p0-independent-tracktag.mkv" tags "$ROOT/p0-tracktag-check.xml
 grep -q 'P0_TRACK_RELATION' "$ROOT/p0-tracktag-check.xml"
 grep -q 'TrackUID' "$ROOT/p0-tracktag-check.xml"
 echo "P0 flat TrackUID-targeted tag fixture generated."
+
+
+# Third independent P0 member: a flat MKV with TWO unrelated attachments and
+# a custom Tag that targets exactly one AttachmentUID. Use the real writer UID,
+# not mkvmerge's per-file identification attachment ID, for the XML Targets.
+mkvmerge --quiet --output "$ROOT/p0-independent-attachmenttag.mkv" \
+  --attachment-name p0-attachment-evidence.bin \
+  --attachment-mime-type application/octet-stream \
+  --attach-file "$ROOT/notes.txt" \
+  --attachment-name p0-attachment-decoy.txt \
+  --attachment-mime-type text/plain \
+  --attach-file "$ROOT/zh.ass" \
+  "$ROOT/base.mp4"
+
+python3 - "$ROOT/p0-independent-attachmenttag.mkv" "$ROOT/p0-independent-attachmenttag-tags.xml" <<'PY'
+import json
+import subprocess
+import sys
+from xml.etree import ElementTree as ET
+
+source, dest = sys.argv[1:]
+data = json.loads(subprocess.check_output(["mkvmerge", "-J", source], text=True))
+attachments = data.get("attachments", [])
+expected = [a for a in attachments if a.get("file_name") == "p0-attachment-evidence.bin"]
+decoys = [a for a in attachments if a.get("file_name") == "p0-attachment-decoy.txt"]
+if len(expected) != 1 or len(decoys) != 1:
+    raise SystemExit("Attachment P0 fixture requires one evidence and one decoy attachment")
+uid = expected[0].get("properties", {}).get("uid")
+if not isinstance(uid, int) or uid <= 0:
+    raise SystemExit("Attachment P0 fixture lacks a valid AttachmentUID")
+if uid == decoys[0].get("properties", {}).get("uid"):
+    raise SystemExit("Attachment P0 fixture has duplicate AttachmentUIDs")
+root = ET.Element("Tags")
+tag = ET.SubElement(root, "Tag")
+targets = ET.SubElement(tag, "Targets")
+ET.SubElement(targets, "TargetTypeValue").text = "20"
+ET.SubElement(targets, "AttachmentUID").text = str(uid)
+simple = ET.SubElement(tag, "Simple")
+ET.SubElement(simple, "Name").text = "P0_ATTACHMENT_RELATION"
+ET.SubElement(simple, "String").text = "evidence-not-decoy"
+ET.ElementTree(root).write(dest, encoding="UTF-8", xml_declaration=True)
+PY
+
+mkvpropedit "$ROOT/p0-independent-attachmenttag.mkv" \
+  --tags "all:$ROOT/p0-independent-attachmenttag-tags.xml"
+mkvextract "$ROOT/p0-independent-attachmenttag.mkv" tags "$ROOT/p0-attachmenttag-check.xml"
+grep -q 'P0_ATTACHMENT_RELATION' "$ROOT/p0-attachmenttag-check.xml"
+grep -q '<AttachmentUID>' "$ROOT/p0-attachmenttag-check.xml"
+echo "P0 flat AttachmentUID-targeted tag fixture with decoy generated."
