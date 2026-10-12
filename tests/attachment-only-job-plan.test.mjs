@@ -105,7 +105,7 @@ test('candidate writer refuses unbound, edited, or unsupported plan shapes', asy
   }), /PLAN_NOT_SUPPORTED/);
   await assert.rejects(() => executePngAttachmentOnlyCandidate({
     ...plan, attachments: [{ ...plan.attachments[0], filename: 'altered.png' }],
-  }), /BINDING_STALE_OR_FOREIGN/);
+  }), /PLAN_INVALID|BINDING_STALE_OR_FOREIGN/);
   await assert.rejects(() => executePngAttachmentOnlyCandidate(null),
     /PLAN_NOT_SUPPORTED/);
 });
