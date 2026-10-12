@@ -133,7 +133,14 @@ export async function inspectRawSegmentPreservation(blob) {
     let segment = null;
     for (let at = ebml.end; at < blob.size;) {
       const el = await header(blob, at, blob.size, counter);
-      if (el.id === IDS.segment) { segment = el; break; }
+      if (el.id === IDS.segment) {
+        // All bytes of a source claimed to be exactly fingerprinted must be
+        // covered. A valid pre-Segment Void is currently an explicit
+        // unsupported case, never silently ignored as 'identical'.
+        if (at !== ebml.end) throw Error('RAW_CONTRACT_PRESEGMENT_ELEMENTS_UNSUPPORTED');
+        segment = el;
+        break;
+      }
       if (el.unknown) throw Error('RAW_CONTRACT_UNKNOWN_PRESEGMENT_SIZE');
       at = el.end;
     }
