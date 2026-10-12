@@ -190,7 +190,12 @@ export async function inspectMatroskaAttachmentRelations(file, inventory) {
       const references = [];
       let targetsCount = 0;
       await children(file, item.dataStart, item.end, budget, async field => {
-        if (field.id !== ID.TARGETS) return; // don't inspect SimpleTag
+        if (field.id !== ID.TARGETS) {
+          if (![ID.SIMPLE_TAG, ID.VOID, ID.CRC].includes(field.id)) {
+            unknownTargetIds.add('tag-child:0x' + field.id.toString(16));
+          }
+          return; // don't inspect SimpleTag payloads
+        }
         targetsCount++;
         if (targetsCount > 1) throw Error('RELATION_GRAPH_DUPLICATE_TAG_TARGETS');
         references.push(...await parseTargets(field, ordinal));
@@ -213,12 +218,16 @@ export async function inspectMatroskaAttachmentRelations(file, inventory) {
         }
       });
     });
+    if (segment.end !== null && segment.end < file.size) {
+      unknownTopLevelIds.add('trailing-after-segment');
+    }
     return freeze({
       schema: ATTACHMENT_RELATION_GRAPH_SCHEMA,
       state: 'inspected',
       nodes, tags, edges,
       coverage: {
-        tagTargets: unknownTargetIds.size ? 'incomplete-unknown-target-elements' : 'known-targets-enumerated',
+        tagTargets: unknownTargetIds.size || unknownTopLevelIds.size
+          ? 'incomplete-unknown-target-elements' : 'known-targets-enumerated',
         unknownTargetElementIds: [...unknownTargetIds].sort(),
         unknownTopLevelElementIds: [...unknownTopLevelIds].sort(),
         unknownEbmlPreservation: 'not-proven',
