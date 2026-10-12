@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-multi-attachment-browser-create",
+  "status": "implementation-submitted-pending-exact-head-browser-and-external-audit",
+  "base": "main@cf1e220ebfda74dbbf1e82bb221334d9e7d44a78",
+  "goal": "Expose reviewed 2–8 generic attachment-only Matroska creation without changing existing mux; independently verify actual browser-generated MKV and per-resource bytes.",
+  "completed_units": [
+    "Independent 2–8 file chooser and per-source name, byte length, editable unverified MIME and renamed internal filename inventory",
+    "Explicit review checkbox for included files, name changes and sensitive payload warning",
+    "Immutable JobPlan and candidate writer from merged #95 invoked only after review, local independent reader and per-file SHA-256 roundtrip before enabling explicit download",
+    "Generation-token/source-identity stale result invalidation and MIME-edit re-review",
+    "Real Chromium externally audits actual browser-downloaded two-resource MKV via mkvmerge and mkvextract, records report and raw artifacts",
+    "Case/collision and invalid single-file review denial included in browser E2E"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/full Chromium outcome",
+    "JSON BROWSER_MULTI_ATTACHMENT_INDEPENDENT_UIDS_AND_BYTES_MATCH plus existing P2-M and R02 research outcomes",
+    "No general multi-attachment modification of existing MKV",
+    "No platform cancellation, memory stress, malware/verified MIME, full EBML UID-relations or destination conflict guarantee"
+  ]
+}
