@@ -24,7 +24,7 @@ const asFile = (bytes, name) => {
   return file;
 };
 function mkv({ hasAttachment = false, hasAttachmentTarget = false,
-  crc = false, unknown = false, unknownSegment = false, clusterBytes = 256 } = {}) {
+  crc = false, unknown = false, unknownSegment = false, clusterBytes = 256, voidBytes = 1000 } = {}) {
   const oneFile = elem('1941A469', elem('61A7', cat(
     elem('466E', Buffer.from('old.png')),
     elem('4660', Buffer.from('image/png')),
@@ -36,6 +36,8 @@ function mkv({ hasAttachment = false, hasAttachmentTarget = false,
       elem('4487', Buffer.from('unchanged')))),
   )));
   const body = cat(
+    elem('114D9B74', Buffer.alloc(0)),
+    ...(voidBytes >= 0 ? [elem('EC', Buffer.alloc(voidBytes))] : []),
     elem('1549A966', elem('2AD7B1', [15, 66, 64])),
     elem('1654AE6B', elem('AE', elem('73C5', [77]))),
     elem('1F43B675', Buffer.alloc(clusterBytes, 0xa3)),
@@ -71,10 +73,11 @@ test('research-only append creates a separate attachment without altering existi
   assert.ok(!JSON.stringify(plan).includes('append-only payload'));
   const result = await executeExistingMkvAppendAttachmentCandidate(plan);
   assert.equal(result.status, 'CREATED_AWAITING_INDEPENDENT_SEMANTIC_AUDIT');
-  assert.equal(result.rawComparison.protectedTopLevelEqual, true);
+  assert.equal(result.rawComparison.protectedTopLevelEqual, false, 'strict comparator sees consumed Void');
+  assert.equal(result.evidence.originalNonVoidElementByteCommitmentsAndOffsetsMatch, true);
+  assert.equal(result.evidence.sourceTotalLengthUnchanged, true);
   assert.equal(result.rawComparison.approvedToWrite, false);
-  assert.equal(result.rawComparison.state,
-    'ATTACHMENT_DELTA_NEEDS_REFERENCES_OFFSETS_AND_WRITER_PROOF');
+  assert.equal(result.rawComparison.state, 'BLOCKED_PROTECTED_BYTES_CHANGED');
   assert.equal(result.evidence.generalExistingMkvWriter, false);
   const reader = createMatroskaAttachmentReader(result.output);
   const inventory = await reader.inspect();
@@ -140,10 +143,9 @@ test('a forged or cloned plan does not inherit real source/payload binding', asy
     /PLAN_FORGED_OR_STALE/);
 });
 
-test('original fixed-width Segment size VINT cannot be silently widened to fit added bytes', async () => {
-  // Small source uses a one-byte Segment length. The append would exceed it.
-  const source = asFile(mkv({ clusterBytes: 3 }), 'one-byte-segment.mkv');
-  const plan = await prepare(source);
-  await assert.rejects(() => executeExistingMkvAppendAttachmentCandidate(plan),
-    /APPEND_SEGMENT_SIZE_VINT_CAPACITY_EXCEEDED/);
+test('missing or too-small reserved Void is refused rather than moving original EBML offsets', async () => {
+  await assert.rejects(() => prepare(asFile(mkv({ voidBytes: -1 }), 'without-reservation.mkv')),
+    /APPEND_PRE_INFO_VOID_RESERVATION_REQUIRED/);
+  await assert.rejects(() => prepare(asFile(mkv({ voidBytes: 8 }), 'insufficient-reservation.mkv')),
+    /APPEND_VOID_SLOT_CAPACITY_EXCEEDED/);
 });
