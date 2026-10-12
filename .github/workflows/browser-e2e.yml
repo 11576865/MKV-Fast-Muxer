@@ -131,6 +131,25 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      # Research evidence must not silently become a production release gate.
+      # Report itself distinguishes tool limitations from verified content.
+      - name: R-02 research — PNG-only Matroska independent reader/extractor
+        id: r02_attachment_only
+        continue-on-error: true
+        run: node scripts/r02-attachment-only-experiment.mjs
+
+      - name: Upload R-02 attachment-only reader evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r02-png-only-matroska-experiment
+          path: |
+            .e2e/output/r02-attachment-only-report.json
+            .e2e/output/r02-attachment-only-research.mkv
+            .e2e/output/r02-extracted.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
