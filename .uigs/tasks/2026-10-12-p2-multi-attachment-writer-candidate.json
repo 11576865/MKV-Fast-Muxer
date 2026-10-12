@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-multi-attachment-writer-candidate",
+  "status": "submitted-pending-exact-head-ci-and-independent-extractor",
+  "base": "main@268b08e1ec406eb09dc92835b594d6f7db1acd99",
+  "goal": "Expand one-PNG zero-track research-only JobPlan into 2–8 arbitrary generic attachments with separate FileUIDs and independent output extraction, preserving existing legacy writer and P0 safety.",
+  "implemented": [
+    "Frozen per-session plan with strict File reference bindings and 2–8 item/16MiB each/32MiB total budgets",
+    "Explicit reviewed filename/collision transformation, declared MIME syntax not assumed content authenticity",
+    "New EBML Blob writer generating exactly N AttachedFile elements with FileUID 1..N, zero Tracks/Cluster, no eager payload read",
+    "Node cases for two payloads, UID distinctness, source forgery, malicious names, budget, MIME and no-read",
+    "Independent mkvmerge+mkvextract oracle for actual two-payload writer output and separate reader/UID/hash crosscheck",
+    "Separate non-gating CI step plus always-uploaded evidence; old P0/batch/browser paths unchanged"
+  ],
+  "pending": [
+    "Exact-head Node/Vite/Chromium CI evidence",
+    "JSON MULTI_ATTACHMENT_WRITER_INDEPENDENT_UIDS_AND_BYTES_MATCH from real external tools",
+    "No browser multi-attachment create/write UI",
+    "No general existing Matroska edits, Chapter/Tag preservation or file safety claim"
+  ]
+}
