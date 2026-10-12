@@ -138,6 +138,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Upload P0 AttachmentUID relation preservation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-attachmentuid-target-relation-audit
+          path: .e2e/output/p0-attachmenttag-relation-audit.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload MKV workbench visual evidence
         if: always()
         uses: actions/upload-artifact@v4
