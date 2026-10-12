@@ -162,17 +162,13 @@ class MutableObservedBlob extends Blob {
     this.alternate = new Blob([value]);
   }
   slice(start, end, type) {
-    return (this.alternate || this).nativeSlice(start, end, type);
-  }
-  nativeSlice(start, end, type) {
-    return Blob.prototype.slice.call(this, start, end, type);
+    return Blob.prototype.slice.call(this.alternate || this, start, end, type);
   }
 }
 
 test('source bytes changing only inside formerly reserved Void invalidate the authentic plan', async () => {
   const initial = mkv({ voidBytes: 1024 });
   const changed = Buffer.from(initial);
-  const lookup = Buffer.from('EC', 'hex');
   // Find the *first* Void after a real SeekHead rather than assuming offsets.
   const scan = await inspectRawSegmentPreservation(new Blob([initial]));
   assert.equal(scan.state, 'inspected');
