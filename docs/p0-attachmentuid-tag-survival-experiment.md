@@ -1,12 +1,14 @@
 # P0 experiment: AttachmentUID-targeted Tag and independently extracted attachment identity
 
-Status: Draft experiment — no runtime mux/preflight changes; CI result pending.
+Status: **independently verified `CHECKED_RELATIONS_MATCH` for this fixture**; no runtime mux/preflight changes.
 Issue: https://github.com/11576865/MKV-Fast-Muxer/issues/77
 Previous TrackUID semantic control: `docs/p0-trackuid-tag-survival-experiment.md`.
 
 ## Hypothesis and capability boundary
 
 Issue #77 proves a browser writer loss of nested Chapters and their ChapterUID-targeted Tags. The merged structural preflight hard-blocks such sources, but for ordinary TrackUID- and AttachmentUID-targeted Tags it warns and permits remux pending independent proof. PR #83 established one small positive TrackUID control. This experiment independently examines the AttachmentUID case, **not** all attachment or MKV structures.
+
+**Verified CI evidence:** [Chromium Browser E2E run 38220651710](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38220651710) on head `3586824f8d44f2f7d1c8a99670611277c10ffd7d`: **229/229 Node tests, full Chromium E2E PASS**. Actual logs say `P0 attachment tag semantic relation: CHECKED_RELATIONS_MATCH` and `P0 AttachmentUID relation PASS for the checked source/output`. Artifact: `p0-attachmentuid-target-relation-audit`. An earlier CI attempt was `cancelled` during unusually slow apt font/media dependency download, before the browser tests ran. Extending the job timeout to 45 minutes allowed the new run to complete; the new run finished in about three minutes.
 
 ## Test material
 
