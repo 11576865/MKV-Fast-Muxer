@@ -15,7 +15,8 @@ test('the output composition is primary while imported assets remain inspectable
   assert.match(html, /id="compositionIssues"[^>]*role="status"/);
   assert.match(css, /\.workspace\[data-has-composition="true"\] \.stage-input \.asset-dropzone\s*\{ display: none; \}/);
   assert.match(main, /function renderOutputComposition\(\)/);
-  assert.match(main, /buildOutputComposition\(\{/);
+  assert.match(main, /buildContainerDocument\(\{/);
+  assert.match(main, /reconcileContainerSelection\(document, lastCompositionSourceKey, selectedCompositionId\)/);
   assert.match(main, /selectedCompositionId = item\.id/);
   assert.match(main, /renderMuxPlan\(\) \{/);
   assert.match(main, /compositionTracks\?\.addEventListener\('click'/);
