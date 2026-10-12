@@ -185,3 +185,18 @@ test('scans a large Cluster in bounded slices instead of eager full-media reads'
     'all bytes read once plus bounded EBML headers');
   assert.ok(result.elements.some(e => e.id === '0x1f43b675'));
 });
+
+test('unhashed pre-Segment Void is explicitly unsupported instead of an invalid identical claim', async () => {
+  const source = createResearchFixture();
+  const segmentOffset = source.indexOf(Buffer.from('18538067', 'hex'));
+  assert.ok(segmentOffset > 0);
+  const withVoid = cat(source.subarray(0, segmentOffset),
+    element('EC', Buffer.from([17])),
+    source.subarray(segmentOffset));
+  const report = await inspectRawSegmentPreservation(file(withVoid));
+  assert.equal(report.state, 'unverified');
+  assert.equal(report.diagnostic.code, 'RAW_CONTRACT_PRESEGMENT_ELEMENTS_UNSUPPORTED');
+  assert.equal(compareRawSegmentPreservation(
+    await expectInspected(source), report,
+  ).state, 'BLOCKED_UNVERIFIED');
+});
