@@ -24,7 +24,7 @@ const asFile = (bytes, name) => {
   return file;
 };
 function mkv({ hasAttachment = false, hasAttachmentTarget = false,
-  crc = false, unknown = false, unknownSegment = false } = {}) {
+  crc = false, unknown = false, unknownSegment = false, clusterBytes = 256 } = {}) {
   const oneFile = elem('1941A469', elem('61A7', cat(
     elem('466E', Buffer.from('old.png')),
     elem('4660', Buffer.from('image/png')),
@@ -38,7 +38,7 @@ function mkv({ hasAttachment = false, hasAttachmentTarget = false,
   const body = cat(
     elem('1549A966', elem('2AD7B1', [15, 66, 64])),
     elem('1654AE6B', elem('AE', elem('73C5', [77]))),
-    elem('1F43B675', Buffer.from([0xa3, 0x81, 0x00])),
+    elem('1F43B675', Buffer.alloc(clusterBytes, 0xa3)),
     elem('1043A770', elem('45B9', elem('B6', cat(
       elem('73C4', [1]), elem('B6', elem('73C4', [2])))))),
     tag,
@@ -138,4 +138,12 @@ test('a forged or cloned plan does not inherit real source/payload binding', asy
     Object.freeze({ ...plan })), /PLAN_FORGED_OR_STALE/);
   await assert.rejects(() => executeExistingMkvAppendAttachmentCandidate(null),
     /PLAN_FORGED_OR_STALE/);
+});
+
+test('original fixed-width Segment size VINT cannot be silently widened to fit added bytes', async () => {
+  // Small source uses a one-byte Segment length. The append would exceed it.
+  const source = asFile(mkv({ clusterBytes: 3 }), 'one-byte-segment.mkv');
+  const plan = await prepare(source);
+  await assert.rejects(() => executeExistingMkvAppendAttachmentCandidate(plan),
+    /APPEND_SEGMENT_SIZE_VINT_CAPACITY_EXCEEDED/);
 });
