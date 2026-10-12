@@ -46,7 +46,7 @@ function mkv({
   ];
   const targets = element('63C0', concat(...fields));
   const tags = element('1254C367', element('7373',
-    invalidTag ? element('63C0', Buffer.from([0])) : targets));
+    invalidTag ? concat(element('63C0', element('68CA', [20])), element('63C0', element('68CA', [20]))) : targets));
   const segment = element('18538067', concat(
     element('1549A966', element('2AD7B1', uint(1000000))),
     attachments,
