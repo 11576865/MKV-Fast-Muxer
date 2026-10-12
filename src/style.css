@@ -5162,3 +5162,79 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
 .workload-notice[data-level="normal"] {
   display: none;
 }
+
+
+/* P2: independent source-attachment inspector; no new mutable mux editor. */
+.attachment-extraction {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  min-width: 0;
+}
+.attachment-extraction > summary {
+  font-weight: 650;
+  cursor: pointer;
+}
+.attachment-extraction-help {
+  margin: 10px 0;
+  line-height: 1.5;
+  color: var(--text-muted, var(--muted, #aab1bc));
+}
+.attachment-extraction-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-block: 10px;
+}
+.attachment-extraction-picker > input {
+  min-width: 0;
+  max-width: 100%;
+}
+#attachmentInspectStatus {
+  margin-block: 10px;
+  overflow-wrap: anywhere;
+}
+#attachmentInspectStatus[data-state="unverified"] {
+  color: var(--danger, #d96a6a);
+}
+.attachment-extraction-list {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+.attachment-extraction-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  padding: 10px;
+}
+.attachment-extraction-properties {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+.attachment-extraction-field {
+  display: grid;
+  grid-template-columns: minmax(100px, 150px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  font-size: .9rem;
+}
+.attachment-extraction-field-label {
+  color: var(--text-muted, var(--muted, #aab1bc));
+}
+.attachment-extraction-field bdi {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.attachment-extraction-download { flex: 0 0 auto; }
+@media (max-width: 720px) {
+  .attachment-extraction-row { align-items: stretch; flex-direction: column; }
+  .attachment-extraction-field { grid-template-columns: minmax(0, 1fr); gap: 1px; }
+  .attachment-extraction-download { align-self: start; }
+}

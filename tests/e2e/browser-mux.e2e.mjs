@@ -2812,6 +2812,99 @@ async function scenarioP1SubtitleIntentInvalidation(browser) {
   }
 }
 
+// P2 generic attachment extraction is independent of the video-rooted mux.
+async function scenarioP2GenericAttachmentExtraction(browser) {
+  console.log('P2: inspect generic attachments and independently compare downloaded bytes');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#attachmentExtractionDetails > summary').click();
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    await page.setInputFiles('#attachmentInspectInput',
+      path.join(root, 'p0-independent-attachmenttag.mkv'));
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'ready'
+        && document.querySelectorAll('.attachment-extraction-row').length === 2,
+      null, { timeout: 90_000 });
+
+    const status = await page.locator('#attachmentInspectStatus').textContent();
+    assert.match(status, /2 个附件/);
+    const first = page.locator('.attachment-extraction-row').first();
+    assert.match(await first.textContent(), /p0-attachment-evidence.bin/);
+    assert.match(await first.textContent(), /未验证内容/);
+    const downloaded = path.join(outDir, 'p2-independent-attachment.bin');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      first.locator('button[data-attachment-download]').click(),
+    ]);
+    assert.equal(download.suggestedFilename(), 'p0-attachment-evidence.bin');
+    await download.saveAs(downloaded);
+    assert.deepEqual(await fs.readFile(downloaded), await fs.readFile(path.join(root, 'notes.txt')));
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+
+    // The view must not retain extractable rows after a failed new inspection.
+    await page.setInputFiles('#attachmentInspectInput', {
+      name: 'malformed.mkv', mimeType: 'application/octet-stream',
+      buffer: Buffer.from('not Matroska'),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'unverified',
+      null, { timeout: 30_000 });
+    assert.equal(await page.locator('[data-attachment-download]').count(), 0);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    console.log('P2 independently-authored attachment browser extraction PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioP2AttachmentInspectionStaleFile(browser) {
+  console.log('P2: changing container while a seek-read is held never reveals stale attachments');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#attachmentExtractionDetails > summary').click();
+    await page.evaluate(() => {
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      window.__p2InspectRead = { entered: false, release, used: false };
+      const originalSlice = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const part = originalSlice.apply(this, args);
+        if (this.name !== 'p0-independent-attachmenttag.mkv') return part;
+        const read = part.arrayBuffer.bind(part);
+        part.arrayBuffer = async () => {
+          if (!window.__p2InspectRead.used) {
+            window.__p2InspectRead.used = true;
+            window.__p2InspectRead.entered = true;
+            await gate;
+          }
+          return read();
+        };
+        return part;
+      };
+    });
+    await page.setInputFiles('#attachmentInspectInput',
+      path.join(root, 'p0-independent-attachmenttag.mkv'));
+    await page.waitForFunction(() => window.__p2InspectRead?.entered,
+      null, { timeout: 30_000 });
+    await page.setInputFiles('#attachmentInspectInput', {
+      name: 'not-mkv.bin', mimeType: 'application/octet-stream',
+      buffer: Buffer.from([0,1,2,3]),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#attachmentInspectStatus')?.dataset.state === 'unverified',
+      null, { timeout: 30_000 });
+    await page.evaluate(() => window.__p2InspectRead.release());
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('[data-attachment-download]').count(), 0);
+    assert.equal(await page.locator('#attachmentInspectStatus').getAttribute('data-state'),
+      'unverified');
+    console.log('P2 source-switch async inspection rejection PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksSingle(browser) {
   console.log('P0 preservation gate: block high-risk original MKV in single mux');
   const { context, page } = await openApp(browser);
@@ -3105,6 +3198,8 @@ try {
   await scenarioAutoLanguageInference(browser);
   await scenarioPreserveAllAppend(browser);
   await scenarioP1SubtitleIntentInvalidation(browser);
+  await scenarioP2GenericAttachmentExtraction(browser);
+  await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);

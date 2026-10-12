@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-12-p2-browser-attachment-extraction",
+  "goal": "Make generic Matroska attachment inspection and direct user download usable without video source, legacy FFmpeg writing or trusting attachment MIME/FileName.",
+  "status": "submitted-pending-precise-head-ci",
+  "base": "main@f526d96d6f5f929f6b8cdcc3a48f5c50a2013207",
+  "implemented": [
+    "Independent file selector/disclosure in source workspace",
+    "Gated read-only attachment inventory via #89 bounded reader",
+    "Sanitized, collision-aware export name display via merged #90 pure policy",
+    "Explicit user button downloads inert application/octet-stream Blob views and revokes URLs",
+    "E2E independent MKVToolNix fixture attachment byte comparison and malformed input invalidation",
+    "E2E delayed read and source change stale-result race"
+  ],
+  "next_work_unit": "Exact-head Node/Vite/complete Chromium E2E; if green review and merge, then isolate raw-name and declared MIME security disclosures from renderer trust and add R-02 no-media browser fixture in CI.",
+  "nonclaims": [
+    "No content hash or certificate for actual downloaded files",
+    "No production attachment-only writer",
+    "No universal Matroska parse or ChapterUID/Tag preservation guarantee",
+    "No directory overwrite resolution"
+  ]
+}
