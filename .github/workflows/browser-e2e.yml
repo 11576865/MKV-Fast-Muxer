@@ -274,6 +274,27 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P2-A research ONLY: append a fresh AttachedFile at the end of a
+      # separate, independently authored MKV without original Attachments.
+      # Never enable this candidate via regular mux / batch UI.
+      - name: P2-A research — independent existing MKV append-only attachment audit
+        id: p2_existing_append_one
+        continue-on-error: true
+        run: node scripts/p2-existing-mkv-append-attachment-independent-audit.mjs
+
+      - name: Upload P2-A existing Matroska append-only proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-existing-mkv-append-attachment-candidate
+          path: |
+            .e2e/output/p2-existing-append-one-attachment-audit.json
+            .e2e/output/p2-existing-append-independent-source.mkv
+            .e2e/output/p2-existing-append-one-attachment-candidate.mkv
+            .e2e/output/p2-existing-append-extracted-attachment.bin
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P0 TrackUID relation preservation evidence
         if: always()
         uses: actions/upload-artifact@v4
