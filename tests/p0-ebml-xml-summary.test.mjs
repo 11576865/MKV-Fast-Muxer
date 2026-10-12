@@ -18,7 +18,7 @@ test('P0 XML chapter parser retains nested structure and target UID identity', (
     '<ChapterDisplay><ChapterString>Parent</ChapterString><ChapterLanguage>eng</ChapterLanguage></ChapterDisplay>',
     '<ChapterAtom><ChapterUID>510011</ChapterUID><ChapterTimeStart>00:00:00.200000000</ChapterTimeStart>',
     '<ChapterDisplay><ChapterString>Nested</ChapterString></ChapterDisplay></ChapterAtom>',
-    '</ChapterAtom></ChapterAtom></EditionEntry></Chapters>',
+    '</ChapterAtom></EditionEntry></Chapters>',
   ].join(''));
   assert.equal(actual[0].editionUid, '510001');
   assert.equal(actual[0].chapters[0].uid, '510010');
