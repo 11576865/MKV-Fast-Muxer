@@ -74,6 +74,83 @@ async function openApp(browser) {
   return { context, page };
 }
 
+async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
+  console.log('Five-step E2E: portable recipe review and source capability truth');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.batch-drawer > summary').click();
+    await page.locator('#batchPreserveAttachments').uncheck();
+    await page.locator('#batchFontSubsetEnabled').check();
+    await page.locator('#batchSubsetScope').selectOption('group');
+    const wire = path.join(outDir, 'five-step-batch-recipe-v1.json');
+    await saveDownload(page, '#batchRecipeExportBtn', wire);
+    const raw = JSON.parse(await fs.readFile(wire, 'utf8'));
+    assert.equal(raw.schema, 'batch-recipe-v1');
+    assert.deepEqual(raw.policy, {
+      preserveAttachments: false, subsetEnabled: true, subsetScope: 'group',
+    });
+    assert.equal(raw.sourceBindings, 'must-reselect-and-review');
+    assert.equal(raw.outputDirectoryPermission, 'not-exported');
+    assert.equal(raw.savedArtifacts, 'not-included');
+    assert.equal(raw.reviewRequired, true);
+    assert.equal(raw.fileHandles, undefined);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+
+    // Rejected foreign schema must not change the current working policy.
+    await page.setInputFiles('#batchRecipeImportInput', {
+      name: 'untrusted.json', mimeType: 'application/json',
+      buffer: Buffer.from('{"schema":"evil","policy":{}}'),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('配方被拒绝'));
+    assert.equal(await page.locator('#batchSubsetScope').inputValue(), 'group');
+    assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
+
+    await page.locator('#batchPreserveAttachments').check();
+    await page.locator('#batchFontSubsetEnabled').uncheck();
+    await page.locator('#batchSubsetScope').selectOption('job');
+    await page.setInputFiles('#batchRecipeImportInput', wire);
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('已加载配方规则'));
+    assert.equal(await page.locator('#batchPreserveAttachments').isChecked(), false);
+    assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
+    assert.equal(await page.locator('#batchSubsetScope').inputValue(), 'group');
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchVideoInput').evaluate(input => input.files.length), 0);
+
+    // Source identity and plan readiness are reconstructed after real selection.
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return plan.includes('Batch S01E01.mp4') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#batchResults a.download').count(), 0,
+      'import must never start an implicit mux or fabricate a delivered artifact');
+
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.waitForFunction(() =>
+      Boolean(document.querySelector('#containerCapabilitySummary')?.textContent.includes('快速封装')),
+      null, { timeout: 60_000 });
+    const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
+    assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
+    assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
+
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-1024.png'), animations: 'disabled',
+    });
+    console.log('Five-step recipe export/import and capability truthful UI PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP3FinalMkvRealLibassRendering(browser) {
   console.log('P3 E2E: downloaded MKV ASS with unique embedded font renders identically to source reference');
   const { context, page } = await openApp(browser);
@@ -4038,6 +4115,7 @@ try {
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
+  await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);
