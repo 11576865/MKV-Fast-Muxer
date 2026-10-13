@@ -139,8 +139,8 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
 
     // The legacy #videoInput is a hidden execution adapter. Export belongs
     // to the real source workbench, which is populated by unified intake.
-    // Do NOT force-click a hidden editor element to fabricate acceptance.
-    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    // Desktop layouts intentionally hide the phone-only jump navigation:
+    // do not try to click it or force-click a hidden editor control.
     await page.setInputFiles('#unifiedAssetInput', path.join(root, 'base.mp4'));
     await page.waitForFunction(() => {
       const panel = document.querySelector('#outputCompositionPanel');
