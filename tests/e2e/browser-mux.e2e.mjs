@@ -138,6 +138,11 @@ async function scenarioMultiTrack(browser) {
     assert.equal(report.externalAudio.length, 1);
     assert.equal(report.externalAudio[0].codec, 'flac');
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.fontPayloadAudit?.status, 'pass',
+      JSON.stringify(report.audit?.fontPayloadAudit));
+    assert.equal(report.audit?.fontPayloadAudit?.verified, 1);
+    assert.equal(report.audit?.fontPayloadAudit?.total, 1);
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(), /新字体附件字节验证：1\/1/);
     // Real output audit evidence must stay separate from a blanket EBML claim.
     await page.locator('#outputEvidencePanel').waitFor({ state: 'visible' });
     assert.match(await page.locator('#outputEvidenceTitle').textContent(), /ffprobe 审计通过/);
@@ -1195,6 +1200,9 @@ async function scenarioFontSubsetting(browser) {
     assert.equal(font.subset?.applied, true);
     assert.ok(Number(font.subset?.subsetSize) < Number(font.subset?.originalSize));
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.fontPayloadAudit?.status, 'pass',
+      JSON.stringify(report.audit?.fontPayloadAudit));
+    assert.equal(report.audit?.fontPayloadAudit?.verified, 1);
     console.log('Scenario 27 PASS');
   } finally {
     await context.close();
