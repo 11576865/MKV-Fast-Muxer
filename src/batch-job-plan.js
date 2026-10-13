@@ -40,6 +40,16 @@ export function freezeBatchJobPlan(pairing, { generation, preserveAttachments = 
     directoryName: String(directoryName || ''),
   });
   const fonts = freezeList(pairing.fonts);
+  // Group font subsetting requires content-derived font identity, not merely
+  // File handles. Freezing the chosen fonts but omitting identity silently
+  // degraded the old Group path to unsubsetted attachments.
+  const fontRecognition = Object.freeze({
+    recognized: freezeList((pairing.fontRecognition?.recognized || []).map((entry) => Object.freeze({
+      ...entry,
+      identity: entry.identity,
+    }))),
+    ignored: freezeList(pairing.fontRecognition?.ignored),
+  });
   const jobs = freezeList(pairing.jobs.map((job, index) => {
     if (!job.video || !job.outputName || !job.subtitleInputFiles?.length) {
       throw new Error('存在缺少视频、字幕或输出名称的批次任务');
@@ -68,6 +78,7 @@ export function freezeBatchJobPlan(pairing, { generation, preserveAttachments = 
     generation,
     policy,
     fonts,
+    fontRecognition,
     jobs,
     sourceIdentity: freezeList(jobs.map((job) => job.sourceIdentity)),
   });
