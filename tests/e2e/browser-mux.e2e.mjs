@@ -2590,6 +2590,22 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
     assert.equal(await subAdvanced.getAttribute('open'), '');
 
+    // Source flags are now domain-owned and persisted as coherent *derived*
+    // detached edit intents. Order movement stays live-session-only until a
+    // separately verified order replay command is implemented.
+    const advancedDraftPath = path.join(outDir, 'p1-advanced-dispositions-draft.json');
+    await saveDownload(page, '#containerProjectExportBtn', advancedDraftPath);
+    const advancedDraft = JSON.parse(await fs.readFile(advancedDraftPath, 'utf8'));
+    assert.equal(advancedDraft.schema, 'container-project-v1');
+    assert.ok(advancedDraft.editIntents.some(intent =>
+      intent.field === 'commentary' && intent.to === true),
+      'advanced commentary edit must survive portable project export');
+    assert.ok(advancedDraft.editIntents.some(intent =>
+      intent.field === 'hearingImpaired' && intent.to === true),
+      'advanced hearing-impaired disposition must survive portable project export');
+    assert.ok(advancedDraft.editIntents.every(intent => intent.type !== 'reorder'),
+      'domain move is not advertised as a verified executable detached order replay');
+
     // Visual acceptance captures the normal workbench, not the deliberately
     // expanded advanced track tools used to test reverse synchronization.
     await tree.locator('[data-tree-advanced-tools]').click();
