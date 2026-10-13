@@ -4575,6 +4575,9 @@ async function syncBatchPlan() {
   batchStartBtn.disabled = true;
   batchCancelBtn.disabled = !(batchRunning || batchStartPending);
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
+  if (batchPreserveAttachments) batchPreserveAttachments.disabled = batchRunning || batchStartPending;
+  if (batchFontSubsetEnabled) batchFontSubsetEnabled.disabled = batchRunning || batchStartPending;
+  if (batchOutputDirBtn) batchOutputDirBtn.disabled = batchRunning || batchStartPending;
 
   if (candidateVideos.length || subtitles.length) {
     batchPlan.innerHTML = '<div class="track-empty">正在读取实际视频容器与字幕格式…</div>';
@@ -4750,6 +4753,7 @@ batchPlan?.addEventListener('change', (event) => {
   const video = ambiguous.candidates[candidateIndex];
   if (!video) return;
   batchManualAssignments.set(ambiguous.track.file, video);
+  activeBatchJobLedger = null;
   selectedBatchVideoFile = video;
   requestBatchPlanSync();
 });
@@ -4773,6 +4777,7 @@ batchJobInspector?.addEventListener('click', (event) => {
   const confirmed = latestBatchPairing?.manuallyAssignedPairings[Number(button.dataset.batchRevoke)];
   if (!confirmed) return;
   batchManualAssignments.delete(confirmed.track.file);
+  activeBatchJobLedger = null;
   requestBatchPlanSync();
 });
 
@@ -4809,6 +4814,7 @@ function setInputFiles(input, files) {
 }
 
 async function chooseBatchOutputDirectory() {
+  if (batchRunning || batchStartPending) return;
   if (!('showDirectoryPicker' in window)) {
     batchOutputDirStatus.textContent = '当前浏览器不支持目录写入；仍可逐项保存。';
     return;
@@ -4818,6 +4824,7 @@ async function chooseBatchOutputDirectory() {
     const permission = await handle.requestPermission?.({ mode: 'readwrite' });
     if (permission && permission !== 'granted') throw new Error('没有输出目录写入权限。');
     batchOutputDirectoryHandle = handle;
+    activeBatchJobLedger = null;
     batchOutputDirStatus.textContent = `已选择：${handle.name}`;
     requestBatchPlanSync();
   } catch (error) {
@@ -4940,10 +4947,19 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
   }
   requestBatchPlanSync();
 }));
+batchPreserveAttachments?.addEventListener('change', () => {
+  if (batchRunning || batchStartPending) return;
+  activeBatchJobLedger = null;
+  requestBatchPlanSync();
+});
 batchFontSubsetEnabled?.addEventListener('change', () => {
+  if (batchRunning || batchStartPending) return;
+  activeBatchJobLedger = null;
   requestBatchPlanSync();
 });
 batchSubsetScope?.addEventListener('change', () => {
+  if (batchRunning || batchStartPending) return;
+  activeBatchJobLedger = null;
   requestBatchPlanSync();
 });
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
