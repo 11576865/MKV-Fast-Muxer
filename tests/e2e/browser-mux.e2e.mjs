@@ -1362,6 +1362,53 @@ async function scenarioWorkbenchEfficiency(browser) {
   }
 }
 
+async function scenarioLiveSourceAttachmentDomainMux(browser) {
+  console.log('E2E P1: domain-owned source attachment changes -> real MKV -> independent ffprobe');
+  const {context,page}=await openApp(browser);
+  try {
+    const input=path.join(root,'source-with-attachments.mkv');
+    const original=await fs.readFile(input);
+    await page.setInputFiles('#videoInput',input);
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    const items=page.locator('.attachment-item');
+    assert.equal(await items.count(),2);
+    await items.nth(0).locator('input[data-attachment-field="filename"]')
+      .fill('domain-renamed-font.ttf');
+    await items.nth(0).locator('input[data-attachment-field="mimetype"]')
+      .fill('font/ttf');
+    await items.nth(1).locator('input[data-attachment-action="include"]').uncheck();
+    assert.equal(await items.nth(1)
+      .locator('input[data-attachment-action="include"]').isChecked(),false);
+    const draftPath=path.join(outDir,'p1-domain-attachment-detached.json');
+    await saveDownload(page,'#containerProjectExportBtn',draftPath);
+    const draft=JSON.parse(await fs.readFile(draftPath,'utf8'));
+    const attachment=draft.objects.find(o=>o.kind==='attachment' &&
+      o.attributes?.name==='domain-renamed-font.ttf');
+    assert.ok(attachment && attachment.sourceId,
+      'immutable project represents the actual source attachment changes');
+    assert.equal(attachment.attributes.mime,'font/ttf');
+    assert.ok(draft.editIntents.every(intent=>intent.objectId!==attachment.id),
+      'nonportable attachment changes must not pretend to have verified replay intents');
+    assert.match(await page.locator('#status').textContent(), /来源附件的保留、文件名和 MIME 修改尚不能从草稿安全恢复/);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const dest=path.join(outDir,'p1-domain-source-attachment-final.mkv');
+    await saveDownload(page,'#downloadLink',dest);
+    const result=probe(dest);
+    const attachments=streams(result,'attachment');
+    assert.equal(attachments.length,1);
+    assert.equal(attachments[0].tags?.filename,'domain-renamed-font.ttf');
+    assert.equal(attachments[0].tags?.mimetype,'font/ttf');
+    assert.deepEqual(await fs.readFile(input),original,
+      'source attachment edits must never mutate the source media bytes');
+    console.log('Domain source attachment -> real finished MKV and external probe PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -4528,6 +4575,7 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioWorkbenchEfficiency(browser);
+  await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
   await scenarioPreviewTimeClamp(browser);
   await scenarioAv1PreviewFrame(browser);
