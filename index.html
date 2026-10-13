@@ -110,6 +110,11 @@
                 <p>此处仅检查 JSON 内部修改前后的自洽性，不证明编辑发生过，也不恢复到当前媒体或授予写入权限。</p>
                 <ol id="containerProjectIntentList" aria-label="导入草稿内部修改记录"></ol>
               </details>
+              <details id="containerProjectConflictReview" class="container-project-intent-review" hidden>
+                <summary id="containerProjectConflictSummary">当前对象基线与草稿编辑的冲突（只读）</summary>
+                <p>只有来源完整哈希相符、来源对象身份一致且已有实际轨道扫描时，才逐字段比较旧值。通过对照也不会应用修改、授权封装或保证播放器表现。</p>
+                <ol id="containerProjectConflictList" aria-label="草稿编辑与当前已扫描对象的冲突明细"></ol>
+              </details>
               <button id="containerProjectVerifySourceBtn" class="button button-secondary" type="button" hidden disabled>核对已导入草稿与当前媒体的完整 SHA-256</button>
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>

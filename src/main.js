@@ -47,6 +47,7 @@ import { buildContainerDocument, reconcileContainerSelection } from './container
 import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
+import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -176,6 +177,9 @@ const containerProjectImportReview = $('containerProjectImportReview');
 const containerProjectIntentReview = $('containerProjectIntentReview');
 const containerProjectIntentSummary = $('containerProjectIntentSummary');
 const containerProjectIntentList = $('containerProjectIntentList');
+const containerProjectConflictReview = $('containerProjectConflictReview');
+const containerProjectConflictSummary = $('containerProjectConflictSummary');
+const containerProjectConflictList = $('containerProjectConflictList');
 const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
@@ -1430,6 +1434,57 @@ function renderOutputComposition() {
     } else {
       containerProjectIntentList.replaceChildren();
     }
+  }
+  // Read-only three-way comparison. It cannot update the editable legacy
+  // track list, composition, source File, writer plan or permission state.
+  if (containerProjectConflictReview && containerProjectConflictSummary &&
+      containerProjectConflictList) {
+    const hasIntents = Boolean(importedProjectForReview?.editIntents?.length);
+    containerProjectConflictReview.hidden = !hasIntents;
+    if (hasIntents) {
+      const proof = detachedSourceProof &&
+        detachedSourceProof.source === source &&
+        detachedSourceProof.draft === importedProjectForReview
+        ? detachedSourceProof.verdict : null;
+      const result = previewDetachedProjectIntentConflicts({
+        draft: importedProjectForReview,
+        liveProjection: containerDocument,
+        sourceProof: proof,
+      });
+      containerProjectConflictReview.dataset.state = result.status;
+      containerProjectConflictSummary.textContent = result.status === 'READ_ONLY_PREVIEW_MATCHES'
+        ? '当前来源基线匹配：' + result.comparedCount + ' 项（仅供预览，未应用）'
+        : '编辑意图对照受阻：' + result.conflictCount + '/' + result.proposedCount +
+          ' 项尚不能安全比较';
+      const reasons = {
+        SOURCE_ABSENT: '未绑定当前媒体', SOURCE_IDENTITY_DRIFT: '来源身份不符',
+        SOURCE_BYTES_UNVERIFIED: '未完成来源字节 SHA-256 核对',
+        TRACKS_NOT_INSPECTED: '当前真实轨道尚未扫描',
+        OBJECT_MISSING: '对应对象不存在',
+        OBJECT_IDENTITY_DRIFT: '对象身份或类型变化',
+        UNBOUND_OR_EXTERNAL_OBJECT: '外部对象没有可证明的原来源身份',
+        BASELINE_FIELD_CONFLICT: '当前字段值与草稿修改前记录冲突',
+        READ_ONLY_COMPARISON: '字段旧值匹配（只读）',
+      };
+      const display = value => value === null ? '(未设置)'
+        : typeof value === 'boolean' ? (value ? '是' : '否') : String(value);
+      containerProjectConflictList.replaceChildren(...result.changes.slice(0,12).map(item => {
+        const row = document.createElement('li');
+        row.dataset.verdict = item.verdict;
+        row.textContent = item.objectId +
+          ' · ' + (item.field || (item.type === 'include' ? '保留状态' : '顺序')) +
+          ' · 旧值 ' + display(item.from) + ' → 目标 ' + display(item.to) +
+          ' · 当前 ' + display(item.current) +
+          ' · ' + (reasons[item.reason] || item.reason);
+        return row;
+      }));
+      if (result.changes.length > 12) {
+        const omitted = document.createElement('li');
+        omitted.textContent = '其余 ' + (result.changes.length - 12) +
+          ' 项尚未展示；不会隐式接受或执行。';
+        containerProjectConflictList.append(omitted);
+      }
+    } else containerProjectConflictList.replaceChildren();
   }
   if (containerProjectVerifySourceBtn) {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
