@@ -21,6 +21,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 当前能力判定始终区分计划可描述与写入真正可执行：附件-only 保持实验性，已有 MKV 的安全附件写入仍要求有界 Void 等严格前提，FFmpeg 重封装不承诺完整未知 EBML、嵌套章节与 UID 关联保留，静/动态 libass CI 不等于任意播放器渲染认证。
 
+**领域化编辑进展（2026-10-14）：** 已新增真实、不可变的 `ContainerProject` 来源轨道会话权威。来源 MKV 完成扫描后，音频与字幕轨道的保留状态、标题、语言、Default、Forced 由同一领域事务处理，再一次性投影给现有 FFmpeg 执行路径；覆盖对象检查器、传统编辑控件和批量编辑。只有完成实际扫描的同一 `File` 对象可以继续编辑，不允许同名替换文件沿用会话。排序、附件、章节、标签、外部轨道及其余高级轨道属性尚未迁入统一可写领域，不得据此声明已完成通用 Matroska 编辑器。工程说明参见 [P1 来源轨道领域权威迁移](docs/p1-live-source-track-domain-authority-20261014.md)。
+
 **这并非整个 P0–P6 理论计划的最终稳定版。** 对应功能、失败边界和仍未通过的阶段退出条件见 [五步工程验收账本](docs/five-step-theory-initial-preview-20261013.md)。
 
 ### P1：来源轨道修改的导出与显式恢复（2026-10-14，待完整 CI 验收）
