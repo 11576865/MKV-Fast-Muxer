@@ -75,3 +75,60 @@ export async function writeNewBatchOutput(directory, filename, blob) {
   }
   return true;
 }
+
+
+/**
+ * Best-effort two-artifact publication with explicit per-file evidence.
+ *
+ * File System Access offers no atomic pair commit or create-if-absent lock.
+ * All names are checked before writing, but each write is checked again.
+ * If MKV commits and its report fails, leave that valid MKV untouched,
+ * return partial-save evidence and keep browser download fallbacks alive.
+ * NEVER delete either entry to simulate a rollback.
+ */
+export async function writeNewBatchArtifactPair(directory, {
+  mkvName, mkvBlob, reportName, reportBlob,
+} = {}) {
+  if (!directory || !mkvName || !mkvBlob || !reportName || !reportBlob) {
+    throw new Error('批量双文件保存需要 MKV 与审计报告的完整名称和字节对象。');
+  }
+  if (normalizedDestinationName(mkvName) === normalizedDestinationName(reportName)) {
+    throw new Error('MKV 与审计报告目标名称冲突，拒绝写入。');
+  }
+  const conflicts = await findExistingNamedOutputs(directory, [mkvName, reportName]);
+  if (conflicts.length) {
+    throw new Error('输出目录已存在预期文件：' + conflicts.join('、') +
+      '。为避免残留不完整的文件组合，本次没有开始写入。');
+  }
+
+  let mkvSavedToDirectory = false;
+  let reportSavedToDirectory = false;
+  let mkvSaveError = '';
+  let reportSaveError = '';
+  try {
+    await writeNewBatchOutput(directory, mkvName, mkvBlob);
+    mkvSavedToDirectory = true;
+  } catch (error) {
+    mkvSaveError = error?.message || String(error);
+  }
+  if (mkvSavedToDirectory) {
+    try {
+      await writeNewBatchOutput(directory, reportName, reportBlob);
+      reportSavedToDirectory = true;
+    } catch (error) {
+      reportSaveError = error?.message || String(error);
+    }
+  }
+
+  const errorParts = [
+    mkvSaveError && 'MKV 写入失败：' + mkvSaveError,
+    reportSaveError && '报告写入失败：' + reportSaveError,
+  ].filter(Boolean);
+  return Object.freeze({
+    mkvSavedToDirectory,
+    reportSavedToDirectory,
+    savedToDirectory: mkvSavedToDirectory && reportSavedToDirectory,
+    mkvSaveError, reportSaveError,
+    directorySaveError: errorParts.join('；'),
+  });
+}
