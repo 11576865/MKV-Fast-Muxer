@@ -6,6 +6,7 @@ import {
   normalizedDestinationName,
   plannedBatchFilenames,
   writeNewBatchOutput,
+  writeNewBatchArtifactPair,
 } from '../src/batch-output.js';
 
 function namedError(name, message) {
@@ -184,4 +185,74 @@ test('absence of remove capability still yields clear manual inspection warning'
     /请检查后再重试/,
   );
   assert.equal(directory.files.has('no-remove.mkv'), true);
+});
+
+
+test('MKV and audit report save as one declared pair when both succeed', async () => {
+  const dir = new FakeDirectory();
+  const mkv = new Blob(['real-mkv']);
+  const report = new Blob(['{"audit":"pass"}']);
+  const result = await writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: mkv,
+    reportName: 'ep.mux-report.json', reportBlob: report,
+  });
+  assert.equal(result.mkvSavedToDirectory, true);
+  assert.equal(result.reportSavedToDirectory, true);
+  assert.equal(result.savedToDirectory, true);
+  assert.equal(result.directorySaveError, '');
+  assert.equal(dir.files.get('ep.mkv'), mkv);
+  assert.equal(dir.files.get('ep.mux-report.json'), report);
+});
+
+test('report-only failure preserves valid MKV and exposes distinct partial save evidence', async () => {
+  const dir = new FakeDirectory();
+  dir.writeFailures.add('ep.mux-report.json');
+  const mkv = new Blob(['valid-mkv']);
+  const result = await writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: mkv,
+    reportName: 'ep.mux-report.json', reportBlob: new Blob(['report']),
+  });
+  assert.equal(result.mkvSavedToDirectory, true);
+  assert.equal(result.reportSavedToDirectory, false);
+  assert.equal(result.savedToDirectory, false);
+  assert.equal(result.mkvSaveError, '');
+  assert.match(result.reportSaveError, /disk write failed/);
+  assert.match(result.directorySaveError, /报告写入失败/);
+  assert.equal(dir.files.get('ep.mkv'), mkv);
+  assert.deepEqual(dir.removals, [], 'partial-save recovery must not delete a valid MKV');
+});
+
+test('existing report collision prevents starting MKV write, even after bulk preflight', async () => {
+  const dir = new FakeDirectory(['ＥＰ.mux-report.json']);
+  await assert.rejects(writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: new Blob(['mkv']),
+    reportName: 'ep.mux-report.json', reportBlob: new Blob(['report']),
+  }), /本次没有开始写入/);
+  assert.equal(dir.files.has('ep.mkv'), false);
+  assert.equal(dir.files.get('ＥＰ.mux-report.json'), 'ORIGINAL');
+  assert.deepEqual(dir.removals, []);
+});
+
+test('MKV write failure never writes its detached report or deletes any foreign file', async () => {
+  const dir = new FakeDirectory();
+  dir.writeFailures.add('ep.mkv');
+  const result = await writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: new Blob(['mkv']),
+    reportName: 'ep.mux-report.json', reportBlob: new Blob(['report']),
+  });
+  assert.equal(result.mkvSavedToDirectory, false);
+  assert.equal(result.reportSavedToDirectory, false);
+  assert.equal(result.savedToDirectory, false);
+  assert.match(result.mkvSaveError, /disk write failed/);
+  assert.equal(dir.files.has('ep.mux-report.json'), false);
+  assert.deepEqual(dir.removals, []);
+});
+
+test('same output and report filename is refused without any filesystem writes', async () => {
+  const dir = new FakeDirectory();
+  await assert.rejects(writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: new Blob(['mkv']),
+    reportName: 'ＥＰ.MKV', reportBlob: new Blob(['report']),
+  }), /目标名称冲突/);
+  assert.equal(dir.files.size, 0);
 });
