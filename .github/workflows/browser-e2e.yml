@@ -142,6 +142,7 @@ jobs:
           path: |
             .e2e/output/p3-final-ass-render-evidence.json
             .e2e/output/p3-libass-source.png
+            .e2e/output/p3-libass-demuxed.png
             .e2e/output/p3-libass-final.png
             .e2e/output/p3-libass-altered.png
             .e2e/output/p3-libass-blank.png
