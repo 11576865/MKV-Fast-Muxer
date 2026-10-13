@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { buildContainerDocument } from '../src/container-document.js';
 import { buildOutputComposition } from '../src/output-composition.js';
 import {
-  createLiveSourceTrackSession, commitLiveSourceTrackChanges, inspectLiveSourceTrackSession,
+  createLiveSourceTrackSession, commitLiveSourceTrackChanges,
+  moveLiveSourceTrack, inspectLiveSourceTrackSession,
 } from '../src/live-source-track-authority.js';
 
 function fixture() {
@@ -157,4 +158,109 @@ test('unchanged order and advanced fields stay in explicitly legacy-owned scope'
   assert.deepEqual(f.trackState.tracks.map(t=>t.order),order);
   assert.throws(()=>f.commit([row(1,'order',7)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
   assert.throws(()=>f.commit([row(1,'commentary',true)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
+});
+
+test('advanced source dispositions are immutable domain-owned edits and legacy execution flags', () => {
+  const f = fixture();
+  const before = f.session.project;
+  const receipt = f.commit([
+    row(1, 'original', false),
+    row(2, 'commentary', true),
+    row(3, 'hearingImpaired', true),
+  ]);
+  assert.equal(receipt.updatedTracks, 3);
+  assert.notEqual(f.session.project, before);
+  assert.equal(f.trackState.tracks[0].original, false);
+  assert.equal(f.trackState.tracks[1].commentary, true);
+  assert.equal(f.trackState.tracks[2].hearingImpaired, true);
+  const doc = buildContainerDocument({video:f.source, trackState:f.trackState});
+  const audio = doc.objects.find(o => o.target?.key === 'audio:2');
+  const subtitle = doc.objects.find(o => o.target?.key === 'subtitle:3');
+  assert.equal(audio.attributes.commentary, true);
+  assert.equal(subtitle.attributes.hearingImpaired, true);
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).domainOwnedFields.includes('commentary'),true);
+  assert.throws(()=>f.commit([
+    row(1,'commentary',true),row(2,'original','yes'),
+  ]),/LIVE_TRACK_BOOLEAN_REQUIRED/);
+  assert.equal(f.trackState.tracks[0].commentary, false);
+  assert.equal(f.session.generation, 1);
+});
+
+test('excluded track clears every disposition in the same domain transaction', () => {
+  const f = fixture();
+  f.commit([row(2,'commentary',true),row(2,'forced',true)]);
+  f.commit([row(2,'include',false)]);
+  const track = f.trackState.tracks[1];
+  assert.deepEqual(
+    ['default','forced','original','commentary','hearingImpaired'].map(k=>track[k]),
+    [false,false,false,false,false],
+  );
+  const own = f.session.project.objects.find(o=>o.kind==='audio' &&
+    o.attributes.title==='Commentary');
+  assert.equal(own.included,false);
+  assert.equal(own.attributes.commentary,false);
+});
+
+test('source ordering swaps two included audio peers in domain and FFmpeg view', () => {
+  const f = fixture();
+  const move = (index,delta) => moveLiveSourceTrack(f.session, {
+    source:f.source, trackState:f.trackState, index,delta,
+  });
+  const earlier = f.session.project;
+  const res = move(2,-1);
+  assert.equal(res.status,'committed-to-domain-and-executor-projection');
+  assert.equal(res.moved,2);
+  assert.equal(res.across,1);
+  assert.deepEqual(f.trackState.tracks.filter(t=>t.type==='audio')
+    .sort((a,b)=>a.order-b.order).map(t=>t.index),[2,1]);
+  assert.notEqual(f.session.project,earlier);
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).domainIsAuthoritative,true);
+  assert.equal(move(2,-1).status,'no-change');
+  const after = move(2,1);
+  assert.equal(after.moved,2);
+  assert.deepEqual(f.trackState.tracks.filter(t=>t.type==='audio')
+    .sort((a,b)=>a.order-b.order).map(t=>t.index),[1,2]);
+});
+
+test('included-peer move skips excluded rows but preserves excluded source identity and order', () => {
+  const f = fixture();
+  const mk = (index, title, order, include) => ({
+    ...f.trackState.tracks[1], index, order, include,
+    title, originalTitle:title,
+    stream: { ...f.trackState.tracks[1].stream,index,tags:{title,language:'eng'} },
+  });
+  // Build a fresh source with three audio rows, middle one excluded.
+  f.trackState.tracks.splice(1,0,mk(5,'Excluded',5,false));
+  f.trackState.streams.splice(2,0,f.trackState.tracks[1].stream);
+  f.trackState.tracks[2].order = 6;
+  const projection=buildContainerDocument({video:f.source,trackState:f.trackState});
+  const session=createLiveSourceTrackSession({source:f.source,trackState:f.trackState,projection});
+  const excludedBefore=f.trackState.tracks[1].order;
+  moveLiveSourceTrack(session,{source:f.source,trackState:f.trackState,index:2,delta:-1});
+  assert.equal(f.trackState.tracks[1].order,excludedBefore);
+  assert.equal(inspectLiveSourceTrackSession(session,{source:f.source,trackState:f.trackState}).domainIsAuthoritative,true);
+});
+
+test('relative track-order drift and unsupported or stale move fail closed', () => {
+  const f=fixture();
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:{...f.source},trackState:f.trackState,index:2,delta:-1,
+  }),/LIVE_TRACK_SOURCE_SESSION_STALE/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-1,appendMode:true,
+  }),/LIVE_TRACK_PRESERVE_ALL_READONLY/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-3,
+  }),/LIVE_TRACK_INVALID_MOVE/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:9,delta:-1,
+  }),/LIVE_TRACK_MOVE_NOT_INCLUDED/);
+  const before=f.session.project;
+  const old=f.trackState.tracks[0].order;
+  f.trackState.tracks[0].order=f.trackState.tracks[1].order;
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-1,
+  }),/LIVE_TRACK_ORDER_PROJECTION_DRIFT/);
+  f.trackState.tracks[0].order=old;
+  assert.equal(f.session.project,before);
 });
