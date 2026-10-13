@@ -75,6 +75,10 @@ test('integration retains actual runtime preflight and binds preview result to s
   assert.match(main, /beginPreservationPreview\(\)/);
   assert.match(main, /queueMicrotask\(\(\) =>/);
   assert.match(main, /const identity = await sniffFileContainer\(source\)/);
+  assert.match(main, /\['iso-bmff', 'mov', 'webm'\]\.includes\(identity\.container\)/);
+  assert.match(main, /const actualHeader = await sniffFileContainer\(video\)/);
+  assert.match(main, /actualHeader\.container === 'unknown'/);
+  assert.match(main, /actualHeader\.container !== headerVideoIdentity\.container/);
   assert.match(main, /generation !== preservationPreviewGeneration \|\| videoInput\.files\?\.\[0\] !== source/);
   assert.match(main, /currentPreservationReadiness\(\)\.blocking/);
   assert.match(main, /const protection = await inspectMatroskaPreservation\(video\)/);
