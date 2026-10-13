@@ -1696,6 +1696,20 @@ async function scenarioResponsiveObjectEditor(browser) {
       assert.equal(await page.locator(selector).isVisible(), false, selector);
     }
     // mobile two-mode editor and disclosure behavior
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-desktop-1600.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'selected object edit must survive tablet reflow');
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-tablet-768.png'),
+      animations: 'disabled',
+    });
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
@@ -3265,21 +3279,40 @@ async function scenarioP0PreservationBlocksSingle(browser) {
   const { context, page } = await openApp(browser);
   try {
     await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
-    await page.waitForFunction(() => {
-      const button = document.querySelector('#muxBtn');
-      return button && !button.disabled;
-    }, null, { timeout: 90_000 });
+    // The visible preflight must block before the user can click "Mux".
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 90_000 });
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
-    await page.locator('#muxBtn').click();
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    assert.equal(await page.locator('#compositionMuxBtn').isDisabled(), true);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(),
+      /指向特定章节 UID 的标签/);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-p0-source-blocked-1600.png'),
+      animations: 'disabled',
+    });
+
+    // A programmatic event must not bypass the mandatory execution-time guard.
+    await page.locator('#muxBtn').dispatchEvent('click');
     await page.waitForFunction(() =>
       (document.querySelector('#status')?.textContent || '').includes('结构保留预检阻断'),
       null, { timeout: 90_000 });
-    const message = await page.locator('#status').textContent();
-    assert.match(message, /嵌套章节/);
-    assert.match(message, /指向特定章节 UID 的标签/);
+    assert.match(await page.locator('#status').textContent(), /嵌套章节/);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
     assert.equal(await page.locator('#reportLink').isVisible(), false);
-    console.log('P0 single preservation gate PASS');
+
+    // After a source switch, the old File reference's hard-block is not
+    // transferable. The new source gets an independent preflight.
+    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'clear' &&
+      !document.querySelector('#muxBtn')?.disabled,
+      null, { timeout: 90_000 });
+    assert.doesNotMatch(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
+    console.log('P0 pre-mux safety and source-switch freshness PASS');
   } finally {
     await context.close();
   }
