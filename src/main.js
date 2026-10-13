@@ -1291,8 +1291,8 @@ compositionTracks?.addEventListener('click', event => {
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
-compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
-editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
+editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
 objectEditorBack?.addEventListener('click', () =>
   document.querySelector('.workbench-jump-nav a[href="#source-title"]')?.click());
 
