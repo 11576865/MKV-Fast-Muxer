@@ -9,6 +9,7 @@ const png = text => Buffer.concat([
 ]);
 const selected = '[Parsed_ass_0 @ 0x123] fontselect: (UIGS P3 Embedded Proof, 400, 0) -> UIGS P3 Embedded Proof, 0, UIGSP3EmbeddedProof-Regular';
 const fallback = '[Parsed_subtitles_0] fontselect: (UIGS P3 Embedded Proof, 400, 0) -> DejaVu Sans, 0, DejaVuSans';
+const uniquePostScript = '[Parsed_subtitles_0] fontselect: (UIGS P3 Embedded Proof, 400, 0) -> UIGSP3EmbeddedProof-Regular, 0, UIGSP3EmbeddedProof-Regular';
 
 const evidence = overrides => p3RenderProofVerdict({
   sourcePng: png('right-reference'), finishedPng: png('right-reference'),
@@ -28,6 +29,8 @@ test('positive fixture is only a named libass frame claim, never player equivale
 
 test('fontselect must resolve the unique selected font, not merely request it', () => {
   assert.equal(p3FontSelectionProvesFamily(selected), true);
+  assert.equal(p3FontSelectionProvesFamily(uniquePostScript), true);
+  assert.equal(evidence({ finalLog: uniquePostScript }).ok, true);
   assert.equal(p3FontSelectionProvesFamily(fallback), false);
   assert.equal(p3FontSelectionProvesFamily('Loading font ' + P3_FAMILY), false);
   assert.equal(p3FontSelectionProvesFamily('fontselect: (other) -> other'), false);
