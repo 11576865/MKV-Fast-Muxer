@@ -1978,14 +1978,22 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    const orderNotPortable = scannedSourceFile === source &&
-      trackState?.fileKey === fileKey(source) &&
+    const sourceEditorBound = scannedSourceFile === source &&
+      trackState?.fileKey === fileKey(source);
+    const orderNotPortable = sourceEditorBound &&
       trackState.tracks.some(track => track.order !== track.index);
+    const attachmentNotPortable = sourceEditorBound &&
+      trackState.attachments.some(item => !item.include ||
+        item.filename !== item.originalFilename ||
+        item.mimetype !== item.originalMimetype);
     status.textContent = (digest
       ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
       : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。') +
       (orderNotPortable
         ? ' 注意：当前轨道上下排序只在本次会话有效，草稿重新导入不会恢复轨道顺序。'
+        : '') +
+      (attachmentNotPortable
+        ? ' 注意：来源附件的保留、文件名和 MIME 修改尚不能从草稿安全恢复；重新导入不会自动回放这些操作。'
         : '');
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
