@@ -6,6 +6,7 @@ import {
   CONTAINER_PROJECT_SCHEMA, createContainerProject,
   createContainerProjectFromProjection,
 } from './container-project.js';
+import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 
 export const PROJECT_IMPORT_MAX_BYTES = 1024 * 1024;
 const keyset = (value, allowed) => Object.keys(value).every(k => allowed.includes(k));
@@ -81,9 +82,16 @@ export function parseContainerProjectDraft(text) {
     seenRevisions.add(intent.revision);
     return Object.freeze({ ...intent });
   });
-  return Object.freeze({
+  // Validate the full revision chain against the FINAL serialized values.
+  // Numeric/type/ID checks alone can accept internally contradictory edits.
+  // This is not source provenance or authorization even when it passes.
+  const imported = {
     ...project, revision: raw.revision,
     editIntents: Object.freeze(intents),
+  };
+  auditDetachedContainerProjectIntentChain(imported);
+  return Object.freeze({
+    ...imported,
     // This is ONLY an imported detached draft; no file binding or trusted
     // validation/attachments/history can be resurrected from JSON.
     authorization: 'requires-relink',
