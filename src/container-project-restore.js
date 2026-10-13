@@ -17,7 +17,9 @@ const FIELDS = Object.freeze([
 const capture = track => Object.fromEntries(FIELDS.map(field => [field, track[field]]));
 const equal = (a, b) => FIELDS.every(field => a[field] === b[field]);
 const freeze = x => Object.freeze(x);
-const allowed = new Set(['title', 'language', 'default', 'forced']);
+const allowed = new Set([
+  'title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired',
+]);
 
 function validateValue(field, value) {
   if (field === 'title') {
@@ -98,8 +100,8 @@ export function prepareVerifiedTrackReplay({
           // Disabling a track is allowed to clear its Default/Forced flags,
           // which the old editor already does. Other hidden-field edits are
           // not silently restored into an excluded track.
-          !(change.field === 'default' && change.to === false) &&
-          !(change.field === 'forced' && change.to === false);
+          !(['default', 'forced', 'original', 'commentary', 'hearingImpaired']
+            .includes(change.field) && change.to === false);
       })) throw Error('TRACK_REPLAY_EXCLUDED_FIELD_EDIT');
       // Mirrors existing source-track exclusion semantics. No silent replay of
       // old disposition flags on an excluded stream.
