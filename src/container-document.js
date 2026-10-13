@@ -53,7 +53,13 @@ export function buildContainerDocument({
     included: item.included,
     // A UI selection route is NOT a domain write target.
     target: item.target ? { ...item.target } : null,
-    evidence: item.status === 'pending' ? 'header-only' : 'current-editor-projection',
+    // An actually scanned source stream is NOT an unbound uploaded resource.
+    // Carry distinct provenance so detached source-based edits can be compared
+    // to the same stream while preserving the writer's independent preflight.
+    evidence: item.status === 'pending' ? 'header-only'
+      : observed && item.target?.type === 'source'
+        ? 'ffprobe-scanned-source-stream'
+        : 'current-editor-projection',
   }));
 
   if (observed) {
