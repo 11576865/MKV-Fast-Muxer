@@ -113,8 +113,10 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
 
     await page.locator('#batchPreserveAttachments').check();
-    await page.locator('#batchFontSubsetEnabled').uncheck();
+    // Choose scope while the font-subset control is still enabled. Disabling
+    // subsetting deliberately disables the scope picker in the real UI.
     await page.locator('#batchSubsetScope').selectOption('job');
+    await page.locator('#batchFontSubsetEnabled').uncheck();
     await page.setInputFiles('#batchRecipeImportInput', wire);
     await page.waitForFunction(() =>
       (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('已加载配方规则'));
