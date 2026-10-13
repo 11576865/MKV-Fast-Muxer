@@ -25,6 +25,7 @@ import {
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
+import { preservationReadiness } from './preservation-readiness.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
@@ -128,6 +129,9 @@ const compositionTracks = $('compositionTracks');
 const compositionCount = $('compositionCount');
 const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
+const preservationReadinessEl = $('preservationReadiness');
+const preservationReadinessTitle = $('preservationReadinessTitle');
+const preservationReadinessDescription = $('preservationReadinessDescription');
 const compositionSourceEvidence = $('compositionSourceEvidence');
 const compositionSourceSummary = $('compositionSourceSummary');
 const compositionSourceEvidenceList = $('compositionSourceEvidenceList');
@@ -377,6 +381,8 @@ let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
 let videoSniffPromise = Promise.resolve();
+let preservationPreviewGeneration = 0;
+let preservationPreview = { source: null, state: 'idle', inspection: null };
 let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
@@ -698,6 +704,65 @@ function fileKey(file) {
   return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
 }
 
+function currentPreservationReadiness() {
+  return preservationReadiness({
+    source: videoInput.files?.[0] || null,
+    inspectionSource: preservationPreview.source,
+    state: preservationPreview.state,
+    inspection: preservationPreview.inspection,
+  });
+}
+
+function renderPreservationReadiness() {
+  if (!preservationReadinessEl) return;
+  const model = currentPreservationReadiness();
+  preservationReadinessEl.dataset.status = model.status;
+  preservationReadinessEl.hidden = model.status === 'idle' || model.status === 'not-applicable';
+  preservationReadinessTitle.textContent = model.title;
+  preservationReadinessDescription.textContent = model.description;
+}
+
+/** Advisory preview only; the executor re-runs inspectMatroskaPreservation. */
+function beginPreservationPreview() {
+  const source = videoInput.files?.[0] || null;
+  const generation = ++preservationPreviewGeneration;
+  // The already-authorized batch runner stages through old hidden File inputs.
+  // Its own independent frozen-plan preflight remains authoritative; avoid
+  // starting a competing asynchronous preview that can mutate that adapter UI.
+  if (batchRunning) {
+    preservationPreview = { source, state: 'not-applicable', inspection: null };
+    renderPreservationReadiness();
+    return;
+  }
+  preservationPreview = { source, state: source ? 'checking' : 'idle', inspection: null };
+  renderPreservationReadiness();
+  if (!source) return;
+  void Promise.resolve(videoSniffPromise).then(async () => {
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    // Re-sniff this exact File, not only the name/size-keyed shared header
+    // cache: native pickers can replace the FileList without a change event.
+    const identity = await sniffFileContainer(source);
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    // Only a positively identified non-Matroska container may skip EBML
+    // structural inspection. "unknown" is NOT evidence of non-Matroska.
+    if (['iso-bmff', 'mov', 'webm'].includes(identity.container)) {
+      preservationPreview = { source, state: 'not-applicable', inspection: null };
+    } else {
+      const inspection = await inspectMatroskaPreservation(source);
+      if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+      preservationPreview = { source, state: 'ready', inspection };
+    }
+    updateUI();
+  }).catch((error) => {
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    preservationPreview = {
+      source, state: 'ready',
+      inspection: { state: 'BLOCKED_UNKNOWN', reasons: [error?.message || String(error)] },
+    };
+    updateUI();
+  });
+}
+
 function selectedVideoHeaderIdentity(video = videoInput.files[0]) {
   if (!video) return null;
   if (videoSniffState.fileKey !== fileKey(video)) return null;
@@ -912,6 +977,16 @@ function updateUI() {
   // background readiness updates cannot restore inferred defaults over user input.
   captureNewTrackEditorState();
   const video = videoInput.files[0];
+  // Some picker paths can replace the File object while preserving the same
+  // filename and without delivering a new change event. Keep fail-closed now
+  // and queue a fresh source-scoped inspection instead of sticking forever.
+  if (!batchRunning && video && preservationPreview.source !== video) {
+    queueMicrotask(() => {
+      if (videoInput.files?.[0] === video && preservationPreview.source !== video) {
+        beginPreservationPreview();
+      }
+    });
+  }
   const collectedSubs = selectedSubtitleTrackInputs();
   const subs = collectedSubs.tracks.map((track) => track.file);
   const subtitlePending = subtitleIdentityPending();
@@ -998,7 +1073,8 @@ function updateUI() {
     importInProgress ||
     (importedAssetEntries.length > 0 && (importRoles.needsSourceChoice || importRoles.unknown.length > 0)) ||
     collectedSubs.invalid.length > 0 ||
-    fontRecognition.ignored.length > 0;
+    fontRecognition.ignored.length > 0 ||
+    currentPreservationReadiness().blocking;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -1226,6 +1302,7 @@ function renderActualOutputEvidence() {
 
 function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
+  renderPreservationReadiness();
   const source = videoInput.files?.[0] || null;
   const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
   const containerDocument = buildContainerDocument({
@@ -1714,6 +1791,7 @@ videoInput.addEventListener('change', () => {
   destroySubtitlePreview();
   clearPreviewImage();
   videoSniffPromise = inspectSelectedVideoHeader();
+  beginPreservationPreview();
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
@@ -3668,9 +3746,23 @@ async function executeCurrentMuxTask() {
   updateUI();
   let preservationInfo = '';
   try {
+    // A new task must replace any preceding error *synchronously*, before
+    // this awaited safety inspection. Otherwise recovery workflows can display
+    // the previous task's failure while a new task is already in progress.
+    status.textContent = '正在重新确认来源容器身份与保留风险……';
+    // Re-read the exact source at the authorization boundary. A stale
+    // name/size/mtime-keyed header cache must not skip Matroska protection.
+    // Unknown headers fail closed: they may conceal a complex MKV.
+    const actualHeader = await sniffFileContainer(video);
+    if (videoInput.files?.[0] !== video) {
+      throw new Error('源文件在预检期间已替换，请重新确认后启动。');
+    }
+    if (actualHeader.container === 'unknown' || actualHeader.container !== headerVideoIdentity.container) {
+      throw new Error('无法确认当前来源容器身份或文件头已变化；为避免复杂 MKV 元数据丢失，拒绝封装。');
+    }
     // Preserve a previous successful download until the new source passes
     // preflight. Never revoke prior artifacts merely to refuse an unsafe MKV.
-    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
+    if (['matroska', 'matroska-webm'].includes(actualHeader.container)) {
       status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
       const protection = await inspectMatroskaPreservation(video);
       if (cancelRequested) {
@@ -3679,7 +3771,7 @@ async function executeCurrentMuxTask() {
         updateUI();
         return;
       }
-      if (fileKey(videoInput.files[0]) !== fileKey(video)) {
+      if (videoInput.files?.[0] !== video || fileKey(videoInput.files[0]) !== fileKey(video)) {
         throw new Error('预检期间来源已改变，请重新确认当前输入。');
       }
       const refusal = preservationBlockMessage(video.name, protection);
@@ -5097,6 +5189,9 @@ async function prepareBatchStart() {
       try {
         const inspected = await sniffFileContainer(job.video);
         if (refuseStale()) return null;
+        if (inspected.container === 'unknown') {
+          throw new Error('无法可靠识别批量来源容器；未知结构必须在运行前整体阻断');
+        }
         if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
         const protection = await inspectMatroskaPreservation(job.video);
         if (refuseStale()) return null;

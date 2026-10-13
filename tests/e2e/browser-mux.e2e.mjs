@@ -614,7 +614,25 @@ async function scenarioBrokenFonts(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
+    try {
+      await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 15000 });
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        readiness: {
+          state: document.querySelector('#preservationReadiness')?.dataset.status,
+          title: document.querySelector('#preservationReadinessTitle')?.textContent,
+          description: document.querySelector('#preservationReadinessDescription')?.textContent,
+        },
+        videoIdentity: document.querySelector('#videoIdentityLabel')?.textContent,
+        fontName: document.querySelector('#fontName')?.textContent,
+        fontModeHint: document.querySelector('#fontModeHint')?.textContent,
+        subtitle: document.querySelector('#subName')?.textContent,
+        source: document.querySelector('#videoInput')?.files?.[0]?.name,
+        disabled: document.querySelector('#muxBtn')?.disabled,
+        status: document.querySelector('#status')?.textContent,
+      }));
+      throw new Error('valid-font recovery remained blocked: ' + JSON.stringify(state) + '; ' + error.message);
+    }
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     console.log('Scenario 13 PASS');
@@ -2229,6 +2247,20 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     assert.equal(await nav.nth(1).locator('.asset-tree-index-name').textContent(),
       'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
 
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-desktop-1600.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'selected object edit must survive tablet reflow');
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-tablet-768.png'),
+      animations: 'disabled',
+    });
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     await page.waitForFunction(() => {
@@ -3264,22 +3296,116 @@ async function scenarioP0PreservationBlocksSingle(browser) {
   console.log('P0 preservation gate: block high-risk original MKV in single mux');
   const { context, page } = await openApp(browser);
   try {
+    await page.setViewportSize({ width: 1600, height: 960 });
     await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
-    await page.waitForFunction(() => {
-      const button = document.querySelector('#muxBtn');
-      return button && !button.disabled;
-    }, null, { timeout: 90_000 });
+    // The visible preflight must block before the user can click "Mux".
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 90_000 });
     assert.equal(await page.locator('#appendPreserveAll').isChecked(), true);
-    await page.locator('#muxBtn').click();
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    assert.equal(await page.locator('#compositionMuxBtn').isDisabled(), true);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(),
+      /指向特定章节 UID 的标签/);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-p0-source-blocked-1600.png'),
+      animations: 'disabled',
+    });
+
+    // The live FFprobe inventory may still be finishing after the seek-based
+    // EBML preview. Wait until the media core is idle before bypass testing.
+    await waitForStatus(page, '轨道扫描完成：');
+    // A programmatic event must not bypass the mandatory execution-time guard.
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
     await page.waitForFunction(() =>
       (document.querySelector('#status')?.textContent || '').includes('结构保留预检阻断'),
       null, { timeout: 90_000 });
-    const message = await page.locator('#status').textContent();
-    assert.match(message, /嵌套章节/);
-    assert.match(message, /指向特定章节 UID 的标签/);
+    assert.match(await page.locator('#status').textContent(), /嵌套章节/);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
     assert.equal(await page.locator('#reportLink').isVisible(), false);
-    console.log('P0 single preservation gate PASS');
+
+    // After a source switch, the old File reference's hard-block is not
+    // transferable. The new source gets an independent preflight.
+    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+    await page.waitForFunction(() =>
+      ['clear', 'warning'].includes(document.querySelector('#preservationReadiness')?.dataset.status) &&
+      !document.querySelector('#muxBtn')?.disabled,
+      null, { timeout: 90_000 });
+    assert.doesNotMatch(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
+
+    // P1: Unknown bytes with a credible MKV extension must NOT be treated
+    // as proven non-MKV when content sniffing cannot identify the header.
+    await page.setInputFiles('#videoInput', {
+      name: 'unverified-header.mkv',
+      mimeType: 'video/x-matroska',
+      buffer: Buffer.from('untrusted source with no valid EBML header'),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    console.log('P0/P1 pre-mux safety, unknown-header refusal and source-switch freshness PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+// A transient first header-read failure cannot turn a complex MKV into an
+// "unknown therefore skip structural preflight" source. Runtime preflight is
+// independent of the pre-click UI verdict.
+async function scenarioP0UnknownHeaderFailsClosed(browser) {
+  console.log('P0 unknown header: transient sniff failure cannot bypass source preservation gate');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      let rejectFirstRead = true;
+      const original = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const part = original.apply(this, args);
+        if (this.name === 'p0-independent-mkvtoolnix.mkv' && rejectFirstRead) {
+          rejectFirstRead = false;
+          part.arrayBuffer = () => Promise.reject(new Error('injected first header-read failure'));
+        }
+        return part;
+      };
+    });
+    await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+    console.log('P0 transient unknown source header fail-closed PASS');
   } finally {
     await context.close();
   }
@@ -3560,6 +3686,7 @@ try {
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
+  await scenarioP0UnknownHeaderFailsClosed(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
