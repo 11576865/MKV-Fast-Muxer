@@ -30,6 +30,7 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { formatBatchTerminalStatus } from './batch-status.js';
+import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
@@ -348,6 +349,7 @@ const batchResultUrls = createBatchResultUrlRegistry();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
+let activeBatchJobLedger = null;
 const batchManualAssignments = new Map();
 let selectedBatchVideoFile = null;
 const batchVideoIdentityCache = new Map();
@@ -4388,6 +4390,7 @@ function replaceBatchAdapterFiles() {
   // object must never silently authorize a different batch.
   batchManualAssignments.clear();
   selectedBatchVideoFile = null;
+  activeBatchJobLedger = null;
   const roles = resolveBatchImportedAssets(batchImportEntries);
   batchInternalAdapterUpdate = true;
   try {
@@ -4503,6 +4506,11 @@ function renderBatchJobInspector(pairing) {
   const filenameCollision = pairing.outputNameCollisions?.some((entry) => entry.videos.includes(job.video));
   const directoryCollision = pairing.directoryConflicts?.includes(job.outputName);
   const unresolvedTie = pairing.ambiguousPairings?.some((entry) => entry.candidates.includes(job.video));
+  const executedJob = activeBatchJobLedger?.plan.jobs.find((entry) =>
+    entry.video === job.video && entry.outputName === job.outputName);
+  const executionState = executedJob
+    ? activeBatchJobLedger.snapshot().find((entry) => entry.jobId === executedJob.jobId)
+    : null;
   const warnings = [
     filenameCollision ? '当前输出名与批内其他任务冲突' : '',
     directoryCollision ? '输出目录存在同名文件，禁止覆盖' : '',
@@ -4514,6 +4522,10 @@ function renderBatchJobInspector(pairing) {
       <strong>任务检查 · ${escapeHtml(job.outputName)}</strong>
       <span class="batch-review-state" data-state="${warnings.length ? 'blocked' : 'review'}">${warnings.length ? '需要处理' : '计划预览'}</span>
     </div>
+    ${executionState ? `<p class="batch-review-lifecycle" data-state="${executionState.state}">
+      执行状态：${escapeHtml(BATCH_JOB_STATES[executionState.state] || executionState.state)}
+      ${executionState.error ? ` · ${escapeHtml(executionState.error)}` : ''}
+    </p>` : ''}
     <dl class="batch-job-facts">
       <div><dt>来源</dt><dd>${escapeHtml(job.video.webkitRelativePath || job.video.name)}</dd></div>
       <div><dt>实际类型</dt><dd>${escapeHtml(job.videoIdentity?.containerLabel || '待识别')}${job.videoIdentityMismatch ? ' · 扩展名不一致' : ''}</dd></div>
@@ -4625,6 +4637,11 @@ async function syncBatchPlan() {
     const hasTie = pairing.ambiguousPairings.some((entry) => entry.candidates.includes(job.video));
     const state = outputCollision || directoryCollision ? '输出冲突' : hasTie ? '待确认' : '待执行';
     const selected = selectedBatchVideoFile === job.video;
+    const executed = activeBatchJobLedger?.plan.jobs.find((entry) =>
+      entry.video === job.video && entry.outputName === job.outputName);
+    const executionState = executed
+      ? activeBatchJobLedger.snapshot().find((entry) => entry.jobId === executed.jobId)
+      : null;
     return `
     <button type="button" class="plan-row plan-video batch-job-row" data-batch-job-index="${index}"
       data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}">
@@ -4634,7 +4651,7 @@ async function syncBatchPlan() {
         <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · ${escapeHtml(batchSubtitleSummary(job))}
           · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
-      <span class="plan-flags batch-review-state" data-state="${state === '待执行' ? 'review' : 'blocked'}">${state}</span>
+      <span class="plan-flags batch-review-state" data-state="${executionState ? executionState.state : state === '待执行' ? 'review' : 'blocked'}">${executionState ? escapeHtml(BATCH_JOB_STATES[executionState.state] || executionState.state) : state}</span>
     </button>`;
   }).join('');
 
@@ -4764,6 +4781,26 @@ function requestBatchPlanSync() {
   return batchPlanPromise;
 }
 
+// Running results update only the derived matrix and inspector, never edit
+// current subtitle assignments or any source-track state.
+function refreshBatchExecutionViews() {
+  const ledger = activeBatchJobLedger;
+  if (!ledger) return;
+  const entries = ledger.snapshot();
+  for (const row of batchPlan.querySelectorAll('button[data-batch-job-index]')) {
+    const paired = latestBatchPairing?.jobs[Number(row.dataset.batchJobIndex)];
+    const frozen = ledger.plan.jobs.find((job) => job.video === paired?.video && job.outputName === paired?.outputName);
+    const state = frozen && entries.find((entry) => entry.jobId === frozen.jobId);
+    if (!state) continue;
+    const marker = row.querySelector('.batch-review-state');
+    if (marker) {
+      marker.dataset.state = state.state;
+      marker.textContent = BATCH_JOB_STATES[state.state] || state.state;
+    }
+  }
+  renderBatchJobInspector(latestBatchPairing);
+}
+
 function setInputFiles(input, files) {
   const transfer = new DataTransfer();
   for (const file of files || []) transfer.items.add(file);
@@ -4884,6 +4921,7 @@ function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
   if (batchInternalAdapterUpdate) return;
   batchManualAssignments.clear();
   selectedBatchVideoFile = null;
+  activeBatchJobLedger = null;
   if (batchUnifiedMode) {
     // Internal input-adapter updates (including regression fixtures) must
     // invalidate an older unified inventory rather than mix incompatible roles.
@@ -5026,9 +5064,20 @@ async function prepareBatchStart() {
       }
     }
     if (refuseStale()) return null;
+    // Freeze every actual input choice and batch policy after destructive
+    // preservation preflight; do not let the legacy executor read live batch
+    // settings once the run has started.
+    const frozenPlan = freezeBatchJobPlan(pairing, {
+      generation,
+      preserveAttachments: batchPreserveAttachments?.checked,
+      subsetEnabled: batchFontSubsetEnabled?.checked,
+      subsetScope: batchSubsetScope?.value || 'job',
+      directoryName: selectedOutputDirectory?.name || '',
+    });
+    if (refuseStale()) return null;
     batchRunning = true;
     batchCancelRequested = false;
-    return { pairing, selectedOutputDirectory };
+    return { pairing, frozenPlan, selectedOutputDirectory };
   } catch (error) {
     batchStatus.textContent = '批量未开始：启动预检异常：' + (error?.message || String(error));
     return null;
@@ -5046,12 +5095,13 @@ async function prepareBatchStart() {
 batchStartBtn?.addEventListener('click', async () => {
   const preparation = await prepareBatchStart();
   if (!preparation) return;
-  const { pairing, selectedOutputDirectory } = preparation;
+  const { pairing, frozenPlan, selectedOutputDirectory } = preparation;
   // Old batch links remain valid until a replacement batch actually starts.
   // Clear them together with the old results to release large Blob references.
   batchResultUrls.releaseAll();
   batchResults.innerHTML = '';
-  batchStatus.textContent = `批量任务：0 / ${pairing.jobs.length}`;
+  batchStatus.textContent = `批量任务：0 / ${frozenPlan.jobs.length}`;
+  activeBatchJobLedger = createBatchJobLedger(frozenPlan, refreshBatchExecutionViews);
   requestBatchPlanSync();
 
   const originalVideoFiles = Array.from(videoInput.files || []);
@@ -5062,7 +5112,7 @@ batchStartBtn?.addEventListener('click', async () => {
   const originalAppendMode = appendPreserveAll?.checked;
   const originalAppendTouched = appendPreserveAll?.dataset.userTouched || '0';
   const originalSubsetEnabled = fontSubsetEnabled?.checked;
-  const requestedBatchFonts = pairing.fonts || [];
+  const requestedBatchFonts = frozenPlan.fonts;
   const results = [];
   let batchFatalError = '';
   let jobFonts = requestedBatchFonts;
@@ -5071,18 +5121,19 @@ batchStartBtn?.addEventListener('click', async () => {
 
   try {
     if (
-      batchFontSubsetEnabled?.checked &&
-      batchSubsetScope?.value === 'group' &&
+      frozenPlan.policy.subsetEnabled &&
+      frozenPlan.policy.subsetScope === 'group' &&
       requestedBatchFonts.length
     ) {
       batchStatus.textContent = '正在汇总全批次字幕字符并生成 Group 字体子集……';
-      jobFonts = await buildGroupedSubsetFonts(requestedBatchFonts, pairing);
+      jobFonts = await buildGroupedSubsetFonts(requestedBatchFonts, frozenPlan);
     }
 
-    for (let index = 0; index < pairing.jobs.length; index += 1) {
+    for (let index = 0; index < frozenPlan.jobs.length; index += 1) {
       if (batchCancelRequested) break;
-      const job = pairing.jobs[index];
-      batchStatus.textContent = `批量任务：${index + 1} / ${pairing.jobs.length} · ${job.video.name}`;
+      const job = frozenPlan.jobs[index];
+      activeBatchJobLedger.transition(job.jobId, 'preparing');
+      batchStatus.textContent = `批量任务：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
 
       setInputFiles(videoInput, [job.video]);
       await videoSniffPromise;
@@ -5092,7 +5143,7 @@ batchStartBtn?.addEventListener('click', async () => {
       await fontInspectPromise;
       resetTrackState();
 
-      const preserveAll = Boolean(batchPreserveAttachments?.checked && currentVideoIsMatroska(job.video));
+      const preserveAll = Boolean(frozenPlan.policy.preserveAttachments && currentVideoIsMatroska(job.video));
       if (appendPreserveAll) {
         appendPreserveAll.dataset.userTouched = '1';
         appendPreserveAll.checked = preserveAll;
@@ -5101,19 +5152,21 @@ batchStartBtn?.addEventListener('click', async () => {
 
       if (fontSubsetEnabled) {
         fontSubsetEnabled.checked = Boolean(
-          batchFontSubsetEnabled?.checked &&
-          batchSubsetScope?.value !== 'group'
+          frozenPlan.policy.subsetEnabled &&
+          frozenPlan.policy.subsetScope !== 'group'
         );
       }
       syncNewTrackState();
       updateUI();
 
       try {
+        activeBatchJobLedger.transition(job.jobId, 'muxing');
         muxBtn.click();
         if (!running) {
           throw new Error('批量单项封装未启动；后台任务仍占用执行器或当前输入尚未就绪。');
         }
         const result = await waitForSingleMuxCompletion();
+        activeBatchJobLedger.transition(job.jobId, 'saving');
         let savedToDirectory = false;
         let directorySaveError = '';
         if (selectedOutputDirectory) {
@@ -5143,9 +5196,17 @@ batchStartBtn?.addEventListener('click', async () => {
           savedToDirectory,
           directorySaveError,
         });
+        activeBatchJobLedger.transition(job.jobId, savedToDirectory
+          ? 'succeeded' : directorySaveError ? 'saveWarning' : 'awaitingSave',
+          { error: directorySaveError });
       } catch (error) {
-        if (String(error?.message || error) === 'batch-cancelled') break;
-        results.push({ job, ok: false, error: error?.message || String(error) });
+        if (String(error?.message || error) === 'batch-cancelled') {
+          activeBatchJobLedger.transition(job.jobId, 'cancelled');
+          break;
+        }
+        const message = error?.message || String(error);
+        results.push({ job, ok: false, error: message });
+        activeBatchJobLedger.transition(job.jobId, 'failed', { error: message });
       }
 
       batchResults.innerHTML = results.map((item) => item.ok
@@ -5158,8 +5219,14 @@ batchStartBtn?.addEventListener('click', async () => {
     // outside the per-item mux try/catch. These failures must be visible, not
     // mistaken for an empty, successful batch; always restore inputs below.
     batchFatalError = error?.message || String(error);
+    const inProgress = activeBatchJobLedger?.snapshot().find((entry) =>
+      ['preparing', 'muxing', 'saving'].includes(entry.state));
+    if (inProgress) {
+      activeBatchJobLedger.transition(inProgress.jobId, 'interrupted', { error: batchFatalError });
+    }
     console.error('Batch preparation/execution interrupted:', error);
   } finally {
+    activeBatchJobLedger?.interruptRemaining(batchCancelRequested ? '用户取消后尚未运行' : batchFatalError || '队列已结束');
     batchRunning = false;
     batchStatus.textContent = formatBatchTerminalStatus({
       results,
