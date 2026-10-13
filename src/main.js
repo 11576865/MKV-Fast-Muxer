@@ -49,6 +49,9 @@ import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPOR
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
+import {
+  createLiveSourceTrackSession, commitLiveSourceTrackChanges,
+} from './live-source-track-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -393,6 +396,7 @@ let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
 let trackState = null;
+let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
 let previewImageURL = null;
@@ -999,8 +1003,55 @@ function setInputsDisabled(disabled) {
   if (batchSubsetScope) batchSubsetScope.disabled = sourceLocked || batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
   if (batchOutputDirBtn) batchOutputDirBtn.disabled = sourceLocked || batchRunning || batchStartPending;
 }
+/**
+ * P1 source-track authoring boundary. The immutable ContainerProject owns
+ * include/title/language/Default/Forced for an inspected MKV source; the
+ * legacy mutable trackState is the explicitly derived FFmpeg execution view.
+ * Advanced dispositions, ordering, attachments and the mux writer are not
+ * included in this migration.
+ */
+function refreshLiveSourceTrackAuthority() {
+  const source = videoInput.files?.[0] || null;
+  const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+  if (!scanned) {
+    liveSourceTrackSession = null;
+    return null;
+  }
+  const projection = buildContainerDocument({
+    video: source, trackState: scanned, appendMode: false,
+  });
+  liveSourceTrackSession = createLiveSourceTrackSession({
+    source, trackState: scanned, projection,
+  });
+  return liveSourceTrackSession;
+}
+
+function changeSourceTracks(changes) {
+  const source = videoInput.files?.[0] || null;
+  if (!source || !trackState || trackState.fileKey !== fileKey(source)) {
+    status.textContent = '来源轨道已变化，请重新扫描后编辑。';
+    return false;
+  }
+  try {
+    if (!liveSourceTrackSession ||
+        liveSourceTrackSession.source !== source ||
+        liveSourceTrackSession.trackState !== trackState)
+      refreshLiveSourceTrackAuthority();
+    commitLiveSourceTrackChanges(liveSourceTrackSession, {
+      source, trackState, changes,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    });
+    return true;
+  } catch (error) {
+    status.textContent = '来源轨道领域修改未执行：' +
+      (error?.message || String(error)) + '。未提交部分变更。';
+    return false;
+  }
+}
+
 function resetTrackState() {
   trackState = null;
+  liveSourceTrackSession = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
   attachmentList.innerHTML = '';
   trackBulkTools?.classList.add('hidden');
@@ -1711,6 +1762,7 @@ containerProjectRestoreBtn?.addEventListener('click', () => {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
     const receipt = applyPreparedTrackReplay(plan, scanned);
+    refreshLiveSourceTrackAuthority();
     lastProjectRestore = { source, draft, trackState: scanned, plan };
     containerProjectRestoreConfirm.checked = false;
     renderTrackList();
@@ -1737,6 +1789,7 @@ containerProjectRestoreUndoBtn?.addEventListener('click', () => {
         isBusy() || batchRunning || importInProgress)
       throw Error('TRACK_REPLAY_UNDO_SOURCE_CHANGED');
     const result = revertPreparedTrackReplay(undo.plan, trackState);
+    refreshLiveSourceTrackAuthority();
     lastProjectRestore = null;
     renderTrackList();
     renderAttachmentList();
@@ -2044,14 +2097,16 @@ function editSourceFromInventory(event) {
     const track = trackState.tracks.find((item) => item.index === Number(trackIndex));
     if (!track) return;
     if (element.dataset.treeTrackInclude !== undefined) {
-      track.include = element.checked;
-      if (!track.include) {
-        for (const flag of ['default','forced','original','commentary','hearingImpaired']) track[flag] = false;
-      }
+      if (!changeSourceTracks([{ index: track.index, field: 'include', value: element.checked }]))
+        return;
     } else if (element.dataset.treeTrackFlag) {
-      track[element.dataset.treeTrackFlag] = element.checked;
+      if (['default', 'forced'].includes(element.dataset.treeTrackFlag)) {
+        if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackFlag, value: element.checked }]))
+          return;
+      } else track[element.dataset.treeTrackFlag] = element.checked;
     } else if (element.dataset.treeTrackField) {
-      track[element.dataset.treeTrackField] = element.value;
+      if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackField, value: element.value }]))
+        return;
       if (element.dataset.treeTrackField === 'title') {
         const activeLabel = assetInventory?.querySelector('.asset-tree-select[aria-pressed="true"] .asset-tree-index-name');
         if (activeLabel) activeLabel.textContent = element.value || containerStreamTitle(
@@ -2316,7 +2371,8 @@ bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleSta
 function applyLanguageToSelectedTracks(type) {
   if (!trackState) return;
   const language = normalizeTrackLanguage(bulkLanguage?.value);
-  selectedTracks(type).forEach((track) => { track.language = language; });
+  if (!changeSourceTracks(selectedTracks(type).map(track =>
+    ({ index: track.index, field: 'language', value: language })))) return;
   renderTrackList();
   renderImportedAssetInventory();
 }
@@ -2324,7 +2380,8 @@ function applyLanguageToSelectedTracks(type) {
 function setOnlyFirstDefault(type) {
   if (!trackState) return;
   const selected = selectedTracks(type);
-  selected.forEach((track, index) => { track.default = index === 0; });
+  if (!changeSourceTracks(selected.map((track, index) =>
+    ({ index: track.index, field: 'default', value: index === 0 })))) return;
   renderTrackList();
   renderImportedAssetInventory();
 }
@@ -2335,8 +2392,9 @@ firstAudioDefault?.addEventListener('click', () => setOnlyFirstDefault('audio'))
 firstSubtitleDefault?.addEventListener('click', () => setOnlyFirstDefault('subtitle'));
 clearAllDefaults?.addEventListener('click', () => {
   if (!trackState) return;
-  selectedTracks('audio').forEach((track) => { track.default = false; });
-  selectedTracks('subtitle').forEach((track) => { track.default = false; });
+  const chosen = [...selectedTracks('audio'), ...selectedTracks('subtitle')];
+  if (chosen.length && !changeSourceTracks(chosen.map(track =>
+    ({ index: track.index, field: 'default', value: false })))) return;
   externalAudioState.forEach((track) => { track.default = false; });
   newSubtitleState.forEach((track) => { track.default = false; });
   renderTrackList();
@@ -2347,35 +2405,29 @@ clearAllDefaults?.addEventListener('click', () => {
 
 function setTrackInclusion(type, include) {
   if (!trackState) return;
-  trackState.tracks
-    .filter((track) => track.type === type)
-    .forEach((track) => {
-      track.include = include;
-      if (!include) {
-        track.default = false;
-        track.forced = false;
-        track.original = false;
-        track.commentary = false;
-        track.hearingImpaired = false;
-      }
-    });
+  const changes = trackState.tracks
+    .filter(track => track.type === type)
+    .map(track => ({ index: track.index, field: 'include', value: include }));
+  if (changes.length && !changeSourceTracks(changes)) return;
   renderTrackList();
   renderImportedAssetInventory();
 }
 
 function restoreTrackMetadata(type) {
   if (!trackState) return;
-  trackState.tracks
-    .filter((track) => track.type === type)
-    .forEach((track) => {
-      track.language = track.originalLanguage;
-      track.title = track.originalTitle;
-      track.default = track.originalDefault;
-      track.forced = track.originalForced;
-      track.original = track.originalOriginal;
-      track.commentary = track.originalCommentary;
-      track.hearingImpaired = track.originalHearingImpaired;
-    });
+  const targets = trackState.tracks.filter(track => track.type === type);
+  const changes = targets.flatMap(track => [
+    { index: track.index, field: 'language', value: track.originalLanguage },
+    { index: track.index, field: 'title', value: track.originalTitle },
+    { index: track.index, field: 'default', value: track.include && track.originalDefault },
+    { index: track.index, field: 'forced', value: track.include && track.originalForced },
+  ]);
+  if (changes.length && !changeSourceTracks(changes)) return;
+  for (const track of targets) {
+    track.original = track.include && track.originalOriginal;
+    track.commentary = track.include && track.originalCommentary;
+    track.hearingImpaired = track.include && track.originalHearingImpaired;
+  }
   renderTrackList();
   renderImportedAssetInventory();
 }
@@ -3827,14 +3879,12 @@ trackList.addEventListener('change', (event) => {
 
   if (actionInput) {
     const action = actionInput.dataset.trackAction;
-    track[action] = actionInput.checked;
-    if (action === 'include' && !actionInput.checked) {
-      track.default = false;
-      track.forced = false;
-      track.original = false;
-      track.commentary = false;
-      track.hearingImpaired = false;
-    }
+    if (['include','default','forced'].includes(action)) {
+      if (!changeSourceTracks([{ index: track.index, field: action, value: actionInput.checked }])) {
+        renderTrackList();
+        return;
+      }
+    } else track[action] = actionInput.checked;
     renderTrackList();
     renderImportedAssetInventory();
     return;
@@ -3843,7 +3893,8 @@ trackList.addEventListener('change', (event) => {
   // Text fields are already synchronized on the input event. Re-rendering the
   // whole track list on blur/change can replace a sibling field while the user
   // is moving focus to it, causing the next edit to be lost.
-  track[fieldInput.dataset.trackField] = fieldInput.value;
+  if (!changeSourceTracks([{ index: track.index,
+    field: fieldInput.dataset.trackField, value: fieldInput.value }])) return;
   renderMuxPlan();
   renderImportedAssetInventory();
 });
@@ -3854,7 +3905,8 @@ trackList.addEventListener('input', (event) => {
   if (!input) return;
   const track = trackState.tracks.find((item) => item.index === Number(input.dataset.trackIndex));
   if (!track) return;
-  track[input.dataset.trackField] = input.value;
+  if (!changeSourceTracks([{ index: track.index,
+    field: input.dataset.trackField, value: input.value }])) return;
   renderMuxPlan();
 });
 
@@ -3962,6 +4014,7 @@ async function scanSourceContainer({ automatic = false } = {}) {
       format: probe.format,
       attachmentCount: probe.attachmentCount,
     };
+    refreshLiveSourceTrackAuthority();
 
     preserveAttachments.checked = true;
     trackBulkTools?.classList.remove('hidden');
