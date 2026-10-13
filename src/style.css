@@ -5430,3 +5430,22 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   .batch-recipe-tool { grid-template-columns: 1fr 1fr; }
   .batch-recipe-tool .button { min-height: 40px; }
 }
+
+.container-capability-details {
+  margin: -2px 0 6px;
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.45;
+}
+.container-capability-details > summary { cursor: pointer; padding: 2px 8px; }
+.container-capability-details > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.container-capability-details ul {
+  margin: 5px 0 7px;
+  padding: 6px 10px 6px 24px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.container-capability-details li { margin-block: 3px; overflow-wrap: anywhere; }
