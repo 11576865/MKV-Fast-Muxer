@@ -1496,3 +1496,25 @@ body { background: var(--bg); }
 @media (max-width: 960px) {
   .batch-review-layout { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Frozen batch execution states, distinct from editable review semantics. */
+.batch-review-lifecycle {
+  margin: 0;
+  padding: 7px 9px;
+  font-size: .74rem;
+  line-height: 1.5;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  color: var(--text-strong);
+  background: var(--surface-0);
+  overflow-wrap: anywhere;
+}
+.batch-review-state[data-state="preparing"],
+.batch-review-state[data-state="muxing"],
+.batch-review-state[data-state="saving"] { color: var(--accent); }
+.batch-review-state[data-state="succeeded"] { color: var(--success, var(--accent)); }
+.batch-review-state[data-state="awaitingSave"],
+.batch-review-state[data-state="saveWarning"] { color: var(--warning); }
+.batch-review-state[data-state="failed"],
+.batch-review-state[data-state="interrupted"],
+.batch-review-state[data-state="cancelled"] { color: var(--danger); }
