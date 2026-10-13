@@ -422,6 +422,7 @@ let selectedCompositionId = '';
 let lastActualOutput = null;
 let lastCompositionSourceKey = '';
 let currentProjectSourceProjection = null;
+let currentProjectSourceFile = null;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1368,12 +1369,15 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
+  // Preserve the exact File reference, not just the name/size/mtime display
+  // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
-  // Visible action readiness must agree with its handler's isBusy guard.
-  // Otherwise a click after the first projection but during async scan is
-  // silently ignored and cannot deliver the promised project JSON.
+  currentProjectSourceFile = source;
+  // Export is read-only and has no mux/write side effects. Background preview
+  // and track scan are not grounds to silently drop an export command: the
+  // snapshot explicitly says that inspection and source relinking are pending.
   if (containerProjectExportBtn) containerProjectExportBtn.disabled =
-    !containerDocument.objects.length || isBusy() || batchRunning || importInProgress;
+    !containerDocument.objects.length || importInProgress;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
     const caps = resolveContainerCapabilities({
@@ -1512,12 +1516,17 @@ sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
 containerProjectExportBtn?.addEventListener('click', () => {
-  // Project snapshots do not serialize media data, live File objects, granted
-  // directories or verified executable JobPlans.
-  if (isBusy() || batchRunning) return;
+  // The export is a read-only snapshot, never a write authorization. Do not
+  // reject it simply because FFmpeg is scanning or the batch queue is busy.
+  // A distinct File object must never inherit the last source's projection.
   const projection = currentProjectSourceProjection;
-  if (!projection || projection.sourceKey !==
-      outputCompositionFileKey(videoInput.files?.[0] || null)) return;
+  const source = videoInput.files?.[0] || null;
+  if (!projection || currentProjectSourceFile !== source ||
+      projection.sourceKey !== outputCompositionFileKey(source)) {
+    status.textContent = '工程草稿来源已更换；已刷新当前对象，请重新导出。';
+    renderOutputComposition();
+    return;
+  }
   try {
     const project = createContainerProjectFromProjection(projection);
     const url = URL.createObjectURL(new Blob([serializeContainerProject(project)], {
@@ -1529,6 +1538,7 @@ containerProjectExportBtn?.addEventListener('click', () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
+    status.textContent = '工程草稿 JSON 已生成；来源权限未包含，后续打开必须重新关联。';
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
