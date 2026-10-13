@@ -4648,7 +4648,7 @@ async function syncBatchPlan() {
       <span class="plan-kind">#${index + 1}</span>
       <span class="plan-main">
         <strong>${escapeHtml(job.outputName)}</strong>
-        <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · ${escapeHtml(batchSubtitleSummary(job))}
+        <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · 实际：${escapeHtml(job.videoIdentity?.containerLabel || "未识别")} · ${escapeHtml(batchSubtitleSummary(job))}
           · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
       <span class="plan-flags batch-review-state" data-state="${executionState ? executionState.state : state === '待执行' ? 'review' : 'blocked'}">${executionState ? escapeHtml(BATCH_JOB_STATES[executionState.state] || executionState.state) : state}</span>
