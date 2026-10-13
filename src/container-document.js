@@ -1,9 +1,10 @@
 import { buildOutputComposition, outputCompositionFileKey } from './output-composition.js';
 import { buildSubtitleEditIntentSnapshot } from './subtitle-edit-intent.js';
 
-// P1 vertical slice: this is a read-only snapshot, not an independent store of
-// editable tracks. The existing trackState and external-resource editors remain
-// the sole write owners; the existing FFmpeg executor remains authoritative.
+// Read-only snapshot of source-proven domain/executor projections. Source
+// audio/subtitle fields and relative order are now owned by a live immutable
+// ContainerProject; remaining external/attachment editors still own legacy
+// state. The original FFmpeg execution path remains authoritative for output.
 export const CONTAINER_DOCUMENT_SCHEMA = 'container-document-projection-v0';
 
 const nameOf = (value, fallback) => String(value || '').trim() || fallback;
