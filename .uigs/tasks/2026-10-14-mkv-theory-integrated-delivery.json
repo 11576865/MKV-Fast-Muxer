@@ -5,41 +5,51 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1 source-track scan-delta export -> verified import -> explicit atomic legacy-editor replay + guarded inverse, awaiting one exact-head PR validation",
+  "current_work_unit": "P1 one live immutable ContainerProject owner for scanned source audio/subtitle include, title, language, default and forced, projected atomically into existing writer-compatible trackState; PR exact-head CI pending",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
     "Implemented fail-closed SHA/identity/field conflict-bound restoration for source audio/subtitle fields and all-or-nothing guarded undo.",
     "Wired real workbench confirmation controls and actual-MKV final output E2E plus focused regressions.",
-    "Checked all modified JS syntax and ran isolated real-function source-delta/import/replay/undo smoke."
+    "Checked all modified JS syntax and ran isolated real-function source-delta/import/replay/undo smoke.",
+    "PR #126 first exact-head Node/Vite passed but Chromium E2E failed before hashing on Playwright 50 MB inline-buffer fixture; fixed by on-disk 65 MiB fixture, repair-generation exact-head CI remained in progress at next-turn initial inspection.",
+    "Implemented a true live ContainerProject authority for five source-track properties, keeping existing trackState as synchronously derived FFmpeg-facing projection, not adding a second media writer.",
+    "Connected actual source inspector, legacy source form input/change, bulk include/language/default and metadata reset to an atomic domain command path.",
+    "Bound source editor authority to exact successfully-scanned File identity and resets; verified detached draft apply/undo explicitly reseeds the live domain.",
+    "Added Node domain transaction tests (multi-track atomicity, drift, preserve-all, long typing, bulk, untouched attachment/advanced/order) and actual browser MKV output parity scenario.",
+    "Executed JS syntax checks and real cross-module in-isolate smoke for 150 typed characters, invalid mixed edit rollback, and composition parity."
   ],
   "next_units": [
-    "Observe this PR exact-head Node/build/Chromium completion in a separate validation turn and fix concrete red evidence only.",
-    "Migrate one writable source-track object owner from legacy state into the authoritative ContainerProject with command parity and regression.",
-    "Expand safe attachment edit-intent operations with UID/EBML preserved-writer proof, while retaining #77 blocking rules.",
-    "Complete batch recipe v2 task-level overrides and persistence/rebind after browser reload.",
-    "Unify desktop/tablet object-centred workbench, then run measured usability and large-file/device acceptance."
+    "Observe PR #126 repaired exact-head browser E2E completion; merge only if real Node/build/Chromium success or repair concrete evidence separately.",
+    "Observe current P1 live track owner PR exact-head Node/build/Chromium after submission; repair only concrete failures in bounded next work generation.",
+    "Extend domain ownership to advanced source track dispositions, ordering and attachments while independently protecting UID/EBML relations.",
+    "Complete batch recipe v2 task-level independent plans, durable rebind, source-neutral resource-only output and measured desktop/tablet UI acceptance."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
-  "branch": "feat/p1-verified-track-transaction-20261014",
+  "branch": "feat/p1-live-source-track-domain-authority-20261014",
   "pull_request": null,
-  "last_durable_commit": "ad07908fd8e84aa4f00c71ce836ddb488218fef6",
+  "last_durable_commit": "8869a12fbe7c8351e03a2824ccc328c033edca04",
   "external_validation": {
-    "p1-targeted-syntax": "passed",
-    "p1-in-isolate-functions-smoke": "passed",
-    "exact-head-node-tests": "pending",
-    "exact-head-build": "pending",
-    "exact-head-chromium-e2e": "pending",
+    "pr125-exact-head-node-build-chromium": "passed",
+    "pr125-merged-main": "passed",
+    "pr126-repaired-exact-head-browser": "pending",
+    "p1-live-domain-module-smoke": "passed",
+    "p1-live-domain-static-syntax": "passed",
+    "p1-live-domain-exact-head-node": "pending",
+    "p1-live-domain-exact-head-build": "pending",
+    "p1-live-domain-exact-head-browser": "pending",
     "field-device": "unknown"
   },
   "blockers": [
-    "Known P0 #77 complex nested Chapter/targeted Tag remux nonpreservation; no safe general writer yet.",
-    "Browser SHA-256 digest policy refuses sources over 64 MiB for detached-project restoration.",
-    "Full ContainerProject single writable authority, OPFS resume, large-file performance and cross-player matrix remain open."
+    "PR #126 large-media SHA streaming remains separate and unmerged while repaired browser validation completes.",
+    "Live domain authority is deliberately scoped to five source audio/subtitle fields; other properties, attachments, ordering, chapters and Tags still have legacy ownership.",
+    "Known P0 #77 complex nested Chapter/targeted Tag remux nonpreservation; no general structure-preserving writer yet.",
+    "No device acceptance, OPFS persistence or multi-hour large-media/large batch performance evidence yet."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
-    "Do not represent this bounded source-track recovery as complete P1 or general EBML writer."
+    "Do not represent this bounded source-track recovery as complete P1 or general EBML writer.",
+    "Do not stack this branch on unmerged #126; source-track domain migration independently branches from merged main@1583570d so full CI can run separately once when PR opens."
   ],
-  "updated_at": "2026-10-13T18:36:23.083Z"
+  "updated_at": "2026-10-13T19:15:31.006Z"
 }
