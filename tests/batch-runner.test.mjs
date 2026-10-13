@@ -26,7 +26,7 @@ const artifact = (job) => ({
   outputName: job.outputName,
   reportBlob: new Blob(['{}']),
   reportName: job.outputName + '.report.json',
-  auditStatus: 'ok',
+  auditStatus: 'pass',
   outputSha256: 'abc',
 });
 
@@ -51,12 +51,31 @@ test('headless queue executes frozen jobs in order, preserving audit evidence an
   assert.deepEqual(ledger.snapshot().map((entry) => entry.state), [
     'awaitingSave', 'awaitingSave', 'awaitingSave',
   ]);
-  assert.equal(outcome.results[0].auditStatus, 'ok');
+  assert.equal(outcome.results[0].auditStatus, 'pass');
   assert.equal(outcome.results[0].outputSha256, 'abc');
   assert.deepEqual(phases, plan.jobs.flatMap((job) => [
     'prepare:' + job.outputName, 'mux:' + job.outputName, 'save:' + job.outputName,
   ]));
   assert.deepEqual(visible.map((x) => x.length), [1, 2, 3]);
+});
+
+test('a generated artifact with failed or unavailable audit remains downloadable but is never marked verified', async () => {
+  const { plan, ledger } = fixture();
+  const outcome = await runFrozenBatchQueue(plan, {
+    ledger,
+    prepare: async () => {},
+    execute: async (job, index) => ({
+      ...artifact(job), auditStatus: index === 0 ? 'warning' : 'unavailable',
+      auditIssues: index === 0 ? ['字幕数量不一致'] : [],
+    }),
+    publish: async () => ({ savedToDirectory: true, directorySaveError: '' }),
+  });
+  assert.equal(outcome.results.length, 3);
+  assert.ok(outcome.results.every((entry) => entry.ok));
+  assert.deepEqual(ledger.snapshot().map((entry) => entry.state),
+    ['auditWarning', 'auditWarning', 'auditWarning']);
+  assert.match(ledger.snapshot()[0].error, /字幕数量不一致/);
+  assert.match(ledger.snapshot()[1].error, /未完成/);
 });
 
 test('one mux error fails only that job; another verified output remains accessible', async () => {
