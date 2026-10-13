@@ -44,6 +44,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
+import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -165,6 +166,7 @@ const outputEvidenceIssues = $('outputEvidenceIssues');
 const outputEvidenceRevision = $('outputEvidenceRevision');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
+const containerProjectExportBtn = $('containerProjectExportBtn');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -418,6 +420,7 @@ let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
 let lastCompositionSourceKey = '';
+let currentProjectSourceProjection = null;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1364,6 +1367,8 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
+  currentProjectSourceProjection = containerDocument;
+  if (containerProjectExportBtn) containerProjectExportBtn.disabled = !containerDocument.objects.length;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
     const caps = resolveContainerCapabilities({
@@ -1488,6 +1493,29 @@ compositionTracks?.addEventListener('click', event => {
 });
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
+});
+containerProjectExportBtn?.addEventListener('click', () => {
+  // Project snapshots do not serialize media data, live File objects, granted
+  // directories or verified executable JobPlans.
+  if (isBusy() || batchRunning) return;
+  const projection = currentProjectSourceProjection;
+  if (!projection || projection.sourceKey !==
+      outputCompositionFileKey(videoInput.files?.[0] || null)) return;
+  try {
+    const project = createContainerProjectFromProjection(projection);
+    const url = URL.createObjectURL(new Blob([serializeContainerProject(project)], {
+      type: 'application/json;charset=utf-8',
+    }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mkv-container-project-draft-v1.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  } catch (error) {
+    status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
+  }
 });
 compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
 editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
