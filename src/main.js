@@ -32,6 +32,7 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
+import { createFrozenBatchMuxContext } from './batch-mux-context.js';
 import { formatBatchTerminalStatus } from './batch-status.js';
 import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
@@ -923,7 +924,7 @@ function isBusy() {
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -1014,7 +1015,7 @@ function updateUI() {
     videoSniffState.status === 'pending'
   );
   const mode = fontMode.value || 'preserve';
-  const busy = isBusy() || batchStartPending;
+  const busy = isBusy() || batchStartPending || batchRunning;
   const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
   const videoLabel = video?.name ?? '未选择';
@@ -1089,7 +1090,7 @@ function updateUI() {
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0 ||
     currentPreservationReadiness().blocking;
-  cancelBtn.disabled = !busy;
+  cancelBtn.disabled = !isBusy();
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
@@ -3710,15 +3711,18 @@ cancelBtn.addEventListener('click', cancelCurrentMuxTask);
 // One mux operation returns the actual in-memory artifacts to its caller.
 // The single-task button and batch adapter share this executor without
 // synthesizing click events or polling mutable download-link state.
-async function executeCurrentMuxTask() {
-  if (isBusy()) return;
-  const evidenceSourceAtExecution = outputCompositionFileKey(videoInput.files?.[0] || null);
+async function executeCurrentMuxTask(explicit = null) {
+  const independent = explicit?.kind === 'frozen-batch-mux-context-v1';
+  // The batch owns the shared FFmpeg instance across all prepare/mux/save
+  // phases. A synthetic single-task click must not start between jobs.
+  if (isBusy() || (batchRunning && !independent)) return;
+  const video = independent ? explicit.source : videoInput.files[0];
+  const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
-  syncNewTrackState();
-  const video = videoInput.files[0];
-  const fontRecognition = selectedFontRecognition();
-  if (fontIdentityPending()) return;
-  if (selectedFonts().length && fontRecognition.ignored.length) {
+  if (!independent) syncNewTrackState();
+  const fontRecognition = independent ? explicit.fontRecognition : selectedFontRecognition();
+  if (!independent && fontIdentityPending()) return;
+  if ((independent ? explicit.fonts.length : selectedFonts().length) && fontRecognition.ignored.length) {
     const first = fontRecognition.ignored[0];
     status.textContent = `字体“${first.file.name}”的实际内容无法识别：${first.identity?.parseError || '无有效字体结构'}`;
     return;
@@ -3727,22 +3731,25 @@ async function executeCurrentMuxTask() {
   const fontIdentityByKey = new Map(
     fontRecognition.recognized.map((entry) => [fileKey(entry.file), entry.identity])
   );
-  const subtitleTracks = newSubtitleState;
-  const externalAudioTracks = externalAudioState;
+  const subtitleTracks = independent ? explicit.subtitles : newSubtitleState;
+  const externalAudioTracks = independent ? explicit.externalAudio : externalAudioState;
   // A source-only remux is valid: existing MKV tracks, chapters and attachments
   // do not require an extra subtitle file. ffprobe still checks video presence.
-  if (!video || importInProgress) return;
+  if (!video || (!independent && importInProgress)) return;
 
-  const headerVideoIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
+  const headerVideoIdentity = independent ? explicit.headerIdentity :
+    (selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {}));
   const videoIsMatroska = isMatroskaIdentity(headerVideoIdentity);
   const invalidSubtitle = subtitleTracks.find((track) => !track.format);
-  const mode = fontFiles.length ? (fontMode.value || 'preserve') : 'preserve';
-  const manualScanned = getScannedSelection(video);
-  const appendMode = Boolean(videoIsMatroska && appendPreserveAll?.checked);
+  const mode = fontFiles.length ? (independent ? explicit.fontMode : (fontMode.value || 'preserve')) : 'preserve';
+  const manualScanned = independent ? null : getScannedSelection(video);
+  const appendMode = Boolean(videoIsMatroska && (independent
+    ? explicit.appendPreserveAll : appendPreserveAll?.checked));
   const scanned = appendMode ? null : manualScanned;
   const preserveAllOriginalSubtitles = appendMode;
   const preserveAllOriginalAttachments = videoIsMatroska && (
-    appendMode || (!scanned && preserveAttachments.checked)
+    appendMode || (!scanned && (independent
+      ? explicit.preserveAttachments : preserveAttachments.checked))
   );
   if (invalidSubtitle) {
     status.textContent = `字幕“${invalidSubtitle.file.name}”的实际内容无法识别为支持的 ASS / SSA / SRT / WebVTT / PGS / VobSub。`;
@@ -3753,8 +3760,10 @@ async function executeCurrentMuxTask() {
   });
   const assertCurrentSubtitleWitness = () => {
     const fresh = validateSubtitleExecutionWitness(subtitleWitness, {
-      source: videoInput.files[0], tracks: newSubtitleState,
-      appendMode: Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked),
+      source: independent ? explicit.source : videoInput.files[0],
+      tracks: independent ? explicit.subtitles : newSubtitleState,
+      appendMode: independent ? Boolean(explicit.appendPreserveAll)
+        : Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked),
     });
     if (!fresh.ok) {
       throw new Error('执行准备期间字幕来源、格式或轨道选项已改变，请重新核对并启动（' + fresh.reason + '）。');
@@ -3773,7 +3782,7 @@ async function executeCurrentMuxTask() {
     // name/size/mtime-keyed header cache must not skip Matroska protection.
     // Unknown headers fail closed: they may conceal a complex MKV.
     const actualHeader = await sniffFileContainer(video);
-    if (videoInput.files?.[0] !== video) {
+    if (!independent && videoInput.files?.[0] !== video) {
       throw new Error('源文件在预检期间已替换，请重新确认后启动。');
     }
     if (actualHeader.container === 'unknown' || actualHeader.container !== headerVideoIdentity.container) {
@@ -3790,7 +3799,7 @@ async function executeCurrentMuxTask() {
         updateUI();
         return;
       }
-      if (videoInput.files?.[0] !== video || fileKey(videoInput.files[0]) !== fileKey(video)) {
+      if (!independent && (videoInput.files?.[0] !== video || fileKey(videoInput.files[0]) !== fileKey(video))) {
         throw new Error('预检期间来源已改变，请重新确认当前输入。');
       }
       const refusal = preservationBlockMessage(video.name, protection);
@@ -3810,28 +3819,31 @@ async function executeCurrentMuxTask() {
     updateUI();
     return;
   }
-  downloadLink.classList.add('hidden');
-  reportLink.classList.add('hidden');
-  auditResult.className = 'audit-result hidden';
-  auditResult.textContent = '';
+  // A frozen batch task owns its artifacts via batchResultUrls. Never
+  // revoke or repoint a user's existing single-task download/report URLs.
+  if (!independent) {
+    downloadLink.classList.add('hidden');
+    reportLink.classList.add('hidden');
+    auditResult.className = 'audit-result hidden';
+    auditResult.textContent = '';
+    if (outputURL) {
+      URL.revokeObjectURL(outputURL);
+      outputURL = null;
+    }
+    if (reportURL) {
+      URL.revokeObjectURL(reportURL);
+      reportURL = null;
+    }
+  }
   logEl.textContent = preservationInfo;
   bar.style.width = '4%';
-
-  if (outputURL) {
-    URL.revokeObjectURL(outputURL);
-    outputURL = null;
-  }
-  if (reportURL) {
-    URL.revokeObjectURL(reportURL);
-    reportURL = null;
-  }
 
   const prefix = taskPrefix();
   const videoPath = `${prefix}-input${sourceVirtualSuffix(headerVideoIdentity)}`;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
   const auditPath = `${prefix}-audit.json`;
-  const outputName = safeOutputName(video.name);
+  const outputName = independent ? explicit.outputName : safeOutputName(video.name);
   const fontPaths = [];
   const audioPaths = [];
   const subtitlePaths = [];
@@ -3959,7 +3971,7 @@ async function executeCurrentMuxTask() {
       });
     }
 
-    if (fontSubsetEnabled?.checked && attachments.length) {
+    if ((independent ? explicit.subsetEnabled : fontSubsetEnabled?.checked) && attachments.length) {
       status.textContent = '正在用 HarfBuzz 生成字体子集……';
       const beforeBytes = attachments.reduce((sum, item) => sum + Number(item.file.size || 0), 0);
       attachments = await subsetFontItems(attachments, fontSubsetText);
@@ -4231,7 +4243,10 @@ async function executeCurrentMuxTask() {
       mimetype: fontMimeType(item.fontIdentity),
     }));
 
-    const runtimeChanges = containerChangeCounts({ newFontCount: attachments.length });
+    const runtimeChanges = independent
+      ? { added: runtimeSubtitles.length + runtimeExternalAudio.length + attachments.length,
+          removed: 0, modified: 0 }
+      : containerChangeCounts({ newFontCount: attachments.length });
 
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
@@ -4314,21 +4329,27 @@ async function executeCurrentMuxTask() {
       if (audit.ok) {
         const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.other} 其他 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${runtimeChanges.added} / −${runtimeChanges.removed} / ~${runtimeChanges.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
+      if (!independent) {
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
+      }
       } else {
         const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
         logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+      if (!independent) {
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result warn';
+      }
         completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
       }
     } catch (auditError) {
       const reason = auditError?.message || String(auditError);
       const auditText = `封装已完成，但 ffprobe 审计不可用：${reason}`;
       logEl.textContent += `AUDIT WARNING: ${auditText}。已保留 MKV 输出，不把审计工具限制当作封装失败。\n`;
+      if (!independent) {
       auditResult.textContent = auditText;
       auditResult.className = 'audit-result warn';
+      }
       completionNote += '；封装后审计未完成（不影响已生成 MKV）';
       finalAudit = {
         status: 'unavailable',
@@ -4358,12 +4379,14 @@ async function executeCurrentMuxTask() {
       if (finalAudit.status === 'pass') finalAudit.status = 'warning';
       finalAudit.ok = false;
       finalAudit.issues = [...(finalAudit.issues || []), ...fontPayloadAudit.issues];
+      if (!independent) {
       auditResult.className = 'audit-result warn';
       auditResult.textContent = '成品字体附件验证待复核：' + detail;
+      }
       completionNote += '；成品字体附件字节核验待复核';
     }
     finalAudit.fontPayloadAudit = fontPayloadAudit;
-    outputURL = URL.createObjectURL(outputBlob);
+    if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
       appVersion: '1.2.2',
@@ -4428,7 +4451,7 @@ async function executeCurrentMuxTask() {
             })),
         })),
       },
-      plan: buildMuxPlan(),
+      plan: independent ? explicit.reportPlan : buildMuxPlan(),
       compatibility: {
         ...compatibility,
         execution: {
@@ -4464,21 +4487,21 @@ async function executeCurrentMuxTask() {
     }));
 
     const reportBlob = new Blob([serializeMuxReport(report)], { type: 'application/json' });
-    reportURL = URL.createObjectURL(reportBlob);
-
-    downloadLink.href = outputURL;
-    downloadLink.download = outputName;
-    downloadLink.textContent = `保存成品 · ${outputName}`;
-    downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
-    downloadLink.classList.remove('hidden');
-
-    reportLink.href = reportURL;
-    reportLink.download = reportFilename(outputName);
-    reportLink.textContent = '保存封装报告';
-    reportLink.classList.remove('hidden');
+    if (!independent) {
+      reportURL = URL.createObjectURL(reportBlob);
+      downloadLink.href = outputURL;
+      downloadLink.download = outputName;
+      downloadLink.textContent = `保存成品 · ${outputName}`;
+      downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
+      downloadLink.classList.remove('hidden');
+      reportLink.href = reportURL;
+      reportLink.download = reportFilename(outputName);
+      reportLink.textContent = '保存封装报告';
+      reportLink.classList.remove('hidden');
+    }
 
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
-    if (!batchRunning) {
+    if (!independent) {
       lastActualOutput = { sourceKey: evidenceSourceAtExecution, report };
       renderActualOutputEvidence();
     }
@@ -4503,7 +4526,7 @@ async function executeCurrentMuxTask() {
     // visible source/track tree and discard its live edits. Keep the task ready
     // for another revision; users can explicitly remove assets to release it.
     // Preserve original cleanup behavior only for the pre-inventory path.
-    if (!importedAssetEntries.length) {
+    if (!independent && !importedAssetEntries.length) {
       videoInput.value = '';
       audioInput.value = '';
       subInput.value = '';
@@ -5295,21 +5318,13 @@ batchStartBtn?.addEventListener('click', async () => {
   activeBatchJobLedger = createBatchJobLedger(frozenPlan, refreshBatchExecutionViews);
   requestBatchPlanSync();
 
-  const originalVideoFiles = Array.from(videoInput.files || []);
-  const originalAudioFiles = Array.from(audioInput.files || []);
-  const originalSubtitleFiles = Array.from(subInput.files || []);
-  const originalFontFiles = Array.from(fontInput.files || []);
-  const originalPreserveAttachments = preserveAttachments.checked;
-  const originalAppendMode = appendPreserveAll?.checked;
-  const originalAppendTouched = appendPreserveAll?.dataset.userTouched || '0';
-  const originalSubsetEnabled = fontSubsetEnabled?.checked;
   const requestedBatchFonts = frozenPlan.fonts;
   const results = [];
   let batchFatalError = '';
   let jobFonts = requestedBatchFonts;
+  let activeBatchMuxContext = null;
 
-  setInputFiles(audioInput, []);
-
+  // Frozen batch context no longer rewrites the user's FileLists or editor.
   try {
     if (
       frozenPlan.policy.subsetEnabled &&
@@ -5325,35 +5340,29 @@ batchStartBtn?.addEventListener('click', async () => {
       shouldCancel: () => batchCancelRequested,
       prepare: async (job, index) => {
         batchStatus.textContent = `批量任务：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
-        // Compatibility adapter only: these legacy inputs are staging for
-        // the single-task mux core, never an independent editable JobPlan.
-        setInputFiles(videoInput, [job.video]);
-        await videoSniffPromise;
-        setInputFiles(subInput, job.subtitleInputFiles);
-        await subtitleInspectPromise;
-        setInputFiles(fontInput, jobFonts);
-        await fontInspectPromise;
-        resetTrackState();
-
-        const preserveAll = Boolean(frozenPlan.policy.preserveAttachments && currentVideoIsMatroska(job.video));
-        if (appendPreserveAll) {
-          appendPreserveAll.dataset.userTouched = '1';
-          appendPreserveAll.checked = preserveAll;
+        activeBatchMuxContext = null;
+        const headerIdentity = await sniffFileContainer(job.video);
+        if (headerIdentity.container === 'unknown') {
+          throw Error('BATCH_MUX_SOURCE_IDENTITY_UNVERIFIED');
         }
-        preserveAttachments.checked = preserveAll;
-        if (fontSubsetEnabled) {
-          fontSubsetEnabled.checked = Boolean(
-            frozenPlan.policy.subsetEnabled &&
-            frozenPlan.policy.subsetScope !== 'group'
-          );
+        const fontIdentities = await Promise.all(jobFonts.map(async file => ({
+          file, identity: await identifyFontFile(file),
+        })));
+        if (fontIdentities.some(item => !isSupportedFontIdentity(item.identity))) {
+          throw Error('BATCH_MUX_FONT_CONTENT_UNVERIFIED');
         }
-        syncNewTrackState();
-        updateUI();
+        activeBatchMuxContext = createFrozenBatchMuxContext(frozenPlan, job, {
+          headerIdentity, fonts: jobFonts, fontIdentities,
+        });
       },
-      execute: async () => {
-        const result = await executeCurrentMuxTask();
+      execute: async (job) => {
+        if (!activeBatchMuxContext || activeBatchMuxContext.jobId !== job.jobId) {
+          throw Error('BATCH_MUX_CONTEXT_STALE');
+        }
+        const result = await executeCurrentMuxTask(activeBatchMuxContext);
+        activeBatchMuxContext = null;
         if (!result?.blob && batchCancelRequested) throw new Error('batch-cancelled');
-        if (!result?.blob) throw new Error(status.textContent || '单项封装未交付成品');
+        if (!result?.blob) throw new Error(status.textContent || '批量单项封装未交付成品');
         return result;
       },
       publish: async (_job, artifact) => {
@@ -5410,20 +5419,7 @@ batchStartBtn?.addEventListener('click', async () => {
       fatalError: batchFatalError,
     });
     batchCancelRequested = false;
-    setInputFiles(videoInput, originalVideoFiles);
-    await videoSniffPromise;
-    setInputFiles(audioInput, originalAudioFiles);
-    setInputFiles(subInput, originalSubtitleFiles);
-    await subtitleInspectPromise;
-    setInputFiles(fontInput, originalFontFiles);
-    await fontInspectPromise;
-    preserveAttachments.checked = originalPreserveAttachments;
-    if (appendPreserveAll) {
-      appendPreserveAll.checked = originalAppendMode;
-      appendPreserveAll.dataset.userTouched = originalAppendTouched;
-    }
-    if (fontSubsetEnabled) fontSubsetEnabled.checked = originalSubsetEnabled;
-    syncNewTrackState();
+    // Batch did not modify the user's source, subtitle, font or audio inputs.
     updateUI();
     requestBatchPlanSync();
   }

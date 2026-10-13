@@ -1476,6 +1476,20 @@ async function scenarioBatchQueue(browser) {
   const { context, page } = await openApp(browser);
 
   try {
+    // A separate single-task draft must survive the complete frozen queue:
+    // batch no longer stages content into the single-task FileList controls.
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+    await page.waitForFunction(() => Boolean(
+      document.querySelector('#videoInput')?.files?.length === 1 &&
+      document.querySelector('#subInput')?.files?.length === 1 &&
+      document.querySelector('select[data-new-sub-field="language"][data-index="0"]')
+    ), null, { timeout: 30_000 });
+    const draftBeforeBatch = await page.evaluate(() => ({
+      source: document.querySelector('#videoInput')?.files?.[0]?.name,
+      subtitle: document.querySelector('#subInput')?.files?.[0]?.name,
+      language: document.querySelector('select[data-new-sub-field="language"][data-index="0"]')?.value,
+    }));
     await page.locator('.batch-drawer > summary').click();
     await page.setInputFiles('#batchVideoInput', [
       path.join(root, 'Batch S01E01.mp4'),
@@ -1523,6 +1537,20 @@ async function scenarioBatchQueue(browser) {
       document.querySelectorAll('#batchPlan .batch-review-state[data-state="awaitingSave"]').length === 2
     );
     assert.match(await page.locator('#batchJobInspector').textContent(), /待下载保存/);
+    const draftAfterBatch = await page.evaluate(() => ({
+      source: document.querySelector('#videoInput')?.files?.[0]?.name,
+      subtitle: document.querySelector('#subInput')?.files?.[0]?.name,
+      language: document.querySelector('select[data-new-sub-field="language"][data-index="0"]')?.value,
+    }));
+    assert.deepEqual(draftAfterBatch, draftBeforeBatch,
+      'a batch must not stage and restore over an independent single-task draft');
+    const reportPath = path.join(outDir, 'batch-explicit-context-first-report.json');
+    await saveDownload(page, '#batchResults .new-track-row:first-child a.report-download', reportPath);
+    const itemReport = JSON.parse(await fs.readFile(reportPath, 'utf8'));
+    assert.equal(itemReport.plan.execution, 'frozen-batch-context-v1');
+    assert.match(itemReport.plan.jobId, /^batch:/);
+    assert.equal(itemReport.plan.outputName, 'Batch S01E01.mkv');
+    assert.equal(itemReport.subtitle.tracks[0].language, 'zh-Hans');
     console.log('Scenario 28 PASS');
   } finally {
     await context.close();

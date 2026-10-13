@@ -179,9 +179,13 @@ test('missing frozen authorization or incompatible ledger is not runnable', asyn
 test('production integration has no synthetic mux click or link polling path', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const runner = readFileSync(new URL('../src/batch-runner.js', import.meta.url), 'utf8');
-  assert.match(main, /async function executeCurrentMuxTask\(\)/);
-  assert.match(main, /const result = await executeCurrentMuxTask\(\)/);
+  assert.match(main, /async function executeCurrentMuxTask\(explicit = null\)/);
+  assert.match(main, /const result = await executeCurrentMuxTask\(activeBatchMuxContext\)/);
   assert.match(main, /await runFrozenBatchQueue\(frozenPlan,/);
+  assert.match(main, /createFrozenBatchMuxContext\(frozenPlan, job,/);
+  const batchRun = main.slice(main.indexOf('batchStartBtn?.addEventListener'), main.lastIndexOf('resetTrackState();'));
+  assert.doesNotMatch(batchRun, /setInputFiles\((?:videoInput|audioInput|subInput|fontInput),/);
+  assert.doesNotMatch(batchRun, /await videoSniffPromise|await subtitleInspectPromise|await fontInspectPromise/);
   assert.doesNotMatch(main, /muxBtn\.click\(\)/);
   assert.doesNotMatch(main, /waitForSingleMuxCompletion/);
   assert.doesNotMatch(runner, /document\.|\.click\(|new Event\(|window\./);
