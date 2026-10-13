@@ -5189,6 +5189,9 @@ async function prepareBatchStart() {
       try {
         const inspected = await sniffFileContainer(job.video);
         if (refuseStale()) return null;
+        if (inspected.container === 'unknown') {
+          throw new Error('无法可靠识别批量来源容器；未知结构必须在运行前整体阻断');
+        }
         if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
         const protection = await inspectMatroskaPreservation(job.video);
         if (refuseStale()) return null;
