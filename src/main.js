@@ -4493,6 +4493,15 @@ function batchFontCandidates() {
   return selected.length || batchUnifiedMode ? selected : selectedFonts();
 }
 
+function indexBatchExecutionBySource() {
+  const ledger = activeBatchJobLedger;
+  if (!ledger) return new Map();
+  const states = ledger.snapshot();
+  return new Map(ledger.plan.jobs.map((job, index) => [job.video, {
+    outputName: job.outputName, state: states[index],
+  }]));
+}
+
 function renderBatchJobInspector(pairing) {
   if (!batchJobInspector) return;
   const job = pairing?.jobs?.find((item) => item.video === selectedBatchVideoFile);
@@ -4506,11 +4515,9 @@ function renderBatchJobInspector(pairing) {
   const filenameCollision = pairing.outputNameCollisions?.some((entry) => entry.videos.includes(job.video));
   const directoryCollision = pairing.directoryConflicts?.includes(job.outputName);
   const unresolvedTie = pairing.ambiguousPairings?.some((entry) => entry.candidates.includes(job.video));
-  const executedJob = activeBatchJobLedger?.plan.jobs.find((entry) =>
-    entry.video === job.video && entry.outputName === job.outputName);
-  const executionState = executedJob
-    ? activeBatchJobLedger.snapshot().find((entry) => entry.jobId === executedJob.jobId)
-    : null;
+  const indexedExecution = indexBatchExecutionBySource().get(job.video);
+  const executionState = indexedExecution?.outputName === job.outputName
+    ? indexedExecution.state : null;
   const warnings = [
     filenameCollision ? '当前输出名与批内其他任务冲突' : '',
     directoryCollision ? '输出目录存在同名文件，禁止覆盖' : '',
@@ -4634,17 +4641,15 @@ async function syncBatchPlan() {
   if (!pairing.jobs.some((job) => job.video === selectedBatchVideoFile)) {
     selectedBatchVideoFile = pairing.jobs[0]?.video || null;
   }
+  const executionBySource = indexBatchExecutionBySource();
   const rows = pairing.jobs.map((job, index) => {
     const outputCollision = pairing.outputNameCollisions.some((entry) => entry.videos.includes(job.video));
     const directoryCollision = pairing.directoryConflicts.includes(job.outputName);
     const hasTie = pairing.ambiguousPairings.some((entry) => entry.candidates.includes(job.video));
     const state = outputCollision || directoryCollision ? '输出冲突' : hasTie ? '待确认' : '待执行';
     const selected = selectedBatchVideoFile === job.video;
-    const executed = activeBatchJobLedger?.plan.jobs.find((entry) =>
-      entry.video === job.video && entry.outputName === job.outputName);
-    const executionState = executed
-      ? activeBatchJobLedger.snapshot().find((entry) => entry.jobId === executed.jobId)
-      : null;
+    const indexed = executionBySource.get(job.video);
+    const executionState = indexed?.outputName === job.outputName ? indexed.state : null;
     return `
     <button type="button" class="plan-row plan-video batch-job-row" data-batch-job-index="${index}"
       data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}">
@@ -4791,11 +4796,11 @@ function requestBatchPlanSync() {
 function refreshBatchExecutionViews() {
   const ledger = activeBatchJobLedger;
   if (!ledger) return;
-  const entries = ledger.snapshot();
+  const bySource = indexBatchExecutionBySource();
   for (const row of batchPlan.querySelectorAll('button[data-batch-job-index]')) {
     const paired = latestBatchPairing?.jobs[Number(row.dataset.batchJobIndex)];
-    const frozen = ledger.plan.jobs.find((job) => job.video === paired?.video && job.outputName === paired?.outputName);
-    const state = frozen && entries.find((entry) => entry.jobId === frozen.jobId);
+    const indexed = bySource.get(paired?.video);
+    const state = indexed?.outputName === paired?.outputName ? indexed.state : null;
     if (!state) continue;
     const marker = row.querySelector('.batch-review-state');
     if (marker) {
