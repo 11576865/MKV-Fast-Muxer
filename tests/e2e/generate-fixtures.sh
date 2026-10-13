@@ -65,7 +65,7 @@ Style: Proof,UIGS P3 Embedded Proof,28,&H00FFFFFF,&H000000FF,&H00000000,&H000000
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.20,0:00:01.80,Proof,,0,0,0,,{\\bord2\\shad1}Embedded final-MKV proof 9417
+Dialogue: 0,0:00:00.20,0:00:01.80,Proof,,0,0,0,,{\bord2\shad1}Embedded final-MKV proof 9417
 ASS
 
 mkdir -p "$ROOT/font-a" "$ROOT/font-b"
