@@ -137,6 +137,9 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
     assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
     assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
+    await page.locator('#containerCapabilityDetails > summary').click();
+    assert.match(await page.locator('#containerCapabilityDetailsList').textContent(), /完整 EBML 保留/);
+    assert.match(await page.locator('#containerCapabilityDetailsList').textContent(), /未验证/);
     await page.waitForFunction(() =>
       !document.querySelector('#containerProjectExportBtn')?.disabled);
     const projectOutput = path.join(outDir, 'five-step-container-project-v1.json');
