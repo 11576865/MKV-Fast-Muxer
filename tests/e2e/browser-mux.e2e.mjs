@@ -614,7 +614,25 @@ async function scenarioBrokenFonts(browser) {
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
-    await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 60_000 });
+    try {
+      await page.waitForFunction(() => !document.querySelector('#muxBtn')?.disabled, null, { timeout: 15000 });
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        readiness: {
+          state: document.querySelector('#preservationReadiness')?.dataset.status,
+          title: document.querySelector('#preservationReadinessTitle')?.textContent,
+          description: document.querySelector('#preservationReadinessDescription')?.textContent,
+        },
+        videoIdentity: document.querySelector('#videoIdentityLabel')?.textContent,
+        fontName: document.querySelector('#fontName')?.textContent,
+        fontModeHint: document.querySelector('#fontModeHint')?.textContent,
+        subtitle: document.querySelector('#subName')?.textContent,
+        source: document.querySelector('#videoInput')?.files?.[0]?.name,
+        disabled: document.querySelector('#muxBtn')?.disabled,
+        status: document.querySelector('#status')?.textContent,
+      }));
+      throw new Error('valid-font recovery remained blocked: ' + JSON.stringify(state) + '; ' + error.message);
+    }
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     console.log('Scenario 13 PASS');
