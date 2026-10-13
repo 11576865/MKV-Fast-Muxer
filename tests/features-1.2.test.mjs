@@ -22,7 +22,11 @@ test('1.2 batch UI exposes folder inputs, output directory and group subset mode
   assert.match(main, /showDirectoryPicker/);
   assert.match(main, /buildGroupedSubsetFonts/);
   assert.match(main, /findExistingBatchOutputs/);
-  assert.match(main, /writeNewBatchOutput/);
+  assert.match(main, /writeNewBatchArtifactPair/);
+  const writer = fs.readFileSync(new URL('../src/batch-output.js', import.meta.url), 'utf8');
+  assert.match(writer, /export async function writeNewBatchOutput/);
+  assert.match(writer, /export async function writeNewBatchArtifactPair/);
+  assert.match(writer, /await findExistingNamedOutputs\(directory, \[mkvName, reportName\]\)/);
 });
 
 test('1.2 runtime handles binary subtitle streams without text decoding', () => {

@@ -30,7 +30,7 @@ import { inspectMatroskaPreservation, preservationBlockMessage } from './preserv
 import { preservationReadiness } from './preservation-readiness.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
-import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
+import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
@@ -5404,32 +5404,36 @@ batchStartBtn?.addEventListener('click', async () => {
         return result;
       },
       publish: async (_job, artifact) => {
-        let savedToDirectory = false;
-        let directorySaveError = '';
+        let publication = {
+          savedToDirectory: false,
+          mkvSavedToDirectory: false,
+          reportSavedToDirectory: false,
+          directorySaveError: '',
+        };
         if (selectedOutputDirectory) {
           try {
-            // Recheck at write time; files may have appeared after preflight.
-            await writeNewBatchOutput(selectedOutputDirectory, artifact.outputName, artifact.blob);
-            if (artifact.reportBlob && artifact.reportName) {
-              await writeNewBatchOutput(selectedOutputDirectory, artifact.reportName, artifact.reportBlob);
-            }
-            savedToDirectory = true;
+            publication = await writeNewBatchArtifactPair(selectedOutputDirectory, {
+              mkvName: artifact.outputName,
+              mkvBlob: artifact.blob,
+              reportName: artifact.reportName,
+              reportBlob: artifact.reportBlob,
+            });
           } catch (error) {
-            // A generated artifact survives optional directory-save failure.
-            directorySaveError = error?.message || String(error);
+            // Preserve the in-memory MKV and report for manual downloads.
+            publication = { ...publication,
+              directorySaveError: error?.message || String(error) };
           }
         }
         return {
           url: batchResultUrls.create(artifact.blob),
           reportUrl: batchResultUrls.create(artifact.reportBlob),
           reportName: artifact.reportName,
-          savedToDirectory,
-          directorySaveError,
+          ...publication,
         };
       },
       onResults: (currentResults) => {
         batchResults.innerHTML = currentResults.map((item) => item.ok
-          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · MKV 与报告均已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.mkvSavedToDirectory ? ` · MKV 已写入目录，但报告写入失败：${escapeHtml(item.reportSaveError || item.directorySaveError || '未知原因')}；报告仍可单独下载` : item.directorySaveError ? ` · 目录保存失败：${escapeHtml(item.directorySaveError)}；可通过下载链接保存 MKV 与报告` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
           : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
         ).join('');
       },
