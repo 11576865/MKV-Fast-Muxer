@@ -2596,6 +2596,9 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     const advancedDraftPath = path.join(outDir, 'p1-advanced-dispositions-draft.json');
     await saveDownload(page, '#containerProjectExportBtn', advancedDraftPath);
     const advancedDraft = JSON.parse(await fs.readFile(advancedDraftPath, 'utf8'));
+    assert.match(await page.locator('#status').textContent(),
+      /轨道上下排序只在本次会话有效/,
+      'a project export after reordering must disclose non-portable ordering');
     assert.equal(advancedDraft.schema, 'container-project-v1');
     assert.ok(advancedDraft.editIntents.some(intent =>
       intent.field === 'commentary' && intent.to === true),
