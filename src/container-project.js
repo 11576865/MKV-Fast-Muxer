@@ -150,3 +150,43 @@ export function serializeContainerProject(project) {
   };
   return JSON.stringify(copy, null, 2) + '\n';
 }
+
+
+// Migration bridge only. This is a source/target DRAFT derived from the
+// current immutable projection, not a second writer or editable live owner.
+// Hashed names avoid persisting browser File references or index-based DOM IDs.
+function stableKey(prefix, source) {
+  let h1 = 2166136261, h2 = 2246822519;
+  for (const ch of String(source || '')) {
+    const n = ch.charCodeAt(0);
+    h1 = Math.imul(h1 ^ n, 16777619) >>> 0;
+    h2 = Math.imul(h2 ^ n, 3266489917) >>> 0;
+  }
+  return prefix + ':' + h1.toString(16).padStart(8,'0') + h2.toString(16).padStart(8,'0');
+}
+export function createContainerProjectFromProjection(snapshot) {
+  if (snapshot?.schema !== 'container-document-projection-v0' ||
+      !Array.isArray(snapshot.objects)) throw Error('UNKNOWN_PROJECTION_SCHEMA');
+  const documentId = stableKey('document', snapshot.sourceKey || 'empty');
+  const sourceId = snapshot.source ? stableKey('source', snapshot.sourceKey) : null;
+  const source = snapshot.source ? [{
+    id: sourceId, name: snapshot.source.name,
+    identityEvidence: snapshot.source.identityEvidence || 'display-only',
+  }] : [];
+  const objects = snapshot.objects.map(item => {
+    const kind = ALLOWED_KINDS.has(item.kind) ? item.kind :
+      item.kind === 'font' ? 'attachment' : 'other';
+    const attributes = {};
+    if (typeof item.title === 'string' && EDITABLE_FIELDS[kind].includes('title'))
+      attributes.title = item.title;
+    return {
+      id: stableKey('object', item.id), kind,
+      sourceId: item.evidence?.startsWith('ffprobe') ||
+        item.evidence === 'source-observation' ? sourceId : null,
+      included: item.included !== false && item.status !== 'remove',
+      attributes,
+      provenance: item.evidence || 'legacy-projection',
+    };
+  });
+  return createContainerProject({ documentId, sources: source, objects });
+}
