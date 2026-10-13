@@ -73,6 +73,8 @@ test('integration retains actual runtime preflight and binds preview result to s
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../src/workbench.css', import.meta.url), 'utf8');
   assert.match(main, /beginPreservationPreview\(\)/);
+  assert.match(main, /queueMicrotask\(\(\) =>/);
+  assert.match(main, /const identity = await sniffFileContainer\(source\)/);
   assert.match(main, /generation !== preservationPreviewGeneration \|\| videoInput\.files\?\.\[0\] !== source/);
   assert.match(main, /currentPreservationReadiness\(\)\.blocking/);
   assert.match(main, /const protection = await inspectMatroskaPreservation\(video\)/);
