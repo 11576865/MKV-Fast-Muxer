@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildContainerDocument } from '../src/container-document.js';
 import {
-  createContainerProjectFromProjection, applyContainerProjectEdit,
-  serializeContainerProject,
+  createContainerProjectFromProjection, createEditedContainerProjectFromProjection,
+  applyContainerProjectEdit, serializeContainerProject,
 } from '../src/container-project.js';
 import { parseContainerProjectDraft } from '../src/container-project-import.js';
 import {
@@ -20,6 +20,9 @@ const mkTrack = (index, type, stream) => ({
   default: Boolean(stream.disposition?.default),
   forced: Boolean(stream.disposition?.forced),
   original: true, commentary: false, hearingImpaired: false,
+  originalTitle: stream.tags?.title || '', originalLanguage: stream.tags?.language || 'und',
+  originalDefault: Boolean(stream.disposition?.default),
+  originalForced: Boolean(stream.disposition?.forced),
 });
 function fixture() {
   const file = { name: 'verified.mkv', size: 123, lastModified: 7 };
@@ -88,6 +91,67 @@ test('a verified multi-track detached change commits in one explicit transaction
   assert.equal(JSON.stringify(file), beforeFile);
   const afterLive = buildContainerDocument({ video: file, trackState: state });
   assert.equal(afterLive.objects.find(o => o.kind === 'audio').attributes.title, 'Japanese commentary');
+});
+
+
+test('real scan-to-editor export encodes all changed fields as a portable coherent intent chain', () => {
+  const { file, state } = fixture();
+  state.tracks[0].title = 'Edited in real UI';
+  state.tracks[0].language = 'eng';
+  const liveEdited = buildContainerDocument({ video: file, trackState: state });
+  const detached = createEditedContainerProjectFromProjection(liveEdited);
+  assert.equal(detached.editIntents.length, 2);
+  assert.deepEqual(detached.editIntents.map(i => [i.field, i.from, i.to]),
+    [['title', '', 'Edited in real UI'], ['language', 'jpn', 'eng']]);
+  const imported = parseContainerProjectDraft(serializeContainerProject(detached));
+  state.tracks[0].title = '';
+  state.tracks[0].language = 'jpn';
+  const restoredBaseline = buildContainerDocument({ video: file, trackState: state });
+  const plan = prepare({ draft: imported, liveProjection: restoredBaseline,
+    sourceProof: proof, trackState: state });
+  apply(plan, state);
+  assert.equal(state.tracks[0].title, 'Edited in real UI');
+  assert.equal(state.tracks[0].language, 'eng');
+});
+
+test('source exclusion exports disposition reset as an explicit recoverable delta', () => {
+  const { file, state } = fixture();
+  state.tracks[0].include = false;
+  state.tracks[0].default = false;
+  state.tracks[0].original = false;
+  const modified = buildContainerDocument({ video: file, trackState: state });
+  const draft = parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(modified)));
+  assert.deepEqual(draft.editIntents.map(x => [x.type, x.field, x.to]), [
+    ['set-attribute', 'default', false], ['include', null, false],
+  ]);
+  state.tracks[0].include = true;
+  state.tracks[0].default = true;
+  state.tracks[0].original = true;
+  const base = buildContainerDocument({ video: file, trackState: state });
+  const plan = prepare({ draft, liveProjection: base, sourceProof: proof, trackState: state });
+  apply(plan, state);
+  assert.equal(state.tracks[0].include, false);
+  assert.equal(state.tracks[0].default, false);
+  assert.equal(state.tracks[0].original, false);
+});
+
+test('transaction inverse is atomic and refuses a subsequent conflicting user edit', async () => {
+  const { file, state, live } = fixture();
+  const { revertPreparedTrackReplay: revert } = await import('../src/container-project-restore.js');
+  const draft = editProject(live, [title, include]);
+  const plan = prepare({ draft, liveProjection: live, sourceProof: proof, trackState: state });
+  const original = JSON.stringify(state.tracks);
+  apply(plan, state);
+  state.tracks[1].title = 'edited after restore';
+  const changed = JSON.stringify(state.tracks);
+  assert.throws(() => revert(plan, state), /TRACK_REPLAY_UNDO_CONFLICT/);
+  assert.equal(JSON.stringify(state.tracks), changed);
+  state.tracks[1].title = 'Chinese';
+  const undone = revert(plan, state);
+  assert.equal(undone.revertedTracks, 2);
+  assert.equal(JSON.stringify(state.tracks), original);
+  assert.equal(undone.fileWritten, false);
 });
 
 test('a stale track change rejects the ENTIRE prepared transaction', () => {
