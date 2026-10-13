@@ -228,7 +228,10 @@ export function createEditedContainerProjectFromProjection(snapshot) {
   });
   let result = createContainerProject({
     documentId: current.documentId,
-    sources: current.sources,
+    // The normalized projection carries size:null for unknown source size;
+    // the public constructor expects size omitted or a safe nonnegative int.
+    sources: current.sources.map(({ size, ...source }) =>
+      size === null ? source : { ...source, size }),
     objects: originals,
   });
   for (const target of current.objects) {
