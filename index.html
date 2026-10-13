@@ -146,7 +146,7 @@
             </details>
             <details id="existingMkvLimitedDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-limited-title">
               <summary id="existing-mkv-limited-title">受限写入实验：为符合资格的已有 MKV 新增 1–8 个附件</summary>
-              <p class="attachment-extraction-help">独立生成新副本，不覆盖原文件，不经 FFmpeg 重封装。仅限来源小于 60 MiB、无原附件、存在足够预留 Void 的布局；可一次新增 1–8 个附件，总计最多 4 MiB。多个附件保留各自原文件名及 MIME 声明，重复或不安全名称将拒绝而非自动修改。无法删除或修改原附件，不适用于一般大型 MKV。来源中的私密内容仍会完整保留在副本中。</p>
+              <p class="attachment-extraction-help">独立生成新副本，不覆盖原文件，不经 FFmpeg 重封装。仅限来源小于 60 MiB、无原附件、存在足够预留 Void 的布局；可一次新增 1–8 个附件，总计最多 4 MiB。多个附件可逐项检查和修改写入名称及 MIME 声明；重复或不安全名称必须手动更正，修改后重新确认并重新验证。无法删除或修改原附件，不适用于一般大型 MKV。来源中的私密内容仍会完整保留在副本中。</p>
               <div class="existing-mkv-limited-fields">
                 <label>现有 Matroska 来源
                   <input id="existingMkvLimitedSource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择要在独立副本中新增附件的原始 Matroska 文件" />

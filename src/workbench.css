@@ -1674,3 +1674,50 @@ body { background: var(--bg); }
 @media (max-width: 760px) {
   .existing-mkv-limited-fields { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Every new attachment is a separately reviewed output object. */
+#existingMkvLimitedInventory {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+#existingMkvLimitedInventory > p {
+  margin: 0;
+  font-size: .75rem;
+}
+.existing-mkv-limited-file-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+}
+.existing-mkv-limited-file-row > strong {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  font-size: .76rem;
+}
+.existing-mkv-limited-file-row label {
+  display: grid;
+  gap: 5px;
+  font-size: .73rem;
+  font-weight: 600;
+  min-width: 0;
+}
+.existing-mkv-limited-file-row input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+  color: var(--text-strong);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 400;
+}
+@media (max-width: 760px) {
+  .existing-mkv-limited-file-row { grid-template-columns: minmax(0, 1fr); }
+}

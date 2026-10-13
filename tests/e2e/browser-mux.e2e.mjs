@@ -3763,6 +3763,12 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true);
     assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
     await page.locator('#existingMkvLimitedReview').check();
+    // Single-file metadata changes must also invalidate prior risk approval.
+    await page.locator('#existingMkvLimitedMime').fill('application/x-temporary');
+    assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
+    assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true);
+    await page.locator('#existingMkvLimitedMime').fill('text/plain');
+    await page.locator('#existingMkvLimitedReview').check();
     await page.locator('#existingMkvLimitedPrepare').click();
     await page.waitForFunction(() =>
       ['prepared','blocked'].includes(
@@ -3832,6 +3838,31 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     assert.equal(await page.locator('#existingMkvLimitedStatus').getAttribute('data-state'),
       'prepared', await page.locator('#existingMkvLimitedStatus').textContent());
     assert.match(await page.locator('#existingMkvLimitedEvidence').textContent(), /已验证 2 个附件/);
+    // Changing a verified item must revoke both review and previously prepared
+    // output, and invalid names must be corrected manually rather than silently
+    // renamed by the EBML writer.
+    const outputNameEditor = page.locator(
+      '#existingMkvLimitedInventory input[data-limited-index="1"][data-limited-field="filename"]');
+    const outputMimeEditor = page.locator(
+      '#existingMkvLimitedInventory input[data-limited-index="1"][data-limited-field="mimeType"]');
+    assert.equal(await outputNameEditor.inputValue(), 'second.bin');
+    await outputNameEditor.fill('readme.txt');
+    assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
+    assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
+    await page.locator('#existingMkvLimitedReview').check();
+    assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true,
+      'duplicate final names require explicit correction');
+    assert.match(await page.locator('#existingMkvLimitedStatus').textContent(), /重复|不安全/);
+    await outputNameEditor.fill('renamed-second.bin');
+    await outputMimeEditor.fill('application/x-audit-data');
+    assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
+    await page.locator('#existingMkvLimitedReview').check();
+    await page.locator('#existingMkvLimitedPrepare').click();
+    await page.waitForFunction(() => ['prepared','blocked'].includes(
+      document.querySelector('#existingMkvLimitedStatus')?.dataset.state), null, { timeout: 120_000 });
+    assert.equal(await page.locator('#existingMkvLimitedStatus').getAttribute('data-state'),
+      'prepared', await page.locator('#existingMkvLimitedStatus').textContent());
+    assert.ok((await page.locator('#existingMkvLimitedEvidence').textContent()).includes('renamed-second.bin'));
     const multiOutput = path.join(outDir, 'limited-existing-browser-two-attachments.mkv');
     const [multiDownload] = await Promise.all([
       page.waitForEvent('download'), page.locator('#existingMkvLimitedSave').click(),
@@ -3842,7 +3873,9 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     const afterMulti = read(multiOutput);
     assert.equal((afterMulti.attachments || []).length, 2);
     assert.deepEqual(afterMulti.attachments.map(item => item.file_name).sort(),
-      ['readme.txt', 'second.bin'].sort());
+      ['readme.txt', 'renamed-second.bin'].sort());
+    assert.equal(afterMulti.attachments.find(item => item.file_name === 'renamed-second.bin').content_type,
+      'application/x-audit-data');
     assert.deepEqual((afterMulti.tracks || []).map(t => [t.id, t.type, t.codec]),
       (before.tracks || []).map(t => [t.id, t.type, t.codec]));
     for (const kind of ['chapters', 'tags']) {
@@ -3851,7 +3884,7 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
       assert.deepEqual(await fs.readFile(extractedXml),
         await fs.readFile(path.join(outDir, 'limited-source-' + kind + '.xml')));
     }
-    for (const [name, bytes] of [['readme.txt', payload], ['second.bin', secondPayload]]) {
+    for (const [name, bytes] of [['readme.txt', payload], ['renamed-second.bin', secondPayload]]) {
       const item = afterMulti.attachments.find(entry => entry.file_name === name);
       const extracted = path.join(outDir, 'limited-two-' + name);
       execFileSync('mkvextract', [multiOutput, 'attachments',
