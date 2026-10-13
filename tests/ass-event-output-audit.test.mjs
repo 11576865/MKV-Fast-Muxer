@@ -97,5 +97,6 @@ test('shared real single/batch mux and output inspector wire exactly one audit o
   assert.match(main, /auditProducedAssEvents\(\{/);
   assert.match(main, /finalAudit\.assEventAudit = assEventAudit/);
   assert.match(main, /-map', '0:s:' \+ ordinal/);
+  assert.match(main, /'-copyts', '-i', outputPath/);
   assert.match(model, /assEvent: report\.audit\?\.assEventAudit/);
 });
