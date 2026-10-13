@@ -3748,7 +3748,7 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
       document.querySelector('#existingMkvLimitedStatus')?.dataset.state), null, { timeout: 120_000 });
     assert.equal(await page.locator('#existingMkvLimitedStatus').getAttribute('data-state'),
       'prepared', await page.locator('#existingMkvLimitedStatus').textContent());
-    assert.match(await page.locator('#existingMkvLimitedEvidence').textContent(), /renamed-second\\.bin/);
+    assert.ok((await page.locator('#existingMkvLimitedEvidence').textContent()).includes('renamed-second.bin'));
     const multiOutput = path.join(outDir, 'limited-existing-browser-two-attachments.mkv');
     const [multiDownload] = await Promise.all([
       page.waitForEvent('download'), page.locator('#existingMkvLimitedSave').click(),
