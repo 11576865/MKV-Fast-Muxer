@@ -51,6 +51,10 @@ export function createContainerProject({
     return {
       id, name: clean(source.name), size: size ?? null,
       identityEvidence: clean(source.identityEvidence) || 'display-only',
+      ...(source.sha256 === undefined ? {} : {
+        sha256: typeof source.sha256 === 'string' && /^[0-9a-f]{64}$/.test(source.sha256)
+          ? source.sha256 : (() => { throw Error('INVALID_SOURCE_SHA256'); })(),
+      }),
       authorization: 'requires-relink',
     };
   });
