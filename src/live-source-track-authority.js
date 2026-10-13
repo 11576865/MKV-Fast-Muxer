@@ -5,7 +5,8 @@
  * include/title/language/Default/Forced/Original/Commentary/HearingImpaired
  * and within-kind relative ordering. The original trackState objects remain
  * an execution-facing projection for the already-verified FFmpeg writer.
- * Attachments and unsupported EBML structures remain legacy-owned.
+ * Source attachment include/name/MIME are also domain-owned, but their
+ * underlying AttachmentUID/Tag/EBML writer authorization is NOT expanded.
  *
  * No source bytes, File grants, jobs, write plans or provenance are produced.
  */
@@ -18,6 +19,7 @@ export const LIVE_SOURCE_FIELDS = Object.freeze([
   'include', 'title', 'language', 'default', 'forced',
   'original', 'commentary', 'hearingImpaired',
 ]);
+export const LIVE_ATTACHMENT_FIELDS = Object.freeze(['include', 'filename', 'mimetype']);
 const fieldSet = new Set(LIVE_SOURCE_FIELDS);
 const LIMIT = 85;
 const clearOnExclude = Object.freeze([
@@ -106,6 +108,30 @@ function currentRows(session, source, state) {
     if (new Set(domainOrder).size !== domainOrder.length)
       throw Error('LIVE_TRACK_DOMAIN_ORDER_AMBIGUOUS');
   }
+  if (!Array.isArray(state.attachments)) throw Error('LIVE_ATTACHMENT_INVENTORY_UNAVAILABLE');
+  const attachments = new Map();
+  const sourceStreamIndices = new Set(state.streams?.map(stream => stream.index) || []);
+  const projectById = new Map(session.project.objects.map(object => [object.id,object]));
+  for (const item of state.attachments) {
+    const key = 'attachment:' + item.index;
+    if (!Number.isSafeInteger(item.index) || item.index < 0 ||
+        attachments.has(key) || indexed.has(key) ||
+        !sourceStreamIndices.has(item.index) ||
+        item.stream?.index !== item.index ||
+        item.stream?.codec_type !== 'attachment')
+      throw Error('LIVE_ATTACHMENT_INDEX_AMBIGUOUS');
+    attachments.set(key,item);
+  }
+  if (attachments.size !== session.attachmentTargets.size)
+    throw Error('LIVE_ATTACHMENT_INVENTORY_DRIFT');
+  for (const [key,id] of session.attachmentTargets) {
+    const item=attachments.get(key), object=projectById.get(id);
+    if (!item || !object || object.kind !== 'attachment' || !object.sourceId ||
+        Boolean(item.include) !== object.included ||
+        item.filename !== object.attributes.name ||
+        item.mimetype !== object.attributes.mime)
+      throw Error('LIVE_ATTACHMENT_EXECUTOR_PROJECTION_DRIFT');
+  }
   return indexed;
 }
 
@@ -117,18 +143,21 @@ export function createLiveSourceTrackSession({ source, trackState, projection } 
     throw Error('LIVE_TRACK_INSPECTED_SOURCE_REQUIRED');
   const project = createContainerProjectFromProjection(projection);
   const targets = new Map();
+  const attachmentTargets = new Map();
   project.objects.forEach((object, index) => {
     const target = projection.objects[index]?.target;
     if (target?.type !== 'source' ||
-        !['audio', 'subtitle'].includes(object.kind)) return;
-    const match = /^(audio|subtitle):(\d+)$/.exec(target.key || '');
-    if (!match || match[1] !== object.kind || !object.sourceId ||
-        targets.has(target.key)) throw Error('LIVE_TRACK_SOURCE_ID_COLLISION');
-    targets.set(target.key, object.id);
+        !['audio', 'subtitle', 'attachment'].includes(object.kind)) return;
+    const match = /^(audio|subtitle|attachment):(\d+)$/.exec(target.key || '');
+    if (!match || match[1] !== object.kind || !object.sourceId)
+      throw Error('LIVE_SOURCE_ID_INVALID');
+    const map = object.kind === 'attachment' ? attachmentTargets : targets;
+    if (map.has(target.key)) throw Error('LIVE_SOURCE_ID_COLLISION');
+    map.set(target.key, object.id);
   });
   const session = {
     source, trackState, fileKey: trackState.fileKey,
-    targets, project, generation: 0, compacted: 0,
+    targets, attachmentTargets, project, generation: 0, compacted: 0,
   };
   currentRows(session, source, trackState);
   return session;
@@ -276,13 +305,104 @@ export function moveLiveSourceTrack(session, {
   });
 }
 
+
+/**
+ * The exact scanned source attachment identity remains immutable.
+ * Metadata fields are validated and committed to ContainerProject first;
+ * the existing selective-MKV FFmpeg writer + P0 relation safety gates are
+ * the ONLY authorities deciding whether requested changes can be delivered.
+ */
+export function commitLiveSourceAttachmentChanges(session, {
+  source, trackState, changes = [], appendMode = false,
+} = {}) {
+  currentRows(session, source, trackState);
+  if (appendMode) throw Error('LIVE_ATTACHMENT_PRESERVE_ALL_READONLY');
+  if (!Array.isArray(changes) || !changes.length || changes.length > 200)
+    throw Error('LIVE_ATTACHMENT_CHANGE_BUDGET');
+  const staged = new Map();
+  for (const change of changes) {
+    if (!change || !Number.isSafeInteger(change.index) || change.index < 0 ||
+        !LIVE_ATTACHMENT_FIELDS.includes(change.field))
+      throw Error('LIVE_ATTACHMENT_UNSUPPORTED_CHANGE');
+    const item = trackState.attachments.find(row => row.index === change.index);
+    if (!item) throw Error('LIVE_ATTACHMENT_NOT_FOUND');
+    const value = change.value;
+    if (change.field === 'include') {
+      if (typeof value !== 'boolean') throw Error('LIVE_ATTACHMENT_INCLUDE_INVALID');
+    } else if (typeof value !== 'string' ||
+        value.length > (change.field === 'filename' ? 240 : 120) ||
+        /[\u0000-\u001f\u007f]/.test(value) ||
+        change.field === 'filename' && (value.includes('/') || value.includes('\\'))) {
+      throw Error('LIVE_ATTACHMENT_METADATA_INVALID');
+    }
+    const current = staged.get(item.index) || {
+      item, values: { include:item.include, filename:item.filename, mimetype:item.mimetype },
+    };
+    current.values[change.field] = value;
+    staged.set(item.index,current);
+  }
+  let next = compact(session.project);
+  let commits=0;
+  for (const {item,values} of staged.values()) {
+    if (!values.include && (values.filename !== item.filename ||
+        values.mimetype !== item.mimetype))
+      throw Error('LIVE_ATTACHMENT_EXCLUDED_METADATA_CHANGE');
+    const id=session.attachmentTargets.get('attachment:'+item.index);
+    if (!id) throw Error('LIVE_ATTACHMENT_NOT_BOUND');
+    for (const [field,value] of [
+      ['name',values.filename],['mime',values.mimetype],
+    ]) {
+      const obj=next.objects.find(o=>o.id===id);
+      if (!obj || obj.kind!=='attachment' || !obj.sourceId)
+        throw Error('LIVE_ATTACHMENT_IDENTITY_DRIFT');
+      if (obj.attributes[field]===value) continue;
+      next=compact(next);
+      next=applyContainerProjectEdit(next,{
+        type:'set-attribute',objectId:id,field,value,
+      });
+      commits++;
+    }
+    const obj=next.objects.find(o=>o.id===id);
+    if (obj.included!==values.include) {
+      next=compact(next);
+      next=applyContainerProjectEdit(next,{
+        type:'include',objectId:id,value:values.include,
+      });
+      commits++;
+    }
+  }
+  if (!commits) return Object.freeze({
+    status:'no-change',changedFields:0,updatedAttachments:0,
+    generation:session.generation,
+  });
+  // All operations above have completed: the writer-facing projection
+  // changes synchronously without any filesystem or source modification.
+  for (const {item} of staged.values()) {
+    const obj=next.objects.find(o=>o.id===session.attachmentTargets.get(
+      'attachment:'+item.index));
+    item.include=obj.included;
+    item.filename=obj.attributes.name;
+    item.mimetype=obj.attributes.mime;
+  }
+  session.project=next;
+  session.generation++;
+  return Object.freeze({
+    status:'committed-to-domain-and-executor-projection',
+    changedFields:commits,updatedAttachments:staged.size,
+    generation:session.generation,fileWritten:false,muxStarted:false,
+    sourceUidRelationsPreserved:'not-proven-by-domain-command',
+  });
+}
+
 export function inspectLiveSourceTrackSession(session, { source, trackState } = {}) {
   currentRows(session, source, trackState);
   return Object.freeze({
     generation: session.generation, revision: session.project.revision,
     boundedHistoryLength: session.project.history.length,
     sourceTrackCount: session.targets.size,
+    sourceAttachmentCount: session.attachmentTargets.size,
     domainOwnedFields: LIVE_SOURCE_FIELDS,
+    domainOwnedAttachmentFields: LIVE_ATTACHMENT_FIELDS,
     domainIsAuthoritative: true,
     wholeEbmlPreservation: 'unverified', writerAuthorization: false,
   });
