@@ -48,7 +48,7 @@ import { createContainerProjectFromProjection, createEditedContainerProjectFromP
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
-import { prepareVerifiedTrackReplay, applyPreparedTrackReplay } from './container-project-restore.js';
+import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -185,6 +185,7 @@ const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
 const containerProjectRestorePanel = $('containerProjectRestorePanel');
 const containerProjectRestoreConfirm = $('containerProjectRestoreConfirm');
 const containerProjectRestoreBtn = $('containerProjectRestoreBtn');
+const containerProjectRestoreUndoBtn = $('containerProjectRestoreUndoBtn');
 const containerProjectRestoreStatus = $('containerProjectRestoreStatus');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
@@ -443,6 +444,7 @@ let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
 let importedProjectForReview = null;
 let detachedSourceProof = null;
+let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
 let importInProgress = false;
@@ -1518,6 +1520,13 @@ function renderOutputComposition() {
       batchRunning || importInProgress || sourceDigestCheckInProgress;
     containerProjectRestoreBtn.title = reason;
     if (containerProjectRestorePanel) containerProjectRestorePanel.dataset.ready = String(ready);
+    if (containerProjectRestoreUndoBtn) {
+      const undo = lastProjectRestore;
+      const relevant = undo && undo.source === source && undo.draft === importedProjectForReview &&
+        undo.trackState === scanned;
+      containerProjectRestoreUndoBtn.hidden = !relevant;
+      containerProjectRestoreUndoBtn.disabled = !relevant || isBusy() || batchRunning || importInProgress;
+    }
   }
   if (containerProjectVerifySourceBtn) {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
@@ -1702,6 +1711,7 @@ containerProjectRestoreBtn?.addEventListener('click', () => {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
     const receipt = applyPreparedTrackReplay(plan, scanned);
+    lastProjectRestore = { source, draft, trackState: scanned, plan };
     containerProjectRestoreConfirm.checked = false;
     renderTrackList();
     renderAttachmentList();
@@ -1714,6 +1724,30 @@ containerProjectRestoreBtn?.addEventListener('click', () => {
   } catch (error) {
     containerProjectRestoreStatus.textContent = '未应用：' +
       (error?.message || String(error)) + '。当前轨道编辑状态未更改。';
+    renderOutputComposition();
+  }
+});
+containerProjectRestoreUndoBtn?.addEventListener('click', () => {
+  const undo = lastProjectRestore;
+  const source = videoInput.files?.[0] || null;
+  try {
+    if (!undo || undo.source !== source ||
+        undo.draft !== importedProjectForReview ||
+        undo.trackState !== trackState ||
+        isBusy() || batchRunning || importInProgress)
+      throw Error('TRACK_REPLAY_UNDO_SOURCE_CHANGED');
+    const result = revertPreparedTrackReplay(undo.plan, trackState);
+    lastProjectRestore = null;
+    renderTrackList();
+    renderAttachmentList();
+    renderImportedAssetInventory();
+    renderMuxPlan();
+    renderOutputComposition();
+    containerProjectRestoreStatus.textContent = '已撤销本次恢复涉及的 ' +
+      result.revertedTracks + ' 条轨道修改，仍未写入文件。';
+  } catch (error) {
+    containerProjectRestoreStatus.textContent = '撤销未执行：' +
+      (error?.message || String(error)) + '。请检查当前编辑冲突。';
     renderOutputComposition();
   }
 });
