@@ -3331,7 +3331,24 @@ async function scenarioP0PreservationBlocksSingle(browser) {
       !document.querySelector('#muxBtn')?.disabled,
       null, { timeout: 90_000 });
     assert.doesNotMatch(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
-    console.log('P0 pre-mux safety and source-switch freshness PASS');
+
+    // P1: Unknown bytes with a credible MKV extension must NOT be treated
+    // as proven non-MKV when content sniffing cannot identify the header.
+    await page.setInputFiles('#videoInput', {
+      name: 'unverified-header.mkv',
+      mimeType: 'video/x-matroska',
+      buffer: Buffer.from('untrusted source with no valid EBML header'),
+    });
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    await page.locator('#muxBtn').dispatchEvent('click');
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
+      null, { timeout: 30000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    console.log('P0/P1 pre-mux safety, unknown-header refusal and source-switch freshness PASS');
   } finally {
     await context.close();
   }
