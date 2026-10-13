@@ -3555,7 +3555,10 @@ cancelBtn.addEventListener('click', () => {
   loaded = false;
 });
 
-muxBtn.addEventListener('click', async () => {
+// One mux operation returns the actual in-memory artifacts to its caller.
+// The single-task button and batch adapter share this executor without
+// synthesizing click events or polling mutable download-link state.
+async function executeCurrentMuxTask() {
   if (isBusy()) return;
 
   syncNewTrackState();
@@ -4165,9 +4168,8 @@ muxBtn.addEventListener('click', async () => {
 
     const data = await ffmpeg.readFile(outputPath);
     const outputSha256 = await sha256Hex(data);
-    outputURL = URL.createObjectURL(
-      new Blob([data.buffer], { type: 'video/x-matroska' })
-    );
+    const outputBlob = new Blob([data.buffer], { type: 'video/x-matroska' });
+    outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
       appVersion: '1.2.2',
@@ -4267,9 +4269,8 @@ muxBtn.addEventListener('click', async () => {
       hearingImpaired: track.hearingImpaired,
     }));
 
-    reportURL = URL.createObjectURL(
-      new Blob([serializeMuxReport(report)], { type: 'application/json' })
-    );
+    const reportBlob = new Blob([serializeMuxReport(report)], { type: 'application/json' });
+    reportURL = URL.createObjectURL(reportBlob);
 
     downloadLink.href = outputURL;
     downloadLink.download = outputName;
@@ -4313,6 +4314,15 @@ muxBtn.addEventListener('click', async () => {
       renderNewTrackLists();
       resetTrackState();
     }
+    return {
+      blob: outputBlob,
+      outputName,
+      reportBlob,
+      reportName: reportFilename(outputName),
+      outputSha256,
+      auditStatus: finalAudit?.status || 'unavailable',
+      auditIssues: Array.from(finalAudit?.issues || []),
+    };
   } catch (err) {
     console.error(err);
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
@@ -4341,7 +4351,8 @@ muxBtn.addEventListener('click', async () => {
     cancelRequested = false;
     updateUI();
   }
-});
+}
+muxBtn.addEventListener('click', () => { void executeCurrentMuxTask(); });
 
 // Batch uses the same *content identity* scanner as single-task intake,
 // but each candidate media container may become a separate video job.
@@ -4876,51 +4887,8 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
   return subsetted.map((item) => item.file);
 }
 
-function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
-  return new Promise((resolve, reject) => {
-    const started = Date.now();
-    const timer = setInterval(async () => {
-      if (batchCancelRequested) {
-        clearInterval(timer);
-        reject(new Error('batch-cancelled'));
-        return;
-      }
-      if (!running && !scanning && !previewing) {
-        clearInterval(timer);
-        if (downloadLink.classList.contains('hidden') || !downloadLink.href) {
-          reject(new Error(status.textContent || '单项封装失败'));
-          return;
-        }
-        try {
-          const response = await fetch(downloadLink.href);
-          const blob = await response.blob();
-          let reportBlob = null;
-          let reportName = '';
-          if (!reportLink.classList.contains('hidden') && reportLink.href) {
-            try {
-              const reportResponse = await fetch(reportLink.href);
-              reportBlob = await reportResponse.blob();
-              reportName = reportLink.download || `${downloadLink.download || 'output.mkv'}.mux-report.json`;
-            } catch {}
-          }
-          resolve({
-            blob,
-            outputName: downloadLink.download || 'output.mkv',
-            reportBlob,
-            reportName,
-          });
-        } catch (error) {
-          reject(error);
-        }
-        return;
-      }
-      if (Date.now() - started > timeoutMs) {
-        clearInterval(timer);
-        reject(new Error('单项封装超时'));
-      }
-    }, 150);
-  });
-}
+// The previous 150 ms polling loop over mutable download links is removed.
+// Batch receives the actual mux task result from executeCurrentMuxTask().
 
 [
   batchVideoInput,
@@ -5183,11 +5151,11 @@ batchStartBtn?.addEventListener('click', async () => {
 
       try {
         activeBatchJobLedger.transition(job.jobId, 'muxing');
-        muxBtn.click();
-        if (!running) {
-          throw new Error('批量单项封装未启动；后台任务仍占用执行器或当前输入尚未就绪。');
+        const result = await executeCurrentMuxTask();
+        if (!result?.blob) {
+          if (batchCancelRequested) throw new Error('batch-cancelled');
+          throw new Error(status.textContent || '批量单项封装未完成；执行器未提供有效 MKV 产物。');
         }
-        const result = await waitForSingleMuxCompletion();
         activeBatchJobLedger.transition(job.jobId, 'saving');
         let savedToDirectory = false;
         let directorySaveError = '';
