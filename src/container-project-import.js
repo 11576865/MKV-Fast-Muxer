@@ -12,7 +12,7 @@ const keyset = (value, allowed) => Object.keys(value).every(k => allowed.include
 const plain = x => x !== null && typeof x === 'object' &&
   (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null);
 const scalar = x => x === null || typeof x === 'boolean' ||
-  typeof x === 'string' && x.length <= 1024;
+  Number.isSafeInteger(x) || typeof x === 'string' && x.length <= 1024;
 const keys = Object.freeze({
   project: ['schema','documentId','sources','objects','editIntents','revision','execution'],
   source: ['id','name','size','identityEvidence','authorization'],
