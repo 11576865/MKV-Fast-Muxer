@@ -103,6 +103,9 @@ export function setupExistingMkvLimitedAppendUI({
     mimeInput.disabled = multiple;
     const validation = validateLimitedAttachmentItems(liveItems());
     prepareButton.disabled = busy || !review.checked || !sourceInput.files?.[0] || !validation.ok;
+    if (!validation.ok && selected().length) {
+      announce('当前附件元数据不可执行：' + validation.reason, 'blocked');
+    }
   }
   inventory?.addEventListener('input', (event) => {
     const target = event.target;
@@ -133,16 +136,17 @@ export function setupExistingMkvLimitedAppendUI({
     if (input === filenameInput || input === mimeInput) {
       input.addEventListener('input', () => {
         forget();
-        announce('元数据已变化，必须重新验证新副本。');
+        review.checked = false;
+        announce('单附件元数据已变化，必须重新核对、确认并验证新副本。');
         controls();
       });
     }
   }
   review.addEventListener('change', () => {
     forget();
-    controls();
     announce(review.checked ? '已确认风险。可申请生成并检查受限候选副本。'
       : '尚未确认实验性修改范围。');
+    controls();
   });
 
   prepareButton.addEventListener('click', async () => {
