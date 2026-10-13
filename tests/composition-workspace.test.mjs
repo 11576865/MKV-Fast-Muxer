@@ -22,13 +22,13 @@ test('the output composition is primary while imported assets remain inspectable
   assert.match(main, /compositionTracks\?\.addEventListener\('click'/);
 });
 
-test('one output track routes to its existing stream or external editor; export controls reuse original mux action', async () => {
+test('one output track routes to its existing stream or external editor; export controls invoke the shared mux operation', async () => {
   const [html, main] = await Promise.all([source('index.html'), source('src/main.js')]);
   assert.match(main, /containerTreeSelectedItem\.set\(roles\.sourceKey, target\.key\)/);
   assert.match(main, /\[data-editor-filter="source"\]/);
   assert.match(main, /outputCompositionFileKey\(row\.file\) === target\.fileKey/);
-  assert.match(main, /compositionMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) muxBtn\.click\(\); \}\)/);
-  assert.match(main, /editorMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) muxBtn\.click\(\); \}\)/);
+  assert.match(main, /compositionMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) void executeCurrentMuxTask\(\); \}\)/);
+  assert.match(main, /editorMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) void executeCurrentMuxTask\(\); \}\)/);
   for (const id of ['videoInput', 'subInput', 'audioInput', 'fontInput',
     'assetInspectorHost', 'muxBtn', 'compositionMuxBtn', 'editorMuxBtn', 'objectEditorBack']) {
     assert.equal((html.match(new RegExp('id="' + id + '"', 'g')) || []).length, 1, 'stable ID ' + id);

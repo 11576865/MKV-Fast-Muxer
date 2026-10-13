@@ -105,7 +105,7 @@ test('directory-save failure stays separate from mux failure', () => {
   assert.equal(ledger.snapshot()[0].error, 'quota exceeded');
 });
 
-test('running batch UI reads the frozen ledger but keeps the legacy mux result authority', () => {
+test('running batch UI reads frozen ledger and uses the direct single-task mux result', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../src/workbench.css', import.meta.url), 'utf8');
   assert.match(main, /freezeBatchJobPlan\(pairing,/);
@@ -114,10 +114,14 @@ test('running batch UI reads the frozen ledger but keeps the legacy mux result a
   assert.match(main, /function indexBatchExecutionBySource\(\)/);
   assert.match(main, /new Map\(ledger\.plan\.jobs\.map\(/);
   assert.doesNotMatch(main, /ledger\.plan\.jobs\.find\(/);
-  assert.match(main, /for \(let index = 0; index < frozenPlan\.jobs\.length/);
+
   assert.match(main, /frozenPlan\.policy\.subsetScope/);
-  assert.match(main, /activeBatchJobLedger\.transition\(job\.jobId, 'saving'\)/);
+
   assert.match(main, /activeBatchJobLedger\?\.interruptRemaining/);
-  assert.match(main, /muxBtn\.click\(\)/);
+  assert.match(main, /runFrozenBatchQueue\(frozenPlan,/);
+  const runner = readFileSync(new URL('../src/batch-runner.js', import.meta.url), 'utf8');
+  assert.match(runner, /for \(let index = 0; index < plan\.jobs\.length/);
+  assert.match(runner, /ledger\.transition\(job\.jobId, 'saving'\)/);
+  assert.doesNotMatch(main, /muxBtn\.click\(\)/);
   assert.match(css, /\.batch-review-lifecycle/);
 });

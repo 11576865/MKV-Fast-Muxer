@@ -29,6 +29,7 @@ import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './f
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
+import { runFrozenBatchQueue } from './batch-runner.js';
 import { formatBatchTerminalStatus } from './batch-status.js';
 import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
@@ -1290,8 +1291,8 @@ compositionTracks?.addEventListener('click', event => {
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
-compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
-editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) muxBtn.click(); });
+compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
+editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
 objectEditorBack?.addEventListener('click', () =>
   document.querySelector('.workbench-jump-nav a[href="#source-title"]')?.click());
 
@@ -3545,7 +3546,7 @@ function getScannedSelection(video) {
   return trackState;
 }
 
-cancelBtn.addEventListener('click', () => {
+function cancelCurrentMuxTask() {
   if (!isBusy()) return;
   cancelRequested = true;
   if (scanning) containerAutoScanSuppressedKey = fileKey(videoInput.files[0]);
@@ -3553,9 +3554,13 @@ cancelBtn.addEventListener('click', () => {
   logEl.textContent += 'CANCEL: 用户请求终止当前操作。\n';
   ffmpeg.terminate();
   loaded = false;
-});
+}
+cancelBtn.addEventListener('click', cancelCurrentMuxTask);
 
-muxBtn.addEventListener('click', async () => {
+// One mux operation returns the actual in-memory artifacts to its caller.
+// The single-task button and batch adapter share this executor without
+// synthesizing click events or polling mutable download-link state.
+async function executeCurrentMuxTask() {
   if (isBusy()) return;
 
   syncNewTrackState();
@@ -4165,9 +4170,8 @@ muxBtn.addEventListener('click', async () => {
 
     const data = await ffmpeg.readFile(outputPath);
     const outputSha256 = await sha256Hex(data);
-    outputURL = URL.createObjectURL(
-      new Blob([data.buffer], { type: 'video/x-matroska' })
-    );
+    const outputBlob = new Blob([data.buffer], { type: 'video/x-matroska' });
+    outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
       appVersion: '1.2.2',
@@ -4267,9 +4271,8 @@ muxBtn.addEventListener('click', async () => {
       hearingImpaired: track.hearingImpaired,
     }));
 
-    reportURL = URL.createObjectURL(
-      new Blob([serializeMuxReport(report)], { type: 'application/json' })
-    );
+    const reportBlob = new Blob([serializeMuxReport(report)], { type: 'application/json' });
+    reportURL = URL.createObjectURL(reportBlob);
 
     downloadLink.href = outputURL;
     downloadLink.download = outputName;
@@ -4313,6 +4316,15 @@ muxBtn.addEventListener('click', async () => {
       renderNewTrackLists();
       resetTrackState();
     }
+    return {
+      blob: outputBlob,
+      outputName,
+      reportBlob,
+      reportName: reportFilename(outputName),
+      outputSha256,
+      auditStatus: finalAudit?.status || 'unavailable',
+      auditIssues: Array.from(finalAudit?.issues || []),
+    };
   } catch (err) {
     console.error(err);
     if (cancelRequested || String(err?.message || err).includes('terminate')) {
@@ -4341,7 +4353,8 @@ muxBtn.addEventListener('click', async () => {
     cancelRequested = false;
     updateUI();
   }
-});
+}
+muxBtn.addEventListener('click', () => { void executeCurrentMuxTask(); });
 
 // Batch uses the same *content identity* scanner as single-task intake,
 // but each candidate media container may become a separate video job.
@@ -4876,51 +4889,8 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
   return subsetted.map((item) => item.file);
 }
 
-function waitForSingleMuxCompletion(timeoutMs = 15 * 60 * 1000) {
-  return new Promise((resolve, reject) => {
-    const started = Date.now();
-    const timer = setInterval(async () => {
-      if (batchCancelRequested) {
-        clearInterval(timer);
-        reject(new Error('batch-cancelled'));
-        return;
-      }
-      if (!running && !scanning && !previewing) {
-        clearInterval(timer);
-        if (downloadLink.classList.contains('hidden') || !downloadLink.href) {
-          reject(new Error(status.textContent || '单项封装失败'));
-          return;
-        }
-        try {
-          const response = await fetch(downloadLink.href);
-          const blob = await response.blob();
-          let reportBlob = null;
-          let reportName = '';
-          if (!reportLink.classList.contains('hidden') && reportLink.href) {
-            try {
-              const reportResponse = await fetch(reportLink.href);
-              reportBlob = await reportResponse.blob();
-              reportName = reportLink.download || `${downloadLink.download || 'output.mkv'}.mux-report.json`;
-            } catch {}
-          }
-          resolve({
-            blob,
-            outputName: downloadLink.download || 'output.mkv',
-            reportBlob,
-            reportName,
-          });
-        } catch (error) {
-          reject(error);
-        }
-        return;
-      }
-      if (Date.now() - started > timeoutMs) {
-        clearInterval(timer);
-        reject(new Error('单项封装超时'));
-      }
-    }, 150);
-  });
-}
+// The previous 150 ms polling loop over mutable download links is removed.
+// Batch receives the actual mux task result from executeCurrentMuxTask().
 
 [
   batchVideoInput,
@@ -4977,7 +4947,7 @@ batchCancelBtn?.addEventListener('click', () => {
   }
   if (!batchRunning) return;
   batchCancelRequested = true;
-  if (running || scanning || previewing) cancelBtn.click();
+  if (running || scanning || previewing) cancelCurrentMuxTask();
   batchStatus.textContent = '正在取消批量任务……';
 });
 
@@ -5151,91 +5121,76 @@ batchStartBtn?.addEventListener('click', async () => {
       jobFonts = await buildGroupedSubsetFonts(requestedBatchFonts, frozenPlan);
     }
 
-    for (let index = 0; index < frozenPlan.jobs.length; index += 1) {
-      if (batchCancelRequested) break;
-      const job = frozenPlan.jobs[index];
-      activeBatchJobLedger.transition(job.jobId, 'preparing');
-      batchStatus.textContent = `批量任务：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
+    const outcome = await runFrozenBatchQueue(frozenPlan, {
+      ledger: activeBatchJobLedger,
+      shouldCancel: () => batchCancelRequested,
+      prepare: async (job, index) => {
+        batchStatus.textContent = `批量任务：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
+        // Compatibility adapter only: these legacy inputs are staging for
+        // the single-task mux core, never an independent editable JobPlan.
+        setInputFiles(videoInput, [job.video]);
+        await videoSniffPromise;
+        setInputFiles(subInput, job.subtitleInputFiles);
+        await subtitleInspectPromise;
+        setInputFiles(fontInput, jobFonts);
+        await fontInspectPromise;
+        resetTrackState();
 
-      setInputFiles(videoInput, [job.video]);
-      await videoSniffPromise;
-      setInputFiles(subInput, job.subtitleInputFiles);
-      await subtitleInspectPromise;
-      setInputFiles(fontInput, jobFonts);
-      await fontInspectPromise;
-      resetTrackState();
-
-      const preserveAll = Boolean(frozenPlan.policy.preserveAttachments && currentVideoIsMatroska(job.video));
-      if (appendPreserveAll) {
-        appendPreserveAll.dataset.userTouched = '1';
-        appendPreserveAll.checked = preserveAll;
-      }
-      preserveAttachments.checked = preserveAll;
-
-      if (fontSubsetEnabled) {
-        fontSubsetEnabled.checked = Boolean(
-          frozenPlan.policy.subsetEnabled &&
-          frozenPlan.policy.subsetScope !== 'group'
-        );
-      }
-      syncNewTrackState();
-      updateUI();
-
-      try {
-        activeBatchJobLedger.transition(job.jobId, 'muxing');
-        muxBtn.click();
-        if (!running) {
-          throw new Error('批量单项封装未启动；后台任务仍占用执行器或当前输入尚未就绪。');
+        const preserveAll = Boolean(frozenPlan.policy.preserveAttachments && currentVideoIsMatroska(job.video));
+        if (appendPreserveAll) {
+          appendPreserveAll.dataset.userTouched = '1';
+          appendPreserveAll.checked = preserveAll;
         }
-        const result = await waitForSingleMuxCompletion();
-        activeBatchJobLedger.transition(job.jobId, 'saving');
+        preserveAttachments.checked = preserveAll;
+        if (fontSubsetEnabled) {
+          fontSubsetEnabled.checked = Boolean(
+            frozenPlan.policy.subsetEnabled &&
+            frozenPlan.policy.subsetScope !== 'group'
+          );
+        }
+        syncNewTrackState();
+        updateUI();
+      },
+      execute: async () => {
+        const result = await executeCurrentMuxTask();
+        if (!result?.blob && batchCancelRequested) throw new Error('batch-cancelled');
+        if (!result?.blob) throw new Error(status.textContent || '单项封装未交付成品');
+        return result;
+      },
+      publish: async (_job, artifact) => {
         let savedToDirectory = false;
         let directorySaveError = '';
         if (selectedOutputDirectory) {
           try {
             // Recheck at write time; files may have appeared after preflight.
-            await writeNewBatchOutput(selectedOutputDirectory, result.outputName, result.blob);
-            if (result.reportBlob && result.reportName) {
-              await writeNewBatchOutput(selectedOutputDirectory, result.reportName, result.reportBlob);
+            await writeNewBatchOutput(selectedOutputDirectory, artifact.outputName, artifact.blob);
+            if (artifact.reportBlob && artifact.reportName) {
+              await writeNewBatchOutput(selectedOutputDirectory, artifact.reportName, artifact.reportBlob);
             }
             savedToDirectory = true;
           } catch (error) {
-            // A successfully muxed artifact is not a failed encode merely
-            // because optional directory persistence was refused or failed.
+            // A generated artifact survives optional directory-save failure.
             directorySaveError = error?.message || String(error);
           }
         }
-
-        const url = batchResultUrls.create(result.blob);
-        const reportUrl = batchResultUrls.create(result.reportBlob);
-        results.push({
-          job,
-          ok: true,
-          url,
-          outputName: result.outputName,
-          reportUrl,
-          reportName: result.reportName,
+        return {
+          url: batchResultUrls.create(artifact.blob),
+          reportUrl: batchResultUrls.create(artifact.reportBlob),
+          reportName: artifact.reportName,
           savedToDirectory,
           directorySaveError,
-        });
-        activeBatchJobLedger.transition(job.jobId, savedToDirectory
-          ? 'succeeded' : directorySaveError ? 'saveWarning' : 'awaitingSave',
-          { error: directorySaveError });
-      } catch (error) {
-        if (String(error?.message || error) === 'batch-cancelled') {
-          activeBatchJobLedger.transition(job.jobId, 'cancelled');
-          break;
-        }
-        const message = error?.message || String(error);
-        results.push({ job, ok: false, error: message });
-        activeBatchJobLedger.transition(job.jobId, 'failed', { error: message });
-      }
-
-      batchResults.innerHTML = results.map((item) => item.ok
-        ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>完成${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ''}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
-        : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
-      ).join('');
-    }
+        };
+      },
+      onResults: (currentResults) => {
+        batchResults.innerHTML = currentResults.map((item) => item.ok
+          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · 审计：${escapeHtml(item.auditStatus || '未完成')}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+          : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
+        ).join('');
+      },
+    });
+    results.push(...outcome.results);
+    batchFatalError = outcome.fatalError;
+    if (outcome.cancelled) batchCancelRequested = true;
   } catch (error) {
     // Preparation (notably Group font subsetting) and per-job setup happen
     // outside the per-item mux try/catch. These failures must be visible, not
