@@ -142,6 +142,14 @@ async function scenarioMultiTrack(browser) {
       JSON.stringify(report.audit?.fontPayloadAudit));
     assert.equal(report.audit?.fontPayloadAudit?.verified, 1);
     assert.equal(report.audit?.fontPayloadAudit?.total, 1);
+    // The finished MKV, not the uploaded .ass, is demuxed and checked for
+    // exact new-ASS Dialogue text/timing/order. Renderer fidelity is separate.
+    assert.equal(report.audit?.assEventAudit?.status, 'pass',
+      JSON.stringify(report.audit?.assEventAudit));
+    assert.equal(report.audit?.assEventAudit?.verified, 2);
+    assert.equal(report.audit?.assEventAudit?.total, 2);
+    assert.equal(report.audit?.assEventAudit?.fontRenderingVerified, false);
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(), /新增 ASS 事件成品回读：2\/2/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(), /新字体附件字节验证：1\/1/);
     // Real output audit evidence must stay separate from a blanket EBML claim.
     await page.locator('#outputEvidencePanel').waitFor({ state: 'visible' });
