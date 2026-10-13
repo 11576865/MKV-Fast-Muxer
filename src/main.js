@@ -1294,6 +1294,11 @@ function renderActualOutputEvidence() {
     counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
       .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
     `SHA-256：${model.sha256}`,
+    model.fontPayload?.status === 'pass'
+      ? `新字体附件字节验证：${model.fontPayload.verified}/${model.fontPayload.total} · SHA-256 一致`
+      : model.fontPayload && model.fontPayload.status !== 'not-requested'
+        ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
+        : '新字体附件字节验证：无新增字体',
   ].join(' | ');
   outputEvidenceIssues.textContent = model.issues.length
     ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
