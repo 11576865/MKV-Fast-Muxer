@@ -94,7 +94,7 @@ test('SSA, SRT, PGS and existing-only subtitles are explicitly outside v1 scope'
 test('shared real single/batch mux and output inspector wire exactly one audit owner', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const model = readFileSync(new URL('../src/container-workbench-evidence.js', import.meta.url), 'utf8');
-  assert.match(main, /auditProducedAssEvents\(\{/);
+  assert.match(main, /auditProducedAssEvents\(assAuditSource\)/);
   assert.match(main, /finalAudit\.assEventAudit = assEventAudit/);
   assert.match(main, /-map', '0:s:' \+ ordinal/);
   assert.match(main, /'-copyts', '-i', outputPath/);
