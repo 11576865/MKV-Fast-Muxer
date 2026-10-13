@@ -3314,6 +3314,9 @@ async function scenarioP0PreservationBlocksSingle(browser) {
       animations: 'disabled',
     });
 
+    // The live FFprobe inventory may still be finishing after the seek-based
+    // EBML preview. Wait until the media core is idle before bypass testing.
+    await waitForStatus(page, '轨道扫描完成：');
     // A programmatic event must not bypass the mandatory execution-time guard.
     // Exercise the *runtime* authorization path even if the native disabled
     // button suppresses synthetic click events. This is test-only UI tampering.
