@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { chromium } from 'playwright';
 import { verifiedCompatibilityEvidence } from '../../src/compatibility-evidence.js';
+import { parseAssDialogueEvents } from '../../src/ass-event-output-audit.js';
 import { createResearchFixture, pngBytes } from '../../scripts/r02-attachment-only-fixture.mjs';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
@@ -137,11 +138,31 @@ async function scenarioMultiTrack(browser) {
     assert.equal(report.fonts.duplicateCount, 1);
     assert.equal(report.externalAudio.length, 1);
     assert.equal(report.externalAudio[0].codec, 'flac');
+    // External system FFmpeg independently demuxes the actual downloaded
+    // artifact. Compare persisted ASS events and timing against both source
+    // subtitles, not against a mock output or planned track inventory.
+    for (const [index, filename] of ['zh.ass', 'en.ass'].entries()) {
+      const recovered = execFileSync('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error', '-copyts', '-i', output,
+        '-map', '0:s:' + index, '-c:s', 'ass', '-f', 'ass', '-',
+      ], { encoding: 'utf8' });
+      assert.deepEqual(parseAssDialogueEvents(recovered),
+        parseAssDialogueEvents(await fs.readFile(path.join(root, filename), 'utf8')),
+        'external FFmpeg must recover unchanged ASS Dialogue events for ' + filename);
+    }
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
     assert.equal(report.audit?.fontPayloadAudit?.status, 'pass',
       JSON.stringify(report.audit?.fontPayloadAudit));
     assert.equal(report.audit?.fontPayloadAudit?.verified, 1);
     assert.equal(report.audit?.fontPayloadAudit?.total, 1);
+    // The finished MKV, not the uploaded .ass, is demuxed and checked for
+    // exact new-ASS Dialogue text/timing/order. Renderer fidelity is separate.
+    assert.equal(report.audit?.assEventAudit?.status, 'pass',
+      JSON.stringify(report.audit?.assEventAudit));
+    assert.equal(report.audit?.assEventAudit?.verified, 2);
+    assert.equal(report.audit?.assEventAudit?.total, 2);
+    assert.equal(report.audit?.assEventAudit?.fontRenderingVerified, false);
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(), /新增 ASS 事件成品回读：2\/2/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(), /新字体附件字节验证：1\/1/);
     // Real output audit evidence must stay separate from a blanket EBML claim.
     await page.locator('#outputEvidencePanel').waitFor({ state: 'visible' });

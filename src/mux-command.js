@@ -44,7 +44,13 @@ export function buildMuxCommand({
   originalAttachmentCount = 0,
   fontAttachments = [],
 }) {
-  const args = ['-i', mainInputPath];
+  // When new ASS is mapped alongside audio streams with encoder-priming
+  // timestamps, ffmpeg.wasm may shift subtitle events on stream-copy mux.
+  // Preserve the input timeline only for this scoped ASS delivery path;
+  // production Chromium + independent demux must prove this correct.
+  const needsAssTimeline = newSubtitleTracks.some((track) =>
+    track.format?.id === 'ass' || /\.ass$/i.test(String(track.path || '')));
+  const args = needsAssTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];
 
   for (const track of externalAudioTracks) {
     args.push('-i', track.path);
@@ -174,6 +180,10 @@ export function buildMuxCommand({
     );
   });
 
+  // -copyts alone does not override the Matroska muxer's automatic
+  // avoid_negative_ts shifting. Keep source timeline intact for new ASS
+  // tracks; real browser output/packet evidence is the acceptance gate.
+  if (needsAssTimeline) args.push('-avoid_negative_ts', 'disabled');
   args.push(outputPath);
   return args;
 }
