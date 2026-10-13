@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 import { verifiedCompatibilityEvidence } from '../../src/compatibility-evidence.js';
 import { parseAssDialogueEvents } from '../../src/ass-event-output-audit.js';
 import { compareAssV4PlusStyles } from '../../src/ass-style-output-audit.js';
+import { verifyFinishedMkvAssRender } from '../../scripts/p3-final-ass-render-proof.mjs';
 import { createResearchFixture, pngBytes } from '../../scripts/r02-attachment-only-fixture.mjs';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
@@ -70,6 +71,42 @@ async function openApp(browser) {
   await page.goto(baseUrl, { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
   return { context, page };
+}
+
+async function scenarioP3FinalMkvRealLibassRendering(browser) {
+  console.log('P3 E2E: downloaded MKV ASS with unique embedded font renders identically to source reference');
+  const { context, page } = await openApp(browser);
+  try {
+    const ass = path.join(root, 'p3-embedded-proof.ass');
+    const font = path.join(root, 'P3EmbeddedProof.ttf');
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', ass);
+    await page.setInputFiles('#fontInput', font);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const finished = path.join(outDir, 'p3-real-libass-delivery.mkv');
+    const reportFile = path.join(outDir, 'p3-real-libass-delivery.report.json');
+    await saveDownload(page, '#downloadLink', finished);
+    await saveDownload(page, '#reportLink', reportFile);
+    const report = JSON.parse(await fs.readFile(reportFile, 'utf8'));
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.assEventAudit?.status, 'pass');
+    assert.equal(report.audit?.assStyleAudit?.status, 'pass');
+    assert.equal(report.audit?.fontPayloadAudit?.status, 'pass');
+    const result = await verifyFinishedMkvAssRender({
+      finalMkv: finished, sourceAss: ass, sourceFont: font, outputDir: outDir,
+    });
+    assert.equal(result.code, 'PASS_P3_NAMED_FIXTURE');
+    // Independent libass render is a CI fixture proof, not a general browser
+    // playback claim. Preserve the separate browser audit's truthful scope.
+    assert.equal(report.compatibility?.playback?.verified, false);
+    assert.equal(report.audit?.assEventAudit?.fontRenderingVerified, false);
+    assert.equal(report.audit?.assStyleAudit?.fontRenderingVerified, false);
+    console.log('P3 final MKV independent libass rendered-pixel and embedded-font proof PASS');
+  } finally {
+    await context.close();
+  }
 }
 
 async function scenarioMultiTrack(browser) {
@@ -3957,6 +3994,7 @@ try {
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
+  await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioRenamedMediaIdentity(browser);
   await scenarioRenamedFontIdentity(browser);
   await scenarioCompatibilityEvidenceMatrix(browser);

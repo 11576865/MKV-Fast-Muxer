@@ -25,6 +25,49 @@ for font in collection.fonts:
     font.close()
 PY
 
+# P3 renderer proof: a genuine SFNT font with a unique internal family.
+# This family is deliberately absent from CI's installed system font corpus.
+# The rendered artifact must use the font attached INSIDE the produced MKV,
+# rather than pass accidentally through a system DejaVu fallback.
+"$PYTHON" - "$FONT_REGULAR" "$ROOT/P3EmbeddedProof.ttf" <<'PY'
+from fontTools.ttLib import TTFont
+import sys
+
+source, destination = sys.argv[1:]
+font = TTFont(source)
+names = {
+    1: "UIGS P3 Embedded Proof",
+    3: "UIGS P3 Embedded Proof; Regular; CI",
+    4: "UIGS P3 Embedded Proof Regular",
+    6: "UIGSP3EmbeddedProof-Regular",
+    16: "UIGS P3 Embedded Proof",
+    17: "Regular",
+}
+for record in font["name"].names:
+    if record.nameID in names:
+        font["name"].setName(names[record.nameID], record.nameID,
+                             record.platformID, record.platEncID,
+                             record.langID)
+font.save(destination)
+font.close()
+assert TTFont(destination)["name"].getBestFamilyName() == "UIGS P3 Embedded Proof"
+PY
+
+cat > "$ROOT/p3-embedded-proof.ass" <<'ASS'
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 320
+PlayResY: 180
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Proof,UIGS P3 Embedded Proof,28,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,1,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.20,0:00:01.80,Proof,,0,0,0,,{\bord2\shad1}Embedded final-MKV proof 9417
+ASS
+
 mkdir -p "$ROOT/font-a" "$ROOT/font-b"
 cp "$FONT_REGULAR" "$ROOT/font-a/Same.ttf"
 cp "$FONT_BOLD" "$ROOT/font-b/Same.ttf"

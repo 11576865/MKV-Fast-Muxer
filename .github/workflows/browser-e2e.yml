@@ -131,6 +131,24 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      # Production-facing release gate: rendered pixels from the finished
+      # browser-generated MKV, with independently extracted unique font.
+      # The JSON verdict and PNG controls are uploaded even on failure.
+      - name: Upload P3 final-MKV independent libass rendering evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-final-mkv-libass-render-proof
+          path: |
+            .e2e/output/p3-final-ass-render-evidence.json
+            .e2e/output/p3-libass-source.png
+            .e2e/output/p3-libass-demuxed.png
+            .e2e/output/p3-libass-final.png
+            .e2e/output/p3-libass-altered.png
+            .e2e/output/p3-libass-blank.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload R-02 browser-created writer candidate evidence
         if: always()
         uses: actions/upload-artifact@v4
