@@ -1281,6 +1281,28 @@ body { background: var(--bg); }
   border-bottom: 1px solid var(--line-strong);
 }
 .composition-head h3 { margin: 0; font-size: .96rem; color: var(--text-strong); }
+.composition-header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.composition-header-tools > .button {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: .69rem;
+  white-space: nowrap;
+}
+.composition-header-tools > .button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .composition-header-tools { width: 100%; justify-content: space-between; }
+}
+
 .composition-count { font-size: .72rem; color: var(--muted); overflow-wrap: anywhere; text-align: right; }
 .composition-tracks { display: grid; min-width: 0; }
 .composition-row {
