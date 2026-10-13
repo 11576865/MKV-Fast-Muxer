@@ -130,6 +130,7 @@ test('multi-attachment mode refuses duplicate names, missing slot, original atta
   const source = file(mkv({ voidSize: 4000 }), 'multi.mkv');
   const first = file(Buffer.from('a'), 'same.txt');
   const second = file(Buffer.from('b'), 'same.txt');
+  const distinct = file(Buffer.from('b'), 'distinct.txt');
   await assert.rejects(prepareVerifiedLimitedAppendMultiple({
     source, attachments: [
       { file: first, filename: 'same.txt', mimeType: 'text/plain' },
@@ -138,11 +139,11 @@ test('multi-attachment mode refuses duplicate names, missing slot, original atta
   }), /APPEND_FILENAME_REVIEW_REQUIRED|APPEND_DUPLICATE_ATTACHMENT_OUTPUT_NAME/);
   await assert.rejects(prepareVerifiedLimitedAppendMultiple({
     source: file(mkv({ existing: true }), 'old.mkv'),
-    attachments: [{ file: first, mimeType: 'text/plain' }, { file: second, mimeType: 'text/plain' }],
+    attachments: [{ file: first, mimeType: 'text/plain' }, { file: distinct, mimeType: 'text/plain' }],
   }), /APPEND_EXISTING_ATTACHMENTS_NOT_SUPPORTED/);
   await assert.rejects(prepareVerifiedLimitedAppendMultiple({
     source: file(mkv({ voidSize: 10 }), 'small-slot.mkv'),
-    attachments: [{ file: first, mimeType: 'text/plain' }, { file: second, mimeType: 'text/plain' }],
+    attachments: [{ file: first, mimeType: 'text/plain' }, { file: distinct, mimeType: 'text/plain' }],
   }), /APPEND_VOID_SLOT_CAPACITY_EXCEEDED/);
   const large = file(new Uint8Array(3 * 1024 * 1024), 'a.bin');
   await assert.rejects(prepareVerifiedLimitedAppendMultiple({
