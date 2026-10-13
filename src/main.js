@@ -25,6 +25,7 @@ import {
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
+import { preservationReadiness } from './preservation-readiness.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchOutput } from './batch-output.js';
@@ -128,6 +129,9 @@ const compositionTracks = $('compositionTracks');
 const compositionCount = $('compositionCount');
 const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
+const preservationReadinessEl = $('preservationReadiness');
+const preservationReadinessTitle = $('preservationReadinessTitle');
+const preservationReadinessDescription = $('preservationReadinessDescription');
 const compositionSourceEvidence = $('compositionSourceEvidence');
 const compositionSourceSummary = $('compositionSourceSummary');
 const compositionSourceEvidenceList = $('compositionSourceEvidenceList');
@@ -377,6 +381,8 @@ let previewCueTimes = [];
 let previewCueIndex = -1;
 let videoSniffGeneration = 0;
 let videoSniffPromise = Promise.resolve();
+let preservationPreviewGeneration = 0;
+let preservationPreview = { source: null, state: 'idle', inspection: null };
 let importedAssetEntries = [];
 const containerTreeExpansion = new Map();
 const containerTreeAdvancedExpansion = new Map();
@@ -698,6 +704,52 @@ function fileKey(file) {
   return file ? `${file.name}|${file.size}|${file.lastModified}` : '';
 }
 
+function currentPreservationReadiness() {
+  return preservationReadiness({
+    source: videoInput.files?.[0] || null,
+    inspectionSource: preservationPreview.source,
+    state: preservationPreview.state,
+    inspection: preservationPreview.inspection,
+  });
+}
+
+function renderPreservationReadiness() {
+  if (!preservationReadinessEl) return;
+  const model = currentPreservationReadiness();
+  preservationReadinessEl.dataset.status = model.status;
+  preservationReadinessEl.hidden = model.status === 'idle' || model.status === 'not-applicable';
+  preservationReadinessTitle.textContent = model.title;
+  preservationReadinessDescription.textContent = model.description;
+}
+
+/** Advisory preview only; the executor re-runs inspectMatroskaPreservation. */
+function beginPreservationPreview() {
+  const source = videoInput.files?.[0] || null;
+  const generation = ++preservationPreviewGeneration;
+  preservationPreview = { source, state: source ? 'checking' : 'idle', inspection: null };
+  renderPreservationReadiness();
+  if (!source) return;
+  void Promise.resolve(videoSniffPromise).then(async () => {
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    const identity = selectedVideoHeaderIdentity(source);
+    if (identity && !['matroska', 'matroska-webm'].includes(identity.container)) {
+      preservationPreview = { source, state: 'not-applicable', inspection: null };
+    } else {
+      const inspection = await inspectMatroskaPreservation(source);
+      if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+      preservationPreview = { source, state: 'ready', inspection };
+    }
+    updateUI();
+  }).catch((error) => {
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    preservationPreview = {
+      source, state: 'ready',
+      inspection: { state: 'BLOCKED_UNKNOWN', reasons: [error?.message || String(error)] },
+    };
+    updateUI();
+  });
+}
+
 function selectedVideoHeaderIdentity(video = videoInput.files[0]) {
   if (!video) return null;
   if (videoSniffState.fileKey !== fileKey(video)) return null;
@@ -998,7 +1050,8 @@ function updateUI() {
     importInProgress ||
     (importedAssetEntries.length > 0 && (importRoles.needsSourceChoice || importRoles.unknown.length > 0)) ||
     collectedSubs.invalid.length > 0 ||
-    fontRecognition.ignored.length > 0;
+    fontRecognition.ignored.length > 0 ||
+    currentPreservationReadiness().blocking;
   cancelBtn.disabled = !busy;
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -1226,6 +1279,7 @@ function renderActualOutputEvidence() {
 
 function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
+  renderPreservationReadiness();
   const source = videoInput.files?.[0] || null;
   const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
   const containerDocument = buildContainerDocument({
@@ -1714,6 +1768,7 @@ videoInput.addEventListener('change', () => {
   destroySubtitlePreview();
   clearPreviewImage();
   videoSniffPromise = inspectSelectedVideoHeader();
+  beginPreservationPreview();
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
