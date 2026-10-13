@@ -198,6 +198,10 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     assert.ok(project.objects.length > 0);
     assert.ok(project.sources.every(src => src.authorization === 'requires-relink'));
     assert.equal(project.fileHandles, undefined);
+    assert.equal(project.sources.length, 1);
+    assert.equal(project.sources[0].sha256,
+      createHash('sha256').update(await fs.readFile(path.join(root,'base.mp4'))).digest('hex'),
+      'the downloaded detached draft must commit to the full actual source bytes');
 
     // Actually roundtrip the browser-downloaded draft back through the
     // always-visible project control. Review is detached: neither old source
@@ -209,8 +213,32 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     assert.equal(await page.locator('#containerProjectImportReview').isVisible(), true);
     assert.match(await page.locator('#containerProjectImportReview').textContent(), /来源字节一致|来源身份不同或未关联/);
     assert.match(await page.locator('#containerProjectImportReview').textContent(), /未恢复编辑状态、封装权限或媒体文件/);
+    assert.equal(await page.locator('#containerProjectVerifySourceBtn').isVisible(), true);
+    assert.equal(await page.locator('#containerProjectVerifySourceBtn').isDisabled(), false);
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state === 'digest-matches-draft');
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /完整源文件 SHA-256/);
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /未恢复编辑状态、封装权限或媒体文件/);
     assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
     assert.equal(await page.locator('#batchResults a.download').count(), 0);
+
+    // Altering the claimed hash in an otherwise schema-valid draft cannot
+    // authorize replay even when displayed source name/size/time match.
+    const wrongDigestProject = {
+      ...project, sources: [{ ...project.sources[0], sha256:'0'.repeat(64) }],
+    };
+    await page.setInputFiles('#containerProjectImportInput', {
+      name:'wrong-digest-project.json', mimeType:'application/json',
+      buffer:Buffer.from(JSON.stringify(wrongDigestProject)),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '').includes('已读取工程草稿'));
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state === 'digest-mismatch');
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /不得恢复原编辑意图/);
+    assert.equal(await page.locator('#batchResults a.download').count(),0);
 
     // Forged writer authority must be rejected; current File and draft
     // capabilities may not change in response to malicious project JSON.
