@@ -180,6 +180,10 @@ export function buildMuxCommand({
     );
   });
 
+  // -copyts alone does not override the Matroska muxer's automatic
+  // avoid_negative_ts shifting. Keep source timeline intact for new ASS
+  // tracks; real browser output/packet evidence is the acceptance gate.
+  if (needsAssTimeline) args.push('-avoid_negative_ts', 'disabled');
   args.push(outputPath);
   return args;
 }
