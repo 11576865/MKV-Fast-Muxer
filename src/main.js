@@ -1955,9 +1955,15 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    status.textContent = digest
+    const orderNotPortable = scannedSourceFile === source &&
+      trackState?.fileKey === fileKey(source) &&
+      trackState.tracks.some(track => track.order !== track.index);
+    status.textContent = (digest
       ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
-      : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。';
+      : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。') +
+      (orderNotPortable
+        ? ' 注意：当前轨道上下排序只在本次会话有效，草稿重新导入不会恢复轨道顺序。'
+        : '');
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
