@@ -138,7 +138,7 @@ export async function verifyFinishedMkvAssRender({
     'test fixture font and ASS must share the same isolated reference font folder');
   await fs.mkdir(dir, { recursive: true });
 
-  const paths = Object.fromEntries(['source', 'final', 'altered', 'blank']
+  const paths = Object.fromEntries(['source', 'demuxed', 'final', 'altered', 'blank']
     .map(name => [name, path.join(dir, 'p3-libass-' + name + '.png')]));
   const evidencePath = path.join(dir, 'p3-final-ass-render-evidence.json');
   try {
@@ -157,7 +157,9 @@ export async function verifyFinishedMkvAssRender({
       item => item.file_name === path.basename(font));
     assert.ok(attachment && Number.isInteger(attachment.id),
       'finished MKV must carry the named independently extractable font');
-    const extractedFont = path.join(dir, 'p3-final-extracted-font.ttf');
+    const extractedFontDir = path.join(dir, 'p3-final-fonts-only');
+    await fs.mkdir(extractedFontDir, { recursive: true });
+    const extractedFont = path.join(extractedFontDir, path.basename(font));
     execFileSync('mkvextract', ['attachments', output,
       String(attachment.id) + ':' + extractedFont], { timeout: 30_000 });
     assert.deepEqual(await fs.readFile(extractedFont), await fs.readFile(font),
@@ -176,6 +178,19 @@ export async function verifyFinishedMkvAssRender({
       filter: 'ass=filename=' + staged + ':fontsdir=' + fontDir,
       destination: paths.source,
     });
+    // Independently extract actual ASS from the downloaded final container.
+    // The source and demuxed ASS are then rendered through the SAME ass filter
+    // with separately isolated original/attached font files.
+    const demuxedAss = path.join(dir, 'p3-final-demuxed.ass');
+    execFileSync('ffmpeg', [
+      '-hide_banner', '-loglevel', 'error', '-copyts', '-i', output,
+      '-map', '0:s:0', '-c:s', 'ass', '-f', 'ass', '-y', demuxedAss,
+    ], { timeout: 30_000 });
+    const demuxedLog = renderPng({
+      filter: 'ass=filename=' + p3RenderFilterPath(demuxedAss) +
+        ':fontsdir=' + p3RenderFilterPath(extractedFontDir),
+      destination: paths.demuxed,
+    });
     const finalLog = renderPng({
       filter: 'subtitles=filename=' + output + ':si=0',
       destination: paths.final,
@@ -187,10 +202,14 @@ export async function verifyFinishedMkvAssRender({
     renderPng({ filter: '', destination: paths.blank });
     const verdict = p3RenderProofVerdict({
       sourcePng: await fs.readFile(paths.source),
+      demuxedPng: await fs.readFile(paths.demuxed),
       finishedPng: await fs.readFile(paths.final),
       alteredPng: await fs.readFile(paths.altered),
       blankPng: await fs.readFile(paths.blank),
-      sourceLog, finalLog,
+      sourceLog, demuxedLog, finalLog,
+      directSsim: renderSsim(paths.source, paths.final),
+      tamperedSsim: renderSsim(paths.source, paths.altered),
+      blankSsim: renderSsim(paths.source, paths.blank),
     });
     assert.equal(verdict.ok, true,
       'P3 final-MKV independent libass pixel/embedded font gate: ' + verdict.code);
