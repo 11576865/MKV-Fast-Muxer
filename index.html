@@ -145,25 +145,26 @@
               <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
             </details>
             <details id="existingMkvLimitedDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-limited-title">
-              <summary id="existing-mkv-limited-title">受限写入实验：为符合资格的已有 MKV 增加一个附件</summary>
-              <p class="attachment-extraction-help">独立生成新副本，不覆盖原文件，也不通过 FFmpeg 重封装。仅限小于 60 MiB、无原附件且存在足够预留 Void 的特定布局；不支持已有附件增删改、常规大视频或任意复杂 Matroska。来源文件包含的私密内容仍会完整保留到副本中。</p>
+              <summary id="existing-mkv-limited-title">受限写入实验：为符合资格的已有 MKV 新增 1–8 个附件</summary>
+              <p class="attachment-extraction-help">独立生成新副本，不覆盖原文件，不经 FFmpeg 重封装。仅限来源小于 60 MiB、无原附件、存在足够预留 Void 的布局；可一次新增 1–8 个附件，总计最多 4 MiB。多个附件保留各自原文件名及 MIME 声明，重复或不安全名称将拒绝而非自动修改。无法删除或修改原附件，不适用于一般大型 MKV。来源中的私密内容仍会完整保留在副本中。</p>
               <div class="existing-mkv-limited-fields">
                 <label>现有 Matroska 来源
                   <input id="existingMkvLimitedSource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择要在独立副本中新增附件的原始 Matroska 文件" />
                 </label>
-                <label>新增单个附件
-                  <input id="existingMkvLimitedAttachment" type="file" aria-label="选择要添加到 Matroska 副本中的单个附件文件" />
+                <label>新增附件（可多选）
+                  <input id="existingMkvLimitedAttachment" type="file" multiple aria-label="选择要添加到 Matroska 副本中的单个附件文件" />
                 </label>
-                <label>拟写入的附件名称
+                <div id="existingMkvLimitedInventory" class="existing-mkv-limited-evidence" aria-live="polite"></div>
+                <label>单附件模式：拟写入的名称
                   <input id="existingMkvLimitedFilename" type="text" maxlength="240" placeholder="例如 notes.txt" aria-label="拟写入的附件文件名" />
                 </label>
-                <label>声明的 MIME 类型
+                <label>单附件模式：声明 MIME 类型
                   <input id="existingMkvLimitedMime" type="text" maxlength="100" placeholder="例如 text/plain" aria-label="拟写入附件的 MIME 类型声明" />
                 </label>
               </div>
               <label class="multi-attachment-review">
                 <input id="existingMkvLimitedReview" type="checkbox" />
-                我已检查来源与新增内容，理解此操作只支持已验证的极窄文件布局；浏览器本地字节校验不等于任意外部播放器兼容或所有 EBML 语义获证明；文件名若需要调整则必须先手动修改。
+                我已逐项检查来源与新增的所有附件，理解此操作只支持已验证的极窄文件布局；浏览器本地字节校验不等于任意外部播放器兼容或所有 EBML 语义获证明；文件名若需要调整则必须先手动修改。
               </label>
               <div class="png-only-experiment-actions">
                 <button id="existingMkvLimitedPrepare" class="button button-small" type="button" disabled>检查资格并生成受限副本</button>
