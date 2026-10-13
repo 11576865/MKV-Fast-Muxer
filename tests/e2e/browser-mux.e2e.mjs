@@ -9,6 +9,7 @@ import { verifiedCompatibilityEvidence } from '../../src/compatibility-evidence.
 import { parseAssDialogueEvents } from '../../src/ass-event-output-audit.js';
 import { compareAssV4PlusStyles } from '../../src/ass-style-output-audit.js';
 import { verifyFinishedMkvAssRender } from '../../scripts/p3-final-ass-render-proof.mjs';
+import { verifyP3DynamicMkv } from '../../scripts/p3-dynamic-ass-render-proof.mjs';
 import { createResearchFixture, pngBytes } from '../../scripts/r02-attachment-only-fixture.mjs';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
@@ -104,6 +105,41 @@ async function scenarioP3FinalMkvRealLibassRendering(browser) {
     assert.equal(report.audit?.assEventAudit?.fontRenderingVerified, false);
     assert.equal(report.audit?.assStyleAudit?.fontRenderingVerified, false);
     console.log('P3 final MKV independent libass rendered-pixel and embedded-font proof PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioP3DynamicAssDelivery(browser) {
+  console.log('P3 dynamic E2E: actual browser MKV preserves move, transition and karaoke frames');
+  const { context, page } = await openApp(browser);
+  try {
+    const ass = path.join(root, 'p3-dynamic-proof.ass');
+    const font = path.join(root, 'P3EmbeddedProof.ttf');
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', ass);
+    await page.setInputFiles('#fontInput', font);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+
+    const finished = path.join(outDir, 'p3-dynamic-delivery.mkv');
+    const reportFile = path.join(outDir, 'p3-dynamic-delivery.report.json');
+    await saveDownload(page, '#downloadLink', finished);
+    await saveDownload(page, '#reportLink', reportFile);
+    const report = JSON.parse(await fs.readFile(reportFile, 'utf8'));
+    assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.assEventAudit?.status, 'pass');
+    assert.equal(report.audit?.assStyleAudit?.status, 'pass');
+    assert.equal(report.audit?.fontPayloadAudit?.status, 'pass');
+
+    const verdict = await verifyP3DynamicMkv({
+      finalMkv: finished, sourceAss: ass, sourceFont: font, outputDir: outDir,
+    });
+    assert.equal(verdict.code, 'PASS_P3_DYNAMIC_NAMED_FIXTURE');
+    assert.equal(verdict.samples.length, 4);
+    assert.equal(verdict.controls.length, 3);
+    assert.equal(report.compatibility?.playback?.verified, false);
+    console.log('P3 dynamic final-MKV 4 subsecond snapshots and 3 effect negative controls PASS');
   } finally {
     await context.close();
   }
@@ -3501,6 +3537,14 @@ async function scenarioP0PreservationBlocksSingle(browser) {
     // The live FFprobe inventory may still be finishing after the seek-based
     // EBML preview. Wait until the media core is idle before bypass testing.
     await waitForStatus(page, '轨道扫描完成：');
+    // scanSourceContainer writes its success status BEFORE the finally block
+    // clears scanning/isBusy and refreshes the controls. A synthetic click at
+    // that instant is correctly ignored by executeCurrentMuxTask and never
+    // reaches the runtime preservation guard. Wait for its real idle control
+    // projection, not an arbitrary sleep or an increased status timeout.
+    await page.waitForFunction(() =>
+      document.querySelector('#cancelBtn')?.disabled === true,
+      null, { timeout: 30_000 });
     // A programmatic event must not bypass the mandatory execution-time guard.
     // Exercise the *runtime* authorization path even if the native disabled
     // button suppresses synthetic click events. This is test-only UI tampering.
@@ -3995,6 +4039,7 @@ try {
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
+  await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);
   await scenarioRenamedFontIdentity(browser);
   await scenarioCompatibilityEvidenceMatrix(browser);
