@@ -149,3 +149,25 @@ export function applyPreparedTrackReplay(plan, trackState) {
     fileWritten: false, muxStarted: false, executionAuthorized: false,
   });
 }
+
+/** Scoped, safe inverse: only undo if all touched tracks still equal the
+ * exact values this transaction produced. Never re-run a detached JSON. */
+export function revertPreparedTrackReplay(plan, trackState) {
+  if (plan?.schema !== TRACK_REPLAY_SCHEMA ||
+      !trackState || plan.sourceScanKey !== trackState.fileKey ||
+      !Array.isArray(trackState.tracks))
+    throw Error('TRACK_REPLAY_UNDO_STALE');
+  const targets = [];
+  for (const patch of plan.tracks) {
+    const track = trackState.tracks.find(row =>
+      row.index === patch.index && row.type === patch.kind);
+    if (!track || !equal(capture(track), patch.after))
+      throw Error('TRACK_REPLAY_UNDO_CONFLICT');
+    targets.push([track, patch.before]);
+  }
+  for (const [track, before] of targets) {
+    for (const field of FIELDS) track[field] = before[field];
+  }
+  return freeze({ status: 'reverted-in-current-edit-plan',
+    revertedTracks: targets.length, fileWritten: false, muxStarted: false });
+}
