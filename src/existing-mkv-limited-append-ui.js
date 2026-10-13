@@ -129,7 +129,10 @@ export function setupExistingMkvLimitedAppendUI({
           ? selected()[0].type || 'application/octet-stream' : '';
         renderInventory();
       }
-      if (input === sourceInput || input === attachmentInput) review.checked = false;
+      // Some input methods commit only a change event rather than an input
+      // event; metadata review must be revoked for either event type.
+      if (input === sourceInput || input === attachmentInput ||
+          input === filenameInput || input === mimeInput) review.checked = false;
       announce('附件与来源已改变。请确认名称和 MIME，然后明确授权生成独立副本。');
       controls();
     });
