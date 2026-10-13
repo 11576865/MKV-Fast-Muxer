@@ -19,6 +19,6 @@ export function formatBatchTerminalStatus({
     return `批量中断：${fatalError}。已完成 ${done}，单项失败 ${failed}。${saveWarning}${auditWarning}`;
   }
   return cancelled
-    ? `批量已取消：完成 ${done}，失败 ${failed}。${saveWarning}`
-    : `批量完成：成功 ${done}，失败 ${failed}。${saveWarning}`;
+    ? `批量已取消：完成 ${done}，失败 ${failed}。${saveWarning}${auditWarning}`
+    : `批量完成：成功 ${done}，失败 ${failed}。${saveWarning}${auditWarning}`;
 }
