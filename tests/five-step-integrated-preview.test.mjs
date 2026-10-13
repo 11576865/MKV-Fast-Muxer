@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {
   createContainerProject, applyContainerProjectEdit,
   undoContainerProjectEdit, serializeContainerProject,
+  createContainerProjectFromProjection,
 } from '../src/container-project.js';
 import {
   resolveContainerCapabilities, summarizeContainerCapability,
 } from '../src/container-capabilities.js';
+import { buildBatchJobsFromCollected } from '../src/batch.js';
 import {
   BATCH_RECIPE_MAX_BYTES, buildBatchRecipe, parseBatchRecipe,
   stringifyBatchRecipe, recipeApplyPreview,
@@ -115,4 +117,43 @@ test('P3-B malicious/obsolete recipes fail closed and never gain execution autho
   assert.throws(() => parseBatchRecipe(JSON.stringify({ ...original, fileHandles: ['source.mkv'] })), /RECIPE_SCHEMA_UNSUPPORTED/);
   assert.throws(() => parseBatchRecipe(JSON.stringify({ ...original, policy: { ...original.policy, subsetScope: 'evil' } })), /INVALID_RECIPE_VALUES/);
   assert.throws(() => parseBatchRecipe(JSON.stringify({ ...original, policy: { ...original.policy, subsetEnabled: 'yes' } })), /INVALID_RECIPE_VALUES/);
+});
+
+test('P1 migration bridge creates stable semantic identities from live composition projection', () => {
+  const snapshot = {
+    schema: 'container-document-projection-v0', sourceKey: 'source.mkv|42|100',
+    source: { name: 'source.mkv', identityEvidence: 'file-path-size-lastModified' },
+    objects: [
+      { id: 'source:subtitle:2', kind: 'subtitle', title: 'original', evidence: 'ffprobe-stream', included: true },
+      { id: 'new:font:0', kind: 'font', title: 'UserFont.ttf', evidence: 'current-editor-projection', included: true },
+      { id: 'source:chapter:0', kind: 'chapter', title: 'Intro', evidence: 'ffprobe-flat-chapter', included: true },
+    ],
+  };
+  const p = createContainerProjectFromProjection(snapshot);
+  const reordered = createContainerProjectFromProjection({ ...snapshot, objects: snapshot.objects.slice().reverse() });
+  assert.equal(p.documentId, reordered.documentId);
+  assert.deepEqual(p.objects.map(o => o.id).sort(), reordered.objects.map(o => o.id).sort());
+  assert.equal(p.objects[1].kind, 'attachment');
+  assert.equal(p.objects[0].sourceId, p.sources[0].id);
+  assert.equal(p.objects[1].sourceId, null);
+  assert.equal(p.authorization, 'requires-relink');
+  assert.throws(() => createContainerProjectFromProjection({ ...snapshot, schema: 'unexpected' }), /UNKNOWN_PROJECTION_SCHEMA/);
+});
+test('P3-B twenty episodes can be modeled as 20 separate output compositions without a hidden UI queue', () => {
+  const videos = Array.from({ length: 20 }, (_, i) => ({
+    name: 'Drama S01E' + String(i+1).padStart(2,'0') + '.mp4',
+    size: 10, lastModified: 1,
+  }));
+  const tracks = videos.map((v, i) => ({
+    file: { name: 'Drama S01E' + String(i+1).padStart(2,'0') + '.zh.ass' },
+    format: { id: 'ass', label: 'ASS' },
+  }));
+  const p = buildBatchJobsFromCollected(videos, { tracks });
+  assert.equal(p.jobs.length, 20);
+  assert.equal(new Set(p.jobs.map(j => j.outputName)).size, 20);
+  assert.equal(p.ambiguousPairings.length, 0);
+  assert.equal(p.unmatchedVideos.length, 0);
+  assert.equal(p.outputNameCollisions.length, 0);
+  // This is a plan-level 20-job fixture, NOT a claim that 20 real files
+  // were muxed, audited, persisted or stress-tested on any device.
 });
