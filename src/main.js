@@ -30,6 +30,8 @@ import {
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
 import { preservationReadiness } from './preservation-readiness.js';
+import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
+import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
@@ -148,6 +150,7 @@ const compositionCount = $('compositionCount');
 const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
 const preservationReadinessEl = $('preservationReadiness');
+const containerCapabilitySummary = $('containerCapabilitySummary');
 const preservationReadinessTitle = $('preservationReadinessTitle');
 const preservationReadinessDescription = $('preservationReadinessDescription');
 const compositionSourceEvidence = $('compositionSourceEvidence');
@@ -193,6 +196,9 @@ const batchCancelBtn = $('batchCancelBtn');
 const batchPreserveAttachments = $('batchPreserveAttachments');
 const batchFontSubsetEnabled = $('batchFontSubsetEnabled');
 const batchSubsetScope = $('batchSubsetScope');
+const batchRecipeExportBtn = $('batchRecipeExportBtn');
+const batchRecipeImportInput = $('batchRecipeImportInput');
+const batchRecipeNotice = $('batchRecipeNotice');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
@@ -1359,6 +1365,26 @@ function renderOutputComposition() {
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
   const model = containerDocument.composition;
+  if (containerCapabilitySummary) {
+    const caps = resolveContainerCapabilities({
+      hasSource: Boolean(source),
+      sourceContainer: selectedVideoHeaderIdentity(source)?.container || 'unknown',
+      sourceInspected: Boolean(scanned),
+      hasVideo: Boolean(scanned?.streams?.some(stream => stream.codec_type === 'video')),
+      preservationStatus: currentPreservationReadiness().status,
+    });
+    const items = summarizeContainerCapability(caps);
+    const shown = [items[0], items[1]];
+    containerCapabilitySummary.textContent = shown
+      .map(item => item.label + '：' + ({
+        'available': '可用', 'requires-preflight': '需预检', 'blocked': '阻断',
+        'unsupported': '不支持', 'experimental': '实验', 'unverified': '未验证',
+        'requires-source': '需来源',
+      }[item.status] || '未验证')).join(' · ');
+    containerCapabilitySummary.title = items.map(item =>
+      item.label + ' [' + item.status + '] ' + item.reason).join('\n');
+    containerCapabilitySummary.dataset.muxStatus = caps.mux.status;
+  }
   selectedCompositionId = reconcileContainerSelection(containerDocument, lastCompositionSourceKey, selectedCompositionId);
   lastCompositionSourceKey = containerDocument.sourceKey;
   outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
@@ -5299,6 +5325,60 @@ batchSubsetScope?.addEventListener('change', () => {
   if (batchRunning || batchStartPending) return;
   activeBatchJobLedger = null;
   requestBatchPlanSync();
+});
+// A portable Recipe saves ONLY explicit policies. It never stores browser File
+// handles, destination permissions, output Blobs or a runnable JobPlan.
+batchRecipeExportBtn?.addEventListener('click', () => {
+  if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
+  try {
+    const recipe = buildBatchRecipe({
+      policy: {
+        preserveAttachments: Boolean(batchPreserveAttachments.checked),
+        subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
+        subsetScope: batchSubsetScope.value,
+      },
+    });
+    const url = URL.createObjectURL(new Blob([stringifyBatchRecipe(recipe)], {
+      type: 'application/json;charset=utf-8',
+    }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mkv-batch-recipe-v1.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    batchRecipeNotice.textContent = '规则已导出；素材、权限及成品不包含在配方中。';
+  } catch (error) {
+    batchRecipeNotice.textContent = '导出配方失败：' + (error?.message || String(error));
+  }
+});
+batchRecipeImportInput?.addEventListener('change', async () => {
+  const file = batchRecipeImportInput.files?.[0];
+  batchRecipeImportInput.value = '';
+  if (!file) return;
+  if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) {
+    batchRecipeNotice.textContent = '工作中不能导入配方，请等待本次任务结束。';
+    return;
+  }
+  try {
+    if (file.size > BATCH_RECIPE_MAX_BYTES) throw Error('RECIPE_TOO_LARGE');
+    const parsed = parseBatchRecipe(await file.text());
+    const preview = recipeApplyPreview(parsed, {
+      hasSelectedSources: Boolean(batchVideoFiles().length),
+    });
+    // No implicit restoration of manual source pairings or old save paths.
+    batchManualAssignments.clear();
+    selectedBatchVideoFile = null;
+    activeBatchJobLedger = null;
+    batchPreserveAttachments.checked = preview.policy.preserveAttachments;
+    batchFontSubsetEnabled.checked = preview.policy.subsetEnabled;
+    batchSubsetScope.value = preview.policy.subsetScope;
+    batchRecipeNotice.textContent = preview.notice;
+    await requestBatchPlanSync();
+  } catch (error) {
+    batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
+  }
 });
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
