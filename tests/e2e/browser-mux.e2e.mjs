@@ -4368,47 +4368,52 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
 }
 
 async function scenarioStreamedSourceDigestBrowser(browser) {
-  console.log('E2E P1: browser complete SHA-256 handles >64 MiB with bounded slices and cancellation');
+  console.log('E2E P1: real workbench exports and verifies >64 MiB complete SHA-256');
   const { context, page } = await openApp(browser);
   try {
-    const result = await page.evaluate(async () => {
-      const { hashBoundedProjectSource, PROJECT_SOURCE_HASH_FAST_BYTES } =
-        await import('/src/container-project-source-proof.js');
-      const source = new File(
-        [new Uint8Array(PROJECT_SOURCE_HASH_FAST_BYTES + 13).fill(0x61)],
-        'large-media.mkv', { type: 'video/x-matroska' },
-      );
-      const progress = [];
-      const digest = await hashBoundedProjectSource(source, {
-        onProgress: ({ bytesHashed }) => progress.push(bytesHashed),
-      });
-      const abort = new AbortController();
-      let reads = 0;
-      let refused = false;
-      try {
-        await hashBoundedProjectSource(source, {
-          fastBytes: 0, signal: abort.signal,
-          onProgress: () => { if (++reads === 2) abort.abort(); },
-        });
-      } catch (error) {
-        refused = error.message === 'PROJECT_SOURCE_HASH_ABORTED';
-      }
-      return {
-        digest, progressCount: progress.length,
-        lastProgress: progress.at(-1), size: source.size,
-        aborted: refused, cancelReads: reads,
-      };
+    const prefix = await fs.readFile(path.join(root, 'base.mp4'));
+    const bytes = Buffer.alloc(65 * 1024 * 1024 + 13, 0x61);
+    assert.ok(prefix.length < bytes.length);
+    prefix.copy(bytes);
+    const expected = createHash('sha256').update(bytes).digest('hex');
+    // A valid MP4 prefix avoids MKV auto-scan; the export is still a genuine
+    // production-workbench action on a >64 MiB File reference, not a
+    // synthesized call to a duplicated test-only hashing implementation.
+    await page.setInputFiles('#videoInput', {
+      name: 'large-source.mp4', mimeType: 'video/mp4', buffer: bytes,
     });
-    assert.equal(result.digest,
-      'ad363dc06f71afbf51c807994c7719181d60477460cda7feae3bfee72997084a');
-    assert.equal(result.size, 65 * 1024 * 1024 + 13);
-    assert.equal(result.lastProgress, result.size);
-    assert.ok(result.progressCount > 64);
-    assert.equal(result.aborted, true);
-    assert.equal(result.cancelReads, 2);
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#containerProjectExportBtn');
+      return btn && !btn.disabled;
+    }, null, { timeout: 60_000 });
+    const output = path.join(outDir, 'large-streamed-container-project.json');
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 120_000 }),
+      page.locator('#containerProjectExportBtn').click(),
+    ]);
+    await download.saveAs(output);
+    const project = JSON.parse(await fs.readFile(output, 'utf8'));
+    assert.equal(project.sources.length, 1);
+    assert.equal(project.sources[0].sha256, expected,
+      'real browser must calculate standard SHA-256 over EVERY source byte');
+    assert.match(await page.locator('#status').textContent(), /完整来源 SHA-256/);
+    await page.setInputFiles('#containerProjectImportInput', output);
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'));
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state ===
+        'digest-matches-draft', null, { timeout: 120_000 });
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
+      'byte identity on unscanned media does not authorize editing');
     assert.equal(await page.locator('#containerProjectHashCancelBtn').count(), 1,
-      'real production UI exposes an explicit hash cancellation surface');
-    console.log('Browser large-file SHA-256 and cancellation PASS');
+      'real UI must provide independent source-hash cancellation');
+    assert.equal(await page.locator('#containerProjectHashActions').isVisible(), false,
+      'completed operation must dismiss transient progress');
+    assert.equal(await page.locator('#downloadLink').isVisible(), false,
+      'project source hashing must never start media mux or forge an artifact');
+    console.log('Browser full-file digest export/re-import PASS');
   } finally {
     await context.close();
   }
