@@ -26,8 +26,12 @@ export function p3FontSelectionProvesFamily(log, family = P3_FAMILY) {
   if (!/^[A-Za-z0-9 ]+$/.test(family)) return false;
   // Check the SELECTED family after ->, not merely the requested family.
   const key = family.replaceAll(' ', '\\s+');
+  // libass may emit the internal PostScript name instead of the human family.
+  // Both names are uniquely asserted in the test-only SFNT fixture.
+  const postScript = family.replaceAll(' ', '') + '-Regular';
   return new RegExp('fontselect:\\s*\\(' + key +
-    ',[^\\n)]*\\)\\s*->\\s*' + key + '(?:,|\\s|$)', 'i').test(String(log));
+    ',[^\\n)]*\\)\\s*->\\s*(?:' + key + '|' + postScript +
+    ')(?:,|\\s|$)', 'i').test(String(log));
 }
 
 export function p3RenderProofVerdict({
@@ -131,7 +135,10 @@ export async function verifyFinishedMkvAssRender({
     const changedAss = path.join(dir, 'p3-deliberately-mutated.ass');
     await fs.writeFile(changedAss,
       sourceContents.replace(P3_DIALOGUE, 'Deliberately altered render proof'));
-    const fontDir = p3RenderFilterPath(path.dirname(font));
+    const referenceFontDir = path.join(dir, 'p3-reference-fonts-only');
+    await fs.mkdir(referenceFontDir, { recursive: true });
+    await fs.copyFile(font, path.join(referenceFontDir, path.basename(font)));
+    const fontDir = p3RenderFilterPath(referenceFontDir);
     const sourceLog = renderPng({
       filter: 'ass=filename=' + staged + ':fontsdir=' + fontDir,
       destination: paths.source,
