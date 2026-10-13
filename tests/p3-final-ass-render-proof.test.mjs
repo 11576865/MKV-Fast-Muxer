@@ -12,9 +12,12 @@ const fallback = '[Parsed_subtitles_0] fontselect: (UIGS P3 Embedded Proof, 400,
 const uniquePostScript = '[Parsed_subtitles_0] fontselect: (UIGS P3 Embedded Proof, 400, 0) -> UIGSP3EmbeddedProof-Regular, 0, UIGSP3EmbeddedProof-Regular';
 
 const evidence = overrides => p3RenderProofVerdict({
-  sourcePng: png('right-reference'), finishedPng: png('right-reference'),
+  sourcePng: png('right-reference'), demuxedPng: png('right-reference'),
+  finishedPng: png('slightly different direct MKV antialiasing'),
   alteredPng: png('tampered'), blankPng: png('empty-background'),
-  sourceLog: selected, finalLog: selected, ...overrides,
+  sourceLog: selected, demuxedLog: selected, finalLog: selected,
+  directSsim: 0.99895, tamperedSsim: 0.83612, blankSsim: 0.82479,
+  ...overrides,
 });
 
 test('positive fixture is only a named libass frame claim, never player equivalence', () => {
@@ -35,12 +38,16 @@ test('fontselect must resolve the unique selected font, not merely request it', 
   assert.equal(p3FontSelectionProvesFamily('Loading font ' + P3_FAMILY), false);
   assert.equal(p3FontSelectionProvesFamily('fontselect: (other) -> other'), false);
   assert.equal(evidence({ finalLog: fallback }).code, 'EMBEDDED_FONT_SELECTION_NOT_PROVEN');
+  assert.equal(evidence({ demuxedLog: fallback }).code, 'EMBEDDED_FONT_SELECTION_NOT_PROVEN');
   assert.equal(evidence({ sourceLog: fallback }).ok, false);
 });
 
 test('pixel changes and blank/mutated controls must fail independently', () => {
-  assert.equal(evidence({ finishedPng: png('a DIFFERENT frame') }).code,
-    'SOURCE_AND_FINAL_RENDER_PIXELS_DIFFER');
+  assert.equal(evidence({ demuxedPng: png('a DIFFERENT frame') }).code,
+    'SOURCE_AND_DEMUXED_ASS_RENDER_PIXELS_DIFFER');
+  assert.equal(evidence({ directSsim: 0.98 }).code, 'DIRECT_MKV_RENDER_SIMILARITY_TOO_LOW');
+  assert.equal(evidence({ tamperedSsim: 0.98 }).code, 'NEGATIVE_RENDER_CONTROL_NOT_DISTINCT');
+  assert.equal(evidence({ directSsim: NaN }).code, 'RENDER_SSIM_UNAVAILABLE');
   assert.equal(evidence({ blankPng: png('right-reference') }).code, 'SUBTITLE_NOT_VISIBLE');
   assert.equal(evidence({ alteredPng: png('right-reference') }).code,
     'TAMPER_NEGATIVE_CONTROL_FAILED');
