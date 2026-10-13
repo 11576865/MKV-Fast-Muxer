@@ -1314,6 +1314,11 @@ function renderActualOutputEvidence() {
       : model.fontPayload && model.fontPayload.status !== 'not-requested'
         ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
         : '新字体附件字节验证：无新增字体',
+    model.originalAttachmentPayload?.status === 'pass'
+      ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
+      : model.originalAttachmentPayload && model.originalAttachmentPayload.status !== 'not-requested'
+        ? `原附件字节验证：待复核（${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total}）`
+        : '原附件字节验证：未请求保留原附件',
   ].join(' | ');
   outputEvidenceIssues.textContent = model.issues.length
     ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
