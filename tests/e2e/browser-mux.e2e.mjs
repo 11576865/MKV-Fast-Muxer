@@ -150,6 +150,8 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
         document.querySelector('#containerCapabilitySummary')?.textContent.includes('快速封装');
     }, null, { timeout: 60_000 });
     assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must be accessible on desktop, not inside mobile-only sticky actions');
     const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
     assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
     assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
@@ -201,8 +203,16 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
       path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
     });
     await page.setViewportSize({ width: 1024, height: 768 });
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must remain in tablet composition header');
     await page.screenshot({
       path: path.join(outDir, 'five-step-workbench-1024.png'), animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must remain visible in mobile source work area');
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-390.png'), animations: 'disabled',
     });
     console.log('Five-step recipe export/import and capability truthful UI PASS');
   } finally {
