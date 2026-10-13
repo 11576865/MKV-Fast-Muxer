@@ -116,6 +116,10 @@
                 <ol id="containerProjectConflictList" aria-label="草稿编辑与当前已扫描对象的冲突明细"></ol>
               </details>
               <button id="containerProjectVerifySourceBtn" class="button button-secondary" type="button" hidden disabled>核对已导入草稿与当前媒体的完整 SHA-256</button>
+              <div id="containerProjectHashActions" class="container-project-hash-actions" hidden>
+                <span id="containerProjectHashProgress" role="status" aria-live="polite">准备进行完整文件 SHA-256 核验</span>
+                <button id="containerProjectHashCancelBtn" class="button button-secondary" type="button">取消文件哈希</button>
+              </div>
 
               <section id="containerProjectRestorePanel" class="container-project-intent-review" aria-label="经核验的来源轨道编辑恢复" hidden>
                 <strong>确认恢复到当前轨道编辑草稿</strong>
