@@ -3746,6 +3746,10 @@ async function executeCurrentMuxTask() {
   updateUI();
   let preservationInfo = '';
   try {
+    // A new task must replace any preceding error *synchronously*, before
+    // this awaited safety inspection. Otherwise recovery workflows can display
+    // the previous task's failure while a new task is already in progress.
+    status.textContent = '正在重新确认来源容器身份与保留风险……';
     // Re-read the exact source at the authorization boundary. A stale
     // name/size/mtime-keyed header cache must not skip Matroska protection.
     // Unknown headers fail closed: they may conceal a complex MKV.
