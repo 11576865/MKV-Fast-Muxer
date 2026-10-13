@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { prepareVerifiedLimitedAppend } from '../src/existing-mkv-limited-append-workflow.js';
+import { prepareVerifiedLimitedAppend, prepareVerifiedLimitedAppendMultiple } from '../src/existing-mkv-limited-append-workflow.js';
 import { createMatroskaAttachmentReader } from '../src/matroska-attachment-reader.js';
 
 const cat = (...a) => Buffer.concat(a.map(x => Buffer.from(x)));
@@ -98,4 +98,71 @@ test('production main and semantic UI reference limited workflow rather than inv
     'existingMkvLimitedPrepare','existingMkvLimitedSave','existingMkvLimitedStatus']) {
     assert.equal((html.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1);
   }
+});
+
+test('one reserved Void slot can hold two unique AttachedFile elements with independently verified UID and FileData', async () => {
+  const original = mkv({ voidSize: 4000 });
+  const source = file(original, 'two.mkv');
+  const a = file(Buffer.from('font data A'), 'First.ttf');
+  const b = file(Buffer.from('user notes B'), 'Second.txt');
+  const result = await prepareVerifiedLimitedAppendMultiple({
+    source, attachments: [
+      { file: a, filename: 'First.ttf', mimeType: 'font/ttf' },
+      { file: b, filename: 'Second.txt', mimeType: 'text/plain' },
+    ],
+  });
+  assert.equal(result.state, 'LIMITED_LOCAL_BYTES_VERIFIED_EXTERNAL_COMPATIBILITY_NOT_RECHECKED');
+  assert.equal(result.output.size, source.size);
+  assert.equal(result.evidence.verifiedAttachmentCount, 2);
+  assert.equal(result.evidence.externalToolAuditForThisUserFile, false);
+  assert.deepEqual(result.attachedFilenames, ['First.ttf', 'Second.txt']);
+  const reader = createMatroskaAttachmentReader(result.output);
+  const inspection = await reader.inspect();
+  assert.equal(inspection.state, 'inspected');
+  assert.deepEqual(inspection.attachments.map(item => item.fileUid), ['1', '2']);
+  assert.deepEqual(inspection.attachments.map(item => item.filename), ['First.ttf', 'Second.txt']);
+  assert.deepEqual(Buffer.from(await reader.openAttachment(inspection.attachments[0].id).data.arrayBuffer()), Buffer.from('font data A'));
+  assert.deepEqual(Buffer.from(await reader.openAttachment(inspection.attachments[1].id).data.arrayBuffer()), Buffer.from('user notes B'));
+  assert.deepEqual(Buffer.from(await source.arrayBuffer()), original);
+});
+
+test('multi-attachment mode refuses duplicate names, missing slot, original attached files and aggregate excess', async () => {
+  const source = file(mkv({ voidSize: 4000 }), 'multi.mkv');
+  const first = file(Buffer.from('a'), 'same.txt');
+  const second = file(Buffer.from('b'), 'same.txt');
+  await assert.rejects(prepareVerifiedLimitedAppendMultiple({
+    source, attachments: [
+      { file: first, filename: 'same.txt', mimeType: 'text/plain' },
+      { file: second, filename: 'same.txt', mimeType: 'text/plain' },
+    ],
+  }), /APPEND_FILENAME_REVIEW_REQUIRED|APPEND_DUPLICATE_ATTACHMENT_OUTPUT_NAME/);
+  await assert.rejects(prepareVerifiedLimitedAppendMultiple({
+    source: file(mkv({ existing: true }), 'old.mkv'),
+    attachments: [{ file: first, mimeType: 'text/plain' }, { file: second, mimeType: 'text/plain' }],
+  }), /APPEND_EXISTING_ATTACHMENTS_NOT_SUPPORTED/);
+  await assert.rejects(prepareVerifiedLimitedAppendMultiple({
+    source: file(mkv({ voidSize: 10 }), 'small-slot.mkv'),
+    attachments: [{ file: first, mimeType: 'text/plain' }, { file: second, mimeType: 'text/plain' }],
+  }), /APPEND_VOID_SLOT_CAPACITY_EXCEEDED/);
+  const large = file(new Uint8Array(3 * 1024 * 1024), 'a.bin');
+  await assert.rejects(prepareVerifiedLimitedAppendMultiple({
+    source,
+    attachments: [{ file: large, mimeType: 'application/octet-stream' },
+      { file: large, filename: 'b.bin', mimeType: 'application/octet-stream' }],
+  }), /LIMITED_APPEND_INPUT_BUDGET_REFUSED_BEFORE_READ/);
+  await assert.rejects(prepareVerifiedLimitedAppendMultiple({
+    source, attachments: Array.from({ length: 9 }, (_, index) => ({
+      file: first, filename: 'file' + index, mimeType: 'text/plain',
+    })),
+  }), /LIMITED_APPEND_INPUT_BUDGET_REFUSED_BEFORE_READ/);
+});
+
+test('multi-file UI requires per-item identity and leaves one-attachment mode available', () => {
+  const ui = readFileSync(new URL('../src/existing-mkv-limited-append-ui.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(ui, /prepareVerifiedLimitedAppendMultiple/);
+  assert.match(ui, /attachments\.every\(\(file, index\) => fresh\[index\] === file\)/);
+  assert.match(ui, /attachments\.length === 1/);
+  assert.match(html, /id="existingMkvLimitedAttachment" type="file" multiple/);
+  assert.match(html, /id="existingMkvLimitedInventory"/);
 });
