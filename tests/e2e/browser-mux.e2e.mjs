@@ -137,10 +137,19 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     assert.equal(await page.locator('#batchResults a.download').count(), 0,
       'import must never start an implicit mux or fabricate a delivered artifact');
 
-    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
-    await page.waitForFunction(() =>
-      Boolean(document.querySelector('#containerCapabilitySummary')?.textContent.includes('快速封装')),
-      null, { timeout: 60_000 });
+    // The legacy #videoInput is a hidden execution adapter. Export belongs
+    // to the real source workbench, which is populated by unified intake.
+    // Do NOT force-click a hidden editor element to fabricate acceptance.
+    await page.locator('.workbench-jump-nav a[href="#source-title"]').click();
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'base.mp4'));
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('#outputCompositionPanel');
+      const actual = document.querySelector('#videoInput')?.files?.[0]?.name;
+      return actual === 'base.mp4' && panel && !panel.hidden &&
+        panel.getClientRects().length > 0 &&
+        document.querySelector('#containerCapabilitySummary')?.textContent.includes('快速封装');
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
     const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
     assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
     assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
