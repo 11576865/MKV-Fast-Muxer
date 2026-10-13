@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "Reconcile two independently green P1 feature PRs after PR126 merged main: full-source SHA-256 + live ContainerProject authority, then execute exactly one combined PR validation",
+  "current_work_unit": "P1 second domain migration: source advanced dispositions plus within-kind source audio/subtitle ordering, current mux parity, detached advanced-field replay, explicit nonportable order warning",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -22,42 +22,50 @@
     "PR #126 fixed Chromium file-path fixture; exact-head browser E2E and deploy passed and #126 merged to main@bdcdf6887725ff3eb563f4d2d55baf8b9b014c00.",
     "PR #127 original head da5b088b751cce25353707b77a3039aa8b6e1fec passed complete Node/Vite/Chromium and deploy; direct merge after #126 failed with Git 405 merge conflict.",
     "Replayed all 13 exact unique src/main.js hunks, two E2E hunks and README note on top of merged main; preserved SHA export/import and domain edit functionality together.",
-    "Carried over entire live source-track authority, 160-line Node domain test suite and P1 documentation from already-tested PR #127 without unnecessary rewrite."
+    "Carried over entire live source-track authority, 160-line Node domain test suite and P1 documentation from already-tested PR #127 without unnecessary rewrite.",
+    "Built on PR128 reconciled head to preserve asynchronous parent validation without invalidating or rerunning it per edit.",
+    "Made source Original/Commentary/HearingImpaired flags first-class immutable ContainerProject attributes, scan baselines and strict derived-delta edit intents; explicit verified replay now accepts these boolean operations.",
+    "Migrated both inspector and legacy stream advanced flag toggles, plus bulk metadata reset and both order-arrow entry points to the same live domain session.",
+    "Added two-object atomic within-kind source reorder that swaps canonical domain slots before materializing FFmpeg numeric order; fails closed on duplicate execution positions, wrong source, unavailable peer or preserve-all.",
+    "Clarified nonportable source-order roundtrip with a visible draft export warning; no false claim of verified detached reorder replay.",
+    "Expanded Node domain/replay regressions and existing real browser ordering/advanced-disposition MKV+ffprobe E2E to verify advanced intents and order portability warning.",
+    "Ran actual in-isolate cross-module source advanced edit, reorder, import, chain audit, conflict preview and verified replay smoke; target operations passed."
   ],
   "next_units": [
-    "Observe only exact-head combined integration PR Node/Vite/Chromium and output artifact proof in later validation turn; merge if green and no blockers.",
-    "Extend immutable source domain ownership to advanced dispositions and track ordering with exact executor/writer parity.",
-    "Extend bounded attachment edit intents with independent AttachmentUID/Tag relation proof without relaxing P0 #77.",
-    "Continue durable batch recipe v2 independent frozen JobPlan and source-neutral resource-only writer research.",
-    "Finish object-centric desktop/tablet workbench and real device/large-media acceptance."
+    "Complete parent PR #128 exact-head CI and integrate to main if green; then retarget this stacked order/advanced PR to main and observe its single full exact-head Node/build/Chromium workflow.",
+    "Close P1 remaining split ownership for attachments and external objects with independent source/UID writer protection.",
+    "Design separate strongly verified detached source-track reorder intent + secure replay with baseline position identities and tested undo before allowing cross-session order recovery.",
+    "Continue bounded batch recipe v2, durable rebind/OPFS and browser-first tablet/desktop evidence.",
+    "Resolve #77 full EBML structural preservation independently before generalizing writer capabilities."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
-  "branch": "feat/p1-live-domain-reconciled-20261014",
+  "branch": "feat/p1-source-order-advanced-dispositions-20261014",
   "pull_request": null,
-  "last_durable_commit": "8f71dec0e32d3014ce21e99c3a39d84c1a155bcb",
+  "last_durable_commit": "b3b3f54d4f4dfde6219a96d6b0bb828fe40428f0",
   "external_validation": {
-    "pr125-merged": "passed",
-    "pr126-node-build-chromium": "passed",
-    "pr126-merged": "passed",
-    "pr127-original-node-build-chromium": "passed",
-    "pr127-direct-merge": "blocked",
-    "semantic-hunk-reconciliation": "passed",
-    "integrated-static-syntax": "pending",
-    "integrated-node-build-browser": "pending",
+    "pr126-exact-head-node-build-chromium": "passed",
+    "pr126-merged-main": "passed",
+    "pr127-original-exact-head-node-build-chromium": "passed",
+    "pr127-superseded": "passed",
+    "pr128-combined-node-build-chromium": "pending",
+    "p1-advanced-reorder-module-smoke": "passed",
+    "p1-advanced-replay-roundtrip-smoke": "passed",
+    "p1-advanced-full-node-build-chromium": "pending",
     "field-device": "unknown"
   },
   "blockers": [
-    "Original PR #127 could not be merged because PR #126 touched overlapping files; combined branch was reconstructed from new main and needs one exact-head CI.",
-    "Live domain authority still only covers source audio/subtitle include/title/language/default/forced; advanced dispositions, ordering and attachments are legacy-owned.",
-    "Known P0 #77 complex Chapter/targeted Tag remux nonpreservation has no general writer fix.",
-    "No full device matrix, OPFS and sustained browser workload acceptance."
+    "PR #128 combined integration head remains under asynchronous Chromium validation and is not yet main; new advanced PR must remain stacked until it merges.",
+    "Detached ContainerProject reorder is not a verified replay operation; UI expressly warns on export and imported intents do not restore order.",
+    "Source attachments, chapters, target-specific Tags and all arbitrary EBML preservation remain outside this change; #77 is unresolved.",
+    "Full Node/build/Chromium of stacked advanced/order change and device acceptance still Pending."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
     "Do not represent this bounded source-track recovery as complete P1 or general EBML writer.",
     "2026-10-14: Historical 64 MiB bound for P1 native whole-buffer hashing has been extended; separate P2 64 MiB research safety limit is unchanged.",
     "One bounded repair generation only for PR126 failure: use temporary 65 MiB file path instead of Playwright in-memory buffer (>50MB limit).",
-    "No force-push or unsafe overwrite of PR #127 after divergent main. Preserve PR #127 as provenance until combined replacement PR is open; close superseded PR only after replacement is durable."
+    "No force-push or unsafe overwrite of PR #127 after divergent main. Preserve PR #127 as provenance until combined replacement PR is open; close superseded PR only after replacement is durable.",
+    "This branch is stacked on PR128 head, avoiding parallel modifications to stale main and preventing repeating PR128's full CI while developing future functionality."
   ],
-  "updated_at": "2026-10-13T19:38:26.118Z"
+  "updated_at": "2026-10-14"
 }
