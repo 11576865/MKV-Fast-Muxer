@@ -149,6 +149,23 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # Dynamic ASS is checked on actual browser output, not only fixture
+      # source files or static metadata. Upload red evidence on failures.
+      - name: Upload P3 dynamic ASS temporal rendered frame matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-dynamic-mkv-ass-temporal-evidence
+          path: |
+            .e2e/output/p3-dynamic-render-evidence.json
+            .e2e/output/p3-dynamic-*-source.png
+            .e2e/output/p3-dynamic-*-recovered.png
+            .e2e/output/p3-dynamic-*-direct.png
+            .e2e/output/p3-dynamic-control-*.png
+            .e2e/output/p3-dynamic-blank.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload R-02 browser-created writer candidate evidence
         if: always()
         uses: actions/upload-artifact@v4
