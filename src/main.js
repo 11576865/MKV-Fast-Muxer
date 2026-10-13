@@ -5073,6 +5073,7 @@ async function prepareBatchStart() {
       subsetEnabled: batchFontSubsetEnabled?.checked,
       subsetScope: batchSubsetScope?.value || 'job',
       directoryName: selectedOutputDirectory?.name || '',
+      strictVideoInputs: batchUnifiedMode,
     });
     if (refuseStale()) return null;
     batchRunning = true;
@@ -5226,7 +5227,7 @@ batchStartBtn?.addEventListener('click', async () => {
     }
     console.error('Batch preparation/execution interrupted:', error);
   } finally {
-    activeBatchJobLedger?.interruptRemaining(batchCancelRequested ? '用户取消后尚未运行' : batchFatalError || '队列已结束');
+    activeBatchJobLedger?.interruptRemaining(batchCancelRequested ? '用户取消后尚未运行' : batchFatalError || '队列已结束', { cancelled: batchCancelRequested });
     batchRunning = false;
     batchStatus.textContent = formatBatchTerminalStatus({
       results,
