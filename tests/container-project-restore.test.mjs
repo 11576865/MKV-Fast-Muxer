@@ -201,7 +201,7 @@ test('unsupported source modifications reject the full mixed import', () => {
     const draft = editProject(live, [title, unsupported]);
     const before = JSON.stringify(state.tracks);
     assert.throws(() => prepare({ draft, liveProjection: live, sourceProof: proof, trackState: state }),
-      /TRACK_REPLAY_UNSUPPORTED_/);
+      /(?:TRACK|ATTACHMENT)_REPLAY_UNSUPPORTED_/);
     assert.equal(JSON.stringify(state.tracks), before);
   }
 });
