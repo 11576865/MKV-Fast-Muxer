@@ -1847,10 +1847,11 @@ containerProjectRestoreBtn?.addEventListener('click', () => {
     renderOutputComposition();
     containerProjectRestoreStatus.textContent = '已将 ' +
       receipt.reviewedFields + ' 项修改一次应用到 ' + receipt.updatedTracks +
-      ' 条来源轨道的当前编辑方案；未写入文件、未启动封装。后续仍须正常预检与成品审计。';
+      ' 条来源轨道及 ' + (receipt.updatedAttachments || 0) +
+       ' 个来源附件的当前编辑方案；未写入文件、未启动封装。后续仍须正常预检与成品审计。';
   } catch (error) {
     containerProjectRestoreStatus.textContent = '未应用：' +
-      (error?.message || String(error)) + '。当前轨道编辑状态未更改。';
+      (error?.message || String(error)) + '。当前轨道与附件编辑状态未更改。';
     renderOutputComposition();
   }
 });
@@ -1872,7 +1873,8 @@ containerProjectRestoreUndoBtn?.addEventListener('click', () => {
     renderMuxPlan();
     renderOutputComposition();
     containerProjectRestoreStatus.textContent = '已撤销本次恢复涉及的 ' +
-      result.revertedTracks + ' 条轨道修改，仍未写入文件。';
+      result.revertedTracks + ' 条轨道及 ' + (result.revertedAttachments || 0) +
+       ' 个附件的修改，仍未写入文件。';
   } catch (error) {
     containerProjectRestoreStatus.textContent = '撤销未执行：' +
       (error?.message || String(error)) + '。请检查当前编辑冲突。';
@@ -1982,7 +1984,7 @@ containerProjectExportBtn?.addEventListener('click', async () => {
       trackState?.fileKey === fileKey(source);
     const orderNotPortable = sourceEditorBound &&
       trackState.tracks.some(track => track.order !== track.index);
-    const attachmentNotPortable = sourceEditorBound &&
+    const attachmentEdits = sourceEditorBound &&
       trackState.attachments.some(item => !item.include ||
         item.filename !== item.originalFilename ||
         item.mimetype !== item.originalMimetype);
@@ -1992,8 +1994,10 @@ containerProjectExportBtn?.addEventListener('click', async () => {
       (orderNotPortable
         ? ' 注意：当前轨道上下排序只在本次会话有效，草稿重新导入不会恢复轨道顺序。'
         : '') +
-      (attachmentNotPortable
-        ? ' 注意：来源附件的保留、文件名和 MIME 修改尚不能从草稿安全恢复；重新导入不会自动回放这些操作。'
+      (attachmentEdits
+        ? digest
+          ? ' 来源附件的保留、文件名和 MIME 修改已记录为可核验的草稿意图；仍需同一来源文件、旧值无冲突、显式确认，且最终封装仍受原有保真预检限制。'
+          : ' 注意：来源附件修改虽已记录，但缺少完整来源 SHA-256，不能执行安全恢复。'
         : '');
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
