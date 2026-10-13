@@ -4347,6 +4347,13 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
     assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
       'the same old-value proposal cannot overwrite the now-changed track');
     assert.match(await page.locator('#containerProjectConflictList').textContent(), /当前字段值与草稿修改前记录冲突/);
+    assert.equal(await page.locator('#containerProjectRestoreUndoBtn').isDisabled(), false);
+    await page.locator('#containerProjectRestoreUndoBtn').click();
+    assert.equal(await liveTitle.inputValue(), scanTitle, 'undo must restore exactly the previous live field');
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(), /已撤销本次恢复/);
+    await page.locator('#containerProjectRestoreConfirm').check();
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.equal(await liveTitle.inputValue(), finalTitle);
     assert.deepEqual(await fs.readFile(original), sourceBefore, 'never modify source bytes');
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
