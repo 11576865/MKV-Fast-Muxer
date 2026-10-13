@@ -64,6 +64,16 @@ export function buildContainerDocument({
         name: appendMode ? attachment.originalFilename : attachment.filename,
         mime: appendMode ? attachment.originalMimetype : attachment.mimetype,
       } : undefined;
+    // Store a separate read-only baseline from the SOURCE scan. This allows
+    // export to encode a scan-to-current delta rather than a context-free
+    // final snapshot; it does not assert trusted historical user actions.
+    const originalAttributes = track && ['audio', 'subtitle'].includes(track.type)
+      ? {
+        title: track.originalTitle || '',
+        language: track.originalLanguage || 'und',
+        default: Boolean(track.originalDefault),
+        forced: Boolean(track.originalForced),
+      } : undefined;
     return {
       id: scopedId(scope, item.id),
       kind: item.kind,
@@ -71,6 +81,7 @@ export function buildContainerDocument({
       status: item.status,
       included: item.included,
       ...(attributes ? { attributes } : {}),
+      ...(originalAttributes ? { originalAttributes, originalIncluded: true } : {}),
       // Source-scanned rows can be bound to the actual source, but an
       // external asset remains detached even when it has a similar name.
       target: item.target ? { ...item.target } : null,
