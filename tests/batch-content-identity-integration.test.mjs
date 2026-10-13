@@ -25,7 +25,7 @@ test('batch planner identifies candidate files before filename pairing', () => {
 test('batch execution uses detected Matroska identity for preserve-all behavior', () => {
   assert.match(
     main,
-    /batchPreserveAttachments\?\.checked && currentVideoIsMatroska\(job\.video\)/,
+    /frozenPlan\.policy\.preserveAttachments && currentVideoIsMatroska\(job\.video\)/,
   );
   assert.doesNotMatch(
     main,
