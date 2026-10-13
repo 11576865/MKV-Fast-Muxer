@@ -1303,6 +1303,21 @@ async function scenarioBatchAmbiguousSafety(browser) {
     assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
     assert.equal(await page.locator('#batchResults .new-track-row').count(), 0);
 
+    // The reviewer must be able to resolve a genuine tie without renaming
+    // source files or silently accepting the first enumerated candidate.
+    await page.locator('#batchPlan select[data-batch-tie-index="0"]').selectOption('1');
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchReviewSummary')?.textContent || '').includes('1 项已人工确认') &&
+      !document.querySelector('#batchStartBtn').disabled
+    );
+    assert.match(await page.locator('#batchJobInspector').textContent(), /Series B S01E01/);
+    assert.match(await page.locator('#batchJobInspector').textContent(), /S01E01.zh-Hans.ass/);
+    await page.locator('#batchJobInspector button[data-batch-revoke]').click();
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchPlan')?.textContent || '').includes('字幕匹配多个视频') &&
+      document.querySelector('#batchStartBtn').disabled
+    );
+
     await page.setInputFiles('#batchSubtitleInput', {
       name: 'Series B S01E01.zh-Hans.ass', mimeType: 'text/plain', buffer: subtitleBuffer,
     });

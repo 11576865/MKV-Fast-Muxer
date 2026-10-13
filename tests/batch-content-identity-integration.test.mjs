@@ -19,7 +19,7 @@ test('batch planner identifies candidate files before filename pairing', () => {
   assert.doesNotMatch(batch, /VIDEO_EXTENSIONS|isSupportedBatchVideo/);
   assert.match(batch, /isSupportedVideoIdentity/);
   assert.match(main, /identifyBatchVideos\(candidateVideos/);
-  assert.match(main, /实际：\$\{job\.videoIdentity\.containerLabel\}/);
+  assert.match(main, /job\.videoIdentity\?\.containerLabel/);
 });
 
 test('batch execution uses detected Matroska identity for preserve-all behavior', () => {
