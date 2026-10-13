@@ -151,6 +151,19 @@ jobs:
 
       # Dynamic ASS is checked on actual browser output, not only fixture
       # source files or static metadata. Upload red evidence on failures.
+      - name: Upload five-step preview real-browser export and responsive evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: five-step-container-recipe-workbench-evidence
+          path: |
+            .e2e/output/five-step-batch-recipe-v1.json
+            .e2e/output/five-step-container-project-v1.json
+            .e2e/output/five-step-workbench-1440.png
+            .e2e/output/five-step-workbench-1024.png
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P3 dynamic ASS temporal rendered frame matrix
         if: always()
         uses: actions/upload-artifact@v4
