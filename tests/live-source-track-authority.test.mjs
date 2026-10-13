@@ -4,7 +4,8 @@ import { buildContainerDocument } from '../src/container-document.js';
 import { buildOutputComposition } from '../src/output-composition.js';
 import {
   createLiveSourceTrackSession, commitLiveSourceTrackChanges,
-  moveLiveSourceTrack, inspectLiveSourceTrackSession,
+  moveLiveSourceTrack, commitLiveSourceAttachmentChanges,
+  inspectLiveSourceTrackSession,
 } from '../src/live-source-track-authority.js';
 
 function fixture() {
@@ -264,4 +265,108 @@ test('relative track-order drift and unsupported or stale move fail closed', () 
   }),/LIVE_TRACK_ORDER_PROJECTION_DRIFT/);
   f.trackState.tracks[0].order=old;
   assert.equal(f.session.project,before);
+});
+
+test('live source attachment name/MIME/include is owned by immutable ContainerProject', () => {
+  const f=fixture(), oldProject=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  const report=commit([
+    {index:4,field:'filename',value:'Renamed-main.ttf'},
+    {index:4,field:'mimetype',value:'application/x-truetype-font'},
+  ]);
+  assert.equal(report.status,'committed-to-domain-and-executor-projection');
+  assert.equal(report.fileWritten,false);
+  assert.equal(report.sourceUidRelationsPreserved,'not-proven-by-domain-command');
+  assert.notEqual(oldProject,f.session.project);
+  const obj=f.session.project.objects.find(o=>o.kind==='attachment' && o.sourceId);
+  assert.equal(obj.attributes.name,'Renamed-main.ttf');
+  assert.equal(obj.attributes.mime,'application/x-truetype-font');
+  assert.equal(f.trackState.attachments[0].filename,'Renamed-main.ttf');
+  assert.equal(f.trackState.attachments[0].mimetype,'application/x-truetype-font');
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).sourceAttachmentCount,1);
+  const projection=buildContainerDocument({video:f.source,trackState:f.trackState});
+  const attachment=projection.objects.find(o=>o.kind==='attachment' && o.target?.type==='source');
+  assert.equal(attachment.attributes.name,'Renamed-main.ttf');
+  assert.equal(attachment.attributes.mime,'application/x-truetype-font');
+  assert.equal(commit([{index:4,field:'include',value:false}]).updatedAttachments,1);
+  assert.equal(f.trackState.attachments[0].include,false);
+  assert.equal(f.session.project.objects.find(o=>o.id===obj.id).included,false);
+});
+
+test('failed or unsupported attachment edit cannot partially mutate domain or executable view', () => {
+  const f=fixture(), before=JSON.stringify(f.trackState.attachments);
+  const project=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'mimetype',value:'bad\nMIME'},
+  ]),/LIVE_ATTACHMENT_METADATA_INVALID/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'filename',value:'../sneaky.ttf'},
+  ]),/LIVE_ATTACHMENT_METADATA_INVALID/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:9,field:'include',value:false},
+  ]),/LIVE_ATTACHMENT_NOT_FOUND/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'size',value:10},
+  ]),/LIVE_ATTACHMENT_UNSUPPORTED_CHANGE/);
+  assert.equal(JSON.stringify(f.trackState.attachments),before);
+  assert.equal(f.session.project,project);
+  assert.equal(f.session.generation,0);
+});
+
+test('source attachment rejects stale File, unsupported preserve-all and bypass mutations', () => {
+  const f=fixture();
+  const commit=(changes,source=f.source,appendMode=false)=>commitLiveSourceAttachmentChanges(f.session,{
+    source,trackState:f.trackState,changes,appendMode,
+  });
+  assert.throws(()=>commit([{index:4,field:'include',value:false}],
+    {...f.source}),/LIVE_TRACK_SOURCE_SESSION_STALE/);
+  assert.throws(()=>commit([{index:4,field:'include',value:false}],
+    f.source,true),/LIVE_ATTACHMENT_PRESERVE_ALL_READONLY/);
+  f.trackState.attachments[0].filename='bypass.ttf';
+  assert.throws(()=>commit([{index:4,field:'include',value:false}]),
+    /LIVE_ATTACHMENT_EXECUTOR_PROJECTION_DRIFT/);
+});
+
+test('no-op, exclusion and repeated live attachment metadata input remain bounded', () => {
+  const f=fixture(), project=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  assert.equal(commit([{index:4,field:'filename',value:'main.ttf'}]).status,'no-change');
+  assert.equal(f.session.project,project);
+  for(let i=1;i<=150;i++)
+    commit([{index:4,field:'filename',value:'A'.repeat(i)+'.ttf'}]);
+  assert.equal(f.trackState.attachments[0].filename,'A'.repeat(150)+'.ttf');
+  assert.ok(inspectLiveSourceTrackSession(f.session,f).boundedHistoryLength<=85);
+  commit([{index:4,field:'include',value:false}]);
+  assert.throws(()=>commit([{index:4,field:'filename',value:'hidden.ttf'}]),
+    /LIVE_ATTACHMENT_EXCLUDED_METADATA_CHANGE/);
+  assert.equal(f.trackState.attachments[0].include,false);
+  assert.equal(f.trackState.attachments[0].filename,'A'.repeat(150)+'.ttf');
+});
+
+test('legacy source attachment safety and source object identity remain out of domain writer control', () => {
+  const f=fixture();
+  const originalChapter=JSON.stringify(f.trackState.chapters);
+  const originalStreams=JSON.stringify(f.trackState.streams);
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  commit([{index:4,field:'mimetype',value:'font/otf'}]);
+  assert.equal(JSON.stringify(f.trackState.chapters),originalChapter);
+  assert.equal(JSON.stringify(f.trackState.streams),originalStreams);
+  assert.throws(()=>commit([{index:4,field:'filename',value:'a\\evil.ttf'}]),
+    /LIVE_ATTACHMENT_METADATA_INVALID/);
+  const report=inspectLiveSourceTrackSession(f.session,f);
+  assert.equal(report.writerAuthorization,false);
+  assert.equal(report.wholeEbmlPreservation,'unverified');
 });
