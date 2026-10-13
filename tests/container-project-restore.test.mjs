@@ -194,7 +194,7 @@ test('hash proof, source scan, valid state and selective mode are independent ga
 test('unsupported source modifications reject the full mixed import', () => {
   const { state, live } = fixture();
   for (const unsupported of [
-    ['attachment', 'set-attribute', 'name', 'renamed.ttf'],
+    ['attachment', 'reorder', null, 0],
     ['audio', 'reorder', null, 0],
     ['video', 'set-attribute', 'title', 'new title'],
   ]) {
@@ -289,4 +289,111 @@ test('exported excluded-track advanced flags clear only as explicitly reviewed c
   assert.ok(draft.editIntents.some(i=>i.type==='include' && i.to===false));
   assert.ok(draft.editIntents.every(i=>i.to!==true ||
     !['original','commentary','hearingImpaired'].includes(i.field)));
+});
+
+function fixtureWithTwoAttachments() {
+  const f = fixture();
+  const another = {index:4,codec_type:'attachment',codec_name:'ttf',
+    tags:{filename:'Second.ttf',mimetype:'font/ttf'},disposition:{}};
+  f.state.streams.push(another);
+  f.state.attachments.push({index:4,stream:another,filename:'Second.ttf',
+    mimetype:'font/ttf',originalFilename:'Second.ttf',
+    originalMimetype:'font/ttf',include:true});
+  f.live=buildContainerDocument({video:f.file,trackState:f.state});
+  return f;
+}
+
+test('actual source attachment scan-to-editor deltas survive strict JSON import and SHA-bound preview', () => {
+  const {file,state} = fixtureWithTwoAttachments();
+  state.attachments[0].filename='Renamed.ttf';
+  state.attachments[0].mimetype='application/x-font-ttf';
+  state.attachments[1].include=false;
+  const modified=buildContainerDocument({video:file,trackState:state});
+  const exported=createEditedContainerProjectFromProjection(modified);
+  const draft=parseContainerProjectDraft(serializeContainerProject(exported));
+  assert.deepEqual(draft.editIntents.filter(i=>
+    draft.objects.some(o=>o.id===i.objectId && o.kind==='attachment'))
+    .map(i=>[i.type,i.field,i.to]),[
+      ['set-attribute','name','Renamed.ttf'],
+      ['set-attribute','mime','application/x-font-ttf'],
+      ['include',null,false],
+    ]);
+  state.attachments[0].filename='Font.ttf';
+  state.attachments[0].mimetype='font/ttf';
+  state.attachments[1].include=true;
+  const base=buildContainerDocument({video:file,trackState:state});
+  const plan=prepare({draft,liveProjection:base,sourceProof:proof,trackState:state});
+  assert.equal(plan.tracks.length,0);
+  assert.equal(plan.attachments.length,2);
+  const applied=apply(plan,state);
+  assert.equal(applied.updatedAttachments,2);
+  assert.equal(applied.updatedTracks,0);
+  assert.equal(applied.fileWritten,false);
+  assert.equal(state.attachments[0].filename,'Renamed.ttf');
+  assert.equal(state.attachments[0].mimetype,'application/x-font-ttf');
+  assert.equal(state.attachments[1].include,false);
+});
+
+test('combined track AND source attachment recovery is atomic, including inverse conflict', async () => {
+  const {file,state,live}=fixtureWithTwoAttachments();
+  const draft=editProject(live,[
+    ['audio','set-attribute','title','Muxed Japanese'],
+    ['attachment','set-attribute','name','Font-Restored.ttf'],
+  ]);
+  const plan=prepare({draft,liveProjection:live,sourceProof:proof,trackState:state});
+  const initial=JSON.stringify(state.tracks)+JSON.stringify(state.attachments);
+  assert.equal(plan.tracks.length,1);
+  assert.equal(plan.attachments.length,1);
+  state.attachments[0].filename='Edited after proof';
+  assert.throws(()=>apply(plan,state),/ATTACHMENT_REPLAY_LIVE_STATE_CHANGED/);
+  assert.equal(state.tracks[0].title,'');
+  state.attachments[0].filename='Font.ttf';
+  assert.equal(apply(plan,state).updatedAttachments,1);
+  assert.equal(state.tracks[0].title,'Muxed Japanese');
+  assert.equal(state.attachments[0].filename,'Font-Restored.ttf');
+  const {revertPreparedTrackReplay:undo}=await import('../src/container-project-restore.js');
+  state.attachments[0].filename='Another edit';
+  assert.throws(()=>undo(plan,state),/ATTACHMENT_REPLAY_UNDO_CONFLICT/);
+  assert.equal(state.tracks[0].title,'Muxed Japanese');
+  state.attachments[0].filename='Font-Restored.ttf';
+  const receipt=undo(plan,state);
+  assert.equal(receipt.revertedTracks,1);
+  assert.equal(receipt.revertedAttachments,1);
+  assert.equal(JSON.stringify(state.tracks)+JSON.stringify(state.attachments),initial);
+});
+
+test('source attachment recovery refuses replaced ffprobe stream identity and hidden metadata', () => {
+  const {file,state,live}=fixtureWithTwoAttachments();
+  const draft=editProject(live,[
+    ['attachment','set-attribute','name','Approved.ttf'],
+  ]);
+  const plan=prepare({draft,liveProjection:live,sourceProof:proof,trackState:state});
+  const original=state.attachments[0].stream;
+  state.attachments[0].stream={...original};
+  assert.throws(()=>apply(plan,state),/ATTACHMENT_REPLAY_LIVE_STATE_CHANGED/);
+  state.attachments[0].stream=original;
+  const excluded=editProject(live,[
+    ['attachment','set-attribute','name','Hidden.ttf'],
+    ['attachment','include',null,false],
+  ]);
+  assert.throws(()=>prepare({draft:excluded,liveProjection:live,
+    sourceProof:proof,trackState:state}),/ATTACHMENT_REPLAY_EXCLUDED_METADATA_EDIT/);
+  assert.throws(()=>prepare({draft,liveProjection:live,
+    sourceProof:null,trackState:state}),/TRACK_REPLAY_BASELINE_NOT_VERIFIED/);
+  assert.throws(()=>prepare({draft,liveProjection:live,
+    sourceProof:proof,trackState:state,appendMode:true}),
+    /TRACK_REPLAY_SELECTIVE_MODE_REQUIRED/);
+  assert.equal(state.attachments[0].filename,'Font.ttf');
+});
+
+test('attachment replay rejects malicious metadata and preserves entire edit set', () => {
+  const {state,live}=fixtureWithTwoAttachments();
+  const mixed=editProject(live,[
+    ['audio','set-attribute','title','Safe title'],
+    ['attachment','set-attribute','name','..\\outside.ttf'],
+  ]);
+  const before=JSON.stringify(state.tracks)+JSON.stringify(state.attachments);
+  assert.throws(()=>prepare({draft:mixed,liveProjection:live,
+    sourceProof:proof,trackState:state}),/ATTACHMENT_REPLAY_METADATA_INVALID/);
+  assert.equal(JSON.stringify(state.tracks)+JSON.stringify(state.attachments),before);
 });
