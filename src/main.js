@@ -44,7 +44,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
-import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
+import { createContainerProjectFromProjection, createEditedContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
@@ -1802,7 +1802,7 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     const latest = currentProjectSourceProjection;
     if (!latest || latest.sourceKey !== outputCompositionFileKey(source))
       throw Error('PROJECT_SOURCE_PROJECTION_STALE');
-    let project = createContainerProjectFromProjection(latest);
+    let project = createEditedContainerProjectFromProjection(latest);
     if (digest) project = attachContainerProjectSourceDigest(project, digest);
     const url = URL.createObjectURL(new Blob([serializeContainerProject(project)], {
       type: 'application/json;charset=utf-8',
