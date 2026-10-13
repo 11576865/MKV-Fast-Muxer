@@ -396,6 +396,7 @@ let cancelRequested = false;
 let outputURL = null;
 let reportURL = null;
 let trackState = null;
+let scannedSourceFile = null;
 let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
@@ -1012,7 +1013,8 @@ function setInputsDisabled(disabled) {
  */
 function refreshLiveSourceTrackAuthority() {
   const source = videoInput.files?.[0] || null;
-  const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+  const scanned = source && scannedSourceFile === source &&
+    trackState?.fileKey === fileKey(source) ? trackState : null;
   if (!scanned) {
     liveSourceTrackSession = null;
     return null;
@@ -1028,7 +1030,8 @@ function refreshLiveSourceTrackAuthority() {
 
 function changeSourceTracks(changes) {
   const source = videoInput.files?.[0] || null;
-  if (!source || !trackState || trackState.fileKey !== fileKey(source)) {
+  if (!source || scannedSourceFile !== source ||
+      !trackState || trackState.fileKey !== fileKey(source)) {
     status.textContent = '来源轨道已变化，请重新扫描后编辑。';
     return false;
   }
@@ -1051,6 +1054,7 @@ function changeSourceTracks(changes) {
 
 function resetTrackState() {
   trackState = null;
+  scannedSourceFile = null;
   liveSourceTrackSession = null;
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
   attachmentList.innerHTML = '';
@@ -4014,6 +4018,7 @@ async function scanSourceContainer({ automatic = false } = {}) {
       format: probe.format,
       attachmentCount: probe.attachmentCount,
     };
+    scannedSourceFile = video;
     refreshLiveSourceTrackAuthority();
 
     preserveAttachments.checked = true;
