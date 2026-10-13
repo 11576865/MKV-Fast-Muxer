@@ -3656,6 +3656,12 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true);
     assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
     await page.locator('#existingMkvLimitedReview').check();
+    // Single-file metadata changes must also invalidate prior risk approval.
+    await page.locator('#existingMkvLimitedMime').fill('application/x-temporary');
+    assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
+    assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true);
+    await page.locator('#existingMkvLimitedMime').fill('text/plain');
+    await page.locator('#existingMkvLimitedReview').check();
     await page.locator('#existingMkvLimitedPrepare').click();
     await page.waitForFunction(() =>
       ['prepared','blocked'].includes(
@@ -3739,6 +3745,7 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     await page.locator('#existingMkvLimitedReview').check();
     assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true,
       'duplicate final names require explicit correction');
+    assert.match(await page.locator('#existingMkvLimitedStatus').textContent(), /重复|不安全/);
     await outputNameEditor.fill('renamed-second.bin');
     await outputMimeEditor.fill('application/x-audit-data');
     assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
