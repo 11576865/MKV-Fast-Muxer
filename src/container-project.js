@@ -7,8 +7,8 @@ export const CONTAINER_PROJECT_SCHEMA = 'container-project-v1';
 const ALLOWED_KINDS = new Set(['video','audio','subtitle','attachment','chapter','tag','metadata','other']);
 const EDITABLE_FIELDS = Object.freeze({
   video: ['title','language','default','forced'],
-  audio: ['title','language','default','forced'],
-  subtitle: ['title','language','default','forced'],
+  audio: ['title','language','default','forced','original','commentary','hearingImpaired'],
+  subtitle: ['title','language','default','forced','original','commentary','hearingImpaired'],
   attachment: ['name','mime'],
   chapter: ['title'],
   tag: ['name','value'],
@@ -241,7 +241,8 @@ export function createEditedContainerProjectFromProjection(snapshot) {
       continue;
     // Persist all effective field differences, including side effects of
     // source-track exclusion. A bounded log is safer than truncating edits.
-    for (const field of ['title', 'language', 'default', 'forced']) {
+    for (const field of ['title', 'language', 'default', 'forced',
+      'original', 'commentary', 'hearingImpaired']) {
       const previous = result.objects.find(object => object.id === target.id).attributes[field];
       const next = target.attributes[field];
       if (previous !== next) {
