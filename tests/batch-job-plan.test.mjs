@@ -111,6 +111,9 @@ test('running batch UI reads the frozen ledger but keeps the legacy mux result a
   assert.match(main, /freezeBatchJobPlan\(pairing,/);
   assert.match(main, /const \{ pairing, frozenPlan, selectedOutputDirectory \} = preparation/);
   assert.match(main, /createBatchJobLedger\(frozenPlan, refreshBatchExecutionViews\)/);
+  assert.match(main, /function indexBatchExecutionBySource\(\)/);
+  assert.match(main, /new Map\(ledger\.plan\.jobs\.map\(/);
+  assert.doesNotMatch(main, /ledger\.plan\.jobs\.find\(/);
   assert.match(main, /for \(let index = 0; index < frozenPlan\.jobs\.length/);
   assert.match(main, /frozenPlan\.policy\.subsetScope/);
   assert.match(main, /activeBatchJobLedger\.transition\(job\.jobId, 'saving'\)/);
