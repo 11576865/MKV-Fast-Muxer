@@ -149,15 +149,16 @@ test('bulk default/exclusion applies in one domain transaction and clears old di
   assert.equal(inspectLiveSourceTrackSession(f.session,f).domainIsAuthoritative,true);
 });
 
-test('unchanged order and advanced fields stay in explicitly legacy-owned scope', () => {
+test('source advanced flags are domain-only writes; standalone order field is not a track attribute', () => {
   const f=fixture();
   const order=f.trackState.tracks.map(t=>t.order);
-  f.trackState.tracks[0].commentary=true;
-  f.commit([row(1,'title','Independent commentary label')]);
+  f.commit([row(1,'commentary',true)]);
   assert.equal(f.trackState.tracks[0].commentary,true);
   assert.deepEqual(f.trackState.tracks.map(t=>t.order),order);
   assert.throws(()=>f.commit([row(1,'order',7)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
-  assert.throws(()=>f.commit([row(1,'commentary',true)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
+  f.trackState.tracks[0].commentary=false; // explicit unsafe bypass
+  assert.throws(()=>f.commit([row(1,'title','Unsafe')]),
+    /LIVE_TRACK_EXECUTOR_PROJECTION_DRIFT/);
 });
 
 test('advanced source dispositions are immutable domain-owned edits and legacy execution flags', () => {
