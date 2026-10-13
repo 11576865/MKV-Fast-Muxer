@@ -48,6 +48,7 @@ import { createContainerProjectFromProjection, serializeContainerProject } from 
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
+import { prepareVerifiedTrackReplay, applyPreparedTrackReplay } from './container-project-restore.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -181,6 +182,10 @@ const containerProjectConflictReview = $('containerProjectConflictReview');
 const containerProjectConflictSummary = $('containerProjectConflictSummary');
 const containerProjectConflictList = $('containerProjectConflictList');
 const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
+const containerProjectRestorePanel = $('containerProjectRestorePanel');
+const containerProjectRestoreConfirm = $('containerProjectRestoreConfirm');
+const containerProjectRestoreBtn = $('containerProjectRestoreBtn');
+const containerProjectRestoreStatus = $('containerProjectRestoreStatus');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -1486,6 +1491,34 @@ function renderOutputComposition() {
       }
     } else containerProjectConflictList.replaceChildren();
   }
+  if (containerProjectRestorePanel && containerProjectRestoreBtn) {
+    const hasChanges = Boolean(importedProjectForReview?.editIntents?.length);
+    containerProjectRestorePanel.hidden = !hasChanges;
+    let ready = false;
+    let reason = '没有可恢复的修改记录';
+    if (hasChanges) {
+      try {
+        const proof = detachedSourceProof?.source === source &&
+          detachedSourceProof?.draft === importedProjectForReview
+          ? detachedSourceProof.verdict : null;
+        const prepared = prepareVerifiedTrackReplay({
+          draft: importedProjectForReview,
+          liveProjection: containerDocument, sourceProof: proof,
+          trackState: scanned,
+          appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+        });
+        ready = prepared.proposedCount > 0;
+        reason = '已核验 ' + prepared.proposedCount + ' 项更改，等待确认';
+      } catch (error) {
+        reason = error?.message || String(error);
+      }
+    }
+    containerProjectRestoreBtn.disabled = !ready ||
+      !containerProjectRestoreConfirm?.checked || isBusy() ||
+      batchRunning || importInProgress || sourceDigestCheckInProgress;
+    containerProjectRestoreBtn.title = reason;
+    if (containerProjectRestorePanel) containerProjectRestorePanel.dataset.ready = String(ready);
+  }
   if (containerProjectVerifySourceBtn) {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
       Boolean(importedProjectForReview.sources[0]?.sha256);
@@ -1641,6 +1674,49 @@ compositionTracks?.addEventListener('click', event => {
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
+containerProjectRestoreConfirm?.addEventListener('change', () => renderOutputComposition());
+containerProjectRestoreBtn?.addEventListener('click', () => {
+  const source = videoInput.files?.[0] || null;
+  const draft = importedProjectForReview;
+  const proof = detachedSourceProof?.source === source &&
+    detachedSourceProof?.draft === draft ? detachedSourceProof.verdict : null;
+  try {
+    if (!source || !draft || !containerProjectRestoreConfirm?.checked ||
+        !proof || sourceDigestCheckInProgress || importInProgress ||
+        isBusy() || batchRunning)
+      throw Error('TRACK_REPLAY_CONFIRMATION_OR_SOURCE_REQUIRED');
+    // Freshly project the current owned track editor at the commit boundary.
+    // No asynchronous work occurs between final validation and mutation.
+    const scanned = trackState?.fileKey === fileKey(source) ? trackState : null;
+    const liveProjection = buildContainerDocument({
+      video: source, trackState: scanned,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+      externalAudio: externalAudioState, newSubtitles: newSubtitleState,
+      fonts: selectedFonts(), fontMode: fontMode.value,
+    });
+    if (currentProjectSourceFile !== source ||
+        liveProjection.sourceKey !== currentProjectSourceProjection?.sourceKey)
+      throw Error('TRACK_REPLAY_SOURCE_CHANGED');
+    const plan = prepareVerifiedTrackReplay({
+      draft, liveProjection, sourceProof: proof, trackState: scanned,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    });
+    const receipt = applyPreparedTrackReplay(plan, scanned);
+    containerProjectRestoreConfirm.checked = false;
+    renderTrackList();
+    renderAttachmentList();
+    renderImportedAssetInventory();
+    renderMuxPlan();
+    renderOutputComposition();
+    containerProjectRestoreStatus.textContent = '已将 ' +
+      receipt.reviewedFields + ' 项修改一次应用到 ' + receipt.updatedTracks +
+      ' 条来源轨道的当前编辑方案；未写入文件、未启动封装。后续仍须正常预检与成品审计。';
+  } catch (error) {
+    containerProjectRestoreStatus.textContent = '未应用：' +
+      (error?.message || String(error)) + '。当前轨道编辑状态未更改。';
+    renderOutputComposition();
+  }
+});
 containerProjectImportInput?.addEventListener('change', async () => {
   const file = containerProjectImportInput.files?.[0];
   containerProjectImportInput.value = '';
@@ -1653,6 +1729,8 @@ containerProjectImportInput?.addEventListener('change', async () => {
     const draft = parseContainerProjectDraft(await file.text());
     importedProjectForReview = draft;
     detachedSourceProof = null;
+    if (containerProjectRestoreConfirm) containerProjectRestoreConfirm.checked = false;
+    if (containerProjectRestoreStatus) containerProjectRestoreStatus.textContent = '';
     renderOutputComposition();
   } catch (error) {
     // Invalid new import cannot overwrite a previously validated draft.
