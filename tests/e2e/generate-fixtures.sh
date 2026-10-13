@@ -68,6 +68,25 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.20,0:00:01.80,Proof,,0,0,0,,{\bord2\shad1}Embedded final-MKV proof 9417
 ASS
 
+# P3 dynamic timing proof: three distinct ASS behaviours in ONE delivered track.
+# A real finished-MKV sequence must agree with source render at four
+# fractional timestamps, with separate mutation controls for each effect.
+cat > "$ROOT/p3-dynamic-proof.ass" <<'ASS'
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 320
+PlayResY: 180
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Proof,UIGS P3 Embedded Proof,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.10,0:00:01.90,Proof,,0,0,0,,{\an7\move(12,15,125,45,0,1800)\t(0,1800,\fs38\1c&H00FF00&)}MOVE PROOF
+Dialogue: 0,0:00:00.10,0:00:01.90,Proof,,0,0,0,,{\an2\kf40}KA{\kf50}RA{\kf60}OKE
+ASS
+
 mkdir -p "$ROOT/font-a" "$ROOT/font-b"
 cp "$FONT_REGULAR" "$ROOT/font-a/Same.ttf"
 cp "$FONT_BOLD" "$ROOT/font-b/Same.ttf"
