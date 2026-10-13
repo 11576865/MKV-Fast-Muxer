@@ -36,6 +36,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
+import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
@@ -127,6 +128,16 @@ const compositionTracks = $('compositionTracks');
 const compositionCount = $('compositionCount');
 const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
+const compositionSourceEvidence = $('compositionSourceEvidence');
+const compositionSourceSummary = $('compositionSourceSummary');
+const compositionSourceEvidenceList = $('compositionSourceEvidenceList');
+const outputEvidencePanel = $('outputEvidencePanel');
+const outputEvidenceTitle = $('outputEvidenceTitle');
+const outputEvidenceScopeState = $('outputEvidenceScopeState');
+const outputEvidenceName = $('outputEvidenceName');
+const outputEvidenceFacts = $('outputEvidenceFacts');
+const outputEvidenceIssues = $('outputEvidenceIssues');
+const outputEvidenceRevision = $('outputEvidenceRevision');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
 const editorMuxBtn = $('editorMuxBtn');
@@ -375,6 +386,7 @@ let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
+let lastActualOutput = null;
 let lastCompositionSourceKey = '';
 let importInProgress = false;
 let importPendingCount = 0;
@@ -1186,6 +1198,32 @@ const compositionKindNames = {
   attachment: '附件', font: '字体', source: '来源',
 };
 
+function renderActualOutputEvidence() {
+  if (!outputEvidencePanel) return;
+  const model = lastActualOutput && projectActualOutputEvidence(lastActualOutput.report, {
+    currentSourceKey: outputCompositionFileKey(videoInput.files?.[0] || null),
+    sourceKeyAtExecution: lastActualOutput.sourceKey,
+    currentPlan: buildMuxPlan(),
+  });
+  outputEvidencePanel.hidden = !model;
+  if (!model) return;
+  outputEvidencePanel.dataset.audit = model.status;
+  outputEvidencePanel.dataset.current = String(model.current);
+  outputEvidenceTitle.textContent = model.title;
+  outputEvidenceScopeState.textContent = model.current ? '当前计划' : '旧计划';
+  outputEvidenceName.textContent = model.name;
+  const counts = model.counts;
+  outputEvidenceFacts.textContent = [
+    counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
+      .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
+    `SHA-256：${model.sha256}`,
+  ].join(' | ');
+  outputEvidenceIssues.textContent = model.issues.length
+    ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
+    : model.status === 'pass' ? '在现有 ffprobe 检查范围内未发现差异' : '审计证据不足';
+  outputEvidenceRevision.textContent = model.revisionNotice;
+}
+
 function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
   const source = videoInput.files?.[0] || null;
@@ -1233,6 +1271,21 @@ function renderOutputComposition() {
   compositionIssues.hidden = !model.diagnostics.length;
   compositionIssues.textContent = model.diagnostics.map(issue =>
     `${issue.title}：${issue.reason}`).join('；');
+  const sourceEvidence = projectSourceStructureEvidence({ source, trackState: scanned });
+  if (compositionSourceEvidence) {
+    compositionSourceEvidence.hidden = !sourceEvidence.observed;
+    compositionSourceSummary.textContent = sourceEvidence.summary;
+    compositionSourceEvidenceList.innerHTML = sourceEvidence.items.map(item =>
+      `<div class="composition-evidence-row" data-evidence-kind="${escapeHtml(item.kind)}">
+        <span class="composition-evidence-kind">${escapeHtml({
+          chapter: '章节', metadata: '标签', data: '数据流', other: '其他流',
+        }[item.kind] || '观察')}</span>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.detail)}</small>
+      </div>`
+    ).join('') || '<div class="track-empty">ffprobe 未返回可展示的章节、标签或其他流。</div>';
+  }
+  renderActualOutputEvidence();
   document.querySelector('.workspace')?.setAttribute('data-has-composition', String(model.items.length > 0));
   if (compositionMuxBtn) compositionMuxBtn.disabled = muxBtn.disabled;
   if (editorMuxBtn) editorMuxBtn.disabled = muxBtn.disabled;
@@ -3562,6 +3615,7 @@ cancelBtn.addEventListener('click', cancelCurrentMuxTask);
 // synthesizing click events or polling mutable download-link state.
 async function executeCurrentMuxTask() {
   if (isBusy()) return;
+  const evidenceSourceAtExecution = outputCompositionFileKey(videoInput.files?.[0] || null);
 
   syncNewTrackState();
   const video = videoInput.files[0];
@@ -4286,6 +4340,10 @@ async function executeCurrentMuxTask() {
     reportLink.classList.remove('hidden');
 
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
+    if (!batchRunning) {
+      lastActualOutput = { sourceKey: evidenceSourceAtExecution, report };
+      renderActualOutputEvidence();
+    }
 
     bar.style.width = '100%';
     const assLikeCount = runtimeSubtitles.filter((track) => track.format?.assLike).length;
@@ -5183,7 +5241,7 @@ batchStartBtn?.addEventListener('click', async () => {
       },
       onResults: (currentResults) => {
         batchResults.innerHTML = currentResults.map((item) => item.ok
-          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · 审计：${escapeHtml(item.auditStatus || '未完成')}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
           : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
         ).join('');
       },

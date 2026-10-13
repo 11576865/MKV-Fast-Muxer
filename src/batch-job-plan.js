@@ -92,6 +92,7 @@ export const BATCH_JOB_STATES = Object.freeze({
   awaitingSave: '待下载保存',
   succeeded: '已完成',
   saveWarning: '保存未完成',
+  auditWarning: '审计待复核',
   failed: '执行失败',
   cancelled: '已取消',
   interrupted: '已中断',
@@ -101,8 +102,9 @@ const TRANSITIONS = Object.freeze({
   queued: ['preparing', 'cancelled', 'interrupted'],
   preparing: ['muxing', 'failed', 'cancelled', 'interrupted'],
   muxing: ['saving', 'failed', 'cancelled', 'interrupted'],
-  saving: ['succeeded', 'awaitingSave', 'saveWarning', 'failed', 'cancelled', 'interrupted'],
+  saving: ['succeeded', 'awaitingSave', 'saveWarning', 'auditWarning', 'failed', 'cancelled', 'interrupted'],
   awaitingSave: [],
+  auditWarning: [],
   succeeded: [], saveWarning: [], failed: [], cancelled: [], interrupted: [],
 });
 

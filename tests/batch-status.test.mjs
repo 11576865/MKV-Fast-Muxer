@@ -44,3 +44,18 @@ test('fatal error outranks an in-flight cancellation flag', () => {
     fatalError: 'setup crashed',
   }), /^批量中断：setup crashed/);
 });
+
+
+test('generated outputs with unverified audits are counted without erasing mux completion or download fallback', () => {
+  const message = formatBatchTerminalStatus({
+    results: [
+      { ok: true, auditStatus: 'pass' },
+      { ok: true, auditStatus: 'warning', directorySaveError: 'permission denied' },
+      { ok: true, auditStatus: 'unavailable' },
+      { ok: false, error: 'bad source' },
+    ],
+  });
+  assert.match(message, /批量完成：成功 3，失败 1/);
+  assert.match(message, /其中 1 项未完整写入目录/);
+  assert.match(message, /其中 2 项独立审计存在差异或不可用，需复核成品/);
+});

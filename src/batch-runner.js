@@ -57,9 +57,14 @@ export async function runFrozenBatchQueue(plan, {
           outputSha256: artifact.outputSha256 || '',
         });
         results.push(item);
-        ledger.transition(job.jobId, item.savedToDirectory ? 'succeeded' :
-          item.directorySaveError ? 'saveWarning' : 'awaitingSave',
-          { error: item.directorySaveError || '' });
+        const auditTrusted = item.auditStatus === 'pass';
+        ledger.transition(job.jobId,
+          !auditTrusted ? 'auditWarning'
+            : item.savedToDirectory ? 'succeeded'
+            : item.directorySaveError ? 'saveWarning' : 'awaitingSave',
+          { error: !auditTrusted
+            ? `审计${item.auditStatus === 'warning' ? '存在差异' : '未完成'}：${item.auditIssues.join('；') || '独立核验结果不可用'}${item.directorySaveError ? '；保存：' + item.directorySaveError : ''}`
+            : item.directorySaveError || '' });
       } catch (error) {
         const reason = error?.message || String(error);
         if (reason === 'batch-cancelled' || shouldCancel()) {
