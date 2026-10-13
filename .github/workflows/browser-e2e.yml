@@ -356,7 +356,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mkv-ui-container-tree-viewports
-          path: .e2e/output/mkv-container-tree-*.png
+          path: |
+            .e2e/output/mkv-container-tree-*.png
+            .e2e/output/mkv-round5-*.png
           if-no-files-found: ignore
           retention-days: 14
 
