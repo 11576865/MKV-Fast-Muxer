@@ -1426,6 +1426,79 @@ async function scenarioBatchDirectoryConflict(browser) {
   }
 }
 
+async function scenarioBatchReportSavePartialPersistence(browser) {
+  console.log('E2E: actual MKV persisted while report write fails and remains downloadable');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      const files = new Map();
+      window.__batchPairDirectoryFiles = files;
+      window.showDirectoryPicker = async () => ({
+        name: 'partial-report-failure-dir',
+        requestPermission: async () => 'granted',
+        entries: async function* () {
+          for (const name of files.keys()) yield [name, { kind: 'file' }];
+        },
+        getFileHandle: async (name, { create = false } = {}) => {
+          if (!files.has(name)) {
+            if (!create) throw Object.assign(new Error('not found'), { name: 'NotFoundError' });
+            files.set(name, null);
+          }
+          return {
+            createWritable: async () => {
+              let pending = null;
+              return {
+                write: async blob => {
+                  if (name.endsWith('.mux-report.json')) throw new Error('report-specific simulated disk quota');
+                  pending = blob;
+                },
+                close: async () => { files.set(name, pending); },
+                abort: async () => {},
+              };
+            },
+          };
+        },
+      });
+    });
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.locator('#batchOutputDirBtn').click();
+    await page.waitForFunction(() => {
+      const start = document.querySelector('#batchStartBtn');
+      return start && !start.disabled;
+    }, null, { timeout: 90_000 });
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#batchStatus')?.textContent || '';
+      return text.startsWith('批量完成：') || text.startsWith('批量中断：');
+    }, null, { timeout: 360_000 });
+    const summary = await page.locator('#batchStatus').textContent();
+    assert.match(summary, /成功 1，失败 0/);
+    assert.match(summary, /其中 1 项 MKV 已写入目录，但审计报告尚未写入/);
+    const result = await page.locator('#batchResults').textContent();
+    assert.match(result, /MKV 已写入目录，但报告写入失败/);
+    assert.match(result, /report-specific simulated disk quota/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 1);
+    assert.equal(await page.locator('#batchResults a.report-download').count(), 1);
+    const published = await page.evaluate(() => {
+      const files = window.__batchPairDirectoryFiles;
+      return {
+        names: [...files.keys()],
+        mkvIsBlob: files.get('Batch S01E01.mkv') instanceof Blob,
+        mkvBytes: files.get('Batch S01E01.mkv')?.size || 0,
+        reportIsBlob: files.get('Batch S01E01.mux-report.json') instanceof Blob,
+      };
+    });
+    assert.equal(published.mkvIsBlob, true, JSON.stringify(published));
+    assert.ok(published.mkvBytes > 0);
+    assert.equal(published.reportIsBlob, false);
+    console.log('Batch report-only write failure honest persistence PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioBatchDirectorySaveFallback(browser) {
   console.log('E2E: completed mux remains downloadable when optional directory save fails');
   const { context, page } = await openApp(browser);
@@ -3852,6 +3925,7 @@ try {
   await scenarioBatchAmbiguousSafety(browser);
   await scenarioBatchDirectoryConflict(browser);
   await scenarioBatchDirectorySaveFallback(browser);
+  await scenarioBatchReportSavePartialPersistence(browser);
   await scenarioBatchQueue(browser);
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
