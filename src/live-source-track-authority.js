@@ -90,8 +90,13 @@ function currentRows(session, source, state) {
       .filter(([key]) => key.startsWith(kind + ':'))
       .sort((a, b) => objects.get(a[1]).order - objects.get(b[1]).order)
       .map(([key]) => key);
-    const executable = [...indexed.entries()]
-      .filter(([, row]) => row.type === kind)
+    const executableRows = [...indexed.entries()]
+      .filter(([, row]) => row.type === kind);
+    if (executableRows.some(([,row]) =>
+      !Number.isSafeInteger(row.order) || row.order < 0) ||
+        new Set(executableRows.map(([,row]) => row.order)).size !== executableRows.length)
+      throw Error('LIVE_TRACK_ORDER_PROJECTION_DRIFT');
+    const executable = executableRows
       .sort((a, b) => a[1].order - b[1].order)
       .map(([key]) => key);
     if (owned.length !== executable.length ||
