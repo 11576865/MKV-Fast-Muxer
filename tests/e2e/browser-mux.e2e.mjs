@@ -1481,6 +1481,11 @@ async function scenarioBatchQueue(browser) {
     assert.equal(await resultRows.count(), 2);
     assert.equal(await page.locator('#batchResults a.download').count(), 2);
     assert.equal(await page.locator('#batchResults a.report-download').count(), 2);
+    // Generated blobs without a selected write directory are NOT persisted files.
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#batchPlan .batch-review-state[data-state="awaitingSave"]').length === 2
+    );
+    assert.match(await page.locator('#batchJobInspector').textContent(), /待下载保存/);
     console.log('Scenario 28 PASS');
   } finally {
     await context.close();
