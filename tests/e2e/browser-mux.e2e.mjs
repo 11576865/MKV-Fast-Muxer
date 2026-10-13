@@ -150,13 +150,36 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     await page.waitForFunction(() =>
       !document.querySelector('#containerProjectExportBtn')?.disabled);
     const projectOutput = path.join(outDir, 'five-step-container-project-v1.json');
+    // Capturing native click events distinguishes a transiently disabled button
+    // from a handler that returned on stale authority, or a blocked download.
+    await page.evaluate(() => {
+      const b = document.querySelector('#containerProjectExportBtn');
+      b.dataset.testPointerdowns = '0';
+      b.dataset.testClicks = '0';
+      b.addEventListener('pointerdown', () => {
+        b.dataset.testPointerdowns = String(Number(b.dataset.testPointerdowns) + 1);
+      }, { capture: true });
+      b.addEventListener('click', () => {
+        b.dataset.testClicks = String(Number(b.dataset.testClicks) + 1);
+      }, { capture: true });
+    });
     try {
       await saveDownload(page, '#containerProjectExportBtn', projectOutput);
     } catch (error) {
-      const visible = await page.locator('#status').textContent();
-      const ready = await page.locator('#containerProjectExportBtn').isDisabled();
-      throw new Error('Project export yielded no download; status=' + visible +
-        '; disabled=' + ready + '; ' + (error?.message || String(error)));
+      const diagnostic = await page.evaluate(() => {
+        const b = document.querySelector('#containerProjectExportBtn');
+        return {
+          status: document.querySelector('#status')?.textContent,
+          disabled: b?.disabled,
+          connected: b?.isConnected,
+          pointerdowns: b?.dataset.testPointerdowns,
+          clicks: b?.dataset.testClicks,
+          readout: document.querySelector('#containerCapabilitySummary')?.textContent,
+          source: document.querySelector('#videoInput')?.files?.[0]?.name,
+        };
+      });
+      throw new Error('Project export yielded no download; diagnostic=' +
+        JSON.stringify(diagnostic) + '; ' + (error?.message || String(error)));
     }
     const project = JSON.parse(await fs.readFile(projectOutput, 'utf8'));
     assert.equal(project.schema, 'container-project-v1');
