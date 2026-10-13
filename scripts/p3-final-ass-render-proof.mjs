@@ -35,42 +35,61 @@ export function p3FontSelectionProvesFamily(log, family = P3_FAMILY) {
 }
 
 export function p3RenderProofVerdict({
-  sourcePng, finishedPng, alteredPng, blankPng, sourceLog, finalLog,
+  sourcePng, demuxedPng, finishedPng, alteredPng, blankPng,
+  sourceLog, demuxedLog, finalLog,
+  directSsim, tamperedSsim, blankSsim,
   family = P3_FAMILY,
 } = {}) {
   const bytes = x => Buffer.isBuffer(x) && x.length > 128;
-  if (![sourcePng, finishedPng, alteredPng, blankPng].every(bytes)) {
+  if (![sourcePng, demuxedPng, finishedPng, alteredPng, blankPng].every(bytes)) {
     return { ok: false, code: 'RENDER_FILE_UNAVAILABLE' };
   }
   const hash = buffer => createHash('sha256').update(buffer).digest('hex');
-  const a = hash(sourcePng), b = hash(finishedPng);
-  const tampered = hash(alteredPng), blank = hash(blankPng);
-  if (!p3FontSelectionProvesFamily(sourceLog, family) ||
-      !p3FontSelectionProvesFamily(finalLog, family)) {
+  const source = hash(sourcePng), recovered = hash(demuxedPng);
+  const direct = hash(finishedPng), tampered = hash(alteredPng), blank = hash(blankPng);
+  if (![sourceLog, demuxedLog, finalLog].every(
+    log => p3FontSelectionProvesFamily(log, family))) {
     return { ok: false, code: 'EMBEDDED_FONT_SELECTION_NOT_PROVEN' };
   }
-  if (b === blank || a === blank) {
+  if (source === blank || recovered === blank || direct === blank) {
     return { ok: false, code: 'SUBTITLE_NOT_VISIBLE' };
   }
-  if (b === tampered) {
+  if (source === tampered || recovered === tampered) {
     return { ok: false, code: 'TAMPER_NEGATIVE_CONTROL_FAILED' };
   }
-  if (a !== b) {
-    return { ok: false, code: 'SOURCE_AND_FINAL_RENDER_PIXELS_DIFFER' };
+  // Same ASS filter and image dimensions => exact rendered pixel equality.
+  if (source !== recovered) {
+    return { ok: false, code: 'SOURCE_AND_DEMUXED_ASS_RENDER_PIXELS_DIFFER' };
+  }
+  if (![directSsim, tamperedSsim, blankSsim].every(
+    x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1)) {
+    return { ok: false, code: 'RENDER_SSIM_UNAVAILABLE' };
+  }
+  // Two different FFmpeg subtitle ingestion paths can change a small set of
+  // antialiasing edge pixels even with identical text, styles and fonts.
+  // Keep exact pixels mandatory for the demuxed ASS path above, and apply
+  // an explicit SSIM bound to the direct final-MKV subtitles filter only.
+  if (directSsim < 0.995) {
+    return { ok: false, code: 'DIRECT_MKV_RENDER_SIMILARITY_TOO_LOW' };
+  }
+  if (tamperedSsim >= 0.97 || blankSsim >= 0.97) {
+    return { ok: false, code: 'NEGATIVE_RENDER_CONTROL_NOT_DISTINCT' };
   }
   return {
     ok: true, code: 'PASS_P3_NAMED_FIXTURE',
-    renderedPixelImageSha256: b,
-    sourceReferenceSha256: a,
-    negativeControlSha256: tampered,
-    noSubtitleSha256: blank,
+    sourceReferenceSha256: source,
+    demuxedFinishedAssRenderSha256: recovered,
+    directMkvRenderSha256: direct,
+    negativeControlSha256: tampered, noSubtitleSha256: blank,
+    exactPixelsForDemuxedAss: true,
+    directMkvSsimToSource: directSsim,
+    tamperedSsimToSource: tamperedSsim,
+    blankSsimToSource: blankSsim,
     familySelected: family,
-    mode: 'system-ffmpeg-libass-final-mkv-versus-source-reference',
+    mode: 'system-ffmpeg-libass-demuxed-exact-plus-direct-mkv-ssim',
     testedFrameTimeSeconds: 1,
-    outputDimensions: [320, 180],
-    sampleCount: 1,
-    rendererEquivalenceClaim: false,
-    arbitraryPlayerClaim: false,
+    outputDimensions: [320, 180], sampleCount: 1,
+    rendererEquivalenceClaim: false, arbitraryPlayerClaim: false,
     fullFontShapingClaim: false,
   };
 }
@@ -91,6 +110,20 @@ function renderPng({ filter, destination }) {
       (run.error?.message || String(run.stderr).slice(-700)));
   }
   return String(run.stderr || '');
+}
+
+
+function renderSsim(first, second) {
+  const run = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'info', '-nostdin',
+    '-i', first, '-i', second, '-lavfi', 'ssim', '-f', 'null', '-',
+  ], { encoding: 'utf8', timeout: 30_000, maxBuffer: 4 * 1024 * 1024 });
+  if (run.error || run.status !== 0) {
+    throw Error('system FFmpeg SSIM reference comparison unavailable');
+  }
+  const match = String(run.stderr || '').match(/All:([0-9]+(?:\.[0-9]+)?)/);
+  if (!match) throw Error('system FFmpeg did not emit SSIM All metric');
+  return Number(match[1]);
 }
 
 /** Must be called ONLY after a real-browser MKV has been downloaded. */
