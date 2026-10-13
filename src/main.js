@@ -8,6 +8,7 @@ import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { auditProducedFontAttachments } from './output-font-payload-audit.js';
 import { auditProducedAssEvents } from './ass-event-output-audit.js';
+import { auditProducedAssStyles } from './ass-style-output-audit.js';
 import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
@@ -1317,6 +1318,13 @@ function renderActualOutputEvidence() {
         : model.assEvent?.status === 'unavailable'
           ? '新增 ASS 事件成品回读：未验证（预算、解析或执行限制）'
           : '新增 ASS 事件成品回读：未请求此范围',
+    model.assStyle?.status === 'pass'
+      ? `新增 ASS 样式成品回读：${model.assStyle.verified}/${model.assStyle.total} 条轨，${model.assStyle.styleRecords} 项 Style（不含字体渲染）`
+      : model.assStyle?.status === 'warning'
+        ? `新增 ASS 样式成品回读：字段存在差异（${model.assStyle.verified}/${model.assStyle.total}）`
+        : model.assStyle?.status === 'unavailable'
+          ? '新增 ASS 样式成品回读：未验证（不支持的格式或资源限制）'
+          : '新增 ASS 样式成品回读：未请求此范围',
     model.fontPayload?.status === 'pass'
       ? `新字体附件字节验证：${model.fontPayload.verified}/${model.fontPayload.total} · SHA-256 一致`
       : model.fontPayload && model.fontPayload.status !== 'not-requested'
@@ -4437,16 +4445,18 @@ async function executeCurrentMuxTask(explicit = null) {
     // P3 subtitle-delivery proof: recover NEW ASS Dialogue events from the
     // actual finished Matroska track. This is deliberately distinct from
     // ffprobe stream identity and does not claim Style/font/render fidelity.
-    const assEventAudit = await auditProducedAssEvents({
-      claims: runtimeSubtitles.map((track, index) => ({
-        name: track.file.name,
-        formatId: track.format?.id || '',
-        outputText: track.outputText,
-        ordinal: (preserveAllSourceStreams ? sourceSubtitles.length : 0) + index,
-      })),
-      outputProbe: actualOutputProbe,
-      outputBytes: data.byteLength,
-      readFinalAss: async (ordinal) => {
+    const assOutputClaims = runtimeSubtitles.map((track, index) => ({
+      name: track.file.name,
+      formatId: track.format?.id || '',
+      outputText: track.outputText,
+      ordinal: (preserveAllSourceStreams ? sourceSubtitles.length : 0) + index,
+    }));
+    // One actual finished-MKV readback serves two INDEPENDENT semantic
+    // checks. Cache a pending Promise to avoid concurrent FFmpeg reads.
+    const recoveredAssCache = new Map();
+    const readFinalAss = async (ordinal) => {
+      if (recoveredAssCache.has(ordinal)) return recoveredAssCache.get(ordinal);
+      const pending = (async () => {
         const extractedPath = prefix + '-final-ass-check-' + ordinal + '.ass';
         try {
           const extraction = await execWithCapturedLogs([
@@ -4467,8 +4477,18 @@ async function executeCurrentMuxTask(explicit = null) {
         } finally {
           await removeQuietly(extractedPath);
         }
-      },
-    });
+      })();
+      recoveredAssCache.set(ordinal, pending);
+      return pending;
+    };
+    const assAuditSource = {
+      claims: assOutputClaims,
+      outputProbe: actualOutputProbe,
+      outputBytes: data.byteLength,
+      readFinalAss,
+    };
+    const assEventAudit = await auditProducedAssEvents(assAuditSource);
+    const assStyleAudit = await auditProducedAssStyles(assAuditSource);
     if (assEventAudit.status === 'pass') {
       logEl.textContent += 'AUDIT: 已从最终 MKV 回读并逐事件核对 ' +
         assEventAudit.verified + '/' + assEventAudit.total +
@@ -4489,6 +4509,27 @@ async function executeCurrentMuxTask(explicit = null) {
         assEventAudit.issues.join('；') + '\n';
     }
     finalAudit.assEventAudit = assEventAudit;
+    if (assStyleAudit.status === 'pass') {
+      logEl.textContent += 'AUDIT: 最终 MKV 中 ' +
+        assStyleAudit.verified + '/' + assStyleAudit.total +
+        ' 条新增 ASS 的 ' + assStyleAudit.styleRecords +
+        ' 项 V4+ Style 定义字段一致；不代表字体解析、渲染或播放器效果已验证。\n';
+    } else if (assStyleAudit.status === 'warning') {
+      const detail = assStyleAudit.issues.join('；') || 'Style 定义存在差异';
+      logEl.textContent += 'AUDIT WARNING: 成品 ASS Style 定义不一致：' + detail + '\n';
+      finalAudit.status = 'warning';
+      finalAudit.ok = false;
+      finalAudit.issues = [...(finalAudit.issues || []), ...assStyleAudit.issues];
+      if (!independent) {
+        auditResult.className = 'audit-result warn';
+        auditResult.textContent = '成品 ASS 样式待复核：' + detail;
+      }
+      completionNote += '；新增 ASS Style 成品核验存在差异';
+    } else if (assStyleAudit.status === 'unavailable') {
+      logEl.textContent += 'AUDIT UNAVAILABLE: 新增 ASS V4+ Style 样式核验未完成：' +
+        assStyleAudit.issues.join('；') + '\n';
+    }
+    finalAudit.assStyleAudit = assStyleAudit;
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({

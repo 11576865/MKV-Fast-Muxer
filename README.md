@@ -268,6 +268,15 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 - `pass` 只说明上述事件字段在最终容器回读中一致；`warning` 表示已观察到差异，并降低整体审计状态，但成品仍可下载复核；`unavailable` 不改变先前已完成的基础轨道审计结论，也不构成事件保真证明；`not-requested` 表示当前没有受支持的新增 ASS 轨。
 - 检查结果记录于封装报告 `audit.assEventAudit`，并出现在主工作台的实际成品证据区域。已有的附件 FileData SHA-256 校验是另一种独立证据，不能代替 ASS 字幕的事件回读。
 
+## 新增 ASS 的 V4+ Style 成品验证（受限）
+
+新增的 V4+ 样式校验与上面的 Dialogue 校验互相独立。系统从**最终 MKV** 回读新增 ASS，按实际 `Format` 列顺序解析 V4+ `Style` 定义，比较完整的 23 个已知字段（包括 Fontname、Fontsize、颜色、Bold/Italic、ScaleX/Y、Spacing、Outline/Shadow、Alignment、Margins 和 Encoding）。数值的小数表示及十六进制颜色字母大小写会做保留语义的规范化；真正的值变化、样式缺失或顺序变化则报告差异。
+
+- 只支持新增 ASS 的完整已知 `[V4+ Styles]` 表；有未知/自定义样式列、重复名称、无法可靠解析或超出预算时，单独记录 `unavailable`，不将局部通过当作全部样式已验证。
+- 同一次最终 MKV 回读供 `audit.assEventAudit` 与 `audit.assStyleAudit` 使用，但证据结论保持独立；样式字段发生已证实的差异会触发整体审计 `warning`，成品仍可以保存并由用户复核。
+- 受限于不超过 8 条新增 ASS 轨、512 MiB 成品、2 MiB ASS 文本和每轨 512 条样式定义的检查预算。这些数字不是一般软封能力上限。
+- **不覆盖** `[Script Info]`、未建模的扩展字段、SSA、已有来源字幕、完整 ASS 附件依赖、字体替换、实际 libass shaping/渲染、播放器兼容、EBML UID 关系和任意媒体文件规模。即使事件、样式和字体附件 SHA-256 分别通过，也不等于真实字幕画面已经完成验收。
+
 ## MKV 轨道管理
 
 输入本身是 MKV 时，默认启用 **“复制原轨并追加（重封装）”**：通过 FFmpeg Stream Copy 尝试映射全部已识别的原音频、原字幕和附件，并请求映射来源 Chapters、部分全局 metadata 与轨道 disposition，再追加新字幕 / 外部音频 / 新字体。这个模式不要求先手动扫描轨道。
