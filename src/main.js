@@ -726,6 +726,14 @@ function renderPreservationReadiness() {
 function beginPreservationPreview() {
   const source = videoInput.files?.[0] || null;
   const generation = ++preservationPreviewGeneration;
+  // The already-authorized batch runner stages through old hidden File inputs.
+  // Its own independent frozen-plan preflight remains authoritative; avoid
+  // starting a competing asynchronous preview that can mutate that adapter UI.
+  if (batchRunning) {
+    preservationPreview = { source, state: 'not-applicable', inspection: null };
+    renderPreservationReadiness();
+    return;
+  }
   preservationPreview = { source, state: source ? 'checking' : 'idle', inspection: null };
   renderPreservationReadiness();
   if (!source) return;
