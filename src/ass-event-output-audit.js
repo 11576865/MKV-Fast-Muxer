@@ -125,10 +125,20 @@ export async function auditProducedAssEvents({
     try {
       const source = parseAssDialogueEvents(claim.outputText);
       const recovered = parseAssDialogueEvents(await readFinalAss(claim.ordinal));
-      if (source.length !== recovered.length ||
-          source.some((item, index) => item !== recovered[index])) {
-        issues.push('ASS“' + (claim.name || '') +
-          '”的最终 Dialogue 事件、时间、顺序或覆盖标签与待封装文本不同');
+      if (source.length !== recovered.length) {
+        issues.push('ASS“' + (claim.name || '') + '”的 Dialogue 事件数量不同（计划 ' +
+          source.length + '，实际 ' + recovered.length + '）');
+        continue;
+      }
+      const firstMismatch = source.findIndex((item, index) => item !== recovered[index]);
+      if (firstMismatch !== -1) {
+        const wanted = JSON.parse(source[firstMismatch]);
+        const actual = JSON.parse(recovered[firstMismatch]);
+        const fieldIndex = wanted.findIndex((value, index) => value !== actual[index]);
+        const field = REQUIRED[fieldIndex] || 'unknown';
+        // Never leak subtitle text or user-authored ASS into UI/CI diagnostics.
+        issues.push('ASS“' + (claim.name || '') + '”第 ' + (firstMismatch + 1) +
+          ' 个 Dialogue 的 ' + field + ' 字段与封装前不同');
         continue;
       }
       verified++;
