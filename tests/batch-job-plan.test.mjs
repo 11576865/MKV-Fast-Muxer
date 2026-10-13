@@ -11,7 +11,12 @@ function validPairing() {
     [file('Series S01E01.zh.ass'), file('Series S01E02.en.srt')],
   );
   pairing.fonts = [file('Font.otf')];
-  pairing.fontRecognition = { ignored: [] };
+  pairing.fontRecognition = {
+    ignored: [],
+    recognized: [{ file: pairing.fonts[0], identity: {
+      valid: true, container: 'single', flavor: 'truetype', descriptors: [{ family: 'Fixture Sans' }],
+    } }],
+  };
   pairing.videoRecognition = { ignored: [] };
   pairing.directoryConflicts = [];
   pairing.directoryCheckError = '';
@@ -33,6 +38,8 @@ test('frozen batch plan preserves actual per-job media inputs, output and policy
   assert.equal(plan.policy.subsetScope, 'group');
   assert.equal(plan.policy.directoryName, 'episodes');
   assert.equal(plan.fonts[0].name, 'Font.otf');
+  assert.equal(plan.fontRecognition.recognized[0].file, plan.fonts[0]);
+  assert.equal(plan.fontRecognition.recognized[0].identity.flavor, 'truetype');
   assert.ok(Object.isFrozen(plan));
   assert.ok(Object.isFrozen(plan.jobs));
   assert.ok(Object.isFrozen(plan.jobs[0]));
@@ -41,9 +48,11 @@ test('frozen batch plan preserves actual per-job media inputs, output and policy
   pairing.jobs[0].outputName = 'changed.mkv';
   pairing.jobs[0].subtitleInputFiles.splice(0);
   pairing.fonts.splice(0);
+  pairing.fontRecognition.recognized.splice(0);
   assert.equal(plan.jobs[0].outputName, 'Series S01E01.mkv');
   assert.equal(plan.jobs[0].subtitleInputFiles.length, 1);
   assert.equal(plan.fonts.length, 1);
+  assert.equal(plan.fontRecognition.recognized.length, 1);
 });
 
 test('plan freeze fails closed on ambiguous pairing, target collision and invalid inputs', () => {
