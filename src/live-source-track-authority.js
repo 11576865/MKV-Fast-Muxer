@@ -115,8 +115,10 @@ function currentRows(session, source, state) {
   for (const item of state.attachments) {
     const key = 'attachment:' + item.index;
     if (!Number.isSafeInteger(item.index) || item.index < 0 ||
-        attachments.has(key) || indexed.has(key) ||
+        attachments.has(key) ||
+        [...indexed.values()].some(track=>track.index===item.index) ||
         !sourceStreamIndices.has(item.index) ||
+        item.stream !== state.streams.find(stream=>stream.index===item.index) ||
         item.stream?.index !== item.index ||
         item.stream?.codec_type !== 'attachment')
       throw Error('LIVE_ATTACHMENT_INDEX_AMBIGUOUS');
