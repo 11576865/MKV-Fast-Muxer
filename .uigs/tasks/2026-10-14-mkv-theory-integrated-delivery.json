@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1 complete-file source SHA-256 from 64 MiB to bounded 16 GiB using incremental 1 MiB slicing, cancellable progress and source-fenced UI",
+  "current_work_unit": "Repair PR #126 exact-head browser E2E Playwright >50 MB inline buffer fixture error; submitted on-disk fixture path, awaiting one new async CI generation",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -16,7 +16,9 @@
     "Implemented FIPS-compatible incremental SHA-256 for source Files larger than the previous 64 MiB WebCrypto allocation ceiling; identical standard digest and 1 MiB bounded slices.",
     "Connected progress, cancel, source switch and draft switch invalidation into the actual project-export and source-verify controls.",
     "Added Node large logical source tests and real 65 MiB browser export/re-import/proof regression to the existing Chromium suite.",
-    "Independently verified a 65 MiB + 13 byte streamed digest against Python hashlib SHA-256 and checked syntax of changed JS."
+    "Independently verified a 65 MiB + 13 byte streamed digest against Python hashlib SHA-256 and checked syntax of changed JS.",
+    "PR #126 first exact-head run 38450948443: Node and Vite build PASS; Chromium E2E FAIL before large-source hashing because Playwright setInputFiles({buffer}) rejects files >50 MB.",
+    "Repaired 65 MiB Chromium fixture to write on-disk test media first and pass its path to setInputFiles; independently checked JS syntax and source test assertions."
   ],
   "next_units": [
     "Observe the new PR exact-head Node/build/real Chromium results in the following validation turn; do not poll this PR in the submission turn.",
@@ -26,8 +28,8 @@
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p1-streamed-large-source-sha256-20261014",
-  "pull_request": null,
-  "last_durable_commit": "e3855920c66e6a6566a21191bab7877d62a87064",
+  "pull_request": 126,
+  "last_durable_commit": "1ce5fc4f6647a18436282d47faa70e5ebf093cd5",
   "external_validation": {
     "pr125-exact-head-node-build-chromium": "passed",
     "pr125-merged-main": "passed",
@@ -35,10 +37,14 @@
     "large-stream-65mib-independent-oracle": "passed",
     "large-stream-source-proofs-node": "pending",
     "large-stream-real-chromium": "pending",
-    "field-device": "unknown"
+    "field-device": "unknown",
+    "pr126-first-node": "passed",
+    "pr126-first-build": "passed",
+    "pr126-first-e2e": "failed",
+    "pr126-new-exact-head-browser": "pending"
   },
   "blockers": [
-    "Exact-head PR CI for large-source SHA-256 has not yet run / returned.",
+    "New PR #126 Chromium E2E after Playwright file-path fixture repair is Pending; do not claim green before exact-head confirmation.",
     "The complete-source hashing operation is bounded at 16 GiB and may take considerable device time; mobile/OEM performance remains unmeasured.",
     "Known P0 #77 complex chapter/targeted Tag remux nonpreservation; no general EBML writer.",
     "Full single-writable-authority ContainerProject migration, OPFS resume, cross-player compatibility and user acceptance are still open."
@@ -46,7 +52,8 @@
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
     "Do not represent this bounded source-track recovery as complete P1 or general EBML writer.",
-    "2026-10-14: Historical 64 MiB bound for P1 native whole-buffer hashing has been extended; separate P2 64 MiB research safety limit is unchanged."
+    "2026-10-14: Historical 64 MiB bound for P1 native whole-buffer hashing has been extended; separate P2 64 MiB research safety limit is unchanged.",
+    "One bounded repair generation only for PR126 failure: use temporary 65 MiB file path instead of Playwright in-memory buffer (>50MB limit)."
   ],
-  "updated_at": "2026-10-13T18:56:46.808Z"
+  "updated_at": "2026-10-14T03:02:00+08:00"
 }
