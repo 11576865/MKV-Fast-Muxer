@@ -181,7 +181,15 @@ export function createContainerProjectFromProjection(snapshot) {
     const kind = ALLOWED_KINDS.has(item.kind) ? item.kind :
       item.kind === 'font' ? 'attachment' : 'other';
     const attributes = {};
-    if (typeof item.title === 'string' && EDITABLE_FIELDS[kind].includes('title'))
+    // Prefer the actual scanned edit values to a display label. In
+    // particular an unnamed stream's visible codec label is NOT its title.
+    for (const [field, value] of Object.entries(item.attributes || {})) {
+      if (EDITABLE_FIELDS[kind].includes(field) &&
+          (typeof value === 'string' || typeof value === 'boolean'))
+        attributes[field] = value;
+    }
+    if (!('title' in attributes) &&
+        typeof item.title === 'string' && EDITABLE_FIELDS[kind].includes('title'))
       attributes.title = item.title;
     return {
       id: stableKey('object', item.id), kind,
