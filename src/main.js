@@ -30,6 +30,8 @@ import {
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
 import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
 import { preservationReadiness } from './preservation-readiness.js';
+import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
+import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
@@ -42,6 +44,7 @@ import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBat
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
+import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -148,6 +151,8 @@ const compositionCount = $('compositionCount');
 const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
 const preservationReadinessEl = $('preservationReadiness');
+const containerCapabilitySummary = $('containerCapabilitySummary');
+const containerCapabilityDetailsList = $('containerCapabilityDetailsList');
 const preservationReadinessTitle = $('preservationReadinessTitle');
 const preservationReadinessDescription = $('preservationReadinessDescription');
 const compositionSourceEvidence = $('compositionSourceEvidence');
@@ -162,6 +167,7 @@ const outputEvidenceIssues = $('outputEvidenceIssues');
 const outputEvidenceRevision = $('outputEvidenceRevision');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
+const containerProjectExportBtn = $('containerProjectExportBtn');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -193,6 +199,9 @@ const batchCancelBtn = $('batchCancelBtn');
 const batchPreserveAttachments = $('batchPreserveAttachments');
 const batchFontSubsetEnabled = $('batchFontSubsetEnabled');
 const batchSubsetScope = $('batchSubsetScope');
+const batchRecipeExportBtn = $('batchRecipeExportBtn');
+const batchRecipeImportInput = $('batchRecipeImportInput');
+const batchRecipeNotice = $('batchRecipeNotice');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
@@ -412,6 +421,8 @@ let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
 let lastCompositionSourceKey = '';
+let currentProjectSourceProjection = null;
+let currentProjectSourceFile = null;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1358,7 +1369,48 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
+  // Preserve the exact File reference, not just the name/size/mtime display
+  // key. A replacement with identical metadata may NOT inherit the snapshot.
+  currentProjectSourceProjection = containerDocument;
+  currentProjectSourceFile = source;
+  // Export is read-only and has no mux/write side effects. Background preview
+  // and track scan are not grounds to silently drop an export command: the
+  // snapshot explicitly says that inspection and source relinking are pending.
+  if (containerProjectExportBtn) containerProjectExportBtn.disabled =
+    !containerDocument.objects.length || importInProgress;
   const model = containerDocument.composition;
+  if (containerCapabilitySummary) {
+    const caps = resolveContainerCapabilities({
+      hasSource: Boolean(source),
+      sourceContainer: selectedVideoHeaderIdentity(source)?.container || 'unknown',
+      sourceInspected: Boolean(scanned),
+      hasVideo: Boolean(scanned?.streams?.some(stream => stream.codec_type === 'video')),
+      preservationStatus: currentPreservationReadiness().status,
+    });
+    const items = summarizeContainerCapability(caps);
+    const shown = [items[0], items[1]];
+    containerCapabilitySummary.textContent = shown
+      .map(item => item.label + '：' + ({
+        'available': '可用', 'requires-preflight': '需预检', 'blocked': '阻断',
+        'unsupported': '不支持', 'experimental': '实验', 'unverified': '未验证',
+        'requires-source': '需来源',
+      }[item.status] || '未验证')).join(' · ');
+    containerCapabilitySummary.title = items.map(item =>
+      item.label + ' [' + item.status + '] ' + item.reason).join('\n');
+    containerCapabilitySummary.dataset.muxStatus = caps.mux.status;
+    if (containerCapabilityDetailsList) {
+      containerCapabilityDetailsList.replaceChildren(...items.map(item => {
+        const line = document.createElement('li');
+        line.textContent = item.label + '（' + ({
+          available: '可用', 'requires-preflight': '需预检', blocked: '阻断',
+          unsupported: '不支持', experimental: '实验性', unverified: '未验证',
+          'requires-source': '需来源',
+        }[item.status] || '未验证') + '）：' + item.reason;
+        line.dataset.status = item.status;
+        return line;
+      }));
+    }
+  }
   selectedCompositionId = reconcileContainerSelection(containerDocument, lastCompositionSourceKey, selectedCompositionId);
   lastCompositionSourceKey = containerDocument.sourceKey;
   outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
@@ -1462,6 +1514,35 @@ compositionTracks?.addEventListener('click', event => {
 });
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
+});
+containerProjectExportBtn?.addEventListener('click', () => {
+  // The export is a read-only snapshot, never a write authorization. Do not
+  // reject it simply because FFmpeg is scanning or the batch queue is busy.
+  // A distinct File object must never inherit the last source's projection.
+  const projection = currentProjectSourceProjection;
+  const source = videoInput.files?.[0] || null;
+  if (!projection || currentProjectSourceFile !== source ||
+      projection.sourceKey !== outputCompositionFileKey(source)) {
+    status.textContent = '工程草稿来源已更换；已刷新当前对象，请重新导出。';
+    renderOutputComposition();
+    return;
+  }
+  try {
+    const project = createContainerProjectFromProjection(projection);
+    const url = URL.createObjectURL(new Blob([serializeContainerProject(project)], {
+      type: 'application/json;charset=utf-8',
+    }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mkv-container-project-draft-v1.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    status.textContent = '工程草稿 JSON 已生成；来源权限未包含，后续打开必须重新关联。';
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  } catch (error) {
+    status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
+  }
 });
 compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
 editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });
@@ -5299,6 +5380,60 @@ batchSubsetScope?.addEventListener('change', () => {
   if (batchRunning || batchStartPending) return;
   activeBatchJobLedger = null;
   requestBatchPlanSync();
+});
+// A portable Recipe saves ONLY explicit policies. It never stores browser File
+// handles, destination permissions, output Blobs or a runnable JobPlan.
+batchRecipeExportBtn?.addEventListener('click', () => {
+  if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
+  try {
+    const recipe = buildBatchRecipe({
+      policy: {
+        preserveAttachments: Boolean(batchPreserveAttachments.checked),
+        subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
+        subsetScope: batchSubsetScope.value,
+      },
+    });
+    const url = URL.createObjectURL(new Blob([stringifyBatchRecipe(recipe)], {
+      type: 'application/json;charset=utf-8',
+    }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mkv-batch-recipe-v1.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    batchRecipeNotice.textContent = '规则已导出；素材、权限及成品不包含在配方中。';
+  } catch (error) {
+    batchRecipeNotice.textContent = '导出配方失败：' + (error?.message || String(error));
+  }
+});
+batchRecipeImportInput?.addEventListener('change', async () => {
+  const file = batchRecipeImportInput.files?.[0];
+  batchRecipeImportInput.value = '';
+  if (!file) return;
+  if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) {
+    batchRecipeNotice.textContent = '工作中不能导入配方，请等待本次任务结束。';
+    return;
+  }
+  try {
+    if (file.size > BATCH_RECIPE_MAX_BYTES) throw Error('RECIPE_TOO_LARGE');
+    const parsed = parseBatchRecipe(await file.text());
+    const preview = recipeApplyPreview(parsed, {
+      hasSelectedSources: Boolean(batchVideoFiles().length),
+    });
+    // No implicit restoration of manual source pairings or old save paths.
+    batchManualAssignments.clear();
+    selectedBatchVideoFile = null;
+    activeBatchJobLedger = null;
+    batchPreserveAttachments.checked = preview.policy.preserveAttachments;
+    batchFontSubsetEnabled.checked = preview.policy.subsetEnabled;
+    batchSubsetScope.value = preview.policy.subsetScope;
+    batchRecipeNotice.textContent = preview.notice;
+    await requestBatchPlanSync();
+  } catch (error) {
+    batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
+  }
 });
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 

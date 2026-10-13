@@ -15,6 +15,14 @@
 
 MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a visual-first soft-mux workflow. It previews ASS/SSA with FFmpeg/libass, supports text and bitmap subtitle tracks, keeps media on Stream Copy where possible, manages source-MKV tracks/attachments, batches folder-based jobs, and audits the generated container with ffprobe. Media stays on the user device.
 
+## 理论初版五步集成预览（2026-10-13）
+
+在既有快速字幕封装、原 MKV 轨道/附件、冻结批量执行、真实成品审计之外，新增**工程草稿导出**（版本化、不可执行、来源须重新授权）、**当前来源与后端能力边界**以及可在批量区域**导入/导出规则 JSON**。配方导入不会恢复媒体 File 权限、输出文件夹授权、旧成品或自动执行任务。领域 `ContainerProject` 的修改与撤销目前为独立纯逻辑迁移切片；用户已使用的单工程编辑器暂未被它全面替换。
+
+当前能力判定始终区分计划可描述与写入真正可执行：附件-only 保持实验性，已有 MKV 的安全附件写入仍要求有界 Void 等严格前提，FFmpeg 重封装不承诺完整未知 EBML、嵌套章节与 UID 关联保留，静/动态 libass CI 不等于任意播放器渲染认证。
+
+**这并非整个 P0–P6 理论计划的最终稳定版。** 对应功能、失败边界和仍未通过的阶段退出条件见 [五步工程验收账本](docs/five-step-theory-initial-preview-20261013.md)。
+
 ## 项目定位
 
 这个项目不是视频编辑器，也不是硬字幕压制器。

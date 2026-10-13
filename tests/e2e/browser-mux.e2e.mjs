@@ -74,6 +74,152 @@ async function openApp(browser) {
   return { context, page };
 }
 
+async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
+  console.log('Five-step E2E: portable recipe review and source capability truth');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.locator('.batch-drawer > summary').click();
+    // Group subsetting is intentionally unavailable without a real, recognized
+    // font; exercise the executable policy rather than forcing a disabled UI.
+    await page.setInputFiles('#batchFontInput', path.join(root, 'DejaVuSans.ttf'));
+    await page.locator('#batchPreserveAttachments').uncheck();
+    await page.locator('#batchFontSubsetEnabled').check();
+    await page.waitForFunction(() => !document.querySelector('#batchSubsetScope')?.disabled,
+      null, { timeout: 30_000 });
+    await page.locator('#batchSubsetScope').selectOption('group');
+    const wire = path.join(outDir, 'five-step-batch-recipe-v1.json');
+    await saveDownload(page, '#batchRecipeExportBtn', wire);
+    const raw = JSON.parse(await fs.readFile(wire, 'utf8'));
+    assert.equal(raw.schema, 'batch-recipe-v1');
+    assert.deepEqual(raw.policy, {
+      preserveAttachments: false, subsetEnabled: true, subsetScope: 'group',
+    });
+    assert.equal(raw.sourceBindings, 'must-reselect-and-review');
+    assert.equal(raw.outputDirectoryPermission, 'not-exported');
+    assert.equal(raw.savedArtifacts, 'not-included');
+    assert.equal(raw.reviewRequired, true);
+    assert.equal(raw.fileHandles, undefined);
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+
+    // Rejected foreign schema must not change the current working policy.
+    await page.setInputFiles('#batchRecipeImportInput', {
+      name: 'untrusted.json', mimeType: 'application/json',
+      buffer: Buffer.from('{"schema":"evil","policy":{}}'),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('配方被拒绝'));
+    assert.equal(await page.locator('#batchSubsetScope').inputValue(), 'group');
+    assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
+
+    await page.locator('#batchPreserveAttachments').check();
+    // Choose scope while the font-subset control is still enabled. Disabling
+    // subsetting deliberately disables the scope picker in the real UI.
+    await page.locator('#batchSubsetScope').selectOption('job');
+    await page.locator('#batchFontSubsetEnabled').uncheck();
+    await page.setInputFiles('#batchRecipeImportInput', wire);
+    await page.waitForFunction(() =>
+      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('已加载配方规则'));
+    assert.equal(await page.locator('#batchPreserveAttachments').isChecked(), false);
+    assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
+    assert.equal(await page.locator('#batchSubsetScope').inputValue(), 'group');
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(), true);
+    assert.equal(await page.locator('#batchVideoInput').evaluate(input => input.files.length), 0);
+
+    // Source identity and plan readiness are reconstructed after real selection.
+    await page.setInputFiles('#batchVideoInput', path.join(root, 'Batch S01E01.mp4'));
+    await page.setInputFiles('#batchSubtitleInput', path.join(root, 'Batch S01E01.zh-Hans.ass'));
+    await page.waitForFunction(() => {
+      const plan = document.querySelector('#batchPlan')?.textContent || '';
+      return plan.includes('Batch S01E01.mp4') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#batchResults a.download').count(), 0,
+      'import must never start an implicit mux or fabricate a delivered artifact');
+
+    // The legacy #videoInput is a hidden execution adapter. Export belongs
+    // to the real source workbench, which is populated by unified intake.
+    // Desktop layouts intentionally hide the phone-only jump navigation:
+    // do not try to click it or force-click a hidden editor control.
+    await page.setInputFiles('#unifiedAssetInput', path.join(root, 'base.mp4'));
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('#outputCompositionPanel');
+      const actual = document.querySelector('#videoInput')?.files?.[0]?.name;
+      return actual === 'base.mp4' && panel && !panel.hidden &&
+        panel.getClientRects().length > 0 &&
+        document.querySelector('#containerCapabilitySummary')?.textContent.includes('快速封装');
+    }, null, { timeout: 60_000 });
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must be accessible on desktop, not inside mobile-only sticky actions');
+    const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
+    assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
+    assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
+    await page.locator('#containerCapabilityDetails > summary').click();
+    assert.match(await page.locator('#containerCapabilityDetailsList').textContent(), /完整 EBML 保留/);
+    assert.match(await page.locator('#containerCapabilityDetailsList').textContent(), /未验证/);
+    await page.waitForFunction(() =>
+      !document.querySelector('#containerProjectExportBtn')?.disabled);
+    const projectOutput = path.join(outDir, 'five-step-container-project-v1.json');
+    // Capturing native click events distinguishes a transiently disabled button
+    // from a handler that returned on stale authority, or a blocked download.
+    await page.evaluate(() => {
+      const b = document.querySelector('#containerProjectExportBtn');
+      b.dataset.testPointerdowns = '0';
+      b.dataset.testClicks = '0';
+      b.addEventListener('pointerdown', () => {
+        b.dataset.testPointerdowns = String(Number(b.dataset.testPointerdowns) + 1);
+      }, { capture: true });
+      b.addEventListener('click', () => {
+        b.dataset.testClicks = String(Number(b.dataset.testClicks) + 1);
+      }, { capture: true });
+    });
+    try {
+      await saveDownload(page, '#containerProjectExportBtn', projectOutput);
+    } catch (error) {
+      const diagnostic = await page.evaluate(() => {
+        const b = document.querySelector('#containerProjectExportBtn');
+        return {
+          status: document.querySelector('#status')?.textContent,
+          disabled: b?.disabled,
+          connected: b?.isConnected,
+          pointerdowns: b?.dataset.testPointerdowns,
+          clicks: b?.dataset.testClicks,
+          readout: document.querySelector('#containerCapabilitySummary')?.textContent,
+          source: document.querySelector('#videoInput')?.files?.[0]?.name,
+        };
+      });
+      throw new Error('Project export yielded no download; diagnostic=' +
+        JSON.stringify(diagnostic) + '; ' + (error?.message || String(error)));
+    }
+    const project = JSON.parse(await fs.readFile(projectOutput, 'utf8'));
+    assert.equal(project.schema, 'container-project-v1');
+    assert.equal(project.execution, 'requires-fresh-source-authorization');
+    assert.ok(project.objects.length > 0);
+    assert.ok(project.sources.every(src => src.authorization === 'requires-relink'));
+    assert.equal(project.fileHandles, undefined);
+
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 1024, height: 768 });
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must remain in tablet composition header');
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-1024.png'), animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.locator('#containerProjectExportBtn').isVisible(), true,
+      'project export must remain visible in mobile source work area');
+    await page.screenshot({
+      path: path.join(outDir, 'five-step-workbench-390.png'), animations: 'disabled',
+    });
+    console.log('Five-step recipe export/import and capability truthful UI PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP3FinalMkvRealLibassRendering(browser) {
   console.log('P3 E2E: downloaded MKV ASS with unique embedded font renders identically to source reference');
   const { context, page } = await openApp(browser);
@@ -4038,6 +4184,7 @@ try {
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
+  await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);

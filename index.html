@@ -96,11 +96,16 @@
             <section id="outputCompositionPanel" class="output-composition" aria-labelledby="composition-title" hidden>
               <header class="composition-head">
                 <h3 id="composition-title">MKV 轨道</h3>
-                <span id="compositionCount" class="composition-count" aria-live="polite"></span>
+                <div class="composition-header-tools">
+                  <span id="compositionCount" class="composition-count" aria-live="polite"></span>
+                  <button id="containerProjectExportBtn" type="button" class="button button-secondary" disabled title="导出不含源文件及权限的工程草稿">导出工程草稿</button>
+                </div>
               </header>
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>
               <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
+              <div id="containerCapabilitySummary" class="container-capability-summary" aria-label="此来源的写入及验证能力" role="status"></div>
+              <details id="containerCapabilityDetails" class="container-capability-details"><summary>写入与验证能力边界</summary><ul id="containerCapabilityDetailsList" aria-label="当前后端能力及未验证项"></ul></details>
               <div id="preservationReadiness" class="preservation-readiness" data-status="idle" role="status" aria-live="polite">
                 <strong id="preservationReadinessTitle">等待选择来源</strong>
                 <span id="preservationReadinessDescription">导入媒体后检查 Matroska 结构保留风险。</span>
@@ -540,6 +545,14 @@
                   </select>
                   
                 </label>
+                <div class="batch-recipe-tool" role="group" aria-label="批量配方">
+                  <span class="control-label">配方</span>
+                  <button id="batchRecipeExportBtn" class="button button-small" type="button">导出规则</button>
+                  <label class="button button-small batch-recipe-picker">导入规则
+                    <input id="batchRecipeImportInput" type="file" accept=".json,application/json" aria-label="导入批量配方规则 JSON" />
+                  </label>
+                  <small id="batchRecipeNotice" role="status" aria-live="polite">只保存规则；素材与目录权限不会保存。</small>
+                </div>
                 <div class="batch-output-tool">
                   <span class="control-label">输出目录</span>
                   <button id="batchOutputDirBtn" class="button button-small" type="button">选择输出文件夹</button>
