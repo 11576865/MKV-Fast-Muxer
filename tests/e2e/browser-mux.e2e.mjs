@@ -3706,6 +3706,53 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     ], { encoding: 'utf8', maxBuffer: 24 * 1024 * 1024, timeout: 60_000 }))
       .packets.map(x => [x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
     assert.deepEqual(packetRecords(output), packetRecords(source));
+
+    // Same independent source, but now TWO AttachedFiles inside one
+    // reserved-Void replacement. Check external discovery/extraction for both.
+    const secondPayload = Buffer.from('second exact binary attachment\\n');
+    await page.setInputFiles('#existingMkvLimitedAttachment', [
+      { name: 'readme.txt', mimeType: 'text/plain', buffer: payload },
+      { name: 'second.bin', mimeType: 'application/octet-stream', buffer: secondPayload },
+    ]);
+    assert.match(await page.locator('#existingMkvLimitedInventory').textContent(), /second\\.bin/);
+    assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
+    assert.equal(await page.locator('#existingMkvLimitedFilename').isDisabled(), true);
+    assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
+    await page.locator('#existingMkvLimitedReview').check();
+    await page.locator('#existingMkvLimitedPrepare').click();
+    await page.waitForFunction(() => ['prepared', 'blocked'].includes(
+      document.querySelector('#existingMkvLimitedStatus')?.dataset.state), null, { timeout: 120_000 });
+    assert.equal(await page.locator('#existingMkvLimitedStatus').getAttribute('data-state'),
+      'prepared', await page.locator('#existingMkvLimitedStatus').textContent());
+    assert.match(await page.locator('#existingMkvLimitedEvidence').textContent(), /已验证 2 个附件/);
+    const multiOutput = path.join(outDir, 'limited-existing-browser-two-attachments.mkv');
+    const [multiDownload] = await Promise.all([
+      page.waitForEvent('download'), page.locator('#existingMkvLimitedSave').click(),
+    ]);
+    assert.match(multiDownload.suggestedFilename(), /\\.multiple-new-attachments\\.experimental\\.mkv$/);
+    await multiDownload.saveAs(multiOutput);
+    assert.equal((await fs.stat(multiOutput)).size, (await fs.stat(source)).size);
+    const afterMulti = read(multiOutput);
+    assert.equal((afterMulti.attachments || []).length, 2);
+    assert.deepEqual(afterMulti.attachments.map(item => item.file_name).sort(),
+      ['readme.txt', 'second.bin'].sort());
+    assert.deepEqual((afterMulti.tracks || []).map(t => [t.id, t.type, t.codec]),
+      (before.tracks || []).map(t => [t.id, t.type, t.codec]));
+    for (const kind of ['chapters', 'tags']) {
+      const extractedXml = path.join(outDir, 'limited-two-' + kind + '.xml');
+      execFileSync('mkvextract', [multiOutput, kind, extractedXml], { timeout: 60_000 });
+      assert.deepEqual(await fs.readFile(extractedXml),
+        await fs.readFile(path.join(outDir, 'limited-source-' + kind + '.xml')));
+    }
+    for (const [name, bytes] of [['readme.txt', payload], ['second.bin', secondPayload]]) {
+      const item = afterMulti.attachments.find(entry => entry.file_name === name);
+      const extracted = path.join(outDir, 'limited-two-' + name);
+      execFileSync('mkvextract', [multiOutput, 'attachments',
+        String(item.id) + ':' + extracted], { timeout: 60_000 });
+      assert.deepEqual(await fs.readFile(extracted), bytes);
+    }
+    assert.deepEqual(packetRecords(multiOutput), packetRecords(source));
+
     // Changing source immediately revokes the prepared artifact authorization.
     await page.setInputFiles('#existingMkvLimitedSource',
       path.join(root, 'source-with-attachments.mkv'));
