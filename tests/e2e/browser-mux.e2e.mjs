@@ -3354,6 +3354,42 @@ async function scenarioP0PreservationBlocksSingle(browser) {
   }
 }
 
+// A transient first header-read failure cannot turn a complex MKV into an
+// "unknown therefore skip structural preflight" source. Runtime preflight is
+// independent of the pre-click UI verdict.
+async function scenarioP0UnknownHeaderFailsClosed(browser) {
+  console.log('P0 unknown header: transient sniff failure cannot bypass source preservation gate');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.evaluate(() => {
+      let rejectFirstRead = true;
+      const original = File.prototype.slice;
+      File.prototype.slice = function (...args) {
+        const part = original.apply(this, args);
+        if (this.name === 'p0-independent-mkvtoolnix.mkv' && rejectFirstRead) {
+          rejectFirstRead = false;
+          part.arrayBuffer = () => Promise.reject(new Error('injected first header-read failure'));
+        }
+        return part;
+      };
+    });
+    await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
+    await page.waitForFunction(() =>
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    await page.locator('#muxBtn').dispatchEvent('click');
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+    console.log('P0 transient unknown source header fail-closed PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksWholeBatch(browser) {
   console.log('P0 preservation gate: reject batch before any output is started');
   const { context, page } = await openApp(browser);
@@ -3629,6 +3665,7 @@ try {
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
+  await scenarioP0UnknownHeaderFailsClosed(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
