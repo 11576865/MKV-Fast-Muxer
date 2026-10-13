@@ -138,6 +138,11 @@ async function scenarioMultiTrack(browser) {
     assert.equal(report.externalAudio.length, 1);
     assert.equal(report.externalAudio[0].codec, 'flac');
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    // Real output audit evidence must stay separate from a blanket EBML claim.
+    await page.locator('#outputEvidencePanel').waitFor({ state: 'visible' });
+    assert.match(await page.locator('#outputEvidenceTitle').textContent(), /ffprobe 审计通过/);
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(), new RegExp(report.output.sha256));
+    assert.match(await page.locator('.output-evidence-limits').textContent(), /不等于完整 EBML/);
 
     console.log('Scenario 1 PASS');
   } finally {
@@ -155,6 +160,12 @@ async function scenarioSelectiveAttachments(browser) {
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
 
     await waitForStatus(page, '轨道扫描完成：');
+    // The central output workbench must expose source-only chapter/tag
+    // observations, without implying the future writer will preserve them.
+    await page.locator('#compositionSourceEvidence > summary').click();
+    assert.equal(await page.locator('#compositionSourceEvidenceList [data-evidence-kind="chapter"]').count(), 2);
+    assert.ok((await page.locator('#compositionSourceEvidenceList').textContent()).includes('Fixture Container'));
+    assert.match(await page.locator('.source-evidence-scope').textContent(), /不是最终成品的保留承诺/);
     await page.locator('#appendPreserveAll').uncheck();
     assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
     assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
