@@ -199,6 +199,35 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     assert.ok(project.sources.every(src => src.authorization === 'requires-relink'));
     assert.equal(project.fileHandles, undefined);
 
+    // Actually roundtrip the browser-downloaded draft back through the
+    // always-visible project control. Review is detached: neither old source
+    // permissions nor an executable target plan may be restored.
+    await page.setInputFiles('#containerProjectImportInput', projectOutput);
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'), null, { timeout: 30_000 });
+    assert.equal(await page.locator('#containerProjectImportReview').isVisible(), true);
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /来源字节一致|来源身份不同或未关联/);
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /未恢复编辑状态、封装权限或媒体文件/);
+    assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+
+    // Forged writer authority must be rejected; current File and draft
+    // capabilities may not change in response to malicious project JSON.
+    await page.setInputFiles('#containerProjectImportInput', {
+      name: 'forged-project.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ ...project, writerStatus: 'verified' })),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('工程草稿被拒绝'), null, { timeout: 30_000 });
+    assert.match(await page.locator('#containerProjectImportReview').textContent(), /PROJECT_IMPORT_SCHEMA_UNSUPPORTED/);
+    assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
+    await page.setInputFiles('#containerProjectImportInput', projectOutput);
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'));
+
     await page.screenshot({
       path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
     });

@@ -99,8 +99,12 @@
                 <div class="composition-header-tools">
                   <span id="compositionCount" class="composition-count" aria-live="polite"></span>
                   <button id="containerProjectExportBtn" type="button" class="button button-secondary" disabled title="导出不含源文件及权限的工程草稿">导出工程草稿</button>
+                  <label class="button button-secondary container-project-import-label">检查工程草稿
+                    <input id="containerProjectImportInput" type="file" accept=".json,application/json" aria-label="导入工程草稿以检查来源与对象差异；不会执行封装" />
+                  </label>
                 </div>
               </header>
+              <p id="containerProjectImportReview" class="container-project-import-review" role="status" aria-live="polite" hidden></p>
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>
               <div id="compositionIssues" class="composition-issues" role="status" hidden></div>

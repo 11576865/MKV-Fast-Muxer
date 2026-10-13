@@ -5449,3 +5449,42 @@ body { background: radial-gradient(circle at 15% -10%, #1a2d49 0, transparent 42
   border-radius: 6px;
 }
 .container-capability-details li { margin-block: 3px; overflow-wrap: anywhere; }
+
+
+/* P1 detached project import: review surface is intentionally not a commit. */
+.container-project-import-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  min-height: 32px;
+  white-space: nowrap;
+}
+.container-project-import-label input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.container-project-import-label:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.container-project-import-review {
+  border-inline-start: 3px solid var(--line);
+  color: var(--muted);
+  margin: 5px 0;
+  padding: 5px 9px;
+  font-size: .71rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.container-project-import-review[data-state="rejected"],
+.container-project-import-review[data-state="source-relink-required"] {
+  border-inline-start-color: var(--warning);
+}
+@media (max-width: 767px) {
+  .container-project-import-label { min-height: 40px; }
+}

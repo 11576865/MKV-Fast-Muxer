@@ -45,6 +45,7 @@ import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
+import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -168,6 +169,8 @@ const outputEvidenceRevision = $('outputEvidenceRevision');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
 const containerProjectExportBtn = $('containerProjectExportBtn');
+const containerProjectImportInput = $('containerProjectImportInput');
+const containerProjectImportReview = $('containerProjectImportReview');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -423,6 +426,7 @@ let lastActualOutput = null;
 let lastCompositionSourceKey = '';
 let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
+let importedProjectForReview = null;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1373,6 +1377,15 @@ function renderOutputComposition() {
   // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
   currentProjectSourceFile = source;
+  if (importedProjectForReview && containerProjectImportReview) {
+    const comparison = compareContainerProjectDraft(importedProjectForReview, containerDocument);
+    containerProjectImportReview.hidden = false;
+    containerProjectImportReview.dataset.state = comparison.state;
+    containerProjectImportReview.textContent = '已读取工程草稿：' + comparison.importedCount +
+      ' 个原对象、当前 ' + comparison.currentCount + ' 个；消失 ' + comparison.missingCount +
+      '，新增 ' + comparison.addedCount + '。' + comparison.warning +
+      ' 未恢复编辑状态、封装权限或媒体文件。';
+  }
   // Export is read-only and has no mux/write side effects. Background preview
   // and track scan are not grounds to silently drop an export command: the
   // snapshot explicitly says that inspection and source relinking are pending.
@@ -1514,6 +1527,29 @@ compositionTracks?.addEventListener('click', event => {
 });
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
+});
+containerProjectImportInput?.addEventListener('change', async () => {
+  const file = containerProjectImportInput.files?.[0];
+  containerProjectImportInput.value = '';
+  if (!file) return;
+  try {
+    if (file.size > PROJECT_IMPORT_MAX_BYTES) throw Error('PROJECT_IMPORT_TOO_LARGE');
+    // Even byte-identical names are NOT evidence of file byte identity.
+    // This never changes file inputs, the writer's current source state,
+    // directory grants, active jobs or the executable composition.
+    const draft = parseContainerProjectDraft(await file.text());
+    importedProjectForReview = draft;
+    renderOutputComposition();
+  } catch (error) {
+    // Invalid new import cannot overwrite a previously validated draft.
+    if (containerProjectImportReview) {
+      containerProjectImportReview.hidden = false;
+      containerProjectImportReview.dataset.state = 'rejected';
+      containerProjectImportReview.textContent =
+        '工程草稿被拒绝：' + (error?.message || String(error)) +
+        '。未修改当前素材、轨道或封装计划。';
+    }
+  }
 });
 containerProjectExportBtn?.addEventListener('click', () => {
   // The export is a read-only snapshot, never a write authorization. Do not
