@@ -4285,6 +4285,72 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
   }
 }
 
+async function scenarioVerifiedDetachedTrackRestore(browser) {
+  console.log('E2E P1: source digest + old-field proof -> explicit track transaction -> actual MKV');
+  const { context, page } = await openApp(browser);
+  const original = path.join(root, 'source-with-attachments.mkv');
+  const sourceBefore = await fs.readFile(original);
+  try {
+    await page.setInputFiles('#videoInput', original);
+    await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    await page.waitForFunction(() =>
+      !document.querySelector('#containerProjectExportBtn')?.disabled);
+    const projectFile = path.join(outDir, 'verified-track-restore-draft.json');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'), page.locator('#containerProjectExportBtn').click(),
+    ]);
+    await download.saveAs(projectFile);
+    const project = JSON.parse(await fs.readFile(projectFile, 'utf8'));
+    assert.equal(project.sources.length, 1);
+    assert.match(project.sources[0].sha256, /^[0-9a-f]{64}$/);
+    const audio = project.objects.find(item => item.kind === 'audio' && item.sourceId);
+    assert.ok(audio, 'scanned source audio must be bound, not an external proposal');
+    const originalTitle = audio.attributes.title;
+    const finalTitle = 'Verified detached restored audio';
+    audio.attributes.title = finalTitle;
+    project.revision = 1;
+    project.editIntents = [{
+      revision: 1, type: 'set-attribute', objectId: audio.id,
+      field: 'title', from: originalTitle, to: finalTitle,
+    }];
+    await page.setInputFiles('#containerProjectImportInput', {
+      name: 'verified-track-restore.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(project)),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '').includes('已读取工程草稿'));
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
+      'source byte digest has not been verified and explicit consent is absent');
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state === 'digest-matches-draft');
+    assert.equal(await page.locator('#containerProjectRestorePanel').isVisible(), true);
+    assert.equal(await page.locator('#containerProjectRestorePanel').getAttribute('data-ready'), 'true');
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
+      'matching digest and track baseline must not silently authorize a mutation');
+    await page.locator('#containerProjectRestoreConfirm').check();
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), false);
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(), /一次应用到/);
+    assert.equal(await page.locator('.track-row.track-audio input[data-track-field="title"]').first().inputValue(),
+      finalTitle);
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
+      'the same old-value proposal cannot overwrite the now-changed track');
+    assert.match(await page.locator('#containerProjectConflictList').textContent(), /当前字段值与草稿修改前记录冲突/);
+    assert.deepEqual(await fs.readFile(original), sourceBefore, 'never modify source bytes');
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'verified-track-restore-final.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    assert.equal(streams(probe(output), 'audio')[0]?.tags?.title, finalTitle,
+      'real finished MKV must carry the restored source-track title');
+    console.log('Verified detached track restored and delivered PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -4300,6 +4366,7 @@ try {
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);
+  await scenarioVerifiedDetachedTrackRestore(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);
