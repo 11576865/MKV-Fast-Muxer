@@ -69,10 +69,10 @@ export function buildContainerDocument({
     // final snapshot; it does not assert trusted historical user actions.
     const originalAttributes = track && ['audio', 'subtitle'].includes(track.type)
       ? {
-        title: track.originalTitle || '',
-        language: track.originalLanguage || 'und',
-        default: Boolean(track.originalDefault),
-        forced: Boolean(track.originalForced),
+        title: track.originalTitle ?? (stream?.tags?.title || ''),
+        language: track.originalLanguage ?? (stream?.tags?.language || 'und'),
+        default: Boolean(track.originalDefault ?? stream?.disposition?.default),
+        forced: Boolean(track.originalForced ?? stream?.disposition?.forced),
       } : undefined;
     return {
       id: scopedId(scope, item.id),
