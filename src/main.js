@@ -1393,7 +1393,11 @@ function renderOutputComposition() {
     if (containerCapabilityDetailsList) {
       containerCapabilityDetailsList.replaceChildren(...items.map(item => {
         const line = document.createElement('li');
-        line.textContent = item.label + '：' + item.reason;
+        line.textContent = item.label + '（' + ({
+          available: '可用', 'requires-preflight': '需预检', blocked: '阻断',
+          unsupported: '不支持', experimental: '实验性', unverified: '未验证',
+          'requires-source': '需来源',
+        }[item.status] || '未验证') + '）：' + item.reason;
         line.dataset.status = item.status;
         return line;
       }));
