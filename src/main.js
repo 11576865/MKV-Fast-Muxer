@@ -2375,7 +2375,9 @@ bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleSta
 function applyLanguageToSelectedTracks(type) {
   if (!trackState) return;
   const language = normalizeTrackLanguage(bulkLanguage?.value);
-  if (!changeSourceTracks(selectedTracks(type).map(track =>
+  const chosen = selectedTracks(type);
+  if (!chosen.length) return;
+  if (!changeSourceTracks(chosen.map(track =>
     ({ index: track.index, field: 'language', value: language })))) return;
   renderTrackList();
   renderImportedAssetInventory();
@@ -2384,6 +2386,7 @@ function applyLanguageToSelectedTracks(type) {
 function setOnlyFirstDefault(type) {
   if (!trackState) return;
   const selected = selectedTracks(type);
+  if (!selected.length) return;
   if (!changeSourceTracks(selected.map((track, index) =>
     ({ index: track.index, field: 'default', value: index === 0 })))) return;
   renderTrackList();
