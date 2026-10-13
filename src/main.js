@@ -46,6 +46,7 @@ import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
+import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -171,6 +172,7 @@ const compositionMuxBtn = $('compositionMuxBtn');
 const containerProjectExportBtn = $('containerProjectExportBtn');
 const containerProjectImportInput = $('containerProjectImportInput');
 const containerProjectImportReview = $('containerProjectImportReview');
+const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -427,6 +429,9 @@ let lastCompositionSourceKey = '';
 let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
 let importedProjectForReview = null;
+let detachedSourceProof = null;
+let sourceDigestCheckInProgress = false;
+let projectDigestExportInProgress = false;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1379,17 +1384,35 @@ function renderOutputComposition() {
   currentProjectSourceFile = source;
   if (importedProjectForReview && containerProjectImportReview) {
     const comparison = compareContainerProjectDraft(importedProjectForReview, containerDocument);
+    const applicableProof = detachedSourceProof &&
+      detachedSourceProof.source === source &&
+      detachedSourceProof.draft === importedProjectForReview
+      ? detachedSourceProof.verdict : null;
     containerProjectImportReview.hidden = false;
-    containerProjectImportReview.dataset.state = comparison.state;
+    containerProjectImportReview.dataset.state = applicableProof?.state || comparison.state;
     containerProjectImportReview.textContent = '已读取工程草稿：' + comparison.importedCount +
       ' 个原对象、当前 ' + comparison.currentCount + ' 个；消失 ' + comparison.missingCount +
       '，新增 ' + comparison.addedCount + '。' + comparison.warning +
+      (applicableProof ? ' ' + applicableProof.message : '') +
       ' 未恢复编辑状态、封装权限或媒体文件。';
+  }
+  if (containerProjectVerifySourceBtn) {
+    const canHash = importedProjectForReview?.sources?.length === 1 &&
+      Boolean(importedProjectForReview.sources[0]?.sha256);
+    containerProjectVerifySourceBtn.hidden = !importedProjectForReview;
+    containerProjectVerifySourceBtn.disabled = sourceDigestCheckInProgress ||
+      !canHash || !source || source.size > PROJECT_SOURCE_HASH_MAX_BYTES;
+    containerProjectVerifySourceBtn.title = !canHash
+      ? '此草稿没有完整 SHA-256，无法执行字节级核对'
+      : source && source.size > PROJECT_SOURCE_HASH_MAX_BYTES
+        ? '当前文件超过 64 MiB 的浏览器完整哈希上限，维持未验证状态'
+        : '完整哈希相等仅能证明与草稿所写的摘要相等，不授权执行';
   }
   // Export is read-only and has no mux/write side effects. Background preview
   // and track scan are not grounds to silently drop an export command: the
   // snapshot explicitly says that inspection and source relinking are pending.
   if (containerProjectExportBtn) containerProjectExportBtn.disabled =
+    projectDigestExportInProgress ||
     !containerDocument.objects.length || importInProgress;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
@@ -1539,6 +1562,7 @@ containerProjectImportInput?.addEventListener('change', async () => {
     // directory grants, active jobs or the executable composition.
     const draft = parseContainerProjectDraft(await file.text());
     importedProjectForReview = draft;
+    detachedSourceProof = null;
     renderOutputComposition();
   } catch (error) {
     // Invalid new import cannot overwrite a previously validated draft.
@@ -1551,20 +1575,67 @@ containerProjectImportInput?.addEventListener('change', async () => {
     }
   }
 });
-containerProjectExportBtn?.addEventListener('click', () => {
-  // The export is a read-only snapshot, never a write authorization. Do not
-  // reject it simply because FFmpeg is scanning or the batch queue is busy.
-  // A distinct File object must never inherit the last source's projection.
-  const projection = currentProjectSourceProjection;
+containerProjectVerifySourceBtn?.addEventListener('click', async () => {
   const source = videoInput.files?.[0] || null;
-  if (!projection || currentProjectSourceFile !== source ||
-      projection.sourceKey !== outputCompositionFileKey(source)) {
-    status.textContent = '工程草稿来源已更换；已刷新当前对象，请重新导出。';
+  const draft = importedProjectForReview;
+  if (!source || !draft || sourceDigestCheckInProgress) return;
+  sourceDigestCheckInProgress = true;
+  containerProjectVerifySourceBtn.disabled = true;
+  containerProjectVerifySourceBtn.textContent = '正在核对完整 SHA-256…';
+  try {
+    const verdict = await verifyContainerProjectSourceDigest(draft, source);
+    // No successful hash may cross a source-File or detached-draft change.
+    if (videoInput.files?.[0] !== source || importedProjectForReview !== draft) {
+      status.textContent = '来源或草稿在核对期间发生变化，结果已作废。';
+      return;
+    }
+    detachedSourceProof = { source, draft, verdict };
     renderOutputComposition();
+  } catch (error) {
+    if (videoInput.files?.[0] === source && importedProjectForReview === draft) {
+      detachedSourceProof = null;
+      containerProjectImportReview.hidden = false;
+      containerProjectImportReview.dataset.state = 'hash-refused';
+      containerProjectImportReview.textContent =
+        '来源字节验证失败：' + (error?.message || String(error)) +
+        '。没有恢复旧编辑意图、文件权限或成品。';
+    }
+  } finally {
+    sourceDigestCheckInProgress = false;
+    containerProjectVerifySourceBtn.textContent = '核对已导入草稿与当前媒体的完整 SHA-256';
+    renderOutputComposition();
+  }
+});
+containerProjectExportBtn?.addEventListener('click', async () => {
+  // Detached domain export is an explicit READ, never a writer authorization.
+  // It can run during track scanning, but must not retain stale source bytes.
+  const source = videoInput.files?.[0] || null;
+  const oldProjection = currentProjectSourceProjection;
+  if (projectDigestExportInProgress) return;
+  if (!source || !oldProjection || currentProjectSourceFile !== source) {
+    status.textContent = '工程草稿来源不可用；请重新导入并检查当前素材。';
     return;
   }
+  projectDigestExportInProgress = true;
+  containerProjectExportBtn.disabled = true;
   try {
-    const project = createContainerProjectFromProjection(projection);
+    let digest = null;
+    if (source.size <= PROJECT_SOURCE_HASH_MAX_BYTES) {
+      status.textContent = '正在计算当前媒体完整 SHA-256（最多 64 MiB）…';
+      digest = await hashBoundedProjectSource(source);
+    }
+    if (videoInput.files?.[0] !== source ||
+        currentProjectSourceFile !== source) {
+      status.textContent = '计算期间来源已更换，未导出过期草稿。';
+      return;
+    }
+    // Re-read the latest projection following any async scan. Do not export
+    // a preview from before the track inventory or source selection changed.
+    const latest = currentProjectSourceProjection;
+    if (!latest || latest.sourceKey !== outputCompositionFileKey(source))
+      throw Error('PROJECT_SOURCE_PROJECTION_STALE');
+    let project = createContainerProjectFromProjection(latest);
+    if (digest) project = attachContainerProjectSourceDigest(project, digest);
     const url = URL.createObjectURL(new Blob([serializeContainerProject(project)], {
       type: 'application/json;charset=utf-8',
     }));
@@ -1574,10 +1645,16 @@ containerProjectExportBtn?.addEventListener('click', () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    status.textContent = '工程草稿 JSON 已生成；来源权限未包含，后续打开必须重新关联。';
+    status.textContent = digest
+      ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
+      : '已导出解绑草稿；文件超过 64 MiB，未证明来源字节一致。';
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
+  } finally {
+    projectDigestExportInProgress = false;
+    // Recompute every control from current source identity.
+    renderOutputComposition();
   }
 });
 compositionMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void executeCurrentMuxTask(); });

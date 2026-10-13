@@ -15,7 +15,7 @@ const scalar = x => x === null || typeof x === 'boolean' ||
   Number.isSafeInteger(x) || typeof x === 'string' && x.length <= 1024;
 const keys = Object.freeze({
   project: ['schema','documentId','sources','objects','editIntents','revision','execution'],
-  source: ['id','name','size','identityEvidence','authorization'],
+  source: ['id','name','size','identityEvidence','authorization','sha256'],
   object: ['id','kind','sourceId','included','order','attributes','provenance'],
   intent: ['revision','type','objectId','field','from','to'],
 });
@@ -43,11 +43,14 @@ export function parseContainerProjectDraft(text) {
         !['string'].includes(typeof source.identityEvidence) ||
         source.identityEvidence.length > 256 ||
         (source.size !== null && source.size !== undefined &&
-         (!Number.isSafeInteger(source.size) || source.size < 0)))
+         (!Number.isSafeInteger(source.size) || source.size < 0)) ||
+        (source.sha256 !== undefined &&
+         (typeof source.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(source.sha256))))
       throw Error('PROJECT_SOURCE_UNTRUSTED');
     return { id: source.id, name: source.name,
       size: source.size === null ? undefined : source.size,
-      identityEvidence: source.identityEvidence };
+      identityEvidence: source.identityEvidence,
+      ...(source.sha256 === undefined ? {} : { sha256: source.sha256 }) };
   });
   const objects = raw.objects.map(object => {
     if (!plain(object) || !keyset(object, keys.object) ||
