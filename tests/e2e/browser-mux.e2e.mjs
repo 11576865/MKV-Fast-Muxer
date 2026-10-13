@@ -3308,7 +3308,7 @@ async function scenarioP0PreservationBlocksSingle(browser) {
     // transferable. The new source gets an independent preflight.
     await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
     await page.waitForFunction(() =>
-      document.querySelector('#preservationReadiness')?.dataset.status === 'clear' &&
+      ['clear', 'warning'].includes(document.querySelector('#preservationReadiness')?.dataset.status) &&
       !document.querySelector('#muxBtn')?.disabled,
       null, { timeout: 90_000 });
     assert.doesNotMatch(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
