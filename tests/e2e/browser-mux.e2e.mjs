@@ -3315,7 +3315,13 @@ async function scenarioP0PreservationBlocksSingle(browser) {
     });
 
     // A programmatic event must not bypass the mandatory execution-time guard.
-    await page.locator('#muxBtn').dispatchEvent('click');
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
     await page.waitForFunction(() =>
       (document.querySelector('#status')?.textContent || '').includes('结构保留预检阻断'),
       null, { timeout: 90_000 });
@@ -3343,7 +3349,13 @@ async function scenarioP0PreservationBlocksSingle(browser) {
       document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
       null, { timeout: 30000 });
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
-    await page.locator('#muxBtn').dispatchEvent('click');
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
     await page.waitForFunction(() =>
       (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
       null, { timeout: 30000 });
@@ -3378,7 +3390,13 @@ async function scenarioP0UnknownHeaderFailsClosed(browser) {
       document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
       null, { timeout: 90_000 });
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
-    await page.locator('#muxBtn').dispatchEvent('click');
+    // Exercise the *runtime* authorization path even if the native disabled
+    // button suppresses synthetic click events. This is test-only UI tampering.
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
     await page.waitForFunction(() =>
       (document.querySelector('#status')?.textContent || '').includes('无法确认当前来源容器身份'),
       null, { timeout: 90_000 });
