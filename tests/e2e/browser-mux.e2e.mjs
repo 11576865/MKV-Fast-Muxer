@@ -4294,6 +4294,12 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
     await page.setInputFiles('#videoInput', original);
     await waitForStatus(page, '轨道扫描完成：');
     await page.locator('#appendPreserveAll').uncheck();
+    // Real user editing first: the exported file must encode an actual
+    // scan-baseline delta without hand-authoring any JSON intent.
+    const finalTitle = 'Verified detached restored audio';
+    const liveTitle = page.locator('.track-row.track-audio input[data-track-field="title"]').first();
+    const scanTitle = await liveTitle.inputValue();
+    await liveTitle.fill(finalTitle);
     await page.waitForFunction(() =>
       !document.querySelector('#containerProjectExportBtn')?.disabled);
     const projectFile = path.join(outDir, 'verified-track-restore-draft.json');
@@ -4306,14 +4312,17 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
     assert.match(project.sources[0].sha256, /^[0-9a-f]{64}$/);
     const audio = project.objects.find(item => item.kind === 'audio' && item.sourceId);
     assert.ok(audio, 'scanned source audio must be bound, not an external proposal');
-    const originalTitle = audio.attributes.title;
-    const finalTitle = 'Verified detached restored audio';
-    audio.attributes.title = finalTitle;
-    project.revision = 1;
-    project.editIntents = [{
-      revision: 1, type: 'set-attribute', objectId: audio.id,
-      field: 'title', from: originalTitle, to: finalTitle,
-    }];
+    assert.equal(audio.attributes.title, finalTitle);
+    assert.equal(project.editIntents.length, 1,
+      'real source editor must export its scan-to-current change');
+    assert.deepEqual({
+      field: project.editIntents[0].field,
+      from: project.editIntents[0].from,
+      to: project.editIntents[0].to,
+    }, { field: 'title', from: scanTitle, to: finalTitle });
+    // Restore the actual live track to its scan baseline before reviewing.
+    await liveTitle.fill(scanTitle);
+    assert.equal(await liveTitle.inputValue(), scanTitle);
     await page.setInputFiles('#containerProjectImportInput', {
       name: 'verified-track-restore.json', mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(project)),
