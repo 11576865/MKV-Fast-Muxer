@@ -1369,7 +1369,11 @@ function renderOutputComposition() {
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
   currentProjectSourceProjection = containerDocument;
-  if (containerProjectExportBtn) containerProjectExportBtn.disabled = !containerDocument.objects.length;
+  // Visible action readiness must agree with its handler's isBusy guard.
+  // Otherwise a click after the first projection but during async scan is
+  // silently ignored and cannot deliver the promised project JSON.
+  if (containerProjectExportBtn) containerProjectExportBtn.disabled =
+    !containerDocument.objects.length || isBusy() || batchRunning || importInProgress;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
     const caps = resolveContainerCapabilities({
