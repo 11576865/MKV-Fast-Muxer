@@ -924,7 +924,7 @@ function isBusy() {
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -1015,7 +1015,7 @@ function updateUI() {
     videoSniffState.status === 'pending'
   );
   const mode = fontMode.value || 'preserve';
-  const busy = isBusy() || batchStartPending;
+  const busy = isBusy() || batchStartPending || batchRunning;
   const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
   const videoLabel = video?.name ?? '未选择';
@@ -1090,7 +1090,7 @@ function updateUI() {
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0 ||
     currentPreservationReadiness().blocking;
-  cancelBtn.disabled = !busy;
+  cancelBtn.disabled = !isBusy();
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
@@ -3712,8 +3712,10 @@ cancelBtn.addEventListener('click', cancelCurrentMuxTask);
 // The single-task button and batch adapter share this executor without
 // synthesizing click events or polling mutable download-link state.
 async function executeCurrentMuxTask(explicit = null) {
-  if (isBusy()) return;
   const independent = explicit?.kind === 'frozen-batch-mux-context-v1';
+  // The batch owns the shared FFmpeg instance across all prepare/mux/save
+  // phases. A synthetic single-task click must not start between jobs.
+  if (isBusy() || (batchRunning && !independent)) return;
   const video = independent ? explicit.source : videoInput.files[0];
   const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
@@ -4241,7 +4243,10 @@ async function executeCurrentMuxTask(explicit = null) {
       mimetype: fontMimeType(item.fontIdentity),
     }));
 
-    const runtimeChanges = containerChangeCounts({ newFontCount: attachments.length });
+    const runtimeChanges = independent
+      ? { added: runtimeSubtitles.length + runtimeExternalAudio.length + attachments.length,
+          removed: 0, modified: 0 }
+      : containerChangeCounts({ newFontCount: attachments.length });
 
     const expectedAudit = {
       video: sourceVideos.map((stream) => ({ codec: stream.codec_name || '' })),
