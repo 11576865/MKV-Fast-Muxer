@@ -101,6 +101,10 @@
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>
               <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
+              <div id="preservationReadiness" class="preservation-readiness" data-status="idle" role="status" aria-live="polite">
+                <strong id="preservationReadinessTitle">等待选择来源</strong>
+                <span id="preservationReadinessDescription">导入媒体后检查 Matroska 结构保留风险。</span>
+              </div>
               <details id="compositionSourceEvidence" class="composition-source-evidence" hidden>
                 <summary>来源结构证据 <span id="compositionSourceSummary"></span></summary>
                 <p class="source-evidence-scope">只读的来源观察：扁平章节、全局标签与其他流。它们不是最终成品的保留承诺；复杂 EBML 和 UID 引用仍须独立审核。</p>
