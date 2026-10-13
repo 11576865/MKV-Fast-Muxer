@@ -1,4 +1,5 @@
 import { BATCH_JOB_PLAN_SCHEMA } from './batch-job-plan.js';
+import { inferredSubtitleMetadata } from './subtitle-format.js';
 
 /**
  * Frozen batch execution context. No FileList, DOM controls, or browser state.
@@ -19,10 +20,27 @@ export function createFrozenBatchMuxContext(plan, job, {
       recognized.some((entry, index) => entry.file !== files[index] || !entry.identity)) {
     throw Error('BATCH_MUX_FONT_IDENTITY_MISMATCH');
   }
-  const tracks = Object.freeze(Array.from(job.subtitleTracks || []));
-  if (!tracks.length || tracks.some(track => !track.file || !track.format)) {
+  const rawTracks = Array.from(job.subtitleTracks || []);
+  if (!rawTracks.length || rawTracks.some(track => !track.file || !track.format)) {
     throw Error('BATCH_MUX_SUBTITLE_TRACKS_NOT_VERIFIED');
   }
+  // Exactly the same defaults that syncNewTrackState previously populated
+  // while staging the frozen job into a hidden single-mux FileList.
+  const tracks = Object.freeze(rawTracks.map((track, index) => {
+    const metadata = inferredSubtitleMetadata(track.file, track.format);
+    return Object.freeze({
+      ...track,
+      sidecarFile: track.sidecarFile || null,
+      displayName: track.displayName || track.file.name,
+      language: track.language ?? metadata.language,
+      title: track.title ?? metadata.title ?? track.file.name.replace(/\\.[^.]+$/, ''),
+      default: track.default ?? (index === 0),
+      forced: track.forced ?? false,
+      original: track.original ?? false,
+      commentary: track.commentary ?? false,
+      hearingImpaired: track.hearingImpaired ?? false,
+    });
+  }));
   const preserveAll = Boolean(plan.policy.preserveAttachments &&
     ['matroska', 'matroska-webm'].includes(headerIdentity.container));
   return Object.freeze({
