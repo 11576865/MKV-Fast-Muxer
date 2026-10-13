@@ -4367,6 +4367,60 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
   }
 }
 
+async function scenarioStreamedSourceDigestBrowser(browser) {
+  console.log('E2E P1: real workbench exports and verifies >64 MiB complete SHA-256');
+  const { context, page } = await openApp(browser);
+  try {
+    const prefix = await fs.readFile(path.join(root, 'base.mp4'));
+    const bytes = Buffer.alloc(65 * 1024 * 1024 + 13, 0x61);
+    assert.ok(prefix.length < bytes.length);
+    prefix.copy(bytes);
+    const expected = createHash('sha256').update(bytes).digest('hex');
+    // A valid MP4 prefix avoids MKV auto-scan; the export is still a genuine
+    // production-workbench action on a >64 MiB File reference, not a
+    // synthesized call to a duplicated test-only hashing implementation.
+    // Playwright's in-memory setInputFiles buffer is capped at 50 MB.
+    // Use a real runner-side fixture path for this >=65 MiB regression.
+    const largeSourcePath = path.join(outDir, 'large-source.mp4');
+    await fs.writeFile(largeSourcePath, bytes);
+    await page.setInputFiles('#videoInput', largeSourcePath);
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#containerProjectExportBtn');
+      return btn && !btn.disabled;
+    }, null, { timeout: 60_000 });
+    const output = path.join(outDir, 'large-streamed-container-project.json');
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 120_000 }),
+      page.locator('#containerProjectExportBtn').click(),
+    ]);
+    await download.saveAs(output);
+    const project = JSON.parse(await fs.readFile(output, 'utf8'));
+    assert.equal(project.sources.length, 1);
+    assert.equal(project.sources[0].sha256, expected,
+      'real browser must calculate standard SHA-256 over EVERY source byte');
+    assert.match(await page.locator('#status').textContent(), /完整来源 SHA-256/);
+    await page.setInputFiles('#containerProjectImportInput', output);
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'));
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state ===
+        'digest-matches-draft', null, { timeout: 120_000 });
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(), true,
+      'byte identity on unscanned media does not authorize editing');
+    assert.equal(await page.locator('#containerProjectHashCancelBtn').count(), 1,
+      'real UI must provide independent source-hash cancellation');
+    assert.equal(await page.locator('#containerProjectHashActions').isVisible(), false,
+      'completed operation must dismiss transient progress');
+    assert.equal(await page.locator('#downloadLink').isVisible(), false,
+      'project source hashing must never start media mux or forge an artifact');
+    console.log('Browser full-file digest export/re-import PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -4383,6 +4437,7 @@ try {
   await scenarioMultiTrack(browser);
   await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);
   await scenarioVerifiedDetachedTrackRestore(browser);
+  await scenarioStreamedSourceDigestBrowser(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);

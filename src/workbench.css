@@ -1773,3 +1773,24 @@ body { background: var(--bg); }
   overflow-y: auto;
 }
 .container-project-intent-review li { overflow-wrap: anywhere; margin-block: 2px; }
+
+/* Large-file digest progress belongs to the local workbench, not the mux job. */
+.container-project-hash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.container-project-hash-actions[hidden] { display: none !important; }
+#containerProjectHashProgress {
+  flex: 1 1 210px;
+  min-width: 0;
+  font-size: .73rem;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+#containerProjectHashCancelBtn { flex: 0 0 auto; }
