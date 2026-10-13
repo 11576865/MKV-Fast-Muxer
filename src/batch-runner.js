@@ -28,9 +28,15 @@ export async function runFrozenBatchQueue(plan, {
       if (shouldCancel()) { cancelled = true; break; }
       const job = plan.jobs[index];
       ledger.transition(job.jobId, 'preparing');
+      // Adapter staging errors are batch-fatal: the inherited single-job
+      // inputs may be partially changed and cannot be trusted for later jobs.
+      await prepare(job, index, plan);
+      if (shouldCancel()) {
+        cancelled = true;
+        ledger.transition(job.jobId, 'cancelled', { error: '用户取消当前任务' });
+        break;
+      }
       try {
-        await prepare(job, index, plan);
-        if (shouldCancel()) throw new Error('batch-cancelled');
         ledger.transition(job.jobId, 'muxing');
         const artifact = await execute(job, index, plan);
         if (!artifact?.blob || !artifact.outputName) {
