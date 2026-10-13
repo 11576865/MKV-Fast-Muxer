@@ -116,6 +116,10 @@
                 <ol id="containerProjectConflictList" aria-label="草稿编辑与当前已扫描对象的冲突明细"></ol>
               </details>
               <button id="containerProjectVerifySourceBtn" class="button button-secondary" type="button" hidden disabled>核对已导入草稿与当前媒体的完整 SHA-256</button>
+              <div id="containerProjectTitleReplay" class="container-project-title-replay" hidden>
+                <button id="containerProjectTitleReplayBtn" class="button button-secondary" type="button" disabled>明确应用已核验的原轨标题到当前编辑草稿</button>
+                <small id="containerProjectTitleReplayHint" role="status" aria-live="polite">只有原始音频/字幕标题、完整来源哈希和当前编辑器旧值均匹配时才开放；不会封装或写入媒体。</small>
+              </div>
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
               <div id="compositionChanges" class="composition-changes" hidden></div>
               <div id="compositionIssues" class="composition-issues" role="status" hidden></div>
