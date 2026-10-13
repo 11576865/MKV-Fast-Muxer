@@ -48,6 +48,7 @@ import { createContainerProjectFromProjection, serializeContainerProject } from 
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
+import { prepareDetachedSourceTitleReplay, commitPreparedSourceTitleReplay } from './container-project-title-replay.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -181,6 +182,9 @@ const containerProjectConflictReview = $('containerProjectConflictReview');
 const containerProjectConflictSummary = $('containerProjectConflictSummary');
 const containerProjectConflictList = $('containerProjectConflictList');
 const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
+const containerProjectTitleReplay = $('containerProjectTitleReplay');
+const containerProjectTitleReplayBtn = $('containerProjectTitleReplayBtn');
+const containerProjectTitleReplayHint = $('containerProjectTitleReplayHint');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
@@ -1486,6 +1490,34 @@ function renderOutputComposition() {
       }
     } else containerProjectConflictList.replaceChildren();
   }
+  // This is the sole bounded EDITOR-only replay affordance. The imported
+  // draft never has authority merely because its JSON or digest is valid.
+  if (containerProjectTitleReplay && containerProjectTitleReplayBtn) {
+    const draft = importedProjectForReview;
+    const hasEdits = Boolean(draft?.editIntents?.length);
+    containerProjectTitleReplay.hidden = !hasEdits;
+    if (hasEdits) {
+      const proof = detachedSourceProof &&
+        detachedSourceProof.source === source &&
+        detachedSourceProof.draft === draft ? detachedSourceProof.verdict : null;
+      const plan = prepareDetachedSourceTitleReplay({
+        draft, liveProjection: containerDocument, sourceProof: proof,
+        trackState: scanned, sourceFileMatched: Boolean(
+          source && currentProjectSourceFile === source &&
+          scanned?.fileKey === fileKey(source)),
+        selectiveMode: !appendPreserveAll?.checked,
+      });
+      containerProjectTitleReplayBtn.disabled = isBusy() || batchRunning ||
+        batchStartPending || importInProgress || sourceDigestCheckInProgress || !plan.ready;
+      containerProjectTitleReplayHint.textContent = plan.ready
+        ? '可手动将 ' + plan.changes.length +
+          ' 项原轨标题写入当前编辑草稿；之后仍要检查封装计划并单独执行。'
+        : '尚不可恢复标题：' + plan.code +
+          '。不恢复保留状态、轨道顺序、章节、附件或封装权限。';
+      containerProjectTitleReplay.dataset.state =
+        plan.ready ? 'ready' : 'blocked';
+    }
+  }
   if (containerProjectVerifySourceBtn) {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
       Boolean(importedProjectForReview.sources[0]?.sha256);
@@ -1694,6 +1726,48 @@ containerProjectVerifySourceBtn?.addEventListener('click', async () => {
     sourceDigestCheckInProgress = false;
     containerProjectVerifySourceBtn.textContent = '核对已导入草稿与当前媒体的完整 SHA-256';
     renderOutputComposition();
+  }
+});
+containerProjectTitleReplayBtn?.addEventListener('click', () => {
+  const source = videoInput.files?.[0] || null;
+  const draft = importedProjectForReview;
+  if (!source || !draft || isBusy() || batchRunning || batchStartPending ||
+      importInProgress || sourceDigestCheckInProgress ||
+      appendPreserveAll?.checked || trackState?.fileKey !== fileKey(source)) {
+    status.textContent = '原轨标题恢复被拒绝：来源或执行状态尚未就绪。';
+    return;
+  }
+  // Regenerate from current live editor immediately before committing.
+  renderOutputComposition();
+  if (videoInput.files?.[0] !== source || importedProjectForReview !== draft ||
+      currentProjectSourceFile !== source ||
+      trackState?.fileKey !== fileKey(source)) {
+    status.textContent = '恢复前来源或草稿发生变化；已取消。';
+    return;
+  }
+  const proof = detachedSourceProof &&
+    detachedSourceProof.source === source &&
+    detachedSourceProof.draft === draft ? detachedSourceProof.verdict : null;
+  const plan = prepareDetachedSourceTitleReplay({
+    draft, liveProjection: currentProjectSourceProjection, sourceProof: proof,
+    trackState, sourceFileMatched: true,
+    selectiveMode: !appendPreserveAll?.checked,
+  });
+  if (!plan.ready) {
+    status.textContent = '原轨标题恢复被拒绝：' + plan.code +
+      '；没有修改当前轨道。';
+    return;
+  }
+  try {
+    const outcome = commitPreparedSourceTitleReplay(trackState, plan);
+    renderTrackList();
+    renderImportedAssetInventory();
+    renderMuxPlan();
+    status.textContent = '已明确应用 ' + outcome.appliedCount +
+      ' 项原轨标题到当前编辑草稿；尚未写出 MKV，请重新检查计划。';
+  } catch (error) {
+    status.textContent = '原轨标题恢复失败：' +
+      (error?.message || String(error)) + '；未开始封装。';
   }
 });
 containerProjectExportBtn?.addEventListener('click', async () => {
