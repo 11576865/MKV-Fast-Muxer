@@ -3817,21 +3817,24 @@ async function executeCurrentMuxTask(explicit = null) {
     updateUI();
     return;
   }
-  downloadLink.classList.add('hidden');
-  reportLink.classList.add('hidden');
-  auditResult.className = 'audit-result hidden';
-  auditResult.textContent = '';
+  // A frozen batch task owns its artifacts via batchResultUrls. Never
+  // revoke or repoint a user's existing single-task download/report URLs.
+  if (!independent) {
+    downloadLink.classList.add('hidden');
+    reportLink.classList.add('hidden');
+    auditResult.className = 'audit-result hidden';
+    auditResult.textContent = '';
+    if (outputURL) {
+      URL.revokeObjectURL(outputURL);
+      outputURL = null;
+    }
+    if (reportURL) {
+      URL.revokeObjectURL(reportURL);
+      reportURL = null;
+    }
+  }
   logEl.textContent = preservationInfo;
   bar.style.width = '4%';
-
-  if (outputURL) {
-    URL.revokeObjectURL(outputURL);
-    outputURL = null;
-  }
-  if (reportURL) {
-    URL.revokeObjectURL(reportURL);
-    reportURL = null;
-  }
 
   const prefix = taskPrefix();
   const videoPath = `${prefix}-input${sourceVirtualSuffix(headerVideoIdentity)}`;
@@ -4321,21 +4324,27 @@ async function executeCurrentMuxTask(explicit = null) {
       if (audit.ok) {
         const auditText = `封装后审计通过：${audit.counts.video} 视频 / ${audit.counts.audio} 音频 / ${audit.counts.subtitle} 字幕 / ${audit.counts.data} 数据 / ${audit.counts.other} 其他 / ${audit.counts.attachment} 附件 / ${audit.counts.chapter} 章节 · 变更 +${runtimeChanges.added} / −${runtimeChanges.removed} / ~${runtimeChanges.modified}。`;
         logEl.textContent += `AUDIT: ${auditText}\n`;
+      if (!independent) {
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result';
+      }
       } else {
         const auditText = `封装后审计发现 ${audit.issues.length} 项偏差：${audit.issues.join('；')}`;
         logEl.textContent += `AUDIT WARNING: 输出与计划存在 ${audit.issues.length} 项偏差：\n- ${audit.issues.join('\n- ')}\n`;
+      if (!independent) {
         auditResult.textContent = auditText;
         auditResult.className = 'audit-result warn';
+      }
         completionNote += `；封装后审计发现 ${audit.issues.length} 项偏差`;
       }
     } catch (auditError) {
       const reason = auditError?.message || String(auditError);
       const auditText = `封装已完成，但 ffprobe 审计不可用：${reason}`;
       logEl.textContent += `AUDIT WARNING: ${auditText}。已保留 MKV 输出，不把审计工具限制当作封装失败。\n`;
+      if (!independent) {
       auditResult.textContent = auditText;
       auditResult.className = 'audit-result warn';
+      }
       completionNote += '；封装后审计未完成（不影响已生成 MKV）';
       finalAudit = {
         status: 'unavailable',
@@ -4365,12 +4374,14 @@ async function executeCurrentMuxTask(explicit = null) {
       if (finalAudit.status === 'pass') finalAudit.status = 'warning';
       finalAudit.ok = false;
       finalAudit.issues = [...(finalAudit.issues || []), ...fontPayloadAudit.issues];
+      if (!independent) {
       auditResult.className = 'audit-result warn';
       auditResult.textContent = '成品字体附件验证待复核：' + detail;
+      }
       completionNote += '；成品字体附件字节核验待复核';
     }
     finalAudit.fontPayloadAudit = fontPayloadAudit;
-    outputURL = URL.createObjectURL(outputBlob);
+    if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
       appVersion: '1.2.2',
@@ -4471,21 +4482,21 @@ async function executeCurrentMuxTask(explicit = null) {
     }));
 
     const reportBlob = new Blob([serializeMuxReport(report)], { type: 'application/json' });
-    reportURL = URL.createObjectURL(reportBlob);
-
-    downloadLink.href = outputURL;
-    downloadLink.download = outputName;
-    downloadLink.textContent = `保存成品 · ${outputName}`;
-    downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
-    downloadLink.classList.remove('hidden');
-
-    reportLink.href = reportURL;
-    reportLink.download = reportFilename(outputName);
-    reportLink.textContent = '保存封装报告';
-    reportLink.classList.remove('hidden');
+    if (!independent) {
+      reportURL = URL.createObjectURL(reportBlob);
+      downloadLink.href = outputURL;
+      downloadLink.download = outputName;
+      downloadLink.textContent = `保存成品 · ${outputName}`;
+      downloadLink.setAttribute('aria-label', `保存成品 ${outputName} 到本机`);
+      downloadLink.classList.remove('hidden');
+      reportLink.href = reportURL;
+      reportLink.download = reportFilename(outputName);
+      reportLink.textContent = '保存封装报告';
+      reportLink.classList.remove('hidden');
+    }
 
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
-    if (!batchRunning) {
+    if (!independent) {
       lastActualOutput = { sourceKey: evidenceSourceAtExecution, report };
       renderActualOutputEvidence();
     }
