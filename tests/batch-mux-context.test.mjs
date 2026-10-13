@@ -99,3 +99,14 @@ test('production mux and batch queue use context, never batch-stage a single-fil
   assert.doesNotMatch(segment, /await (?:videoSniffPromise|subtitleInspectPromise|fontInspectPromise)/);
   assert.match(main, /plan: independent \? explicit\.reportPlan : buildMuxPlan\(\)/);
 });
+
+test('single-task engine remains locked across batch preflight and audit counts are job-scoped', () => {
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /const busy = isBusy\(\) \|\| batchStartPending \|\| batchRunning/);
+  assert.match(main, /const sourceLocked = running \|\| previewing \|\| batchStartPending \|\| batchRunning/);
+  assert.match(main, /if \(isBusy\(\) \|\| \(batchRunning && !independent\)\) return/);
+  assert.match(main, /added: runtimeSubtitles\.length \+ runtimeExternalAudio\.length \+ attachments\.length/);
+  assert.match(main, /removed: 0, modified: 0/);
+  assert.match(main, /if \(!independent\) outputURL = URL\.createObjectURL\(outputBlob\)/);
+  assert.match(main, /if \(!independent\) \{\s*reportURL = URL\.createObjectURL\(reportBlob\)/);
+});
