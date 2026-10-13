@@ -1310,6 +1310,13 @@ function renderActualOutputEvidence() {
     counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
       .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
     `SHA-256：${model.sha256}`,
+    model.assEvent?.status === 'pass'
+      ? `新增 ASS 事件成品回读：${model.assEvent.verified}/${model.assEvent.total} 条轨一致（不含 Style/字体渲染）`
+      : model.assEvent?.status === 'warning'
+        ? `新增 ASS 事件成品回读：存在差异（${model.assEvent.verified}/${model.assEvent.total}）`
+        : model.assEvent?.status === 'unavailable'
+          ? '新增 ASS 事件成品回读：未验证（预算、解析或执行限制）'
+          : '新增 ASS 事件成品回读：未请求此范围',
     model.fontPayload?.status === 'pass'
       ? `新字体附件字节验证：${model.fontPayload.verified}/${model.fontPayload.total} · SHA-256 一致`
       : model.fontPayload && model.fontPayload.status !== 'not-requested'
