@@ -37,3 +37,9 @@ This work is implemented as one coherent branch without opening a PR after every
 ## Next P1/P2 boundary
 
 This restores a real subset of user edits into the *legacy* editor, not a total P1 domain authority migration. The next broad integration should move track and attachment intents into one writable ContainerProject adapter while retaining exact FFmpeg command parity and a single writer. General Matroska structure preservation (#77) and legitimate chapters/tags/attachment write authority remain separate high-risk P2 work.
+
+## 2026-10-14 P1 source digest extension (post-#125)
+
+The earlier 64 MiB bound described **whole-buffer WebCrypto**, not a Matroska format limit. A later standalone work package provides the same standard SHA-256 via `src/incremental-sha256.js`, reading one 1 MiB `File.slice()` at a time when the selected file exceeds 64 MiB. The UI now exposes progress, explicit cancellation, source-switch and draft-switch invalidation, and one active digest per workbench. It permits bounded verification up to 16 GiB on suitable browsers; operation completion time is not guaranteed. No partial hash may be exported as proof.
+
+Regression plan: standard SHA-256 vectors, forced irregular chunking, a logical 65 MiB source with no full-file allocation, abort after two progress events, source-length drift, strict re-import after a digest match/mismatch, and genuine Chromium 65 MiB streaming. The JS implementation must be compared with an *independently computed* whole-file digest; merely comparing two calls through the same new implementation is insufficient. The original FFmpeg writer and source identity boundary are unchanged. The pre-existing 64 MiB limit in the historical paragraphs above is superseded for this P1 digest operation only; P2 raw-EBML research remains separately bounded to its own stated 64 MiB corpus and is not expanded by this change.
