@@ -136,9 +136,13 @@ export async function auditProducedAssEvents({
         const actual = JSON.parse(recovered[firstMismatch]);
         const fieldIndex = wanted.findIndex((value, index) => value !== actual[index]);
         const field = REQUIRED[fieldIndex] || 'unknown';
-        // Never leak subtitle text or user-authored ASS into UI/CI diagnostics.
+        // Report only the signed temporal offset; never log user dialogue text.
+        const timeDelta = (field === 'start' || field === 'end') &&
+          Number.isSafeInteger(Number(actual[fieldIndex]) - Number(wanted[fieldIndex]))
+          ? '（偏差 ' + (Number(actual[fieldIndex]) - Number(wanted[fieldIndex])) + ' 厘秒）'
+          : '';
         issues.push('ASS“' + (claim.name || '') + '”第 ' + (firstMismatch + 1) +
-          ' 个 Dialogue 的 ' + field + ' 字段与封装前不同');
+          ' 个 Dialogue 的 ' + field + ' 字段与封装前不同' + timeDelta);
         continue;
       }
       verified++;
