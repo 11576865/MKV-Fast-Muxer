@@ -4379,9 +4379,11 @@ async function scenarioStreamedSourceDigestBrowser(browser) {
     // A valid MP4 prefix avoids MKV auto-scan; the export is still a genuine
     // production-workbench action on a >64 MiB File reference, not a
     // synthesized call to a duplicated test-only hashing implementation.
-    await page.setInputFiles('#videoInput', {
-      name: 'large-source.mp4', mimeType: 'video/mp4', buffer: bytes,
-    });
+    // Playwright's in-memory setInputFiles buffer is capped at 50 MB.
+    // Use a real runner-side fixture path for this >=65 MiB regression.
+    const largeSourcePath = path.join(outDir, 'large-source.mp4');
+    await fs.writeFile(largeSourcePath, bytes);
+    await page.setInputFiles('#videoInput', largeSourcePath);
     await page.waitForFunction(() => {
       const btn = document.querySelector('#containerProjectExportBtn');
       return btn && !btn.disabled;
