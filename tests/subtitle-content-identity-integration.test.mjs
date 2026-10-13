@@ -34,7 +34,7 @@ test('subtitle preview capability follows detected format instead of filename ex
 });
 
 test('batch subtitle pairing consumes content-derived subtitle collection', () => {
-  assert.match(main, /buildBatchJobsFromCollected\(videos, subtitleRecognition\)/);
+  assert.match(main, /buildBatchJobsFromCollected\(videos, subtitleRecognition, \{ manualAssignments: batchManualAssignments \}\)/);
   assert.match(main, /batchSubtitleIdentityCache/);
   assert.match(main, /subtitleRecognition\.mismatches/);
   assert.match(batch, /export function buildBatchJobsFromCollected/);
