@@ -11,7 +11,7 @@ function freezeList(items = []) {
   return Object.freeze(Array.from(items));
 }
 
-function assertReady(pairing) {
+function assertReady(pairing, strictVideoInputs = false) {
   if (!pairing?.jobs?.length) throw new Error('没有可执行的批量任务');
   const problems = [
     ['字幕归属未确认', pairing.ambiguousPairings?.length],
@@ -19,7 +19,7 @@ function assertReady(pairing) {
     ['目标目录冲突', pairing.directoryConflicts?.length],
     ['无效字幕', pairing.invalidSubtitles?.length],
     ['无效字体', pairing.fontRecognition?.ignored?.length],
-    ['不支持的视频', pairing.videoRecognition?.ignored?.length],
+    ['不支持的视频', strictVideoInputs && pairing.videoRecognition?.ignored?.length],
     ['输出目录检查失败', pairing.directoryCheckError],
   ];
   const refused = problems.filter(([, value]) => Boolean(value)).map(([name]) => name);
@@ -27,8 +27,8 @@ function assertReady(pairing) {
 }
 
 export function freezeBatchJobPlan(pairing, { generation, preserveAttachments = false,
-  subsetEnabled = false, subsetScope = 'job', directoryName = '' } = {}) {
-  assertReady(pairing);
+  subsetEnabled = false, subsetScope = 'job', directoryName = '', strictVideoInputs = false } = {}) {
+  assertReady(pairing, strictVideoInputs);
   if (!Number.isSafeInteger(generation) || generation < 0) {
     throw new Error('冻结批量计划缺少有效代次');
   }
@@ -116,10 +116,10 @@ export function createBatchJobLedger(plan, onChange = () => {}) {
     notify();
     return next;
   }
-  function interruptRemaining(reason = '未继续执行') {
+  function interruptRemaining(reason = '未继续执行', { cancelled = false } = {}) {
     for (const job of plan.jobs) {
       const current = entries.get(job.jobId);
-      if (current.state === 'queued') transition(job.jobId, 'interrupted', { error: reason });
+      if (current.state === 'queued') transition(job.jobId, cancelled ? 'cancelled' : 'interrupted', { error: reason });
     }
   }
   return Object.freeze({ snapshot, transition, interruptRemaining, plan });
