@@ -150,7 +150,14 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     await page.waitForFunction(() =>
       !document.querySelector('#containerProjectExportBtn')?.disabled);
     const projectOutput = path.join(outDir, 'five-step-container-project-v1.json');
-    await saveDownload(page, '#containerProjectExportBtn', projectOutput);
+    try {
+      await saveDownload(page, '#containerProjectExportBtn', projectOutput);
+    } catch (error) {
+      const visible = await page.locator('#status').textContent();
+      const ready = await page.locator('#containerProjectExportBtn').isDisabled();
+      throw new Error('Project export yielded no download; status=' + visible +
+        '; disabled=' + ready + '; ' + (error?.message || String(error)));
+    }
     const project = JSON.parse(await fs.readFile(projectOutput, 'utf8'));
     assert.equal(project.schema, 'container-project-v1');
     assert.equal(project.execution, 'requires-fresh-source-authorization');
