@@ -67,7 +67,7 @@ test('missing, changed, reordered and duplicate styles never pass', () => {
     source.replace('21.5', '22'),
     source.replace('&H60000000', '&H50000000'),
     source.replace('Style: ' + second.join(','), ''),
-    source.replace('Style: ' + first.join(','), 'Style: ' + second.join(',')),
+    source.replace('Style: ' + first.join(','), 'Style: ' + ['Alternate', ...first.slice(1)].join(',')),
   ]) {
     const result = compareAssV4PlusStyles(source, changed);
     assert.equal(result.ok, false);
@@ -80,7 +80,7 @@ test('unknown columns, ambiguous color and exhausted parsing budgets are unavail
   assert.throws(() => parseAssV4PlusStyles(source.replace('&H60000000', 'not-a-color')), /颜色/);
   assert.throws(() => parseAssV4PlusStyles(source, { maxStyles: 1 }), /预算/);
   assert.throws(() => parseAssV4PlusStyles(source, { maxChars: 20 }), /预算/);
-  assert.throws(() => parseAssV4PlusStyles(source.replace('Style: ', 'NoStyle: ').replace('Style: ', 'NoStyle: ')), /不可用/);
+  assert.throws(() => parseAssV4PlusStyles(source.replace(/^Style:\\s.*$/gm, '')), /不可用/);
 });
 
 test('real finished ASS style audit verifies correct output ordinal and records total rows', async () => {
@@ -115,7 +115,7 @@ test('stale mapping, wrong codec, oversized file and irrelevant subtitle types n
 test('scope is bound once to shared single/batch actual mux and evidence inspector', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const model = readFileSync(new URL('../src/container-workbench-evidence.js', import.meta.url), 'utf8');
-  assert.match(main, /auditProducedAssStyles\(\{/);
+  assert.match(main, /auditProducedAssStyles\(assAuditSource\)/);
   assert.match(main, /finalAudit\.assStyleAudit = assStyleAudit/);
   assert.match(main, /const recoveredAssCache = new Map\(\)/);
   assert.match(model, /assStyle: report\.audit\?\.assStyleAudit/);
