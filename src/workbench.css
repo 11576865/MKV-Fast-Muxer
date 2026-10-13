@@ -1609,3 +1609,39 @@ body { background: var(--bg); }
   line-height: 1.5;
   color: var(--muted);
 }
+
+
+/* Round 5: a source-bound, advisory preflight result in the output workbench.
+   Production mux and batch retain separate, mandatory preflight checks. */
+.preservation-readiness {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-0);
+  padding: 10px 12px;
+  min-width: 0;
+  line-height: 1.5;
+}
+.preservation-readiness[hidden] { display: none !important; }
+.preservation-readiness strong { font-size: .8rem; color: var(--text-strong); }
+.preservation-readiness span {
+  color: var(--muted);
+  font-size: .73rem;
+  overflow-wrap: anywhere;
+}
+.preservation-readiness[data-status="blocked"] {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface-0));
+}
+.preservation-readiness[data-status="blocked"] strong { color: var(--danger); }
+.preservation-readiness[data-status="warning"] {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface-0));
+}
+.preservation-readiness[data-status="warning"] strong { color: var(--warning); }
+.preservation-readiness[data-status="checking"] { border-style: dashed; }
+@media (max-width: 600px) {
+  .preservation-readiness { padding: 10px; }
+  .preservation-readiness strong { font-size: .78rem; }
+}
