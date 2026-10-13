@@ -739,8 +739,11 @@ function beginPreservationPreview() {
   if (!source) return;
   void Promise.resolve(videoSniffPromise).then(async () => {
     if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
-    const identity = selectedVideoHeaderIdentity(source);
-    if (identity && !['matroska', 'matroska-webm'].includes(identity.container)) {
+    // Re-sniff this exact File, not only the name/size-keyed shared header
+    // cache: native pickers can replace the FileList without a change event.
+    const identity = await sniffFileContainer(source);
+    if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
+    if (!['matroska', 'matroska-webm'].includes(identity.container)) {
       preservationPreview = { source, state: 'not-applicable', inspection: null };
     } else {
       const inspection = await inspectMatroskaPreservation(source);
@@ -972,6 +975,16 @@ function updateUI() {
   // background readiness updates cannot restore inferred defaults over user input.
   captureNewTrackEditorState();
   const video = videoInput.files[0];
+  // Some picker paths can replace the File object while preserving the same
+  // filename and without delivering a new change event. Keep fail-closed now
+  // and queue a fresh source-scoped inspection instead of sticking forever.
+  if (!batchRunning && video && preservationPreview.source !== video) {
+    queueMicrotask(() => {
+      if (videoInput.files?.[0] === video && preservationPreview.source !== video) {
+        beginPreservationPreview();
+      }
+    });
+  }
   const collectedSubs = selectedSubtitleTrackInputs();
   const subs = collectedSubs.tracks.map((track) => track.file);
   const subtitlePending = subtitleIdentityPending();
