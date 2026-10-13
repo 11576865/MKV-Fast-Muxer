@@ -3714,7 +3714,7 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
       { name: 'readme.txt', mimeType: 'text/plain', buffer: payload },
       { name: 'second.bin', mimeType: 'application/octet-stream', buffer: secondPayload },
     ]);
-    assert.match(await page.locator('#existingMkvLimitedInventory').textContent(), /second\\.bin/);
+    assert.ok((await page.locator('#existingMkvLimitedInventory').textContent()).includes('second.bin'));
     assert.equal(await page.locator('#existingMkvLimitedReview').isChecked(), false);
     assert.equal(await page.locator('#existingMkvLimitedFilename').isDisabled(), true);
     assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
@@ -3729,7 +3729,7 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     const [multiDownload] = await Promise.all([
       page.waitForEvent('download'), page.locator('#existingMkvLimitedSave').click(),
     ]);
-    assert.match(multiDownload.suggestedFilename(), /\\.multiple-new-attachments\\.experimental\\.mkv$/);
+    assert.ok(multiDownload.suggestedFilename().endsWith('.multiple-new-attachments.experimental.mkv'));
     await multiDownload.saveAs(multiOutput);
     assert.equal((await fs.stat(multiOutput)).size, (await fs.stat(source)).size);
     const afterMulti = read(multiOutput);
