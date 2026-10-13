@@ -256,6 +256,52 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
       (document.querySelector('#containerProjectImportReview')?.textContent || '')
         .includes('已读取工程草稿'));
 
+    // A coherent detached semantic edit must appear as an explicit READ-ONLY
+    // preview. No current track flag, binary source or permission is restored.
+    const validIntentDraft = {
+      ...project,
+      revision: 1,
+      objects: project.objects.map((object, index) =>
+        index === 0 ? { ...object, included: false } : object),
+      editIntents: [{
+        revision: 1, type: 'include', objectId: project.objects[0].id,
+        field: null, from: true, to: false,
+      }],
+    };
+    await page.setInputFiles('#containerProjectImportInput', {
+      name: 'coherent-edit-preview.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(validIntentDraft)),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectIntentSummary')?.textContent || '').includes('1 项内部一致'));
+    assert.equal(await page.locator('#containerProjectIntentReview').isVisible(), true);
+    await page.locator('#containerProjectIntentReview > summary').click();
+    assert.match(await page.locator('#containerProjectIntentList').textContent(), /是否保留：是 → 否/);
+    assert.match(await page.locator('#containerProjectIntentReview').textContent(), /不证明编辑发生过/);
+    assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
+
+    // Valid JSON/field names alone are insufficient: the final object cannot
+    // retain "true" if the last recorded edit says it became "false".
+    const contradictory = {
+      ...validIntentDraft, objects: project.objects,
+    };
+    await page.setInputFiles('#containerProjectImportInput', {
+      name: 'contradictory-edit.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(contradictory)),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('PROJECT_INTENT_CHAIN_INVALID:TO_STATE_CONTRADICTION'));
+    assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
+    // Re-import only the validated sample for screenshot audit.
+    await page.setInputFiles('#containerProjectImportInput', {
+      name: 'coherent-edit-preview.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(validIntentDraft)),
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectIntentSummary')?.textContent || '').includes('1 项内部一致'));
+
     await page.screenshot({
       path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
     });
