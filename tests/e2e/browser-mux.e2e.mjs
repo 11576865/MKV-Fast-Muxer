@@ -155,7 +155,7 @@ async function scenarioMultiTrack(browser) {
     // subtitles, not against a mock output or planned track inventory.
     for (const [index, filename] of ['zh.ass', 'en.ass'].entries()) {
       const recovered = execFileSync('ffmpeg', [
-        '-hide_banner', '-loglevel', 'error', '-i', output,
+        '-hide_banner', '-loglevel', 'error', '-copyts', '-i', output,
         '-map', '0:s:' + index, '-c:s', 'ass', '-f', 'ass', '-',
       ], { encoding: 'utf8' });
       assert.deepEqual(parseAssDialogueEvents(recovered),
