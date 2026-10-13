@@ -28,7 +28,8 @@ test('builds deterministic multi-audio multi-subtitle mux command', () => {
     ],
   });
 
-  assert.deepEqual(args.slice(0, 8), [
+  assert.deepEqual(args.slice(0, 9), [
+    '-copyts',
     '-i', 'main.mkv',
     '-i', 'audio.flac',
     '-i', 'zh.ass',
@@ -50,6 +51,16 @@ test('builds deterministic multi-audio multi-subtitle mux command', () => {
   assert.equal(args[attachIndex + 1], 'font.ttf');
   assert.ok(args.includes('-metadata:s:t:1'));
   assert.equal(args.at(-1), 'out.mkv');
+});
+
+test('ASS delivery requests timestamp copy without changing non-ASS behavior', () => {
+  const base = { mainInputPath: 'source.mp4', outputPath: 'out.mkv' };
+  const plain = buildMuxCommand({ ...base,
+    newSubtitleTracks: [{ path: 'a.srt', inputIndex: 1 }] });
+  const ass = buildMuxCommand({ ...base,
+    newSubtitleTracks: [{ path: 'a.ass', inputIndex: 1 }] });
+  assert.equal(plain.includes('-copyts'), false);
+  assert.equal(ass[0], '-copyts');
 });
 
 test('unscanned source audio is preserved and external audio metadata starts after it', () => {
