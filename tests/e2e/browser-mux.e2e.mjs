@@ -2404,6 +2404,50 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
   }
 }
 
+async function scenarioLiveSourceTrackDomainToRealMux(browser) {
+  console.log('E2E P1: one live source-track domain for legacy fields, bulk actions and real delivered MKV');
+  const { context, page } = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', path.join(root, 'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    await page.locator('#trackBulkTools > summary').click();
+    // Bulk and ordinary source controls must update the SAME
+    // authoritative ContainerProject and legacy FFmpeg output projection.
+    await page.locator('#bulkLanguage').fill('eng');
+    await page.locator('#applyAudioLanguage').click();
+    await page.locator('#firstAudioDefault').click();
+    await page.locator('.track-row.track-audio input[data-track-field="title"]').first()
+      .fill('Domain authored main audio');
+    await page.locator('#dropAllSubtitles').click();
+    assert.equal(await page.locator('.track-row.track-subtitle input[data-track-action="include"]:checked').count(),0);
+    await page.locator('#keepAllSubtitles').click();
+    assert.equal(await page.locator('.track-row.track-subtitle input[data-track-action="include"]:checked').count(),1);
+    assert.match(await page.locator('#muxPlan').textContent(), /Domain authored main audio/);
+    const rows = page.locator('.track-row.track-audio');
+    assert.equal(await rows.nth(0).locator('input[data-track-field="language"]').inputValue(), 'eng');
+    assert.equal(await rows.nth(1).locator('input[data-track-field="language"]').inputValue(), 'eng');
+    assert.equal(await rows.nth(0).locator('input[data-track-action="default"]').isChecked(),true);
+    assert.equal(await rows.nth(1).locator('input[data-track-action="default"]').isChecked(),false);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const output = path.join(outDir, 'p1-live-domain-authority-final.mkv');
+    await saveDownload(page, '#downloadLink', output);
+    const result = probe(output);
+    const audios = streams(result,'audio');
+    assert.equal(audios.length,2);
+    assert.ok(audios.every(track => track.tags?.language === 'eng'));
+    assert.equal(audios[0].tags?.title,'Domain authored main audio');
+    assert.equal(audios[0].disposition?.default,1);
+    assert.equal(audios[1].disposition?.default,0);
+    assert.equal(streams(result,'subtitle').length,1);
+    console.log('Live domain -> legacy writer -> independent ffprobe output PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioUnifiedContainerTreeEditing(browser) {
   console.log('E2E: MKV container tree edits live original audio, subtitle and attachment state');
   const { context, page } = await openApp(browser);
@@ -4431,6 +4475,7 @@ try {
   await scenarioContentFirstSourceAmbiguity(browser);
   await scenarioUnifiedWorkBenchZones(browser);
   await scenarioUnifiedContainerTreeEditing(browser);
+  await scenarioLiveSourceTrackDomainToRealMux(browser);
   await scenarioUnifiedContainerAttachmentEditing(browser);
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
   await scenarioResponsiveObjectEditor(browser);
