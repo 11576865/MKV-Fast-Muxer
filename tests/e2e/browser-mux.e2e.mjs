@@ -80,8 +80,13 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
   try {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.locator('.batch-drawer > summary').click();
+    // Group subsetting is intentionally unavailable without a real, recognized
+    // font; exercise the executable policy rather than forcing a disabled UI.
+    await page.setInputFiles('#batchFontInput', path.join(root, 'DejaVuSans.ttf'));
     await page.locator('#batchPreserveAttachments').uncheck();
     await page.locator('#batchFontSubsetEnabled').check();
+    await page.waitForFunction(() => !document.querySelector('#batchSubsetScope')?.disabled,
+      null, { timeout: 30_000 });
     await page.locator('#batchSubsetScope').selectOption('group');
     const wire = path.join(outDir, 'five-step-batch-recipe-v1.json');
     await saveDownload(page, '#batchRecipeExportBtn', wire);
