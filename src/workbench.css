@@ -1743,3 +1743,33 @@ body { background: var(--bg); }
 @media (max-width: 760px) {
   .existing-mkv-limited-file-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+
+/* Detached P1 history: a small, readable preview, never an executable editor. */
+.container-project-intent-review {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: .73rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.container-project-intent-review[hidden] { display: none !important; }
+.container-project-intent-review > summary {
+  cursor: pointer;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.container-project-intent-review > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.container-project-intent-review p { margin: 7px 0; }
+.container-project-intent-review ol {
+  padding-inline-start: 20px;
+  margin-block: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.container-project-intent-review li { overflow-wrap: anywhere; margin-block: 2px; }

@@ -46,6 +46,7 @@ import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
 import { createContainerProjectFromProjection, serializeContainerProject } from './container-project.js';
 import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPORT_MAX_BYTES } from './container-project-import.js';
+import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -172,6 +173,9 @@ const compositionMuxBtn = $('compositionMuxBtn');
 const containerProjectExportBtn = $('containerProjectExportBtn');
 const containerProjectImportInput = $('containerProjectImportInput');
 const containerProjectImportReview = $('containerProjectImportReview');
+const containerProjectIntentReview = $('containerProjectIntentReview');
+const containerProjectIntentSummary = $('containerProjectIntentSummary');
+const containerProjectIntentList = $('containerProjectIntentList');
 const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
@@ -1395,6 +1399,37 @@ function renderOutputComposition() {
       '，新增 ' + comparison.addedCount + '。' + comparison.warning +
       (applicableProof ? ' ' + applicableProof.message : '') +
       ' 未恢复编辑状态、封装权限或媒体文件。';
+  }
+  if (containerProjectIntentReview && containerProjectIntentList &&
+      containerProjectIntentSummary) {
+    containerProjectIntentReview.hidden = !importedProjectForReview;
+    if (importedProjectForReview) {
+      // parseContainerProjectDraft already fails closed on incoherent chains.
+      // A matching self-consistent edit log is still untrusted text, not
+      // evidence of its author, origin or permission to touch current tracks.
+      const intentAudit = auditDetachedContainerProjectIntentChain(importedProjectForReview);
+      containerProjectIntentSummary.textContent = intentAudit.intentCount
+        ? '草稿修改记录：' + intentAudit.intentCount + ' 项内部一致（仅只读）'
+        : '草稿没有可恢复的修改记录';
+      containerProjectIntentList.replaceChildren(...intentAudit.preview.map(intent => {
+        const row = document.createElement('li');
+        const target = intent.type === 'set-attribute'
+          ? '字段 ' + intent.field
+          : intent.type === 'include' ? '是否保留' : '排列顺序';
+        const value = entry => entry === null ? '(未设置)'
+          : typeof entry === 'boolean' ? (entry ? '是' : '否') : String(entry);
+        row.textContent = 'r' + intent.revision + ' · ' + intent.objectId +
+          ' · ' + target + '：' + value(intent.from) + ' → ' + value(intent.to);
+        return row;
+      }));
+      if (!intentAudit.intentCount) {
+        const row = document.createElement('li');
+        row.textContent = '没有修改记录；不能据此判断草稿是否曾被编辑。';
+        containerProjectIntentList.append(row);
+      }
+    } else {
+      containerProjectIntentList.replaceChildren();
+    }
   }
   if (containerProjectVerifySourceBtn) {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
