@@ -28,6 +28,14 @@ function safeOutputName(source) {
 export async function prepareVerifiedLimitedAppend({
   source, attachment, filename, mimeType, approveFilenameAdjustments = false,
 } = {}) {
+  // Reject by cheap metadata first; never eagerly hash arbitrary multi-GB
+  // user media before invoking the candidate's strict 60/4 MiB limits.
+  if (!source?.slice || !Number.isSafeInteger(source.size) || source.size < 1 ||
+      source.size > 60 * 1024 * 1024 ||
+      !attachment?.slice || !Number.isSafeInteger(attachment.size) ||
+      attachment.size < 1 || attachment.size > 4 * 1024 * 1024) {
+    throw Error('LIMITED_APPEND_INPUT_BUDGET_REFUSED_BEFORE_READ');
+  }
   const sourceOriginalHash = await sha256(source);
   const attachmentOriginalHash = await sha256(attachment);
   const plan = await prepareExistingMkvAppendAttachmentCandidate({
