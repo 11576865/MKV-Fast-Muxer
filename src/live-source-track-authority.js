@@ -2,10 +2,10 @@
  * P1 source-track live domain authority (bounded migration).
  *
  * A session's immutable ContainerProject owns source audio/subtitle
- * include/title/language/Default/Forced. The original trackState objects
- * remain an execution-facing projection so the existing, already-tested
- * FFmpeg path and attachment/advanced editors are not replaced speculatively.
- * Other track fields and Matroska EBML structures remain legacy-owned.
+ * include/title/language/Default/Forced/Original/Commentary/HearingImpaired
+ * and within-kind relative ordering. The original trackState objects remain
+ * an execution-facing projection for the already-verified FFmpeg writer.
+ * Attachments and unsupported EBML structures remain legacy-owned.
  *
  * No source bytes, File grants, jobs, write plans or provenance are produced.
  */
@@ -16,6 +16,7 @@ import {
 
 export const LIVE_SOURCE_FIELDS = Object.freeze([
   'include', 'title', 'language', 'default', 'forced',
+  'original', 'commentary', 'hearingImpaired',
 ]);
 const fieldSet = new Set(LIVE_SOURCE_FIELDS);
 const LIMIT = 85;
@@ -26,11 +27,14 @@ const keyOf = row => row.type + ':' + row.index;
 const snapshot = row => ({
   include: row.include, title: row.title, language: row.language,
   default: row.default, forced: row.forced,
+  original: row.original, commentary: row.commentary,
+  hearingImpaired: row.hearingImpaired,
 });
 const projectValue = (object, field) => field === 'include'
   ? object.included : object.attributes[field];
 const assertValue = (field, value) => {
-  if (field === 'include' || field === 'default' || field === 'forced') {
+  if (['include', 'default', 'forced', 'original',
+    'commentary', 'hearingImpaired'].includes(field)) {
     if (typeof value !== 'boolean') throw Error('LIVE_TRACK_BOOLEAN_REQUIRED');
   } else if (field === 'title') {
     if (typeof value !== 'string' || value.length > 160)
@@ -77,6 +81,25 @@ function currentRows(session, source, state) {
       if (snapshot(row)[field] !== projectValue(object, field))
         throw Error('LIVE_TRACK_EXECUTOR_PROJECTION_DRIFT');
     }
+  }
+  // The source projection assigns stable, bounded project order slots from
+  // the displayed within-kind list. Legacy FFmpeg order numbers can be
+  // sparse (stream.index), so compare relative order, not equal numbers.
+  for (const kind of ['audio', 'subtitle']) {
+    const owned = [...session.targets.entries()]
+      .filter(([key]) => key.startsWith(kind + ':'))
+      .sort((a, b) => objects.get(a[1]).order - objects.get(b[1]).order)
+      .map(([key]) => key);
+    const executable = [...indexed.entries()]
+      .filter(([, row]) => row.type === kind)
+      .sort((a, b) => a[1].order - b[1].order)
+      .map(([key]) => key);
+    if (owned.length !== executable.length ||
+        owned.some((key, i) => key !== executable[i]))
+      throw Error('LIVE_TRACK_ORDER_PROJECTION_DRIFT');
+    const domainOrder = owned.map(key => objects.get(session.targets.get(key)).order);
+    if (new Set(domainOrder).size !== domainOrder.length)
+      throw Error('LIVE_TRACK_DOMAIN_ORDER_AMBIGUOUS');
   }
   return indexed;
 }
@@ -142,10 +165,9 @@ export function commitLiveSourceTrackChanges(session, {
     if (!domainId || !indexed.has(item.key)) throw Error('LIVE_TRACK_NOT_FOUND');
     const desired = item.values;
     if (!desired.include) {
-      desired.default = false;
-      desired.forced = false;
+      for (const field of clearOnExclude) desired[field] = false;
     }
-    if (desired.default && !desired.include || desired.forced && !desired.include)
+    if (!desired.include && clearOnExclude.some(field => desired[field]))
       throw Error('LIVE_TRACK_EXCLUDED_FLAG');
     // Do not rename hidden/excluded tracks by accident.
     for (const field of LIVE_SOURCE_FIELDS) {
@@ -193,6 +215,59 @@ export function commitLiveSourceTrackChanges(session, {
     changedFields: commits, updatedTracks: staged.size,
     generation: session.generation,
     fileWritten: false, muxStarted: false,
+  });
+}
+
+
+/**
+ * Reorder one included source track against its adjacent included peer.
+ * Both immutable domain slots are exchanged before the two legacy FFmpeg
+ * order values move. Neither File bytes nor unrelated excluded rows move.
+ *
+ * The domain slots are bounded original projection positions. The FFmpeg
+ * values need not equal them (sparse stream indices are permitted).
+ */
+export function moveLiveSourceTrack(session, {
+  source, trackState, index, delta, appendMode = false,
+} = {}) {
+  const indexed = currentRows(session, source, trackState);
+  if (appendMode) throw Error('LIVE_TRACK_PRESERVE_ALL_READONLY');
+  if (!Number.isSafeInteger(index) || ![-1, 1].includes(delta))
+    throw Error('LIVE_TRACK_INVALID_MOVE');
+  const target = [...indexed.values()].find(row => row.index === index);
+  if (!target || !target.include) throw Error('LIVE_TRACK_MOVE_NOT_INCLUDED');
+  const peers = [...indexed.values()]
+    .filter(row => row.type === target.type && row.include)
+    .sort((a, b) => a.order - b.order);
+  const from = peers.findIndex(row => row.index === index);
+  const other = peers[from + delta];
+  if (!other) return Object.freeze({
+    status: 'no-change', generation: session.generation,
+  });
+  const a = session.targets.get(keyOf(target));
+  const b = session.targets.get(keyOf(other));
+  const x = session.project.objects.find(obj => obj.id === a);
+  const y = session.project.objects.find(obj => obj.id === b);
+  if (!x || !y || x.kind !== y.kind || x.order === y.order)
+    throw Error('LIVE_TRACK_ORDER_IDENTITY_DRIFT');
+  // Build the entire immutable domain transaction before changing either
+  // execution value. Partial application cannot leak into legacy mux.
+  let next = compact(session.project);
+  next = applyContainerProjectEdit(next, {
+    type: 'reorder', objectId: a, value: y.order,
+  });
+  next = applyContainerProjectEdit(next, {
+    type: 'reorder', objectId: b, value: x.order,
+  });
+  const oldOrder = target.order;
+  target.order = other.order;
+  other.order = oldOrder;
+  session.project = next;
+  session.generation++;
+  return Object.freeze({
+    status: 'committed-to-domain-and-executor-projection',
+    moved: index, across: other.index,
+    generation: session.generation, fileWritten: false, muxStarted: false,
   });
 }
 
