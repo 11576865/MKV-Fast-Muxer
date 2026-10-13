@@ -60,6 +60,9 @@ export function buildContainerDocument({
         language: appendMode ? (stream?.tags?.language || 'und') : track.language,
         default: appendMode ? Boolean(stream?.disposition?.default) : Boolean(track.default),
         forced: appendMode ? Boolean(stream?.disposition?.forced) : Boolean(track.forced),
+        original: appendMode ? Boolean(stream?.disposition?.original) : Boolean(track.original),
+        commentary: appendMode ? Boolean(stream?.disposition?.comment) : Boolean(track.commentary),
+        hearingImpaired: appendMode ? Boolean(stream?.disposition?.hearing_impaired) : Boolean(track.hearingImpaired),
       } : attachment ? {
         name: appendMode ? attachment.originalFilename : attachment.filename,
         mime: appendMode ? attachment.originalMimetype : attachment.mimetype,
@@ -73,6 +76,9 @@ export function buildContainerDocument({
         language: track.originalLanguage ?? (stream?.tags?.language || 'und'),
         default: Boolean(track.originalDefault ?? stream?.disposition?.default),
         forced: Boolean(track.originalForced ?? stream?.disposition?.forced),
+        original: Boolean(track.originalOriginal ?? stream?.disposition?.original),
+        commentary: Boolean(track.originalCommentary ?? stream?.disposition?.comment),
+        hearingImpaired: Boolean(track.originalHearingImpaired ?? stream?.disposition?.hearing_impaired),
       } : undefined;
     return {
       id: scopedId(scope, item.id),
