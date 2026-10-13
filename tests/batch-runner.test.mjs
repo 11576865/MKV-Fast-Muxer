@@ -133,6 +133,21 @@ test('cancel while a job is executing never publishes its partial result', async
   ]);
 });
 
+test('a mismatched output name is refused before persistence', async () => {
+  const { plan, ledger } = fixture();
+  let saves = 0;
+  const outcome = await runFrozenBatchQueue(plan, {
+    ledger,
+    prepare: async () => {},
+    execute: async (job) => ({ ...artifact(job), outputName: 'unauthorized.mkv' }),
+    publish: async () => { saves++; return { savedToDirectory: true }; },
+  });
+  assert.equal(saves, 0);
+  assert.equal(outcome.results.length, 3);
+  assert.ok(outcome.results.every((entry) => !entry.ok));
+  assert.match(outcome.results[0].error, /输出身份与冻结任务不一致/);
+});
+
 test('missing frozen authorization or incompatible ledger is not runnable', async () => {
   const { plan } = fixture();
   const other = fixture();
