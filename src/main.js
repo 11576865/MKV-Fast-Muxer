@@ -152,6 +152,7 @@ const compositionChanges = $('compositionChanges');
 const compositionIssues = $('compositionIssues');
 const preservationReadinessEl = $('preservationReadiness');
 const containerCapabilitySummary = $('containerCapabilitySummary');
+const containerCapabilityDetailsList = $('containerCapabilityDetailsList');
 const preservationReadinessTitle = $('preservationReadinessTitle');
 const preservationReadinessDescription = $('preservationReadinessDescription');
 const compositionSourceEvidence = $('compositionSourceEvidence');
@@ -1389,6 +1390,14 @@ function renderOutputComposition() {
     containerCapabilitySummary.title = items.map(item =>
       item.label + ' [' + item.status + '] ' + item.reason).join('\n');
     containerCapabilitySummary.dataset.muxStatus = caps.mux.status;
+    if (containerCapabilityDetailsList) {
+      containerCapabilityDetailsList.replaceChildren(...items.map(item => {
+        const line = document.createElement('li');
+        line.textContent = item.label + '：' + item.reason;
+        line.dataset.status = item.status;
+        return line;
+      }));
+    }
   }
   selectedCompositionId = reconcileContainerSelection(containerDocument, lastCompositionSourceKey, selectedCompositionId);
   lastCompositionSourceKey = containerDocument.sourceKey;
