@@ -108,6 +108,7 @@ setupExistingMkvLimitedAppendUI({
   saveButton: $('existingMkvLimitedSave'),
   status: $('existingMkvLimitedStatus'),
   evidence: $('existingMkvLimitedEvidence'),
+  inventory: $('existingMkvLimitedInventory'),
 });
 setupPngOnlyExperimentUI({
   input: $('pngOnlyCreateInput'),

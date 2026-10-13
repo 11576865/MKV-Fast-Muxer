@@ -64,11 +64,14 @@ const element = (id, payload) => {
 };
 const str = (id, value) => element(id, encoder.encode(value));
 const uint = (id, value) => element(id, unsigned(value));
-const makeAttachment = (name, type, payload) => element('1941A469',
-  element('61A7', new Blob([
+const makeAttachmentCollection = items => element('1941A469', new Blob(
+  items.map(({ name, type, payload, uid }) => element('61A7', new Blob([
     str('466E', name), str('4660', type),
-    element('465C', payload), uint('46AE', 1),
-  ])));
+    element('465C', payload), uint('46AE', uid),
+  ])))
+));
+const makeAttachment = (name, type, payload) =>
+  makeAttachmentCollection([{ name, type, payload, uid: 1 }]);
 // Encode a replacement Void with EXACTLY the remaining original slot bytes,
 // not a changed offset for the following Info/Tracks/Cluster/Chapters/Tags.
 function replacementVoid(totalBytes) {
@@ -134,25 +137,40 @@ async function sourceHeader(source, scan) {
  * production capability grant.
  */
 export async function prepareExistingMkvAppendAttachmentCandidate({
-  source, attachment, filename, mimeType, approveFilenameAdjustments = false,
+  source, attachment, filename, mimeType, attachments = null,
+  approveFilenameAdjustments = false,
 } = {}) {
+  // The plural form is a strict extension of the same reserved-Void class:
+  // one Attachments master, 1–8 new AttachedFile children and no old master.
+  const requests = attachments == null
+    ? [{ file: attachment, filename, mimeType }]
+    : Array.from(attachments);
   if (!source?.slice || !Number.isSafeInteger(source.size) ||
       source.size < 1 || source.size > MAX_SOURCE ||
-      !attachment?.slice || !Number.isSafeInteger(attachment.size) ||
-      attachment.size < 1 || attachment.size > MAX_PAYLOAD) {
+      requests.length < 1 || requests.length > 8 ||
+      requests.some(item => !item?.file?.slice ||
+        !Number.isSafeInteger(item.file.size) ||
+        item.file.size < 1 || item.file.size > MAX_PAYLOAD) ||
+      requests.reduce((n, item) => n + item.file.size, 0) > MAX_PAYLOAD) {
     throw Error('APPEND_SOURCE_OR_PAYLOAD_BUDGET_INVALID');
   }
-  const declaredType = String(mimeType || '').trim().toLowerCase();
-  if (!mimetypePattern.test(declaredType) || declaredType.length > 100) {
-    throw Error('APPEND_MIME_DECLARATION_INVALID');
-  }
-  const proposal = planAttachmentExportNames([{
-    id: 'new:0', filename: String(filename ?? attachment.name ?? ''),
-    mimeType: declaredType,
-  }]).entries[0];
-  if (proposal.originalName !== proposal.proposedSaveName &&
+  const declared = requests.map((item, index) => {
+    const type = String(item.mimeType || '').trim().toLowerCase();
+    if (!mimetypePattern.test(type) || type.length > 100) {
+      throw Error('APPEND_MIME_DECLARATION_INVALID');
+    }
+    return {
+      id: 'new:' + index, filename: String(item.filename ?? item.file.name ?? ''),
+      mimeType: type,
+    };
+  });
+  const proposals = planAttachmentExportNames(declared).entries;
+  if (proposals.some(item => item.originalName !== item.proposedSaveName) &&
       !approveFilenameAdjustments) {
     throw Error('APPEND_FILENAME_REVIEW_REQUIRED');
+  }
+  if (new Set(proposals.map(item => item.proposedSaveName)).size !== proposals.length) {
+    throw Error('APPEND_DUPLICATE_ATTACHMENT_OUTPUT_NAME');
   }
   const sourceScan = await inspectRawSegmentPreservation(source);
   if (sourceScan.state !== 'inspected') {
@@ -192,8 +210,10 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
     throw Error('APPEND_PRE_INFO_VOID_RESERVATION_REQUIRED');
   }
   const slot = sourceScan.elements[1];
-  const requiredElement = makeAttachment(
-    proposal.proposedSaveName, declaredType, attachment);
+  const requiredElement = makeAttachmentCollection(proposals.map((item, index) => ({
+    name: item.proposedSaveName, type: declared[index].mimeType,
+    payload: requests[index].file, uid: index + 1,
+  })));
   if (slot.byteLength < requiredElement.size + 2) {
     throw Error('APPEND_VOID_SLOT_CAPACITY_EXCEEDED');
   }
@@ -203,7 +223,8 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
   }
   // Bind the bytes of the proposed attachment as well as its Blob identity.
   // A plan that reads one FileData payload cannot execute with another.
-  const attachmentDigestAtPlan = await hashBlob(attachment);
+  const attachmentDigestsAtPlan = await Promise.all(
+    requests.map(item => hashBlob(item.file)));
   const plan = freeze({
     schema: APPEND_EXISTING_ATTACHMENT_SCHEMA,
     mode: 'experimental-new-copy-only',
@@ -219,14 +240,24 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
       sourceByteIdentity: 'raw-elements-and-header-commitments-rechecked-at-execution',
     },
     addedAttachment: {
-      filename: proposal.proposedSaveName,
-      originalFilename: proposal.originalName,
-      filenameAdjusted: proposal.originalName !== proposal.proposedSaveName,
-      mimeType: declaredType, byteLength: attachment.size,
-      fileUid: '1', // no AttachedFile exists in permitted source Segment
+      filename: proposals[0].proposedSaveName,
+      originalFilename: proposals[0].originalName,
+      filenameAdjusted: proposals[0].originalName !== proposals[0].proposedSaveName,
+      mimeType: declared[0].mimeType, byteLength: requests[0].file.size,
+      fileUid: '1',
       mimeAuthenticity: 'not-tested', executableSafety: 'not-tested',
       payloadByteIdentity: 'sha256-checked-at-plan-and-execution',
     },
+    addedAttachments: proposals.map((proposal, index) => ({
+      filename: proposal.proposedSaveName,
+      originalFilename: proposal.originalName,
+      filenameAdjusted: proposal.originalName !== proposal.proposedSaveName,
+      mimeType: declared[index].mimeType,
+      byteLength: requests[index].file.size,
+      fileUid: String(index + 1),
+      mimeAuthenticity: 'not-tested', executableSafety: 'not-tested',
+      payloadByteIdentity: 'sha256-checked-at-plan-and-execution',
+    })),
     output: {
       filename: 'reserved-void-one-attachment-research-candidate.mkv',
       originalFileByteLengthPreserved: true,
@@ -241,8 +272,8 @@ export async function prepareExistingMkvAppendAttachmentCandidate({
     execution: { approvedToWriteExistingFile: false, autoDownload: false },
   });
   bindings.set(plan, {
-    source, attachment, sourceScan, header, slot,
-    attachmentDigestAtPlan,
+    source, requests, sourceScan, header, slot,
+    attachmentDigestsAtPlan,
   });
   return plan;
 }
@@ -253,7 +284,7 @@ export async function executeExistingMkvAppendAttachmentCandidate(plan) {
     throw Error('APPEND_CANDIDATE_PLAN_FORGED_OR_STALE');
   }
   const {
-    source, attachment, sourceScan, slot, attachmentDigestAtPlan,
+    source, requests, sourceScan, slot, attachmentDigestsAtPlan,
   } = bindings.get(plan);
   // Snapshot validity is temporal. A genuine frozen plan and the same
   // File object are insufficient if a synthetic source changes behind it.
@@ -263,12 +294,17 @@ export async function executeExistingMkvAppendAttachmentCandidate(plan) {
       currentSource.state !== 'inspected') {
     throw Error('APPEND_SOURCE_CHANGED_AFTER_PLAN');
   }
-  if (attachment.size !== plan.addedAttachment.byteLength ||
-      await hashBlob(attachment) !== attachmentDigestAtPlan) {
-    throw Error('APPEND_ATTACHMENT_CHANGED_AFTER_PLAN');
+  for (let index = 0; index < requests.length; index++) {
+    if (requests[index].file.size !== plan.addedAttachments[index].byteLength ||
+        await hashBlob(requests[index].file) !== attachmentDigestsAtPlan[index]) {
+      throw Error('APPEND_ATTACHMENT_CHANGED_AFTER_PLAN');
+    }
   }
-  const attachedMaster = makeAttachment(
-    plan.addedAttachment.filename, plan.addedAttachment.mimeType, attachment);
+  const attachedMaster = makeAttachmentCollection(
+    plan.addedAttachments.map((item, index) => ({
+      name: item.filename, type: item.mimeType,
+      payload: requests[index].file, uid: index + 1,
+    })));
   const remaining = slot.byteLength - attachedMaster.size;
   if (remaining < 2) throw Error('APPEND_VOID_SLOT_CAPACITY_EXCEEDED');
   const tailVoid = replacementVoid(remaining);
