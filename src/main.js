@@ -5241,7 +5241,7 @@ batchStartBtn?.addEventListener('click', async () => {
       },
       onResults: (currentResults) => {
         batchResults.innerHTML = currentResults.map((item) => item.ok
-          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · 审计：${escapeHtml(item.auditStatus || '未完成')}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
+          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · 已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.directorySaveError ? ` · 目录写入未完成：${escapeHtml(item.directorySaveError)}；请使用下载链接保存成品` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
           : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
         ).join('');
       },
