@@ -23,10 +23,11 @@ test('batch planner identifies candidate files before filename pairing', () => {
 });
 
 test('batch execution uses detected Matroska identity for preserve-all behavior', () => {
-  assert.match(
-    main,
-    /frozenPlan\.policy\.preserveAttachments && currentVideoIsMatroska\(job\.video\)/,
-  );
+  const context = fs.readFileSync(new URL('../src/batch-mux-context.js', import.meta.url), 'utf8');
+  assert.match(context, /plan\.policy\.preserveAttachments/);
+  assert.match(context, /headerIdentity\.container/);
+  assert.match(main, /const headerIdentity = await sniffFileContainer\(job\.video\)/);
+  assert.match(main, /createFrozenBatchMuxContext\(frozenPlan, job,/);
   assert.doesNotMatch(
     main,
     /batchPreserveAttachments\?\.checked && ext\(job\.video\.name\) === '\.mkv'/,
