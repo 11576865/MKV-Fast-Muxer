@@ -122,6 +122,7 @@
                 <p>仅允许已扫描来源的音频/字幕轨道保留状态、标题、语言、Default 和 Forced；需完整来源 SHA-256、字段无冲突，并关闭“保留全部”模式。章节、标签、附件和排序不能通过此入口恢复。不会写入源文件或自动开始封装。</p>
                 <label><input id="containerProjectRestoreConfirm" type="checkbox" /> 我已检查全部修改，将其一次应用到当前待封装方案</label>
                 <button id="containerProjectRestoreBtn" class="button button-secondary" type="button" disabled>应用经验证的轨道修改</button>
+                <button id="containerProjectRestoreUndoBtn" class="button button-secondary" type="button" hidden disabled>撤销本次恢复</button>
                 <p id="containerProjectRestoreStatus" role="status" aria-live="polite"></p>
               </section>
               <div id="compositionTracks" class="composition-tracks" aria-label="最终 MKV 组成"></div>
