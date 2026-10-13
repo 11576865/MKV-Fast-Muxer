@@ -51,6 +51,7 @@ import { previewDetachedProjectIntentConflicts } from './container-project-confl
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
 import {
   createLiveSourceTrackSession, commitLiveSourceTrackChanges,
+  moveLiveSourceTrack,
 } from './live-source-track-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
@@ -2154,10 +2155,9 @@ function editSourceFromInventory(event) {
       if (!changeSourceTracks([{ index: track.index, field: 'include', value: element.checked }]))
         return;
     } else if (element.dataset.treeTrackFlag) {
-      if (['default', 'forced'].includes(element.dataset.treeTrackFlag)) {
-        if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackFlag, value: element.checked }]))
-          return;
-      } else track[element.dataset.treeTrackFlag] = element.checked;
+      if (!changeSourceTracks([{ index: track.index,
+        field: element.dataset.treeTrackFlag, value: element.checked }]))
+        return;
     } else if (element.dataset.treeTrackField) {
       if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackField, value: element.value }]))
         return;
@@ -2231,7 +2231,7 @@ function handleInspectorTrackMove(event) {
   if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return true;
   const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
   if (!track || !track.include) return true;
-  moveTrack(track, Number(moveButton.dataset.treeTrackMove));
+  if (!moveTrack(track, Number(moveButton.dataset.treeTrackMove))) return true;
   renderTrackList();
   renderImportedAssetInventory();
   renderContainerChangeSummary();
@@ -2478,13 +2478,11 @@ function restoreTrackMetadata(type) {
     { index: track.index, field: 'title', value: track.originalTitle },
     { index: track.index, field: 'default', value: track.include && track.originalDefault },
     { index: track.index, field: 'forced', value: track.include && track.originalForced },
+    { index: track.index, field: 'original', value: track.include && track.originalOriginal },
+    { index: track.index, field: 'commentary', value: track.include && track.originalCommentary },
+    { index: track.index, field: 'hearingImpaired', value: track.include && track.originalHearingImpaired },
   ]);
   if (changes.length && !changeSourceTracks(changes)) return;
-  for (const track of targets) {
-    track.original = track.include && track.originalOriginal;
-    track.commentary = track.include && track.originalCommentary;
-    track.hearingImpaired = track.include && track.originalHearingImpaired;
-  }
   renderTrackList();
   renderImportedAssetInventory();
 }
@@ -3401,18 +3399,27 @@ function selectedTracks(type) {
 }
 
 function moveTrack(track, delta) {
-  if (!trackState) return;
-  const peers = trackState.tracks
-    .filter((item) => item.type === track.type && item.include)
-    .sort((a, b) => a.order - b.order);
-  const currentIndex = peers.findIndex((item) => item.index === track.index);
-  const targetIndex = currentIndex + delta;
-  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= peers.length) return;
-
-  const other = peers[targetIndex];
-  const temp = track.order;
-  track.order = other.order;
-  other.order = temp;
+  const source = videoInput.files?.[0] || null;
+  if (!source || scannedSourceFile !== source ||
+      !trackState || trackState.fileKey !== fileKey(source)) {
+    status.textContent = '来源轨道已变化，请重新扫描后排序。';
+    return false;
+  }
+  try {
+    if (!liveSourceTrackSession ||
+        liveSourceTrackSession.source !== source ||
+        liveSourceTrackSession.trackState !== trackState)
+      refreshLiveSourceTrackAuthority();
+    moveLiveSourceTrack(liveSourceTrackSession, {
+      source, trackState, index: track.index, delta,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    });
+    return true;
+  } catch (error) {
+    status.textContent = '来源排序领域修改未执行：' +
+      (error?.message || String(error)) + '。未提交部分变更。';
+    return false;
+  }
 }
 
 function selectedOriginalAttachments() {
@@ -3936,12 +3943,10 @@ trackList.addEventListener('change', (event) => {
 
   if (actionInput) {
     const action = actionInput.dataset.trackAction;
-    if (['include','default','forced'].includes(action)) {
-      if (!changeSourceTracks([{ index: track.index, field: action, value: actionInput.checked }])) {
-        renderTrackList();
-        return;
-      }
-    } else track[action] = actionInput.checked;
+    if (!changeSourceTracks([{ index: track.index, field: action, value: actionInput.checked }])) {
+      renderTrackList();
+      return;
+    }
     renderTrackList();
     renderImportedAssetInventory();
     return;
@@ -3972,7 +3977,7 @@ trackList.addEventListener('click', (event) => {
   if (!button || !trackState) return;
   const track = trackState.tracks.find((item) => item.index === Number(button.dataset.trackIndex));
   if (!track) return;
-  moveTrack(track, Number(button.dataset.trackMove));
+  if (!moveTrack(track, Number(button.dataset.trackMove))) return;
   renderTrackList();
   renderImportedAssetInventory();
   renderContainerChangeSummary();
