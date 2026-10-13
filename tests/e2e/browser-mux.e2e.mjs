@@ -3537,6 +3537,14 @@ async function scenarioP0PreservationBlocksSingle(browser) {
     // The live FFprobe inventory may still be finishing after the seek-based
     // EBML preview. Wait until the media core is idle before bypass testing.
     await waitForStatus(page, '轨道扫描完成：');
+    // scanSourceContainer writes its success status BEFORE the finally block
+    // clears scanning/isBusy and refreshes the controls. A synthetic click at
+    // that instant is correctly ignored by executeCurrentMuxTask and never
+    // reaches the runtime preservation guard. Wait for its real idle control
+    // projection, not an arbitrary sleep or an increased status timeout.
+    await page.waitForFunction(() =>
+      document.querySelector('#cancelBtn')?.disabled === true,
+      null, { timeout: 30_000 });
     // A programmatic event must not bypass the mandatory execution-time guard.
     // Exercise the *runtime* authorization path even if the native disabled
     // button suppresses synthetic click events. This is test-only UI tampering.
