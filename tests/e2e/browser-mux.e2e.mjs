@@ -278,6 +278,18 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     await page.locator('#containerProjectIntentReview > summary').click();
     assert.match(await page.locator('#containerProjectIntentList').textContent(), /是否保留：是 → 否/);
     assert.match(await page.locator('#containerProjectIntentReview').textContent(), /不证明编辑发生过/);
+    // A coherent detached edit never becomes executable on import. Full
+    // source hash and fresh structural inspection are separate preconditions.
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectConflictReview')?.dataset.state === 'PREVIEW_BLOCKED');
+    await page.locator('#containerProjectConflictReview > summary').click();
+    assert.match(await page.locator('#containerProjectConflictList').textContent(), /未完成来源字节 SHA-256 核对/);
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state === 'digest-matches-draft');
+    assert.match(await page.locator('#containerProjectConflictList').textContent(), /当前真实轨道尚未扫描/);
+    assert.match(await page.locator('#containerProjectConflictSummary').textContent(), /受阻/);
+    assert.equal(await page.locator('#batchResults a.download').count(), 0);
     assert.equal(await page.locator('#videoInput').evaluate(x => x.files?.[0]?.name), 'base.mp4');
     assert.equal(await page.locator('#batchResults a.download').count(), 0);
 
