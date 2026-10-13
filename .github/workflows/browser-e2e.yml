@@ -161,6 +161,7 @@ jobs:
             .e2e/output/five-step-container-project-v1.json
             .e2e/output/five-step-workbench-1440.png
             .e2e/output/five-step-workbench-1024.png
+            .e2e/output/five-step-workbench-390.png
           if-no-files-found: warn
           retention-days: 14
 
