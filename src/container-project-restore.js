@@ -7,6 +7,7 @@
  * live File and imported draft before each call.
  */
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
+import { createContainerProjectFromProjection } from './container-project.js';
 
 export const TRACK_REPLAY_SCHEMA = 'verified-source-track-replay-v1';
 const FIELDS = Object.freeze([
@@ -48,7 +49,12 @@ export function prepareVerifiedTrackReplay({
   if (preview.changes.length > 100)
     throw Error('TRACK_REPLAY_CHANGE_BUDGET');
 
-  const objects = new Map(liveProjection.objects.map(object => [object.id, object]));
+  // Detached edit intents use stable, hashed ContainerProject IDs while the
+  // live projection uses source-scoped composition IDs. Resolve by the same
+  // ordered domain projection used for export, never by display labels.
+  const currentProject = createContainerProjectFromProjection(liveProjection);
+  const objects = new Map(currentProject.objects.map((object, index) =>
+    [object.id, liveProjection.objects[index]]));
   const patches = new Map();
   for (const change of preview.changes) {
     const object = objects.get(change.objectId);
