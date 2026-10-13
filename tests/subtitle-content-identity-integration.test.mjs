@@ -20,7 +20,10 @@ test('single subtitle workflow waits for content identity before mux', () => {
   assert.match(main, /identifySubtitleInputs/);
   assert.match(main, /subtitleInspectPromise/);
   assert.match(main, /subtitleIdentityPending/);
-  assert.match(main, /await subtitleInspectPromise/);
+  const context = fs.readFileSync(new URL('../src/batch-mux-context.js', import.meta.url), 'utf8');
+  assert.match(main, /const pairing = await requestBatchPlanSync\(\)/);
+  assert.match(main, /executeCurrentMuxTask\(activeBatchMuxContext\)/);
+  assert.match(context, /inferredSubtitleMetadata\(track\.file, track\.format\)/);
   assert.match(main, /identityMismatch/);
   assert.doesNotMatch(main, /!isSupportedSubtitleFile\(track\.file\)/);
 });
