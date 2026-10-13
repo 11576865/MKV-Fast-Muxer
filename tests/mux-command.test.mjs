@@ -60,7 +60,10 @@ test('ASS delivery requests timestamp copy without changing non-ASS behavior', (
   const ass = buildMuxCommand({ ...base,
     newSubtitleTracks: [{ path: 'a.ass', inputIndex: 1 }] });
   assert.equal(plain.includes('-copyts'), false);
+  assert.equal(plain.includes('-avoid_negative_ts'), false);
   assert.equal(ass[0], '-copyts');
+  const gate = ass.indexOf('-avoid_negative_ts');
+  assert.equal(ass[gate + 1], 'disabled');
 });
 
 test('unscanned source audio is preserved and external audio metadata starts after it', () => {
