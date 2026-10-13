@@ -3634,6 +3634,96 @@ async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   }
 }
 
+async function scenarioExistingMkvLimitedAppendReviewed(browser) {
+  console.log('P2-A product opt-in: real MKVToolNix source with nested ChapterUID tags, independently audited limited attachment copy');
+  const source = path.join(outDir, 'limited-existing-source.mkv');
+  const payload = Buffer.from('Real browser-only attachment payload verified with independent extractors.\\n');
+  execFileSync('mkvmerge', [
+    '--quiet', '--output', source,
+    '--chapters', path.join(root, 'p0-independent-chapters.xml'),
+    path.join(root, 'base.mp4'),
+  ], { timeout: 60_000 });
+  execFileSync('mkvpropedit', [
+    source, '--tags', 'all:' + path.join(root, 'p0-independent-tags.xml'),
+  ], { timeout: 60_000 });
+  const { context, page } = await openApp(browser);
+  try {
+    await page.locator('#existingMkvLimitedDetails > summary').click();
+    await page.setInputFiles('#existingMkvLimitedSource', source);
+    await page.setInputFiles('#existingMkvLimitedAttachment', {
+      name: 'readme.txt', mimeType: 'text/plain', buffer: payload,
+    });
+    assert.equal(await page.locator('#existingMkvLimitedPrepare').isDisabled(), true);
+    assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
+    await page.locator('#existingMkvLimitedReview').check();
+    await page.locator('#existingMkvLimitedPrepare').click();
+    await page.waitForFunction(() =>
+      ['prepared','blocked'].includes(
+        document.querySelector('#existingMkvLimitedStatus')?.dataset.state),
+      null, { timeout: 120_000 });
+    assert.equal(await page.locator('#existingMkvLimitedStatus').getAttribute('data-state'),
+      'prepared', await page.locator('#existingMkvLimitedStatus').textContent());
+    assert.match(await page.locator('#existingMkvLimitedEvidence').textContent(),
+      /FileData SHA-256/);
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    await page.locator('#existingMkvLimitedDetails').screenshot({
+      path: path.join(outDir, 'mkv-limited-existing-append-tablet-768.png'),
+      animations: 'disabled',
+    });
+    const output = path.join(outDir, 'limited-existing-browser-result.mkv');
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#existingMkvLimitedSave').click(),
+    ]);
+    assert.match(download.suggestedFilename(), /\.one-new-attachment\.experimental\.mkv$/);
+    await download.saveAs(output);
+    assert.equal((await fs.stat(output)).size, (await fs.stat(source)).size);
+    const read = file => JSON.parse(execFileSync('mkvmerge', ['-J', file],
+      { encoding: 'utf8', timeout: 60_000 }));
+    const before = read(source);
+    const after = read(output);
+    assert.equal((before.attachments || []).length, 0);
+    assert.equal((after.attachments || []).length, 1);
+    assert.equal(after.attachments[0].file_name, 'readme.txt');
+    assert.equal(after.attachments[0].content_type, 'text/plain');
+    assert.deepEqual((after.tracks || []).map(t => [t.id,t.type,t.codec]),
+      (before.tracks || []).map(t => [t.id,t.type,t.codec]));
+    for (const kind of ['chapters', 'tags']) {
+      const originalXml = path.join(outDir, 'limited-source-' + kind + '.xml');
+      const outputXml = path.join(outDir, 'limited-output-' + kind + '.xml');
+      execFileSync('mkvextract', [source, kind, originalXml], { timeout: 60_000 });
+      execFileSync('mkvextract', [output, kind, outputXml], { timeout: 60_000 });
+      assert.deepEqual(await fs.readFile(outputXml), await fs.readFile(originalXml),
+        kind + ' raw semantic XML must survive limited source writer');
+    }
+    const extractedPath = path.join(outDir, 'limited-existing-extracted.txt');
+    execFileSync('mkvextract', [output, 'attachments',
+      String(after.attachments[0].id) + ':' + extractedPath], { timeout: 60_000 });
+    assert.deepEqual(await fs.readFile(extractedPath), payload);
+    const packetRecords = file => JSON.parse(execFileSync('ffprobe', [
+      '-v','error','-show_packets','-show_data_hash','sha256','-of','json', file,
+    ], { encoding: 'utf8', maxBuffer: 24 * 1024 * 1024, timeout: 60_000 }))
+      .packets.map(x => [x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+    assert.deepEqual(packetRecords(output), packetRecords(source));
+    // Changing source immediately revokes the prepared artifact authorization.
+    await page.setInputFiles('#existingMkvLimitedSource',
+      path.join(root, 'source-with-attachments.mkv'));
+    assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
+    await page.locator('#existingMkvLimitedReview').check();
+    await page.locator('#existingMkvLimitedPrepare').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#existingMkvLimitedStatus')?.dataset.state === 'blocked',
+      null, { timeout: 120_000 });
+    assert.equal(await page.locator('#existingMkvLimitedSave').isDisabled(), true);
+    assert.match(await page.locator('#existingMkvLimitedStatus').textContent(),
+      /APPEND_EXISTING_ATTACHMENTS_NOT_SUPPORTED/);
+    console.log('P2-A opt-in existing MKV independent browser writer PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -3692,6 +3782,7 @@ try {
   await scenarioP2R02BrowserCreateOnlyPng(browser);
   await scenarioP2MultiAttachmentBrowserCreate(browser);
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
+  await scenarioExistingMkvLimitedAppendReviewed(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);

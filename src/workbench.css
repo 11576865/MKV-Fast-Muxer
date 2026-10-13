@@ -1645,3 +1645,32 @@ body { background: var(--bg); }
   .preservation-readiness { padding: 10px; }
   .preservation-readiness strong { font-size: .78rem; }
 }
+
+
+/* Specialized existing MKV writer candidate: segregated from standard mux. */
+.existing-mkv-limited-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 10px 0;
+}
+.existing-mkv-limited-fields label {
+  display: grid; gap: 5px; min-width: 0;
+  font-size: .76rem; font-weight: 600;
+}
+.existing-mkv-limited-fields input {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  font: inherit; font-weight: normal;
+  padding: 8px 9px; color: var(--text-strong);
+  background: var(--surface-0); border: 1px solid var(--line); border-radius: 6px;
+}
+.existing-mkv-limited [data-state="blocked"] { color: var(--danger); }
+.existing-mkv-limited [data-state="checking"] { color: var(--muted); }
+.existing-mkv-limited [data-state="prepared"] { color: var(--success, var(--accent)); }
+.existing-mkv-limited-evidence {
+  font-size: .72rem; line-height: 1.5; overflow-wrap: anywhere;
+  color: var(--muted); margin-top: 7px;
+}
+@media (max-width: 760px) {
+  .existing-mkv-limited-fields { grid-template-columns: minmax(0, 1fr); }
+}

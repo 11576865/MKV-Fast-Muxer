@@ -41,6 +41,7 @@ import { buildContainerDocument, reconcileContainerSelection } from './container
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
+import { setupExistingMkvLimitedAppendUI } from './existing-mkv-limited-append-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -96,6 +97,17 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupExistingMkvLimitedAppendUI({
+  sourceInput: $('existingMkvLimitedSource'),
+  attachmentInput: $('existingMkvLimitedAttachment'),
+  filenameInput: $('existingMkvLimitedFilename'),
+  mimeInput: $('existingMkvLimitedMime'),
+  review: $('existingMkvLimitedReview'),
+  prepareButton: $('existingMkvLimitedPrepare'),
+  saveButton: $('existingMkvLimitedSave'),
+  status: $('existingMkvLimitedStatus'),
+  evidence: $('existingMkvLimitedEvidence'),
 });
 setupPngOnlyExperimentUI({
   input: $('pngOnlyCreateInput'),
