@@ -88,7 +88,12 @@ export function prepareVerifiedTrackReplay({
       if (preview.changes.some(change => {
         const item = objects.get(change.objectId);
         return item?.target?.key === patch.kind + ':' + patch.index &&
-          change.type === 'set-attribute';
+          change.type === 'set-attribute' &&
+          // Disabling a track is allowed to clear its Default/Forced flags,
+          // which the old editor already does. Other hidden-field edits are
+          // not silently restored into an excluded track.
+          !(change.field === 'default' && change.to === false) &&
+          !(change.field === 'forced' && change.to === false);
       })) throw Error('TRACK_REPLAY_EXCLUDED_FIELD_EDIT');
       // Mirrors existing source-track exclusion semantics. No silent replay of
       // old disposition flags on an excluded stream.
