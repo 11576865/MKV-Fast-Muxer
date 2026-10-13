@@ -264,6 +264,7 @@ ASS / SSA / SRT / WebVTT 统一支持 UTF-8 / UTF-16 文本解码策略；PGS / 
 
 - 仅覆盖新加入的 `.ass` 轨（不包括已有来源轨、SSA、SRT、WebVTT、PGS/VobSub）；不验证 `Style`、Script Info、字形覆盖、字体替换效果、libass 实际渲染或播放器兼容。
 - 对超过 512 MiB 的成品、超过 2 MiB 的 ASS 文本、超过 8 条新增 ASS、超出事件预算或提取失败的情况，返回 `unavailable`，不得写作通过。该大小界限**只属于此项附加验证**，不是封装输入支持上限。
+- ASS 回读提取器使用 FFmpeg `-copyts` 保持容器字幕时间轴，避免提取时因负时间戳自动重设起点造成伪差异；独立系统 FFmpeg 测试采用同样的时间轴语义。
 - `pass` 只说明上述事件字段在最终容器回读中一致；`warning` 表示已观察到差异，并降低整体审计状态，但成品仍可下载复核；`unavailable` 不改变先前已完成的基础轨道审计结论，也不构成事件保真证明；`not-requested` 表示当前没有受支持的新增 ASS 轨。
 - 检查结果记录于封装报告 `audit.assEventAudit`，并出现在主工作台的实际成品证据区域。已有的附件 FileData SHA-256 校验是另一种独立证据，不能代替 ASS 字幕的事件回读。
 
