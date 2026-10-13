@@ -6,6 +6,7 @@ import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
+import { auditProducedFontAttachments } from './output-font-payload-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
   audioIdentityFromProbe,
@@ -1293,6 +1294,11 @@ function renderActualOutputEvidence() {
     counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
       .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
     `SHA-256：${model.sha256}`,
+    model.fontPayload?.status === 'pass'
+      ? `新字体附件字节验证：${model.fontPayload.verified}/${model.fontPayload.total} · SHA-256 一致`
+      : model.fontPayload && model.fontPayload.status !== 'not-requested'
+        ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
+        : '新字体附件字节验证：无新增字体',
   ].join(' | ');
   outputEvidenceIssues.textContent = model.issues.length
     ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
@@ -3995,11 +4001,19 @@ async function executeCurrentMuxTask() {
       }
     }
 
+    // Commit the exact in-memory bytes sent to the FFmpeg FS. A source
+    // filename or a pre-subset hash is NOT the output payload witness.
+    const stagedFontPayloads = [];
     for (let index = 0; index < attachments.length; index += 1) {
       const item = attachments[index];
       const path = `${prefix}-font-${index}${fontVirtualSuffix(item.fontIdentity)}`;
       fontPaths.push(path);
-      await ffmpeg.writeFile(path, await fetchFile(item.file));
+      const stagedBytes = await fetchFile(item.file);
+      stagedFontPayloads.push({
+        sha256: await sha256Hex(stagedBytes),
+        sizeBytes: stagedBytes.byteLength,
+      });
+      await ffmpeg.writeFile(path, stagedBytes);
     }
     if (cancelRequested) return;
 
@@ -4317,6 +4331,25 @@ async function executeCurrentMuxTask() {
     const data = await ffmpeg.readFile(outputPath);
     const outputSha256 = await sha256Hex(data);
     const outputBlob = new Blob([data.buffer], { type: 'video/x-matroska' });
+    const fontPayloadAudit = await auditProducedFontAttachments(outputBlob,
+      attachments.map((item, index) => ({
+        ...stagedFontPayloads[index],
+        filename: item.attachmentName,
+        mimeType: fontMimeType(item.fontIdentity),
+      })));
+    if (fontPayloadAudit.status === 'pass') {
+      logEl.textContent += `AUDIT: ${fontPayloadAudit.verified}/${fontPayloadAudit.total} 个新字体附件已从最终 MKV 中独立回读并通过 SHA-256 校验。\n`;
+    } else if (!['not-requested'].includes(fontPayloadAudit.status)) {
+      const detail = fontPayloadAudit.issues.join('；') || '附件校验未完成';
+      logEl.textContent += `AUDIT WARNING: 成品新字体附件字节验证未通过：${detail}\n`;
+      if (finalAudit.status === 'pass') finalAudit.status = 'warning';
+      finalAudit.ok = false;
+      finalAudit.issues = [...(finalAudit.issues || []), ...fontPayloadAudit.issues];
+      auditResult.className = 'audit-result warn';
+      auditResult.textContent = '成品字体附件验证待复核：' + detail;
+      completionNote += '；成品字体附件字节核验待复核';
+    }
+    finalAudit.fontPayloadAudit = fontPayloadAudit;
     outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
