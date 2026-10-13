@@ -1515,6 +1515,7 @@ body { background: var(--bg); }
 .batch-review-state[data-state="succeeded"] { color: var(--success, var(--accent)); }
 .batch-review-state[data-state="awaitingSave"],
 .batch-review-state[data-state="saveWarning"] { color: var(--warning); }
+.batch-review-state[data-state="auditWarning"] { color: var(--warning); }
 .batch-review-state[data-state="failed"],
 .batch-review-state[data-state="interrupted"],
 .batch-review-state[data-state="cancelled"] { color: var(--danger); }
