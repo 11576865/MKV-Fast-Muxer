@@ -1,4 +1,4 @@
-import { prepareVerifiedLimitedAppend } from './existing-mkv-limited-append-workflow.js';
+import { prepareVerifiedLimitedAppend, prepareVerifiedLimitedAppendMultiple } from './existing-mkv-limited-append-workflow.js';
 
 /**
  * An explicitly opt-in research-only capability beside the read-only existing
@@ -7,7 +7,7 @@ import { prepareVerifiedLimitedAppend } from './existing-mkv-limited-append-work
  */
 export function setupExistingMkvLimitedAppendUI({
   sourceInput, attachmentInput, filenameInput, mimeInput, review,
-  prepareButton, saveButton, status, evidence,
+  prepareButton, saveButton, status, evidence, inventory,
 } = {}) {
   if (![sourceInput, attachmentInput, filenameInput, mimeInput, review,
     prepareButton, saveButton, status, evidence].every(Boolean)) return;
@@ -24,25 +24,42 @@ export function setupExistingMkvLimitedAppendUI({
     saveButton.disabled = true;
     evidence.textContent = '';
   }
-  function current(source, attachment, token) {
+  const selected = () => Array.from(attachmentInput.files || []);
+  function current(source, attachments, token) {
+    const fresh = selected();
     return token === epoch && sourceInput.files?.[0] === source &&
-      attachmentInput.files?.[0] === attachment && review.checked;
+      fresh.length === attachments.length &&
+      attachments.every((file, index) => fresh[index] === file) && review.checked;
+  }
+  function renderInventory() {
+    const attachments = selected();
+    if (inventory) inventory.textContent = attachments.length > 1
+      ? attachments.map((file, i) =>
+          `${i + 1}. ${file.name} · ${file.type || 'application/octet-stream'} · ${file.size} bytes`).join('；')
+      : attachments.length === 1 ? '当前选择 1 个附件。可以修改附件名称与 MIME。'
+        : '请导入 1–8 个新增附件（总计不超过 4 MiB）。';
   }
   function announce(message, state = 'idle') {
     status.textContent = message;
     status.dataset.state = state;
   }
   function controls() {
-    prepareButton.disabled = busy || !review.checked ||
-      !sourceInput.files?.[0] || !attachmentInput.files?.[0] ||
-      !filenameInput.value.trim() || !mimeInput.value.trim();
+    const files = selected();
+    const multiple = files.length > 1;
+    filenameInput.disabled = multiple;
+    mimeInput.disabled = multiple;
+    prepareButton.disabled = busy || !review.checked || !sourceInput.files?.[0] ||
+      !files.length || files.length > 8 ||
+      (!multiple && (!filenameInput.value.trim() || !mimeInput.value.trim()));
   }
   for (const input of [sourceInput, attachmentInput, filenameInput, mimeInput]) {
     input.addEventListener('change', () => {
       forget();
       if (input === attachmentInput) {
-        filenameInput.value = attachmentInput.files?.[0]?.name || '';
-        mimeInput.value = attachmentInput.files?.[0]?.type || 'application/octet-stream';
+        filenameInput.value = selected().length === 1 ? selected()[0].name : '';
+        mimeInput.value = selected().length === 1
+          ? selected()[0].type || 'application/octet-stream' : '';
+        renderInventory();
       }
       if (input === sourceInput || input === attachmentInput) review.checked = false;
       announce('附件与来源已改变。请确认名称和 MIME，然后明确授权生成独立副本。');
@@ -66,27 +83,37 @@ export function setupExistingMkvLimitedAppendUI({
   prepareButton.addEventListener('click', async () => {
     if (busy || !review.checked || prepareButton.disabled) return;
     const source = sourceInput.files?.[0];
-    const attachment = attachmentInput.files?.[0];
-    const filename = filenameInput.value.trim();
-    const mimeType = mimeInput.value.trim();
+    const attachments = selected();
+    const filename = attachments.length === 1 ? filenameInput.value.trim() : '';
+    const mimeType = attachments.length === 1 ? mimeInput.value.trim() : '';
     forget();
     const token = epoch;
     busy = true;
     controls();
     announce('正在执行来源资格检查、原始对象字节保护与新附件 FileData SHA-256 回读……', 'checking');
     try {
-      const value = await prepareVerifiedLimitedAppend({
-        source, attachment, filename, mimeType,
-        approveFilenameAdjustments: false,
-      });
-      if (!current(source, attachment, token) || filenameInput.value.trim() !== filename ||
-          mimeInput.value.trim() !== mimeType) return;
-      prepared = { value, source, attachment, token, filename, mimeType };
-      evidence.textContent = `原始文件 SHA-256：${value.evidence.sourceSha256}；输出 SHA-256：${value.evidence.outputSha256}；新附件 ${value.attachedFilename} FileData SHA-256：${value.evidence.attachmentSha256}。原有非 Void 对象原始字节与偏移保持不变；本地检查不等于此文件已通过外部播放器验证。`;
+      const value = attachments.length === 1
+        ? await prepareVerifiedLimitedAppend({
+            source, attachment: attachments[0], filename, mimeType,
+            approveFilenameAdjustments: false,
+          })
+        : await prepareVerifiedLimitedAppendMultiple({
+            source,
+            attachments: attachments.map(file => ({
+              file, filename: file.name, mimeType: file.type || 'application/octet-stream',
+            })),
+            approveFilenameAdjustments: false,
+          });
+      if (!current(source, attachments, token) ||
+          (attachments.length === 1 &&
+            (filenameInput.value.trim() !== filename || mimeInput.value.trim() !== mimeType))) return;
+      prepared = { value, source, attachments, token, filename, mimeType };
+      evidence.textContent = `原始文件 SHA-256：${value.evidence.sourceSha256}；输出 SHA-256：${value.evidence.outputSha256}；已验证 ${value.evidence.verifiedAttachmentCount} 个附件的 FileData SHA-256：${value.attachedFilenames.map((name,i) =>
+        name + '=' + value.evidence.attachmentSha256s[i]).join('；')}。原有非 Void 对象原始字节与偏移保持不变；本地检查不等于此文件已通过外部播放器验证。`;
       saveButton.disabled = false;
       announce('受限副本字节验证通过，可手动下载实验性 MKV。仅支持符合预留 Void 布局的小型 Matroska；不支持一般修改或覆盖原文件。', 'prepared');
     } catch (error) {
-      if (!current(source, attachment, token)) return;
+      if (!current(source, attachments, token)) return;
       announce('拒绝生成：' + (error?.message || String(error)) +
         '。不尝试不安全降级或 FFmpeg 代替写入。', 'blocked');
     } finally {
@@ -97,9 +124,9 @@ export function setupExistingMkvLimitedAppendUI({
 
   saveButton.addEventListener('click', () => {
     const p = prepared;
-    if (!p || !current(p.source, p.attachment, p.token) ||
-        p.filename !== filenameInput.value.trim() ||
-        p.mimeType !== mimeInput.value.trim() ||
+    if (!p || !current(p.source, p.attachments, p.token) ||
+        (p.attachments.length === 1 && (p.filename !== filenameInput.value.trim() ||
+        p.mimeType !== mimeInput.value.trim())) ||
         status.dataset.state !== 'prepared') {
       forget();
       controls();
@@ -122,6 +149,7 @@ export function setupExistingMkvLimitedAppendUI({
     }
   });
   window.addEventListener('pagehide', forget);
+  renderInventory();
   controls();
-  announce('仅限源 MKV 小于 60 MiB、没有原附件、具备足量预留 Void 且 UID 关系可核验的特殊布局。');
+  announce('仅限源 MKV 小于 60 MiB、无原附件、足量预留 Void、最多 8 个新附件且合计不超过 4 MiB 的特殊布局。');
 }
