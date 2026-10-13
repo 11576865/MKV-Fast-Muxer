@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { buildContainerDocument } from '../src/container-document.js';
 import { buildOutputComposition } from '../src/output-composition.js';
 import {
-  createLiveSourceTrackSession, commitLiveSourceTrackChanges, inspectLiveSourceTrackSession,
+  createLiveSourceTrackSession, commitLiveSourceTrackChanges,
+  moveLiveSourceTrack, commitLiveSourceAttachmentChanges,
+  inspectLiveSourceTrackSession,
 } from '../src/live-source-track-authority.js';
 
 function fixture() {
@@ -148,13 +150,223 @@ test('bulk default/exclusion applies in one domain transaction and clears old di
   assert.equal(inspectLiveSourceTrackSession(f.session,f).domainIsAuthoritative,true);
 });
 
-test('unchanged order and advanced fields stay in explicitly legacy-owned scope', () => {
+test('source advanced flags are domain-only writes; standalone order field is not a track attribute', () => {
   const f=fixture();
   const order=f.trackState.tracks.map(t=>t.order);
-  f.trackState.tracks[0].commentary=true;
-  f.commit([row(1,'title','Independent commentary label')]);
+  f.commit([row(1,'commentary',true)]);
   assert.equal(f.trackState.tracks[0].commentary,true);
   assert.deepEqual(f.trackState.tracks.map(t=>t.order),order);
   assert.throws(()=>f.commit([row(1,'order',7)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
-  assert.throws(()=>f.commit([row(1,'commentary',true)]),/LIVE_TRACK_UNSUPPORTED_CHANGE/);
+  f.trackState.tracks[0].commentary=false; // explicit unsafe bypass
+  assert.throws(()=>f.commit([row(1,'title','Unsafe')]),
+    /LIVE_TRACK_EXECUTOR_PROJECTION_DRIFT/);
+});
+
+test('advanced source dispositions are immutable domain-owned edits and legacy execution flags', () => {
+  const f = fixture();
+  const before = f.session.project;
+  const receipt = f.commit([
+    row(1, 'original', false),
+    row(2, 'commentary', true),
+    row(3, 'hearingImpaired', true),
+  ]);
+  assert.equal(receipt.updatedTracks, 3);
+  assert.notEqual(f.session.project, before);
+  assert.equal(f.trackState.tracks[0].original, false);
+  assert.equal(f.trackState.tracks[1].commentary, true);
+  assert.equal(f.trackState.tracks[2].hearingImpaired, true);
+  const doc = buildContainerDocument({video:f.source, trackState:f.trackState});
+  const audio = doc.objects.find(o => o.target?.key === 'audio:2');
+  const subtitle = doc.objects.find(o => o.target?.key === 'subtitle:3');
+  assert.equal(audio.attributes.commentary, true);
+  assert.equal(subtitle.attributes.hearingImpaired, true);
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).domainOwnedFields.includes('commentary'),true);
+  assert.throws(()=>f.commit([
+    row(1,'commentary',true),row(2,'original','yes'),
+  ]),/LIVE_TRACK_BOOLEAN_REQUIRED/);
+  assert.equal(f.trackState.tracks[0].commentary, false);
+  assert.equal(f.session.generation, 1);
+});
+
+test('excluded track clears every disposition in the same domain transaction', () => {
+  const f = fixture();
+  f.commit([row(2,'commentary',true),row(2,'forced',true)]);
+  f.commit([row(2,'include',false)]);
+  const track = f.trackState.tracks[1];
+  assert.deepEqual(
+    ['default','forced','original','commentary','hearingImpaired'].map(k=>track[k]),
+    [false,false,false,false,false],
+  );
+  const own = f.session.project.objects.find(o=>o.kind==='audio' &&
+    o.attributes.title==='Commentary');
+  assert.equal(own.included,false);
+  assert.equal(own.attributes.commentary,false);
+});
+
+test('source ordering swaps two included audio peers in domain and FFmpeg view', () => {
+  const f = fixture();
+  const move = (index,delta) => moveLiveSourceTrack(f.session, {
+    source:f.source, trackState:f.trackState, index,delta,
+  });
+  const earlier = f.session.project;
+  const res = move(2,-1);
+  assert.equal(res.status,'committed-to-domain-and-executor-projection');
+  assert.equal(res.moved,2);
+  assert.equal(res.across,1);
+  assert.deepEqual(f.trackState.tracks.filter(t=>t.type==='audio')
+    .sort((a,b)=>a.order-b.order).map(t=>t.index),[2,1]);
+  assert.notEqual(f.session.project,earlier);
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).domainIsAuthoritative,true);
+  assert.equal(move(2,-1).status,'no-change');
+  const after = move(2,1);
+  assert.equal(after.moved,2);
+  assert.deepEqual(f.trackState.tracks.filter(t=>t.type==='audio')
+    .sort((a,b)=>a.order-b.order).map(t=>t.index),[1,2]);
+});
+
+test('included-peer move skips excluded rows but preserves excluded source identity and order', () => {
+  const f = fixture();
+  const mk = (index, title, order, include) => ({
+    ...f.trackState.tracks[1], index, order, include,
+    title, originalTitle:title,
+    stream: { ...f.trackState.tracks[1].stream,index,tags:{title,language:'eng'} },
+  });
+  // Build a fresh source with three audio rows, middle one excluded.
+  f.trackState.tracks.splice(1,0,mk(5,'Excluded',5,false));
+  f.trackState.streams.splice(2,0,f.trackState.tracks[1].stream);
+  f.trackState.tracks[2].order = 6;
+  const projection=buildContainerDocument({video:f.source,trackState:f.trackState});
+  const session=createLiveSourceTrackSession({source:f.source,trackState:f.trackState,projection});
+  const excludedBefore=f.trackState.tracks[1].order;
+  moveLiveSourceTrack(session,{source:f.source,trackState:f.trackState,index:2,delta:-1});
+  assert.equal(f.trackState.tracks[1].order,excludedBefore);
+  assert.equal(inspectLiveSourceTrackSession(session,{source:f.source,trackState:f.trackState}).domainIsAuthoritative,true);
+});
+
+test('relative track-order drift and unsupported or stale move fail closed', () => {
+  const f=fixture();
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:{...f.source},trackState:f.trackState,index:2,delta:-1,
+  }),/LIVE_TRACK_SOURCE_SESSION_STALE/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-1,appendMode:true,
+  }),/LIVE_TRACK_PRESERVE_ALL_READONLY/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-3,
+  }),/LIVE_TRACK_INVALID_MOVE/);
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:9,delta:-1,
+  }),/LIVE_TRACK_MOVE_NOT_INCLUDED/);
+  const before=f.session.project;
+  const old=f.trackState.tracks[0].order;
+  f.trackState.tracks[0].order=f.trackState.tracks[1].order;
+  assert.throws(()=>moveLiveSourceTrack(f.session,{
+    source:f.source,trackState:f.trackState,index:2,delta:-1,
+  }),/LIVE_TRACK_ORDER_PROJECTION_DRIFT/);
+  f.trackState.tracks[0].order=old;
+  assert.equal(f.session.project,before);
+});
+
+test('live source attachment name/MIME/include is owned by immutable ContainerProject', () => {
+  const f=fixture(), oldProject=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  const report=commit([
+    {index:4,field:'filename',value:'Renamed-main.ttf'},
+    {index:4,field:'mimetype',value:'application/x-truetype-font'},
+  ]);
+  assert.equal(report.status,'committed-to-domain-and-executor-projection');
+  assert.equal(report.fileWritten,false);
+  assert.equal(report.sourceUidRelationsPreserved,'not-proven-by-domain-command');
+  assert.notEqual(oldProject,f.session.project);
+  const obj=f.session.project.objects.find(o=>o.kind==='attachment' && o.sourceId);
+  assert.equal(obj.attributes.name,'Renamed-main.ttf');
+  assert.equal(obj.attributes.mime,'application/x-truetype-font');
+  assert.equal(f.trackState.attachments[0].filename,'Renamed-main.ttf');
+  assert.equal(f.trackState.attachments[0].mimetype,'application/x-truetype-font');
+  assert.equal(inspectLiveSourceTrackSession(f.session,f).sourceAttachmentCount,1);
+  const projection=buildContainerDocument({video:f.source,trackState:f.trackState});
+  const attachment=projection.objects.find(o=>o.kind==='attachment' && o.target?.type==='source');
+  assert.equal(attachment.attributes.name,'Renamed-main.ttf');
+  assert.equal(attachment.attributes.mime,'application/x-truetype-font');
+  assert.equal(commit([{index:4,field:'include',value:false}]).updatedAttachments,1);
+  assert.equal(f.trackState.attachments[0].include,false);
+  assert.equal(f.session.project.objects.find(o=>o.id===obj.id).included,false);
+});
+
+test('failed or unsupported attachment edit cannot partially mutate domain or executable view', () => {
+  const f=fixture(), before=JSON.stringify(f.trackState.attachments);
+  const project=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'mimetype',value:'bad\nMIME'},
+  ]),/LIVE_ATTACHMENT_METADATA_INVALID/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'filename',value:'../sneaky.ttf'},
+  ]),/LIVE_ATTACHMENT_METADATA_INVALID/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:9,field:'include',value:false},
+  ]),/LIVE_ATTACHMENT_NOT_FOUND/);
+  assert.throws(()=>commit([
+    {index:4,field:'filename',value:'Good.ttf'},
+    {index:4,field:'size',value:10},
+  ]),/LIVE_ATTACHMENT_UNSUPPORTED_CHANGE/);
+  assert.equal(JSON.stringify(f.trackState.attachments),before);
+  assert.equal(f.session.project,project);
+  assert.equal(f.session.generation,0);
+});
+
+test('source attachment rejects stale File, unsupported preserve-all and bypass mutations', () => {
+  const f=fixture();
+  const commit=(changes,source=f.source,appendMode=false)=>commitLiveSourceAttachmentChanges(f.session,{
+    source,trackState:f.trackState,changes,appendMode,
+  });
+  assert.throws(()=>commit([{index:4,field:'include',value:false}],
+    {...f.source}),/LIVE_TRACK_SOURCE_SESSION_STALE/);
+  assert.throws(()=>commit([{index:4,field:'include',value:false}],
+    f.source,true),/LIVE_ATTACHMENT_PRESERVE_ALL_READONLY/);
+  f.trackState.attachments[0].filename='bypass.ttf';
+  assert.throws(()=>commit([{index:4,field:'include',value:false}]),
+    /LIVE_ATTACHMENT_EXECUTOR_PROJECTION_DRIFT/);
+});
+
+test('no-op, exclusion and repeated live attachment metadata input remain bounded', () => {
+  const f=fixture(), project=f.session.project;
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  assert.equal(commit([{index:4,field:'filename',value:'main.ttf'}]).status,'no-change');
+  assert.equal(f.session.project,project);
+  for(let i=1;i<=150;i++)
+    commit([{index:4,field:'filename',value:'A'.repeat(i)+'.ttf'}]);
+  assert.equal(f.trackState.attachments[0].filename,'A'.repeat(150)+'.ttf');
+  assert.ok(inspectLiveSourceTrackSession(f.session,f).boundedHistoryLength<=85);
+  commit([{index:4,field:'include',value:false}]);
+  assert.throws(()=>commit([{index:4,field:'filename',value:'hidden.ttf'}]),
+    /LIVE_ATTACHMENT_EXCLUDED_METADATA_CHANGE/);
+  assert.equal(f.trackState.attachments[0].include,false);
+  assert.equal(f.trackState.attachments[0].filename,'A'.repeat(150)+'.ttf');
+});
+
+test('legacy source attachment safety and source object identity remain out of domain writer control', () => {
+  const f=fixture();
+  const originalChapter=JSON.stringify(f.trackState.chapters);
+  const originalStreams=JSON.stringify(f.trackState.streams);
+  const commit=changes=>commitLiveSourceAttachmentChanges(f.session,{
+    source:f.source,trackState:f.trackState,changes,
+  });
+  commit([{index:4,field:'mimetype',value:'font/otf'}]);
+  assert.equal(JSON.stringify(f.trackState.chapters),originalChapter);
+  assert.equal(JSON.stringify(f.trackState.streams),originalStreams);
+  assert.throws(()=>commit([{index:4,field:'filename',value:'a\\evil.ttf'}]),
+    /LIVE_ATTACHMENT_METADATA_INVALID/);
+  const report=inspectLiveSourceTrackSession(f.session,f);
+  assert.equal(report.writerAuthorization,false);
+  assert.equal(report.wholeEbmlPreservation,'unverified');
 });

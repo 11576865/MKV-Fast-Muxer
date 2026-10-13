@@ -1,14 +1,15 @@
 /**
  * ContainerProject v1: immutable, source-neutral semantic draft.
- * NOT a writer or a replacement for the live legacy editor yet.
- * A resource-only plan may exist even when this browser has no writer.
+ * The inspected source-track live session owns a bounded field/order subset.
+ * This semantic project is NOT a general Matroska writer; resource-only
+ * plans may exist even when this browser has no suitable writer.
  */
 export const CONTAINER_PROJECT_SCHEMA = 'container-project-v1';
 const ALLOWED_KINDS = new Set(['video','audio','subtitle','attachment','chapter','tag','metadata','other']);
 const EDITABLE_FIELDS = Object.freeze({
   video: ['title','language','default','forced'],
-  audio: ['title','language','default','forced'],
-  subtitle: ['title','language','default','forced'],
+  audio: ['title','language','default','forced','original','commentary','hearingImpaired'],
+  subtitle: ['title','language','default','forced','original','commentary','hearingImpaired'],
   attachment: ['name','mime'],
   chapter: ['title'],
   tag: ['name','value'],
@@ -241,7 +242,8 @@ export function createEditedContainerProjectFromProjection(snapshot) {
       continue;
     // Persist all effective field differences, including side effects of
     // source-track exclusion. A bounded log is safer than truncating edits.
-    for (const field of ['title', 'language', 'default', 'forced']) {
+    for (const field of ['title', 'language', 'default', 'forced',
+      'original', 'commentary', 'hearingImpaired']) {
       const previous = result.objects.find(object => object.id === target.id).attributes[field];
       const next = target.attributes[field];
       if (previous !== next) {

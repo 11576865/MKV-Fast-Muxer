@@ -51,6 +51,7 @@ import { previewDetachedProjectIntentConflicts } from './container-project-confl
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
 import {
   createLiveSourceTrackSession, commitLiveSourceTrackChanges,
+  commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
 } from './live-source-track-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
@@ -1010,10 +1011,9 @@ function setInputsDisabled(disabled) {
 }
 /**
  * P1 source-track authoring boundary. The immutable ContainerProject owns
- * include/title/language/Default/Forced for an inspected MKV source; the
- * legacy mutable trackState is the explicitly derived FFmpeg execution view.
- * Advanced dispositions, ordering, attachments and the mux writer are not
- * included in this migration.
+ * scanned source audio/subtitle fields, order and attachment include/name/MIME.
+ * Legacy trackState is an exact FFmpeg-facing projection. Source UID relation
+ * and complex Matroska structure writer safety remains independently gated.
  */
 function refreshLiveSourceTrackAuthority() {
   const source = videoInput.files?.[0] || null;
@@ -1051,6 +1051,30 @@ function changeSourceTracks(changes) {
     return true;
   } catch (error) {
     status.textContent = '来源轨道领域修改未执行：' +
+      (error?.message || String(error)) + '。未提交部分变更。';
+    return false;
+  }
+}
+
+function changeSourceAttachments(changes) {
+  const source = videoInput.files?.[0] || null;
+  if (!source || scannedSourceFile !== source ||
+      !trackState || trackState.fileKey !== fileKey(source)) {
+    status.textContent = '来源附件已变化，请重新扫描后编辑。';
+    return false;
+  }
+  try {
+    if (!liveSourceTrackSession ||
+        liveSourceTrackSession.source !== source ||
+        liveSourceTrackSession.trackState !== trackState)
+      refreshLiveSourceTrackAuthority();
+    commitLiveSourceAttachmentChanges(liveSourceTrackSession, {
+      source, trackState, changes,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    });
+    return true;
+  } catch (error) {
+    status.textContent = '来源附件领域修改未执行：' +
       (error?.message || String(error)) + '。未提交部分变更。';
     return false;
   }
@@ -1954,9 +1978,23 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    status.textContent = digest
+    const sourceEditorBound = scannedSourceFile === source &&
+      trackState?.fileKey === fileKey(source);
+    const orderNotPortable = sourceEditorBound &&
+      trackState.tracks.some(track => track.order !== track.index);
+    const attachmentNotPortable = sourceEditorBound &&
+      trackState.attachments.some(item => !item.include ||
+        item.filename !== item.originalFilename ||
+        item.mimetype !== item.originalMimetype);
+    status.textContent = (digest
       ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
-      : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。';
+      : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。') +
+      (orderNotPortable
+        ? ' 注意：当前轨道上下排序只在本次会话有效，草稿重新导入不会恢复轨道顺序。'
+        : '') +
+      (attachmentNotPortable
+        ? ' 注意：来源附件的保留、文件名和 MIME 修改尚不能从草稿安全恢复；重新导入不会自动回放这些操作。'
+        : '');
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
@@ -2154,10 +2192,9 @@ function editSourceFromInventory(event) {
       if (!changeSourceTracks([{ index: track.index, field: 'include', value: element.checked }]))
         return;
     } else if (element.dataset.treeTrackFlag) {
-      if (['default', 'forced'].includes(element.dataset.treeTrackFlag)) {
-        if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackFlag, value: element.checked }]))
-          return;
-      } else track[element.dataset.treeTrackFlag] = element.checked;
+      if (!changeSourceTracks([{ index: track.index,
+        field: element.dataset.treeTrackFlag, value: element.checked }]))
+        return;
     } else if (element.dataset.treeTrackField) {
       if (!changeSourceTracks([{ index: track.index, field: element.dataset.treeTrackField, value: element.value }]))
         return;
@@ -2174,11 +2211,12 @@ function editSourceFromInventory(event) {
     const item = trackState.attachments.find((entry) => entry.index === Number(attachmentIndex));
     if (!item) return;
     if (element.dataset.treeAttachmentInclude !== undefined) {
-      item.include = element.checked;
+      if (!changeSourceAttachments([{index:item.index,field:'include',value:element.checked}])) return;
       preserveAttachments.checked = trackState.attachments.length > 0 &&
         trackState.attachments.every((entry) => entry.include);
     } else if (element.dataset.treeAttachmentField) {
-      item[element.dataset.treeAttachmentField] = element.value;
+      if (!changeSourceAttachments([{index:item.index,
+        field:element.dataset.treeAttachmentField,value:element.value}])) return;
       if (element.dataset.treeAttachmentField === 'filename') {
         const activeLabel = assetInventory?.querySelector('.asset-tree-select[aria-pressed="true"] .asset-tree-index-name');
         if (activeLabel) activeLabel.textContent = element.value || `附件 #${item.index}`;
@@ -2231,7 +2269,7 @@ function handleInspectorTrackMove(event) {
   if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return true;
   const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
   if (!track || !track.include) return true;
-  moveTrack(track, Number(moveButton.dataset.treeTrackMove));
+  if (!moveTrack(track, Number(moveButton.dataset.treeTrackMove))) return true;
   renderTrackList();
   renderImportedAssetInventory();
   renderContainerChangeSummary();
@@ -2413,7 +2451,14 @@ appendPreserveAll?.addEventListener('change', () => {
 
 preserveAttachments.addEventListener('change', () => {
   if (trackState) {
-    trackState.attachments.forEach((item) => { item.include = preserveAttachments.checked; });
+    const changes = trackState.attachments.map(item => ({
+      index:item.index,field:'include',value:preserveAttachments.checked,
+    }));
+    if (changes.length && !changeSourceAttachments(changes)) {
+      preserveAttachments.checked = trackState.attachments.length > 0 &&
+        trackState.attachments.every(item=>item.include);
+      return;
+    }
     renderAttachmentList();
   }
   renderMuxPlan();
@@ -2478,13 +2523,11 @@ function restoreTrackMetadata(type) {
     { index: track.index, field: 'title', value: track.originalTitle },
     { index: track.index, field: 'default', value: track.include && track.originalDefault },
     { index: track.index, field: 'forced', value: track.include && track.originalForced },
+    { index: track.index, field: 'original', value: track.include && track.originalOriginal },
+    { index: track.index, field: 'commentary', value: track.include && track.originalCommentary },
+    { index: track.index, field: 'hearingImpaired', value: track.include && track.originalHearingImpaired },
   ]);
   if (changes.length && !changeSourceTracks(changes)) return;
-  for (const track of targets) {
-    track.original = track.include && track.originalOriginal;
-    track.commentary = track.include && track.originalCommentary;
-    track.hearingImpaired = track.include && track.originalHearingImpaired;
-  }
   renderTrackList();
   renderImportedAssetInventory();
 }
@@ -2498,7 +2541,10 @@ resetSubtitleMetadata?.addEventListener('click', () => restoreTrackMetadata('sub
 
 function setAttachmentInclusion(include) {
   if (!trackState) return;
-  trackState.attachments.forEach((item) => { item.include = include; });
+  const changes=trackState.attachments.map(item=>({
+    index:item.index,field:'include',value:include,
+  }));
+  if (changes.length && !changeSourceAttachments(changes)) return;
   preserveAttachments.checked = include && trackState.attachments.length > 0;
   renderAttachmentList();
   renderImportedAssetInventory();
@@ -2509,10 +2555,11 @@ keepAllAttachments?.addEventListener('click', () => setAttachmentInclusion(true)
 dropAllAttachments?.addEventListener('click', () => setAttachmentInclusion(false));
 resetAttachmentMetadata?.addEventListener('click', () => {
   if (!trackState) return;
-  trackState.attachments.forEach((item) => {
-    item.filename = item.originalFilename;
-    item.mimetype = item.originalMimetype;
-  });
+  const changes=trackState.attachments.flatMap(item=>[
+    {index:item.index,field:'filename',value:item.originalFilename},
+    {index:item.index,field:'mimetype',value:item.originalMimetype},
+  ]).filter(change=>trackState.attachments.find(item=>item.index===change.index)?.include);
+  if (changes.length && !changeSourceAttachments(changes)) return;
   renderAttachmentList();
   renderImportedAssetInventory();
   renderMuxPlan();
@@ -3401,18 +3448,27 @@ function selectedTracks(type) {
 }
 
 function moveTrack(track, delta) {
-  if (!trackState) return;
-  const peers = trackState.tracks
-    .filter((item) => item.type === track.type && item.include)
-    .sort((a, b) => a.order - b.order);
-  const currentIndex = peers.findIndex((item) => item.index === track.index);
-  const targetIndex = currentIndex + delta;
-  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= peers.length) return;
-
-  const other = peers[targetIndex];
-  const temp = track.order;
-  track.order = other.order;
-  other.order = temp;
+  const source = videoInput.files?.[0] || null;
+  if (!source || scannedSourceFile !== source ||
+      !trackState || trackState.fileKey !== fileKey(source)) {
+    status.textContent = '来源轨道已变化，请重新扫描后排序。';
+    return false;
+  }
+  try {
+    if (!liveSourceTrackSession ||
+        liveSourceTrackSession.source !== source ||
+        liveSourceTrackSession.trackState !== trackState)
+      refreshLiveSourceTrackAuthority();
+    moveLiveSourceTrack(liveSourceTrackSession, {
+      source, trackState, index: track.index, delta,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    });
+    return true;
+  } catch (error) {
+    status.textContent = '来源排序领域修改未执行：' +
+      (error?.message || String(error)) + '。未提交部分变更。';
+    return false;
+  }
 }
 
 function selectedOriginalAttachments() {
@@ -3890,7 +3946,8 @@ attachmentList.addEventListener('input', (event) => {
   if (!input) return;
   const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
   if (!item) return;
-  item[input.dataset.attachmentField] = input.value;
+  if (!changeSourceAttachments([{index:item.index,
+    field:input.dataset.attachmentField,value:input.value}])) return;
   renderMuxPlan();
 });
 
@@ -3905,12 +3962,14 @@ attachmentList.addEventListener('change', (event) => {
   if (!item) return;
 
   if (includeInput) {
-    item.include = includeInput.checked;
+    if (!changeSourceAttachments([{index:item.index,field:'include',value:includeInput.checked}])) {
+      renderAttachmentList();
+      return;
+    }
     preserveAttachments.checked = trackState.attachments.length > 0 && trackState.attachments.every((entry) => entry.include);
     renderAttachmentList();
-  } else {
-    item[fieldInput.dataset.attachmentField] = fieldInput.value;
-  }
+  } else if (!changeSourceAttachments([{index:item.index,
+    field:fieldInput.dataset.attachmentField,value:fieldInput.value}])) return;
   renderMuxPlan();
   renderImportedAssetInventory();
 });
@@ -3936,12 +3995,10 @@ trackList.addEventListener('change', (event) => {
 
   if (actionInput) {
     const action = actionInput.dataset.trackAction;
-    if (['include','default','forced'].includes(action)) {
-      if (!changeSourceTracks([{ index: track.index, field: action, value: actionInput.checked }])) {
-        renderTrackList();
-        return;
-      }
-    } else track[action] = actionInput.checked;
+    if (!changeSourceTracks([{ index: track.index, field: action, value: actionInput.checked }])) {
+      renderTrackList();
+      return;
+    }
     renderTrackList();
     renderImportedAssetInventory();
     return;
@@ -3972,7 +4029,7 @@ trackList.addEventListener('click', (event) => {
   if (!button || !trackState) return;
   const track = trackState.tracks.find((item) => item.index === Number(button.dataset.trackIndex));
   if (!track) return;
-  moveTrack(track, Number(button.dataset.trackMove));
+  if (!moveTrack(track, Number(button.dataset.trackMove))) return;
   renderTrackList();
   renderImportedAssetInventory();
   renderContainerChangeSummary();

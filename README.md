@@ -23,6 +23,10 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 **领域化编辑进展（2026-10-14）：** 已新增真实、不可变的 `ContainerProject` 来源轨道会话权威。来源 MKV 完成扫描后，音频与字幕轨道的保留状态、标题、语言、Default、Forced 由同一领域事务处理，再一次性投影给现有 FFmpeg 执行路径；覆盖对象检查器、传统编辑控件和批量编辑。只有完成实际扫描的同一 `File` 对象可以继续编辑，不允许同名替换文件沿用会话。排序、附件、章节、标签、外部轨道及其余高级轨道属性尚未迁入统一可写领域，不得据此声明已完成通用 Matroska 编辑器。工程说明参见 [P1 来源轨道领域权威迁移](docs/p1-live-source-track-domain-authority-20261014.md)。
 
+**轨道高级编辑扩展（2026-10-14，待集成验证）：** 原有来源音频/字幕的 Original、Commentary、Hearing Impaired 也已由 `ContainerProject` 领域事务管理，并可通过已核验的工程草稿安全导出及显式恢复；来源音轨/字幕轨道的同类型上下排序已接入同一领域权威，并直接改变现有 FFmpeg 输出轨道顺序。**但排序当前只在本次会话有效，工程草稿尚不能恢复排序**，导出操作会作醒目文字提示。上述范围不等于章节、标签和附件的全保真通用编辑。详见 [P1 轨道高级属性与排序实施记录](docs/p1-source-track-advanced-flags-order-20261014.md)。
+
+**来源附件领域化编辑（2026-10-14，待整体验收）：** 现有 MKV 来源附件的保留、文件名、MIME 属性已统一通过扫描来源绑定的不可变 `ContainerProject` 事务修改，并同步到原有 FFmpeg 封装计划；对象检查器、附件列表、批量保留/删除和元数据重置均使用同一编辑状态。**这不意味着 AttachmentUID、目标 Tag 或任意 EBML 结构已实现无损重写。** 工程草稿尚不能安全恢复来源附件的这些改动，导出时会明确提示。详见 [P1 来源附件领域权威实施记录](docs/p1-live-source-attachment-authority-20261014.md)。
+
 **这并非整个 P0–P6 理论计划的最终稳定版。** 对应功能、失败边界和仍未通过的阶段退出条件见 [五步工程验收账本](docs/five-step-theory-initial-preview-20261013.md)。
 
 ### P1：来源轨道修改的导出与显式恢复（2026-10-14，待完整 CI 验收）

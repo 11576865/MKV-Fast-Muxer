@@ -9,8 +9,8 @@ import { CONTAINER_PROJECT_SCHEMA } from './container-project.js';
 
 const EDITABLE = Object.freeze({
   video: ['title', 'language', 'default', 'forced'],
-  audio: ['title', 'language', 'default', 'forced'],
-  subtitle: ['title', 'language', 'default', 'forced'],
+  audio: ['title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
+  subtitle: ['title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
   attachment: ['name', 'mime'],
   chapter: ['title'],
   tag: ['name', 'value'],

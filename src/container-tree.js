@@ -1,7 +1,7 @@
 /**
- * One read-only projection of the live MKV scan/edit state. This module never
- * owns edits; the asset-tree controls mutate the existing trackState and the
- * legacy editor reads exactly the same objects.
+ * One read-only projection of scanned source tracks and the FFmpeg-facing
+ * execution view. Domain-owned source audio/subtitle edits must pass through
+ * live-source-track-authority.js; this module never owns mutations.
  */
 export function buildContainerTreeModel(trackState, {
   appendMode = false,
