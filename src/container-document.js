@@ -45,16 +45,50 @@ export function buildContainerDocument({
   const sourceKey = outputCompositionFileKey(video);
   const scope = 'container:' + encodeURIComponent(sourceKey || 'empty');
   const observed = composition.verifiedTrackStructure;
-  const objects = composition.items.map(item => ({
-    id: scopedId(scope, item.id),
-    kind: item.kind,
-    title: item.title,
-    status: item.status,
-    included: item.included,
-    // A UI selection route is NOT a domain write target.
-    target: item.target ? { ...item.target } : null,
-    evidence: item.status === 'pending' ? 'header-only' : 'current-editor-projection',
-  }));
+  const objects = composition.items.map(item => {
+    const key = item.target?.type === 'source' ? item.target.key : '';
+    const track = (trackState?.tracks || []).find(row =>
+      key === row.type + ':' + row.index);
+    const attachment = (trackState?.attachments || []).find(row =>
+      key === 'attachment:' + row.index);
+    const stream = track?.stream || attachment?.stream;
+    // Attributes must reflect the effective editing surface. Append-all
+    // ignores selective edits, so export the ORIGINAL scanned values there.
+    const attributes = track && ['audio', 'subtitle'].includes(track.type)
+      ? {
+        title: appendMode ? (stream?.tags?.title || '') : track.title,
+        language: appendMode ? (stream?.tags?.language || 'und') : track.language,
+        default: appendMode ? Boolean(stream?.disposition?.default) : Boolean(track.default),
+        forced: appendMode ? Boolean(stream?.disposition?.forced) : Boolean(track.forced),
+      } : attachment ? {
+        name: appendMode ? attachment.originalFilename : attachment.filename,
+        mime: appendMode ? attachment.originalMimetype : attachment.mimetype,
+      } : undefined;
+    // Store a separate read-only baseline from the SOURCE scan. This allows
+    // export to encode a scan-to-current delta rather than a context-free
+    // final snapshot; it does not assert trusted historical user actions.
+    const originalAttributes = track && ['audio', 'subtitle'].includes(track.type)
+      ? {
+        title: track.originalTitle ?? (stream?.tags?.title || ''),
+        language: track.originalLanguage ?? (stream?.tags?.language || 'und'),
+        default: Boolean(track.originalDefault ?? stream?.disposition?.default),
+        forced: Boolean(track.originalForced ?? stream?.disposition?.forced),
+      } : undefined;
+    return {
+      id: scopedId(scope, item.id),
+      kind: item.kind,
+      title: item.title,
+      status: item.status,
+      included: item.included,
+      ...(attributes ? { attributes } : {}),
+      ...(originalAttributes ? { originalAttributes, originalIncluded: true } : {}),
+      // Source-scanned rows can be bound to the actual source, but an
+      // external asset remains detached even when it has a similar name.
+      target: item.target ? { ...item.target } : null,
+      evidence: item.status === 'pending' ? 'header-only' :
+        item.target?.type === 'source' ? 'ffprobe-stream' : 'current-editor-projection',
+    };
+  });
 
   if (observed) {
     const representedStreams = new Set(
@@ -118,6 +152,7 @@ export function buildContainerDocument({
   return freezeSnapshot({
     schema: CONTAINER_DOCUMENT_SCHEMA,
     sourceKey,
+    sourceScanKey: observed ? trackState.fileKey : null,
     source: video ? {
       id: scope,
       name: video.name || '',

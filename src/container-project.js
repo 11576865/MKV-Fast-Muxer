@@ -181,7 +181,15 @@ export function createContainerProjectFromProjection(snapshot) {
     const kind = ALLOWED_KINDS.has(item.kind) ? item.kind :
       item.kind === 'font' ? 'attachment' : 'other';
     const attributes = {};
-    if (typeof item.title === 'string' && EDITABLE_FIELDS[kind].includes('title'))
+    // Prefer the actual scanned edit values to a display label. In
+    // particular an unnamed stream's visible codec label is NOT its title.
+    for (const [field, value] of Object.entries(item.attributes || {})) {
+      if (EDITABLE_FIELDS[kind].includes(field) &&
+          (typeof value === 'string' || typeof value === 'boolean'))
+        attributes[field] = value;
+    }
+    if (!('title' in attributes) &&
+        typeof item.title === 'string' && EDITABLE_FIELDS[kind].includes('title'))
       attributes.title = item.title;
     return {
       id: stableKey('object', item.id), kind,
@@ -193,4 +201,61 @@ export function createContainerProjectFromProjection(snapshot) {
     };
   });
   return createContainerProject({ documentId, sources: source, objects });
+}
+
+/**
+ * Export the effective legacy editor as a portable source-baseline delta.
+ * EditIntents here are derived differences (scanned vs current), NOT a claim
+ * that these operations happened chronologically or that the JSON is signed.
+ * Only source audio/subtitle rows have verified scan-time editable baselines.
+ */
+export function createEditedContainerProjectFromProjection(snapshot) {
+  if (snapshot?.identityDiagnostics?.length)
+    throw Error('PROJECT_SOURCE_IDENTITY_AMBIGUOUS');
+  const current = createContainerProjectFromProjection(snapshot);
+  const observed = new Map((snapshot.objects || [])
+    .map(item => [stableKey('object', item.id), item]));
+  const originals = current.objects.map(object => {
+    const item = observed.get(object.id);
+    if (item?.target?.type !== 'source' ||
+        !['audio', 'subtitle'].includes(object.kind) || !item.originalAttributes)
+      return object;
+    return {
+      ...object,
+      included: item.originalIncluded !== false,
+      attributes: { ...item.originalAttributes },
+    };
+  });
+  let result = createContainerProject({
+    documentId: current.documentId,
+    // The normalized projection carries size:null for unknown source size;
+    // the public constructor expects size omitted or a safe nonnegative int.
+    sources: current.sources.map(({ size, ...source }) =>
+      size === null ? source : { ...source, size }),
+    objects: originals,
+  });
+  for (const target of current.objects) {
+    const item = observed.get(target.id);
+    if (item?.target?.type !== 'source' ||
+        !['audio', 'subtitle'].includes(target.kind) || !item.originalAttributes)
+      continue;
+    // Persist all effective field differences, including side effects of
+    // source-track exclusion. A bounded log is safer than truncating edits.
+    for (const field of ['title', 'language', 'default', 'forced']) {
+      const previous = result.objects.find(object => object.id === target.id).attributes[field];
+      const next = target.attributes[field];
+      if (previous !== next) {
+        result = applyContainerProjectEdit(result, {
+          type: 'set-attribute', objectId: target.id, field, value: next,
+        });
+      }
+    }
+    const oldIncluded = result.objects.find(object => object.id === target.id).included;
+    if (oldIncluded !== target.included) {
+      result = applyContainerProjectEdit(result, {
+        type: 'include', objectId: target.id, value: target.included,
+      });
+    }
+  }
+  return result;
 }
