@@ -19,10 +19,15 @@ const mkTrack = (index, type, stream) => ({
   title: stream.tags?.title || '', language: stream.tags?.language || 'und',
   default: Boolean(stream.disposition?.default),
   forced: Boolean(stream.disposition?.forced),
-  original: true, commentary: false, hearingImpaired: false,
+  original: Boolean(stream.disposition?.original),
+  commentary: Boolean(stream.disposition?.comment),
+  hearingImpaired: Boolean(stream.disposition?.hearing_impaired),
   originalTitle: stream.tags?.title || '', originalLanguage: stream.tags?.language || 'und',
   originalDefault: Boolean(stream.disposition?.default),
   originalForced: Boolean(stream.disposition?.forced),
+  originalOriginal: Boolean(stream.disposition?.original),
+  originalCommentary: Boolean(stream.disposition?.comment),
+  originalHearingImpaired: Boolean(stream.disposition?.hearing_impaired),
 });
 function fixture() {
   const file = { name: 'verified.mkv', size: 123, lastModified: 7 };
@@ -239,4 +244,49 @@ test('an unbound external subtitle is never allowed to mutate a source track', (
   assert.throws(() => prepare({
     draft, liveProjection: full, sourceProof: proof, trackState: state,
   }), /TRACK_REPLAY_BASELINE_NOT_VERIFIED/);
+});
+
+test('actual advanced source disposition deltas survive strict import and verified replay', () => {
+  const { file, state } = fixture();
+  const fresh = buildContainerDocument({ video:file, trackState:state });
+  const audio = state.tracks[0];
+  const subtitle = state.tracks[1];
+  audio.commentary = true;
+  audio.original = true;
+  subtitle.hearingImpaired = true;
+  const changed = buildContainerDocument({ video:file, trackState:state });
+  const draft = parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(changed)));
+  assert.deepEqual(draft.editIntents.map(intent => [intent.field, intent.to]),
+    [['original', true], ['commentary', true], ['hearingImpaired', true]]);
+  assert.equal(draft.objects.some(o=>o.attributes.commentary === true),true);
+  audio.commentary = false;
+  audio.original = false;
+  subtitle.hearingImpaired = false;
+  const plan = prepare({draft,liveProjection:fresh,sourceProof:proof,trackState:state});
+  assert.equal(plan.tracks.length,2);
+  const outcome = apply(plan,state);
+  assert.equal(outcome.updatedTracks,2);
+  assert.equal(audio.original,true);
+  assert.equal(audio.commentary,true);
+  assert.equal(subtitle.hearingImpaired,true);
+});
+
+test('exported excluded-track advanced flags clear only as explicitly reviewed changes', () => {
+  const { file, state } = fixture();
+  const audio=state.tracks[0];
+  audio.original=true;
+  audio.commentary=true;
+  audio.hearingImpaired=true;
+  // In the scanned state, three advanced flags have changed. Exclusion
+  // resets them, so final snapshot equals original scanned values.
+  audio.include=false;
+  for(const field of ['default','forced','original','commentary','hearingImpaired'])
+    audio[field]=false;
+  const projection=buildContainerDocument({video:file,trackState:state});
+  const draft=parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(projection)));
+  assert.ok(draft.editIntents.some(i=>i.type==='include' && i.to===false));
+  assert.ok(draft.editIntents.every(i=>i.to!==true ||
+    !['original','commentary','hearingImpaired'].includes(i.field)));
 });
