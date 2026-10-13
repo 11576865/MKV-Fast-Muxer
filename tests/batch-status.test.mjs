@@ -59,3 +59,19 @@ test('generated outputs with unverified audits are counted without erasing mux c
   assert.match(message, /其中 1 项未完整写入目录/);
   assert.match(message, /其中 2 项独立审计存在差异或不可用，需复核成品/);
 });
+
+
+test('partial persistence is not counted as a fully saved MKV+report pair', () => {
+  const result = formatBatchTerminalStatus({
+    results: [
+      { ok: true, auditStatus: 'pass', savedToDirectory: false,
+        mkvSavedToDirectory: true, reportSavedToDirectory: false,
+        directorySaveError: 'report quota reached' },
+      { ok: true, auditStatus: 'pass', savedToDirectory: true,
+        mkvSavedToDirectory: true, reportSavedToDirectory: true },
+    ],
+  });
+  assert.match(result, /批量完成：成功 2，失败 0/);
+  assert.match(result, /其中 1 项未完整写入目录/);
+  assert.match(result, /其中 1 项 MKV 已写入目录，但审计报告尚未写入/);
+});
