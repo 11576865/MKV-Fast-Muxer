@@ -217,6 +217,12 @@ async function scenarioSelectiveAttachments(browser) {
     assert.equal(report.warnings.originalAttachmentSelectionCount, 1);
     assert.deepEqual(report.expectedAudit.attachmentFilenames, ['notes-renamed.txt']);
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.originalAttachmentPayloadAudit?.status, 'pass',
+      JSON.stringify(report.audit?.originalAttachmentPayloadAudit));
+    assert.equal(report.audit?.originalAttachmentPayloadAudit?.verified, 1);
+    assert.equal(report.audit?.originalAttachmentPayloadAudit?.total, 1);
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(),
+      /原附件字节验证：1\/1/);
 
     console.log('Scenario 2 PASS');
   } finally {

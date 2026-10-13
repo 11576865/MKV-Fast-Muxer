@@ -7,6 +7,7 @@ import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { auditProducedFontAttachments } from './output-font-payload-audit.js';
+import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
   audioIdentityFromProbe,
@@ -1313,6 +1314,11 @@ function renderActualOutputEvidence() {
       : model.fontPayload && model.fontPayload.status !== 'not-requested'
         ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
         : '新字体附件字节验证：无新增字体',
+    model.originalAttachmentPayload?.status === 'pass'
+      ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
+      : model.originalAttachmentPayload && model.originalAttachmentPayload.status !== 'not-requested'
+        ? `原附件字节验证：待复核（${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total}）`
+        : '原附件字节验证：未请求保留原附件',
   ].join(' | ');
   outputEvidenceIssues.textContent = model.issues.length
     ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
@@ -4386,6 +4392,38 @@ async function executeCurrentMuxTask(explicit = null) {
       completionNote += '；成品字体附件字节核验待复核';
     }
     finalAudit.fontPayloadAudit = fontPayloadAudit;
+    const originalAttachmentClaims = scanned
+      ? originalAttachments.map((item) => ({
+          sourceFilename: item.originalFilename || item.stream?.tags?.filename || '',
+          outputFilename: item.filename || '',
+          sourceMimeType: item.originalMimetype || item.stream?.tags?.mimetype || '',
+          outputMimeType: item.mimetype || '',
+        }))
+      : preserveAllOriginalAttachments
+        ? sourceAttachments.map((stream) => ({
+            sourceFilename: String(stream.tags?.filename || ''),
+            outputFilename: String(stream.tags?.filename || ''),
+            sourceMimeType: String(stream.tags?.mimetype || ''),
+            outputMimeType: String(stream.tags?.mimetype || ''),
+          }))
+        : [];
+    const originalPayloadAudit = await auditPreservedOriginalAttachmentData(
+      video, outputBlob, originalAttachmentClaims);
+    if (originalPayloadAudit.status === 'pass') {
+      logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件的实际 FileData SHA-256 与源文件一致。UID 与引用关系不包含在此结论内。\n`;
+    } else if (originalPayloadAudit.status !== 'not-requested') {
+      const detail = originalPayloadAudit.issues.join('；') || '原附件验证未完成';
+      logEl.textContent += `AUDIT WARNING: 原 MKV 附件源/成品字节核验待复核：${detail}\n`;
+      if (finalAudit.status === 'pass') finalAudit.status = 'warning';
+      finalAudit.ok = false;
+      finalAudit.issues = [...(finalAudit.issues || []), ...originalPayloadAudit.issues];
+      if (!independent) {
+        auditResult.className = 'audit-result warn';
+        auditResult.textContent = '原 MKV 附件字节验证待复核：' + detail;
+      }
+      completionNote += '；原 MKV 附件的字节保真待复核';
+    }
+    finalAudit.originalAttachmentPayloadAudit = originalPayloadAudit;
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
