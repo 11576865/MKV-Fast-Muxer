@@ -71,6 +71,7 @@ export function projectActualOutputEvidence(report, {
     issues,
     counts: report.audit?.counts || null,
     fontPayload: report.audit?.fontPayloadAudit || null,
+    assEvent: report.audit?.assEventAudit || null,
     originalAttachmentPayload: report.audit?.originalAttachmentPayloadAudit || null,
     scopeNotice: '此结论仅覆盖现有 ffprobe 审计项目；未证明完整 EBML、未知结构或所有 UID 关系均被保留。',
     revisionNotice: sameDraft ? '对应当前来源与已显示计划'
