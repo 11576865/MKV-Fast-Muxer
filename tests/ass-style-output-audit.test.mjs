@@ -80,7 +80,7 @@ test('unknown columns, ambiguous color and exhausted parsing budgets are unavail
   assert.throws(() => parseAssV4PlusStyles(source.replace('&H60000000', 'not-a-color')), /颜色/);
   assert.throws(() => parseAssV4PlusStyles(source, { maxStyles: 1 }), /预算/);
   assert.throws(() => parseAssV4PlusStyles(source, { maxChars: 20 }), /预算/);
-  assert.throws(() => parseAssV4PlusStyles(source.replace(/^Style:\\s.*$/gm, '')), /不可用/);
+  assert.throws(() => parseAssV4PlusStyles(source.replace(/^Style:\s.*$/gm, '')), /不可用/);
 });
 
 test('real finished ASS style audit verifies correct output ordinal and records total rows', async () => {
