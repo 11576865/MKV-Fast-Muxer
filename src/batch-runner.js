@@ -42,6 +42,11 @@ export async function runFrozenBatchQueue(plan, {
         if (!artifact?.blob || !artifact.outputName) {
           throw new Error('执行器没有交付有效的 MKV 文件对象');
         }
+        // A worker must not publish an artifact under a name other than the
+        // independently reviewed JobPlan's output identity.
+        if (artifact.outputName !== job.outputName) {
+          throw new Error('执行器输出身份与冻结任务不一致；拒绝发布该产物');
+        }
         if (shouldCancel()) throw new Error('batch-cancelled');
         ledger.transition(job.jobId, 'saving');
         const publication = await publish(job, artifact, index, plan);
