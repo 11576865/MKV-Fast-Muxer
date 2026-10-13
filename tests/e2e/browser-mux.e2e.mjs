@@ -3278,6 +3278,7 @@ async function scenarioP0PreservationBlocksSingle(browser) {
   console.log('P0 preservation gate: block high-risk original MKV in single mux');
   const { context, page } = await openApp(browser);
   try {
+    await page.setViewportSize({ width: 1600, height: 960 });
     await page.setInputFiles('#videoInput', path.join(root, 'p0-independent-mkvtoolnix.mkv'));
     // The visible preflight must block before the user can click "Mux".
     await page.waitForFunction(() =>
