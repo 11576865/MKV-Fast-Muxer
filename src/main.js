@@ -743,7 +743,9 @@ function beginPreservationPreview() {
     // cache: native pickers can replace the FileList without a change event.
     const identity = await sniffFileContainer(source);
     if (generation !== preservationPreviewGeneration || videoInput.files?.[0] !== source) return;
-    if (!['matroska', 'matroska-webm'].includes(identity.container)) {
+    // Only a positively identified non-Matroska container may skip EBML
+    // structural inspection. "unknown" is NOT evidence of non-Matroska.
+    if (['iso-bmff', 'mov', 'webm'].includes(identity.container)) {
       preservationPreview = { source, state: 'not-applicable', inspection: null };
     } else {
       const inspection = await inspectMatroskaPreservation(source);
@@ -3744,9 +3746,19 @@ async function executeCurrentMuxTask() {
   updateUI();
   let preservationInfo = '';
   try {
+    // Re-read the exact source at the authorization boundary. A stale
+    // name/size/mtime-keyed header cache must not skip Matroska protection.
+    // Unknown headers fail closed: they may conceal a complex MKV.
+    const actualHeader = await sniffFileContainer(video);
+    if (videoInput.files?.[0] !== video) {
+      throw new Error('源文件在预检期间已替换，请重新确认后启动。');
+    }
+    if (actualHeader.container === 'unknown' || actualHeader.container !== headerVideoIdentity.container) {
+      throw new Error('无法确认当前来源容器身份或文件头已变化；为避免复杂 MKV 元数据丢失，拒绝封装。');
+    }
     // Preserve a previous successful download until the new source passes
     // preflight. Never revoke prior artifacts merely to refuse an unsafe MKV.
-    if (['matroska', 'matroska-webm'].includes(headerVideoIdentity.container)) {
+    if (['matroska', 'matroska-webm'].includes(actualHeader.container)) {
       status.textContent = '正在检查原 MKV 章节与标签的保留风险……';
       const protection = await inspectMatroskaPreservation(video);
       if (cancelRequested) {
@@ -3755,7 +3767,7 @@ async function executeCurrentMuxTask() {
         updateUI();
         return;
       }
-      if (fileKey(videoInput.files[0]) !== fileKey(video)) {
+      if (videoInput.files?.[0] !== video || fileKey(videoInput.files[0]) !== fileKey(video)) {
         throw new Error('预检期间来源已改变，请重新确认当前输入。');
       }
       const refusal = preservationBlockMessage(video.name, protection);
