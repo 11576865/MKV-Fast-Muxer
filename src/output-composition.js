@@ -1,8 +1,8 @@
 import { buildContainerTreeModel } from './container-tree.js';
 
-// The sole authority is still the existing FFprobe scan / source-track edits,
-// externalAudioState, newSubtitleState and selected fonts. This is an immutable
-// display projection, NOT a second editable track collection or a mux plan.
+// Immutable composition projection from source scan, domain-owned source
+// audio/subtitle fields materialized into trackState, and remaining legacy
+// external-asset editors. Not a writable owner, source grant or mux plan.
 export const outputCompositionFileKey = (file) => {
   if (!file) return '';
   return `${file.webkitRelativePath || file.name || ''}|${file.size ?? 0}|${file.lastModified ?? 0}`;
