@@ -137,6 +137,16 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     const status = await page.locator('#containerCapabilitySummary').getAttribute('data-mux-status');
     assert.notEqual(status, 'available', 'capability projection cannot replace runtime execution preflight');
     assert.match(await page.locator('#containerCapabilitySummary').textContent(), /快速封装/);
+    await page.waitForFunction(() =>
+      !document.querySelector('#containerProjectExportBtn')?.disabled);
+    const projectOutput = path.join(outDir, 'five-step-container-project-v1.json');
+    await saveDownload(page, '#containerProjectExportBtn', projectOutput);
+    const project = JSON.parse(await fs.readFile(projectOutput, 'utf8'));
+    assert.equal(project.schema, 'container-project-v1');
+    assert.equal(project.execution, 'requires-fresh-source-authorization');
+    assert.ok(project.objects.length > 0);
+    assert.ok(project.sources.every(src => src.authorization === 'requires-relink'));
+    assert.equal(project.fileHandles, undefined);
 
     await page.screenshot({
       path: path.join(outDir, 'five-step-workbench-1440.png'), animations: 'disabled',
