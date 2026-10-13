@@ -182,6 +182,9 @@ const containerProjectConflictReview = $('containerProjectConflictReview');
 const containerProjectConflictSummary = $('containerProjectConflictSummary');
 const containerProjectConflictList = $('containerProjectConflictList');
 const containerProjectVerifySourceBtn = $('containerProjectVerifySourceBtn');
+const containerProjectHashActions = $('containerProjectHashActions');
+const containerProjectHashProgress = $('containerProjectHashProgress');
+const containerProjectHashCancelBtn = $('containerProjectHashCancelBtn');
 const containerProjectRestorePanel = $('containerProjectRestorePanel');
 const containerProjectRestoreConfirm = $('containerProjectRestoreConfirm');
 const containerProjectRestoreBtn = $('containerProjectRestoreBtn');
@@ -447,6 +450,7 @@ let detachedSourceProof = null;
 let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
+let activeProjectHash = null;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1533,19 +1537,22 @@ function renderOutputComposition() {
       Boolean(importedProjectForReview.sources[0]?.sha256);
     containerProjectVerifySourceBtn.hidden = !importedProjectForReview;
     containerProjectVerifySourceBtn.disabled = sourceDigestCheckInProgress ||
-      !canHash || !source || source.size > PROJECT_SOURCE_HASH_MAX_BYTES;
+      Boolean(activeProjectHash) || !canHash || !source ||
+      source.size > PROJECT_SOURCE_HASH_MAX_BYTES;
     containerProjectVerifySourceBtn.title = !canHash
       ? '此草稿没有完整 SHA-256，无法执行字节级核对'
       : source && source.size > PROJECT_SOURCE_HASH_MAX_BYTES
-        ? '当前文件超过 64 MiB 的浏览器完整哈希上限，维持未验证状态'
+        ? '来源文件超过当前 16 GiB 哈希上限，需要另一种来源证明'
         : '完整哈希相等仅能证明与草稿所写的摘要相等，不授权执行';
   }
   // Export is read-only and has no mux/write side effects. Background preview
   // and track scan are not grounds to silently drop an export command: the
   // snapshot explicitly says that inspection and source relinking are pending.
   if (containerProjectExportBtn) containerProjectExportBtn.disabled =
-    projectDigestExportInProgress ||
+    projectDigestExportInProgress || Boolean(activeProjectHash) ||
     !containerDocument.objects.length || importInProgress;
+  if (containerProjectHashActions)
+    containerProjectHashActions.hidden = !activeProjectHash;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
     const caps = resolveContainerCapabilities({
@@ -1683,6 +1690,46 @@ compositionTracks?.addEventListener('click', event => {
 sourceFilesDetails?.querySelector('summary')?.addEventListener('click', () => {
   sourceFilesDetails.dataset.userToggled = 'true';
 });
+function displayHashProgress({ bytesHashed, totalBytes }, source, controller) {
+  if (videoInput.files?.[0] !== source || currentProjectSourceFile !== source) {
+    controller.abort();
+    return;
+  }
+  const done = (bytesHashed / (1024 * 1024)).toFixed(1);
+  const total = (totalBytes / (1024 * 1024)).toFixed(1);
+  const percent = totalBytes ? Math.floor(bytesHashed * 100 / totalBytes) : 100;
+  if (containerProjectHashProgress)
+    containerProjectHashProgress.textContent =
+      '完整 SHA-256：' + percent + '% · ' + done + ' / ' + total + ' MiB';
+}
+
+async function runProjectHash(source, operation) {
+  if (activeProjectHash) throw Error('PROJECT_HASH_BUSY');
+  const controller = new AbortController();
+  const task = { source, controller };
+  activeProjectHash = task;
+  if (containerProjectHashProgress) containerProjectHashProgress.textContent =
+    '正在读取来源文件以计算完整 SHA-256…';
+  renderOutputComposition();
+  try {
+    return await operation({
+      signal: controller.signal,
+      onProgress: progress => displayHashProgress(progress, source, controller),
+    });
+  } finally {
+    if (activeProjectHash === task) {
+      activeProjectHash = null;
+      renderOutputComposition();
+    }
+  }
+}
+
+containerProjectHashCancelBtn?.addEventListener('click', () => {
+  activeProjectHash?.controller.abort();
+});
+videoInput.addEventListener('change', () => {
+  activeProjectHash?.controller.abort();
+});
 containerProjectRestoreConfirm?.addEventListener('change', () => renderOutputComposition());
 containerProjectRestoreBtn?.addEventListener('click', () => {
   const source = videoInput.files?.[0] || null;
@@ -1761,6 +1808,7 @@ containerProjectImportInput?.addEventListener('change', async () => {
     // This never changes file inputs, the writer's current source state,
     // directory grants, active jobs or the executable composition.
     const draft = parseContainerProjectDraft(await file.text());
+    activeProjectHash?.controller.abort();
     importedProjectForReview = draft;
     detachedSourceProof = null;
     if (containerProjectRestoreConfirm) containerProjectRestoreConfirm.checked = false;
@@ -1780,12 +1828,13 @@ containerProjectImportInput?.addEventListener('change', async () => {
 containerProjectVerifySourceBtn?.addEventListener('click', async () => {
   const source = videoInput.files?.[0] || null;
   const draft = importedProjectForReview;
-  if (!source || !draft || sourceDigestCheckInProgress) return;
+  if (!source || !draft || sourceDigestCheckInProgress || activeProjectHash) return;
   sourceDigestCheckInProgress = true;
   containerProjectVerifySourceBtn.disabled = true;
   containerProjectVerifySourceBtn.textContent = '正在核对完整 SHA-256…';
   try {
-    const verdict = await verifyContainerProjectSourceDigest(draft, source);
+    const verdict = await runProjectHash(source, options =>
+      verifyContainerProjectSourceDigest(draft, source, options));
     // No successful hash may cross a source-File or detached-draft change.
     if (videoInput.files?.[0] !== source || importedProjectForReview !== draft) {
       status.textContent = '来源或草稿在核对期间发生变化，结果已作废。';
@@ -1813,7 +1862,7 @@ containerProjectExportBtn?.addEventListener('click', async () => {
   // It can run during track scanning, but must not retain stale source bytes.
   const source = videoInput.files?.[0] || null;
   const oldProjection = currentProjectSourceProjection;
-  if (projectDigestExportInProgress) return;
+  if (projectDigestExportInProgress || activeProjectHash) return;
   if (!source || !oldProjection || currentProjectSourceFile !== source) {
     status.textContent = '工程草稿来源不可用；请重新导入并检查当前素材。';
     return;
@@ -1823,8 +1872,9 @@ containerProjectExportBtn?.addEventListener('click', async () => {
   try {
     let digest = null;
     if (source.size <= PROJECT_SOURCE_HASH_MAX_BYTES) {
-      status.textContent = '正在计算当前媒体完整 SHA-256（最多 64 MiB）…';
-      digest = await hashBoundedProjectSource(source);
+      status.textContent = '正在计算来源完整 SHA-256（大型文件分块读取）…';
+      digest = await runProjectHash(source, options =>
+        hashBoundedProjectSource(source, options));
     }
     if (videoInput.files?.[0] !== source ||
         currentProjectSourceFile !== source) {
@@ -1849,7 +1899,7 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     link.remove();
     status.textContent = digest
       ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
-      : '已导出解绑草稿；文件超过 64 MiB，未证明来源字节一致。';
+      : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。';
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
