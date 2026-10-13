@@ -10,7 +10,14 @@ export function formatBatchTerminalStatus({
   const done = results.filter((item) => item.ok).length;
   const failed = results.filter((item) => !item.ok).length;
   const unsaved = results.filter((item) => item.ok && item.directorySaveError).length;
-  const saveWarning = unsaved ? `其中 ${unsaved} 项未完整写入目录，可通过下载链接另存。` : '';
+  const reportOnlyFailures = results.filter((item) =>
+    item.ok && item.mkvSavedToDirectory && !item.reportSavedToDirectory).length;
+  const saveWarning = unsaved
+    ? `其中 ${unsaved} 项未完整写入目录，可通过下载链接另存。` +
+      (reportOnlyFailures
+        ? `其中 ${reportOnlyFailures} 项 MKV 已写入目录，但审计报告尚未写入。`
+        : '')
+    : '';
   const unverified = results.filter((item) => item.ok &&
     item.auditStatus && item.auditStatus !== 'pass').length;
   const auditWarning = unverified ? `其中 ${unverified} 项独立审计存在差异或不可用，需复核成品。` : '';
