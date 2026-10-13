@@ -430,6 +430,8 @@ let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
 let importedProjectForReview = null;
 let detachedSourceProof = null;
+let sourceDigestCheckInProgress = false;
+let projectDigestExportInProgress = false;
 let importInProgress = false;
 let importPendingCount = 0;
 let videoSniffState = {
@@ -1398,8 +1400,8 @@ function renderOutputComposition() {
     const canHash = importedProjectForReview?.sources?.length === 1 &&
       Boolean(importedProjectForReview.sources[0]?.sha256);
     containerProjectVerifySourceBtn.hidden = !importedProjectForReview;
-    containerProjectVerifySourceBtn.disabled = !canHash || !source ||
-      source.size > PROJECT_SOURCE_HASH_MAX_BYTES;
+    containerProjectVerifySourceBtn.disabled = sourceDigestCheckInProgress ||
+      !canHash || !source || source.size > PROJECT_SOURCE_HASH_MAX_BYTES;
     containerProjectVerifySourceBtn.title = !canHash
       ? '此草稿没有完整 SHA-256，无法执行字节级核对'
       : source && source.size > PROJECT_SOURCE_HASH_MAX_BYTES
@@ -1410,6 +1412,7 @@ function renderOutputComposition() {
   // and track scan are not grounds to silently drop an export command: the
   // snapshot explicitly says that inspection and source relinking are pending.
   if (containerProjectExportBtn) containerProjectExportBtn.disabled =
+    projectDigestExportInProgress ||
     !containerDocument.objects.length || importInProgress;
   const model = containerDocument.composition;
   if (containerCapabilitySummary) {
@@ -1575,7 +1578,8 @@ containerProjectImportInput?.addEventListener('change', async () => {
 containerProjectVerifySourceBtn?.addEventListener('click', async () => {
   const source = videoInput.files?.[0] || null;
   const draft = importedProjectForReview;
-  if (!source || !draft) return;
+  if (!source || !draft || sourceDigestCheckInProgress) return;
+  sourceDigestCheckInProgress = true;
   containerProjectVerifySourceBtn.disabled = true;
   containerProjectVerifySourceBtn.textContent = '正在核对完整 SHA-256…';
   try {
@@ -1597,11 +1601,9 @@ containerProjectVerifySourceBtn?.addEventListener('click', async () => {
         '。没有恢复旧编辑意图、文件权限或成品。';
     }
   } finally {
+    sourceDigestCheckInProgress = false;
     containerProjectVerifySourceBtn.textContent = '核对已导入草稿与当前媒体的完整 SHA-256';
-    if (videoInput.files?.[0] === source &&
-        importedProjectForReview === draft) {
-      containerProjectVerifySourceBtn.disabled = !draft.sources.some(s => s.sha256);
-    } else renderOutputComposition();
+    renderOutputComposition();
   }
 });
 containerProjectExportBtn?.addEventListener('click', async () => {
@@ -1609,10 +1611,12 @@ containerProjectExportBtn?.addEventListener('click', async () => {
   // It can run during track scanning, but must not retain stale source bytes.
   const source = videoInput.files?.[0] || null;
   const oldProjection = currentProjectSourceProjection;
+  if (projectDigestExportInProgress) return;
   if (!source || !oldProjection || currentProjectSourceFile !== source) {
     status.textContent = '工程草稿来源不可用；请重新导入并检查当前素材。';
     return;
   }
+  projectDigestExportInProgress = true;
   containerProjectExportBtn.disabled = true;
   try {
     let digest = null;
@@ -1648,6 +1652,7 @@ containerProjectExportBtn?.addEventListener('click', async () => {
   } catch (error) {
     status.textContent = '无法导出工程草稿：' + (error?.message || String(error));
   } finally {
+    projectDigestExportInProgress = false;
     // Recompute every control from current source identity.
     renderOutputComposition();
   }
