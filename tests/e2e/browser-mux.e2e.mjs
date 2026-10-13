@@ -1696,20 +1696,6 @@ async function scenarioResponsiveObjectEditor(browser) {
       assert.equal(await page.locator(selector).isVisible(), false, selector);
     }
     // mobile two-mode editor and disclosure behavior
-    await page.screenshot({
-      path: path.join(outDir, 'mkv-round5-workspace-desktop-1600.png'),
-      animations: 'disabled',
-    });
-    await page.setViewportSize({ width: 768, height: 1024 });
-    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
-    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
-    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
-      'Viewport persistent audio', 'selected object edit must survive tablet reflow');
-    await page.screenshot({
-      path: path.join(outDir, 'mkv-round5-workspace-tablet-768.png'),
-      animations: 'disabled',
-    });
-
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
     assert.equal(await page.locator('[data-editor-filter="all"]').isVisible(), true);
@@ -2242,6 +2228,20 @@ async function scenarioUnifiedWorkBenchZones(browser) {
     await page.locator('#assetInspectorHost [data-tree-track-field="title"]').fill('Viewport persistent audio');
     assert.equal(await nav.nth(1).locator('.asset-tree-index-name').textContent(),
       'Viewport persistent audio', 'navigator must stay in sync with the active inspector');
+
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-desktop-1600.png'),
+      animations: 'disabled',
+    });
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth);
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(), true);
+    assert.equal(await page.locator('#assetInspectorHost [data-tree-track-field="title"]').inputValue(),
+      'Viewport persistent audio', 'selected object edit must survive tablet reflow');
+    await page.screenshot({
+      path: path.join(outDir, 'mkv-round5-workspace-tablet-768.png'),
+      animations: 'disabled',
+    });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.locator('.workbench-jump-nav a[href="#workbench-editor-title"]').click();
