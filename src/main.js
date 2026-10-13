@@ -4450,7 +4450,7 @@ async function executeCurrentMuxTask(explicit = null) {
         const extractedPath = prefix + '-final-ass-check-' + ordinal + '.ass';
         try {
           const extraction = await execWithCapturedLogs([
-            '-hide_banner', '-loglevel', 'error', '-i', outputPath,
+            '-hide_banner', '-loglevel', 'error', '-copyts', '-i', outputPath,
             '-map', '0:s:' + ordinal, '-c:s', 'ass', '-f', 'ass',
             '-y', extractedPath,
           ]);
