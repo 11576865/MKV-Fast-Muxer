@@ -4367,6 +4367,53 @@ async function scenarioVerifiedDetachedTrackRestore(browser) {
   }
 }
 
+async function scenarioStreamedSourceDigestBrowser(browser) {
+  console.log('E2E P1: browser complete SHA-256 handles >64 MiB with bounded slices and cancellation');
+  const { context, page } = await openApp(browser);
+  try {
+    const result = await page.evaluate(async () => {
+      const { hashBoundedProjectSource, PROJECT_SOURCE_HASH_FAST_BYTES } =
+        await import('/src/container-project-source-proof.js');
+      const source = new File(
+        [new Uint8Array(PROJECT_SOURCE_HASH_FAST_BYTES + 13).fill(0x61)],
+        'large-media.mkv', { type: 'video/x-matroska' },
+      );
+      const progress = [];
+      const digest = await hashBoundedProjectSource(source, {
+        onProgress: ({ bytesHashed }) => progress.push(bytesHashed),
+      });
+      const abort = new AbortController();
+      let reads = 0;
+      let refused = false;
+      try {
+        await hashBoundedProjectSource(source, {
+          fastBytes: 0, signal: abort.signal,
+          onProgress: () => { if (++reads === 2) abort.abort(); },
+        });
+      } catch (error) {
+        refused = error.message === 'PROJECT_SOURCE_HASH_ABORTED';
+      }
+      return {
+        digest, progressCount: progress.length,
+        lastProgress: progress.at(-1), size: source.size,
+        aborted: refused, cancelReads: reads,
+      };
+    });
+    assert.equal(result.digest,
+      'ad363dc06f71afbf51c807994c7719181d60477460cda7feae3bfee72997084a');
+    assert.equal(result.size, 65 * 1024 * 1024 + 13);
+    assert.equal(result.lastProgress, result.size);
+    assert.ok(result.progressCount > 64);
+    assert.equal(result.aborted, true);
+    assert.equal(result.cancelReads, 2);
+    assert.equal(await page.locator('#containerProjectHashCancelBtn').count(), 1,
+      'real production UI exposes an explicit hash cancellation surface');
+    console.log('Browser large-file SHA-256 and cancellation PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
@@ -4383,6 +4430,7 @@ try {
   await scenarioMultiTrack(browser);
   await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);
   await scenarioVerifiedDetachedTrackRestore(browser);
+  await scenarioStreamedSourceDigestBrowser(browser);
   await scenarioP3FinalMkvRealLibassRendering(browser);
   await scenarioP3DynamicAssDelivery(browser);
   await scenarioRenamedMediaIdentity(browser);
