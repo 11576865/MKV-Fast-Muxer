@@ -771,7 +771,51 @@ function changeExternalAssetFields(changes) {
   }
 }
 
+// Background readiness refreshes are NOT editor-selection changes. Avoid
+// unmounting a current, coherent input mid-keystroke: DOM replacement between
+// Playwright/user input and its dispatch can silently restore inferred titles.
+// Exact File reference and authority-epoch checks still force a fresh editor
+// whenever the source selection actually changes.
+function renderedExternalTrackFieldsMatch(container, kind, rows, fields) {
+  if (container.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch))
+    return false;
+  const selector = kind === 'audio' ? 'data-new-audio-field' : 'data-new-sub-field';
+  if (container.querySelectorAll('[' + selector + ']').length !== rows.length * fields.length)
+    return false;
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    for (const field of fields) {
+      const control = container.querySelector(
+        '[' + selector + '="' + field + '"][data-index="' + index + '"]',
+      );
+      if (!control || (control.type === 'checkbox' ? control.checked : control.value) !== row[field])
+        return false;
+    }
+  }
+  return true;
+}
+
+function canRetainExternalTrackEditorMarkup() {
+  const audio = selectedExternalAudioFiles();
+  const subtitles = selectedSubtitleTrackInputs().tracks;
+  if (audio.length !== externalAudioState.length ||
+      subtitles.length !== newSubtitleState.length ||
+      audio.some((file, i) => file !== externalAudioState[i]?.file) ||
+      subtitles.some((track, i) =>
+        track.file !== newSubtitleState[i]?.file ||
+        (track.sidecarFile || null) !== (newSubtitleState[i]?.sidecarFile || null)))
+    return false;
+  return renderedExternalTrackFieldsMatch(
+    newAudioList, 'audio', externalAudioState,
+    ['title', 'language', 'default', 'original', 'commentary', 'hearingImpaired'],
+  ) && renderedExternalTrackFieldsMatch(
+    newSubtitleList, 'subtitle', newSubtitleState,
+    ['title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
+  );
+}
+
 function renderNewTrackLists() {
+  if (canRetainExternalTrackEditorMarkup()) return;
   // Mark the DOM with the exact selection-generation it actually depicts.
   // When a picker replaced File objects, stale form fields from the prior
   // selection must never be copied onto same-named new files.
