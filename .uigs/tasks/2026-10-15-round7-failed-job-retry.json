@@ -1,6 +1,6 @@
 {
   "goal": "将软封实际项目推进到既定理论模型，继续Round7独立批次失败任务恢复",
-  "status": "work-unit-complete-local-pending-external-validation",
+  "status": "durable-checkpoint-pending-external-validation",
   "current_bounded_work_unit": "原冻结计划的失败单项重试，保留已生成结果",
   "completed_units": [
     "failed-only atomic requeue authorization",
@@ -16,12 +16,21 @@
     "B-015 confirmed task-list cross-session restoration"
   ],
   "branch": "feat/ten-round-p3b-failed-job-retry-20261015",
-  "pr": null,
+  "pr": 151,
   "parent_pr": 150,
-  "latest_durable_commit": "fb670f739a485b25ce027ec40db6753f5b66cc63",
+  "latest_durable_commit": "8bea279dd8917dc99d4136e99a0a8370627d1fb7",
   "external_validation_states": {
     "parent_r7": "Browser38617379805 success; Pages38617380268 success on bd70554d",
-    "current_browser": "not-started"
+    "current_browser": {
+      "commit": "8bea279dd8917dc99d4136e99a0a8370627d1fb7",
+      "run_id": 38620137177,
+      "status": "in_progress",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38620137177"
+    },
+    "current_pages_build": {
+      "run_id": 38620137124,
+      "status": "in_progress"
+    }
   },
   "local_validation": {
     "node": "598/598",
@@ -29,8 +38,19 @@
   },
   "blockers": [
     "full browser and 20 actual episodes remain unverified",
-    "stacked product PR review and merge pending"
+    "stacked product PR review and merge pending",
+    "Local exec-server transport disconnected during final checkpoint; source was already committed and published with verified tree equality. Recovery uses this remote task record."
   ],
-  "uigs_intake": "Pending dedup/write",
-  "updated_timestamp": "2026-10-14T18:58:26.368149+00:00"
+  "uigs_intake": {
+    "status": "deduplicated-existing-Candidate-written-and-read-verified",
+    "commit": "edb160457c88265586c09ff8db5d1f60c6bdd816",
+    "path": "inbox/candidates/2026-10-12-legacy-capability-migration-and-document-plan-batch-queue.md",
+    "canonical_promotion": false
+  },
+  "updated_timestamp": "2026-10-14T19:03:26.442Z",
+  "publication": {
+    "tree_identity": "exact",
+    "product_tree": "8d2fcb56015a91d133d04ab88a41587405110537",
+    "method": "authorized GitHub plugin"
+  }
 }
