@@ -271,11 +271,9 @@ export async function executeNonterminalAttachmentRelay(plan){
   }else if(src.id==='0x114d9b74'){
    if(dst.id!==src.id)throw Error('RELAY_OLD_SEEKHEAD_MISSING');
    // The only allowed raw delta is the exact SeekID byte patch.
-   const before=source.slice(src.offset,src.offset+src.byteLength);
    const expected=diffBlob(source,g.seekPatches.filter(p=>
       p.from>=src.offset&&p.to<=src.offset+src.byteLength))
      .slice(src.offset,src.offset+src.byteLength);
-   if(await hash(before)!==src.byteCommitment&&false)throw Error('UNREACHABLE');
    if(await hash(output.slice(src.offset,src.offset+src.byteLength))!==await hash(expected))
      throw Error('RELAY_UNAPPROVED_SEEKHEAD_BYTES_CHANGED');
   }else if(dst.id!==src.id||dst.byteCommitment!==src.byteCommitment)
