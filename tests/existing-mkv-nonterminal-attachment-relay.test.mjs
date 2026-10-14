@@ -95,6 +95,43 @@ test('indexed non-terminal: genuine relayed SeekHead keeps Cues/Chapter/Tags/Clu
  assert.deepEqual(Buffer.from(await reader.openAttachment(inv.attachments[0].id).data.arrayBuffer()),srcDataA);
  assert.deepEqual(Buffer.from(await reader.openAttachment(inv.attachments[1].id).data.arrayBuffer()),data);
 });
+test('indexed nonterminal: grow NON-FINAL selected FileUID while later tagged attachment keeps original bytes, UID and exactly accounted relocated offset',async()=>{
+ const src=source({targetNotFinal:true}),oldHash=await sha(src);
+ const changed=Buffer.alloc(srcDataB.length+41,0x73);
+ const plan=await prepare(src,changed);
+ assert.equal(plan.geometry.selectedAttachmentIndex,0);
+ assert.equal(plan.geometry.originalAttachmentCount,2);
+ assert.equal(plan.geometry.laterAttachmentDataOffsetsRelocatedByDelta,true);
+ const originalReader=createMatroskaAttachmentReader(src),
+  originalInv=await originalReader.inspect();
+ assert.deepEqual(originalInv.attachments.map(x=>x.fileUid),['4','3']);
+ const result=await executeNonterminalAttachmentRelay(plan);
+ assert.equal(result.status,'LOCAL_NONTERMINAL_RELAY_AND_RAW_MEDIA_VERIFIED_EXTERNAL_AUDIT_PENDING');
+ assert.equal(await sha(src),oldHash);
+ const reader=createMatroskaAttachmentReader(result.output);
+ const inventory=await reader.inspect();
+ assert.deepEqual(inventory.attachments.map(x=>x.fileUid),['4','3']);
+ assert.deepEqual(Buffer.from(await reader.openAttachment(inventory.attachments[0].id).data.arrayBuffer()),changed);
+ assert.deepEqual(Buffer.from(await reader.openAttachment(inventory.attachments[1].id).data.arrayBuffer()),srcDataA);
+ const base=src.size-plan.geometry.originalAttachmentsOffset;
+ assert.equal(inventory.attachments[0].dataRange.offset,
+   originalInv.attachments[0].dataRange.offset+base);
+ assert.equal(inventory.attachments[1].dataRange.offset,
+   originalInv.attachments[1].dataRange.offset+base+41);
+});
+test('indexed nonterminal: shrink NON-FINAL original FileData without corrupting later attached UID and bytes',async()=>{
+ const src=source({targetNotFinal:true}),changed=Buffer.from('few');
+ const plan=await prepare(src,changed);
+ const out=await executeNonterminalAttachmentRelay(plan);
+ const before=createMatroskaAttachmentReader(src),after=createMatroskaAttachmentReader(out.output);
+ const original=await before.inspect(),next=await after.inspect();
+ assert.equal(next.attachments[0].byteLength,3);
+ assert.equal(next.attachments[1].dataRange.offset,
+   original.attachments[1].dataRange.offset+
+   src.size-plan.geometry.originalAttachmentsOffset+
+   (changed.length-srcDataB.length));
+ assert.deepEqual(Buffer.from(await after.openAttachment(next.attachments[1].id).data.arrayBuffer()),srcDataA);
+});
 test('indexed non-terminal negative gates reject CRC, unknown, referenced UID, wrong index and non-terminal mismatch',async()=>{
  await assert.rejects(prepare(source({tail:true}),Buffer.alloc(55)),/UNIQUE_NONTERMINAL/);
  await assert.rejects(prepare(source({badSeek:true}),Buffer.alloc(55)),/STALE_OR_ALTERNATE/);
@@ -104,7 +141,10 @@ test('indexed non-terminal negative gates reject CRC, unknown, referenced UID, w
  await assert.rejects(prepare(source({unknownAttached:true}),Buffer.alloc(55)),/UNKNOWN_ATTACHEDFILE_CHILD/);
  await assert.rejects(prepare(source({unknownTop:true}),Buffer.alloc(55)),/RAW_SOURCE_INELIGIBLE/);
  await assert.rejects(prepare(source({tagFree:true}),Buffer.alloc(55)),/REFERENCED_ATTACHMENT_BLOCKED/);
- await assert.rejects(prepare(source({targetNotFinal:true}),Buffer.alloc(55)),/TARGET_NOT_FINAL_FILEDATA/);
+ // A referenced UID is forbidden even when it is not the last AttachedFile.
+ await assert.rejects(prepare(source({targetNotFinal:true}),Buffer.alloc(55),{
+   targetFileUid:'3',
+ }),/REFERENCED_ATTACHMENT_BLOCKED/);
  await assert.rejects(prepare(source(),Buffer.alloc(srcDataB.length)),/EQUAL_LENGTH_USE_LOCAL_WRITER/);
  await assert.rejects(prepare(source(),Buffer.alloc(55),{approveRelocation:false}),/EXPLICIT_REVIEW_REQUIRED/);
  const plan=await prepare(source(),Buffer.alloc(55));
