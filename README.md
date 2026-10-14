@@ -29,6 +29,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 **外部音频／字幕／字体领域状态（2026-10-14，待完整 CI）：** 外部音频与新增字幕的标题、语言、Default、Forced（字幕）及 Original／Commentary／Hearing Impaired，已改由独立的不可变 `ContainerProject` 会话统一提交，再同步给原有 FFmpeg 执行模型；选中的字体文件进入领域来源清单，`preserve / force` 字体策略也由领域状态记录。资源 `File` 和字幕 sidecar 保持严格对象引用绑定，替换同名同大小文件不会继承旧标题；后台刷新不再把旧表单值写入新资源。**这仍是与来源 MKV 轨道会话并列的有界领域所有者，并非覆盖全部对象的单个可执行总工程，也未提供外部资源工程草稿跨会话文件授权或无视频资源封装功能。** 详见 [P1 外部资源领域化实施说明](docs/p1-external-resource-domain-authority-20261014.md)。
 
+**Batch Recipe v2／逐任务字幕配置（2026-10-14，集成 CI 待验收）：** 现有批次配对检查器允许为每集独立设置字幕标题、语言、Default／Forced，并按当前真实配对冻结进既有 `JobPlan` 与封装执行器。导出的 v2 JSON 保存规则和逐任务字幕属性，但**不保存视频／字幕字节、File 句柄、输出目录权限、任务状态或已交付成品**；导入后必须重新选择媒体、完成真实配对、显式逐任务审核应用，否则阻断批次启动。v1 规则仍可严格导入。针对性 20 项计划级测试不是 20 集实际封装／性能验收。详见 [Batch Recipe v2 工程记录](docs/p3-batch-recipe-v2-reviewed-per-episode-delivery-20261014.md)。
+
 **这并非整个 P0–P6 理论计划的最终稳定版。** 对应功能、失败边界和仍未通过的阶段退出条件见 [五步工程验收账本](docs/five-step-theory-initial-preview-20261013.md)。
 
 ### P1：来源轨道修改的导出与显式恢复（2026-10-14，待完整 CI 验收）
