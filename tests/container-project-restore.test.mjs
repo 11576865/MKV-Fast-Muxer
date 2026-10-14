@@ -416,7 +416,7 @@ test('scanned audio permutation survives portable JSON and verified replay despi
   const baselineOrder=sourceOrder(state);
   assert.deepEqual(baselineOrder,[1,6]);
   const first=state.tracks.find(t=>t.index===1);
-  const second=state.tracks.find(t=>t.index===4);
+  const second=state.tracks.find(t=>t.index===6);
   [first.order,second.order]=[second.order,first.order];
   first.title='Edited after ordering';
   state.attachments[0].filename='New font.ttf';
