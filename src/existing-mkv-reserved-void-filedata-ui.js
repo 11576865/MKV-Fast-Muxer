@@ -33,12 +33,21 @@ export function setupReservedVoidFileDataUI({
     return inspection?.items.find(x=>x.fileUid===targetSelect.value);
   }
   function refresh(){
-    const row=selected();
-    prepareButton.disabled=busy||!review.checked||!source||!substitute||!row||
-      inspection.references.has(row.fileUid)||
-      substitute.size===row.byteLength||substitute.size<1||
-      substitute.size>4*1024*1024||
-      !current(source,substitute,epoch,row.fileUid);
+    const row=selected(), reasons=[];
+    if(busy)reasons.push('BUSY');
+    if(!review.checked)reasons.push('EXPLICIT_REVIEW_REQUIRED');
+    if(!source)reasons.push('SOURCE_REQUIRED');
+    if(!substitute)reasons.push('REPLACEMENT_REQUIRED');
+    if(!row)reasons.push('CURRENT_UID_INVENTORY_REQUIRED');
+    if(row&&inspection.references.has(row.fileUid))reasons.push('TARGETED_UID_BLOCKED');
+    if(row&&substitute&&substitute.size===row.byteLength)
+      reasons.push('REPLACEMENT_LENGTH_UNCHANGED');
+    if(substitute&&(substitute.size<1||substitute.size>4*1024*1024))
+      reasons.push('REPLACEMENT_BUDGET');
+    if(row&&source&&substitute&&!current(source,substitute,epoch,row.fileUid))
+      reasons.push('EXACT_FILE_OR_SELECTION_EPOCH_CHANGED');
+    prepareButton.dataset.blockReason=reasons.join(',')||'READY_FOR_STRICT_WRITER_CHECK';
+    prepareButton.disabled=reasons.length>0;
   }
   sourceInput.addEventListener('change',async()=>{
     invalidate();review.checked=false;
