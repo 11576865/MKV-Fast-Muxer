@@ -679,16 +679,16 @@
     {
       "round": 3,
       "focus": "P1持久化与权限",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "not-run",
+      "state": "submitted",
+      "head_sha": "a305dde5486c068f689d45f340dfdd457e02c5b8",
+      "pr": 144,
+      "ci": "pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
       "round": 4,
       "focus": "P2结构安全操作",
-      "state": "planned",
+      "state": "in-progress",
       "head_sha": null,
       "pr": null,
       "ci": "not-run",
