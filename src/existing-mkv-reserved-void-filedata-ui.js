@@ -24,9 +24,18 @@ export function setupReservedVoidFileDataUI({
     status.textContent=message;status.dataset.state=state;
   }
   function current(sourceFile,newFile,target,token) {
+    // Bind each exact File grant once, at the original FileList selection
+    // change. Some Chromium FileList item accessors expose a new JS File
+    // wrapper for the SAME already-selected item on a subsequent read:
+    // re-reading input.files[0] to demand object === is then a false stale
+    // detection. A different file picker selection creates a new FileList
+    // generation and dispatches change, invalidating the epoch/approval.
+    // The writer also hashes both captured, genuine File values at prepare,
+    // execute and output audit. Never re-infer authority from names/sizes.
     return token===epoch&&inspection?.source===sourceFile&&review.checked&&
-      sourceList===sourceInput.files&&sourceInput.files?.[0]===sourceFile&&
-      substituteList===replacementInput.files&&replacementInput.files?.[0]===newFile&&
+      source===sourceFile&&substitute===newFile&&
+      sourceList===sourceInput.files&&
+      substituteList===replacementInput.files&&
       targetSelect.value===target;
   }
   function selected(){
