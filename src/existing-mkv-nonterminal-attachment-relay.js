@@ -1,5 +1,6 @@
 import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
 import { inspectRawSegmentPreservation } from './matroska-raw-preservation-contract.js';
+import { calculateEbmlMasterCrc32,assertEbmlMasterCrc32,ebmlCrc32LE } from './ebml-crc32-bounded.js';
 
 /**
  * P0/P2-N: relocate a NON-terminal, already-indexed Attachments master
@@ -120,9 +121,20 @@ async function sourceGeometry(source,raw,target){
    throw Error('RELAY_UNIQUE_NONTERMINAL_ATTACHMENTS_REQUIRED');
  const master=masters[0];
  const rows=await children(source,master.dataStart,master.end);
- if(rows.some(x=>x.id===ID.crc))throw Error('RELAY_ATTACHMENTS_CRC_BLOCKED');
- if(rows.some(x=>x.id!==ID.attached&&x.id!==ID.void))
+ if(rows.some(x=>x.id!==ID.attached&&x.id!==ID.void&&x.id!==ID.crc))
    throw Error('RELAY_UNKNOWN_ATTACHMENTS_CHILD');
+ const masterCrcRows=rows.filter(x=>x.id===ID.crc);
+ if(masterCrcRows.length>1)throw Error('RELAY_DUPLICATE_ATTACHMENTS_CRC');
+ const crcDescriptor=(parent,element)=>{
+   if(!element)return null;
+   if(element.size!==4)throw Error('RELAY_CRC_PAYLOAD_NOT_FOUR_BYTES');
+   if(element.start!==parent.dataStart)throw Error('RELAY_CRC_MUST_BE_FIRST_CHILD');
+   return {masterDataStart:parent.dataStart,masterEnd:parent.end,
+     crcStart:element.start,crcEnd:element.end,crcDataStart:element.dataStart};
+ };
+ const masterCrc=crcDescriptor(master,masterCrcRows[0]);
+ if(masterCrc)try{await assertEbmlMasterCrc32(source,masterCrc);}
+   catch{throw Error('RELAY_ORIGINAL_ATTACHMENTS_CRC_INVALID');}
  const attached=rows.filter(x=>x.id===ID.attached);
  if(!attached.length)throw Error('RELAY_ATTACHEDFILE_REQUIRED');
  // Select by the REAL FileData byte span, not by ordinal position or name.
@@ -133,12 +145,17 @@ async function sourceGeometry(source,raw,target){
    const fields=await children(source,member.dataStart,member.end);
    const candidates=fields.filter(x=>x.id===ID.data);
    if(candidates.length!==1)throw Error('RELAY_AMBIGUOUS_ATTACHED_FILEDATA');
+   const crcRows=fields.filter(x=>x.id===ID.crc);
+   if(crcRows.length>1)throw Error('RELAY_DUPLICATE_ATTACHEDFILE_CRC');
+   const childCrc=crcDescriptor(member,crcRows[0]);
+   if(childCrc)try{await assertEbmlMasterCrc32(source,childCrc);}
+     catch{throw Error('RELAY_ORIGINAL_ATTACHEDFILE_CRC_INVALID');}
    if(candidates[0].dataStart===target.dataRange.offset &&
       candidates[0].size===target.byteLength){
-     if(fields.some(x=>x.id===ID.crc))throw Error('RELAY_ATTACHEDFILE_CRC_BLOCKED');
-     if(fields.some(x=>!ATTACHED_FIELDS.has(x.id)))
+     if(fields.some(x=>!ATTACHED_FIELDS.has(x.id)&&x.id!==ID.crc))
        throw Error('RELAY_UNKNOWN_ATTACHEDFILE_CHILD');
-     matches.push({member,data:candidates[0],ordinal:attached.indexOf(member)});
+     matches.push({member,data:candidates[0],childCrc,
+       ordinal:attached.indexOf(member)});
    }
  }
  if(matches.length!==1)throw Error('RELAY_TARGET_FILEDATA_NOT_UNIQUE');
@@ -175,7 +192,7 @@ async function sourceGeometry(source,raw,target){
   }
  }
  if(!recognized)throw Error('RELAY_ATTACHMENTS_SEEK_ENTRY_REQUIRED');
- return {seg,nodes,master,attached:selected.member,data:selected.data,seekPatches,recognized,selectedOrdinal:selected.ordinal,totalAttached:attached.length};
+ return {seg,nodes,master,attached:selected.member,data:selected.data,seekPatches,recognized,selectedOrdinal:selected.ordinal,totalAttached:attached.length,masterCrc,childCrc:selected.childCrc};
 }
 export async function prepareNonterminalAttachmentRelay({
  source,replacement,targetFileUid,approveRelocation=false,
@@ -236,6 +253,8 @@ export async function prepareNonterminalAttachmentRelay({
     selectedAttachmentIndex:geometry.selectedOrdinal,
     originalAttachmentCount:geometry.totalAttached,
     laterAttachmentDataOffsetsRelocatedByDelta:geometry.selectedOrdinal<geometry.totalAttached-1,
+    originalAttachedFileCrc32Recomputed:Boolean(geometry.childCrc),
+    originalAttachmentsCrc32Recomputed:Boolean(geometry.masterCrc),
     originalProtectedOffsetsStayFixed:true,seekheadRelayAtOriginalMaster:true},
   evidence:{sourceSha256:sourceSha,oldFileDataSha256:oldSha,newFileDataSha256:nextSha,
     sourceGraph:'observed-and-unreferenced',generalWriter:false},
@@ -253,7 +272,7 @@ export async function executeNonterminalAttachmentRelay(plan){
  if(await hash(source)!==sourceSha||await hash(replacement)!==nextSha)
    throw Error('RELAY_FILES_CHANGED_AFTER_REVIEW');
  const delta=replacement.size-target.byteLength;
- const appended=diffBlob(source,[
+ let appended=diffBlob(source,[
   ...[g.master,g.attached,g.data].map(e=>({
    from:e.sizeStart,to:e.dataStart,payload:vint(e.size+delta,e.w),
   })),
@@ -261,6 +280,31 @@ export async function executeNonterminalAttachmentRelay(plan){
  ]).slice(g.master.start,g.master.end+delta);
  if(appended.size!==appendedBytes)
    throw Error('RELAY_APPENDED_MASTER_SIZE_INVALID');
+ // EBML CRC-32 covers all Master DATA except the complete CRC-32 Element.
+ // After changing FileData and parent sizes, recompute the inner CRC first,
+ // then the containing Attachments CRC, whose coverage includes the new inner
+ // CRC bytes. Only the four CRC payload bytes change; element sizes/IDs do not.
+ const scopeInAppended=scope=>{
+   const relocated=old=>old-g.master.start+(old>=g.data.end?delta:0);
+   return {masterDataStart:relocated(scope.masterDataStart),
+     masterEnd:relocated(scope.masterEnd),
+     crcStart:relocated(scope.crcStart),crcEnd:relocated(scope.crcEnd),
+     crcDataStart:relocated(scope.crcDataStart)};
+ };
+ for(const scoped of [g.childCrc,g.masterCrc]){
+   if(!scoped)continue;
+   const location=scopeInAppended(scoped);
+   const value=await calculateEbmlMasterCrc32(appended,location);
+   appended=new Blob([
+     appended.slice(0,location.crcDataStart),
+     ebmlCrc32LE(value),
+     appended.slice(location.crcEnd),
+   ],{type:'application/octet-stream'});
+   try{await assertEbmlMasterCrc32(appended,location);}
+     catch{throw Error('RELAY_EMITTED_CRC_AUDIT_FAILED');}
+ }
+ if(appended.size!==appendedBytes)
+   throw Error('RELAY_EMITTED_CRC_CHANGED_MASTER_SIZE');
  const output=diffBlob(source,[
   {from:g.seg.sizeStart,to:g.seg.dataStart,
     payload:vint(g.seg.size+appendedBytes,g.seg.w)},
@@ -339,6 +383,9 @@ export async function executeNonterminalAttachmentRelay(plan){
    originalProtectedMediaTagsChaptersCuesUnchanged:true,
    originalAttachedUIDsAndOtherDataVerified:true,
    laterAttachmentOffsetsAccountedForDelta:true,
+   boundedOriginalAndOutputCrc32Verified:true,
+   originalAttachedFileCrc32Recomputed:Boolean(g.childCrc),
+   originalAttachmentsCrc32Recomputed:Boolean(g.masterCrc),
    selectedAttachmentIndex:plan.geometry.selectedAttachmentIndex,
    chainedSeekHeadAtOldAttachmentOffset:true,
    originalAttachmentIndexRedirected:plan.geometry.seekEntriesRedirected,

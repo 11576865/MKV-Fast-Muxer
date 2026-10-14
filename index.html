@@ -179,7 +179,7 @@
             </details>
             <details id="existingMkvRelayDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-relay-title">
               <summary id="existing-mkv-relay-title">非末尾附件变长编辑：链式 SeekHead 重定位（实验性独立副本）</summary>
-              <p class="attachment-extraction-help">当原 MKV 的 Attachments <strong>不是</strong> Segment 最末尾元素，但其原始 SeekHead 已正确索引附件位置时，可对<strong>任意一个未被 TagAttachmentUID 引用</strong>的已有附件进行变长替换。即使修改的是中间附件，也会逐项核对其后附件在新主元素内的偏移、FileUID 和内容哈希。将变更后的 Attachments 追加到 Segment 末尾，原位置换成<strong>完全等长的中继 SeekHead</strong>，仅把原 SeekID 重定向至中继；媒体轨、章节、Tags、Cues 的原始字节与位置均不移动。仅接受原位置足以容纳合法中继、四层尺寸字段容量足够、无受影响 CRC、无未知顶层 EBML 的来源；不支持普遍的 SeekHead/Cues 重算或其他附件目标变更。来源 ≤60 MiB，新数据 ≤4 MiB，不覆盖原文件，也不进行 FFmpeg 重封装。</p>
+              <p class="attachment-extraction-help">当原 MKV 的 Attachments <strong>不是</strong> Segment 最末尾元素，但其原始 SeekHead 已正确索引附件位置时，可对<strong>任意一个未被 TagAttachmentUID 引用</strong>的已有附件进行变长替换。即使修改的是中间附件，也会逐项核对其后附件在新主元素内的偏移、FileUID 和内容哈希。将变更后的 Attachments 追加到 Segment 末尾，原位置换成<strong>完全等长的中继 SeekHead</strong>，仅把原 SeekID 重定向至中继；媒体轨、章节、Tags、Cues 的原始字节与位置均不移动。仅接受原位置足以容纳合法中继、四层尺寸字段容量足够、受影响的 CRC-32 必须原始有效且使用 4 字节校验值（新副本重算内外两层）、无未知顶层 EBML 的来源；不支持普遍的 SeekHead/Cues 重算或其他附件目标变更。来源 ≤60 MiB，新数据 ≤4 MiB，不覆盖原文件，也不进行 FFmpeg 重封装。</p>
               <div class="existing-mkv-limited-fields">
                 <label>来源 Matroska 文件
                   <input id="existingMkvRelaySource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择拥有非末尾附件及可验证 SeekHead 索引的 Matroska" />

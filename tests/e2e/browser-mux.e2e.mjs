@@ -4529,6 +4529,122 @@ async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   }
 }
 
+async function scenarioVerifiedNestedAttachmentCrcRelocation(browser) {
+  console.log('P0/P2-C real Chromium: valid ORIGINAL nested + parent CRC32, changed FileData, independent Python zlib and native MKV oracle');
+  const nativeOriginal=path.join(outDir,'p2-crc-mkvtoolnix-original.mkv');
+  const crcSource=path.join(outDir,'p2-crc-mkvtoolnix-valid-source.mkv');
+  const resultFile=path.join(outDir,'p2-crc-native-chromium-delivered.mkv');
+  await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),nativeOriginal);
+  execFileSync('mkvpropedit',[nativeOriginal,'--chapters',
+    path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
+  execFileSync('python3',[
+    path.join(process.cwd(),'scripts/p2-crc32-native-attachment-oracle.py'),
+    'prepare',nativeOriginal,crcSource,
+  ],{timeout:60000,encoding:'utf8'});
+  execFileSync('python3',[
+    path.join(process.cwd(),'scripts/p2-crc32-native-attachment-oracle.py'),
+    'audit',crcSource,
+  ],{timeout:60000});
+  const native=file=>parseMkvmergeJsonWithExactUids(execFileSync('mkvmerge',['-J',file],
+    {encoding:'utf8',timeout:60000}));
+  const first=native(crcSource);
+  assert.equal(first.attachments?.length,2,'native MKVToolNix must recognize CRC-bearing original');
+  const linked=first.attachments.find(x=>x.file_name==='p0-attachment-evidence.bin');
+  const free=first.attachments.find(x=>x.file_name==='p0-attachment-decoy.txt');
+  assert.ok(linked&&free);
+  const firstUid=exactPositiveUid(linked.properties.uid);
+  const freeUid=exactPositiveUid(free.properties.uid);
+  assert.notEqual(firstUid,freeUid);
+  const originalHash=createHash('sha256').update(await fs.readFile(crcSource)).digest('hex');
+  const replacement=Buffer.alloc(721,0x41);
+  assert.notEqual(replacement.length,free.size);
+  const packets=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  const oldPackets=packets(crcSource);
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#existingMkvRelayDetails > summary').click();
+    await page.setInputFiles('#existingMkvRelaySource',crcSource);
+    await page.waitForFunction(()=>
+      document.querySelector('#existingMkvRelayTarget')?.options.length===2,
+      null,{timeout:60000});
+    const options=await page.locator('#existingMkvRelayTarget option')
+      .evaluateAll(nodes=>nodes.map(x=>({uid:x.value,name:x.textContent,disabled:x.disabled})));
+    assert.equal(options.find(x=>x.name.includes('p0-attachment-evidence.bin'))?.disabled,true,
+      'real TagAttachmentUID still blocks linked target despite CRC');
+    const unreferenced=options.find(x=>x.name.includes('p0-attachment-decoy.txt'));
+    assert.ok(unreferenced&&!unreferenced.disabled);
+    assert.equal(unreferenced.uid,freeUid);
+    await page.locator('#existingMkvRelayTarget').selectOption(freeUid);
+    await page.setInputFiles('#existingMkvRelayReplacement',{
+      name:'new-p2-crc-payload.bin',mimeType:'application/octet-stream',buffer:replacement,
+    });
+    assert.equal(await page.locator('#existingMkvRelayPrepare').isDisabled(),true);
+    await page.locator('#existingMkvRelayReview').check();
+    assert.equal(await page.locator('#existingMkvRelayPrepare').isEnabled(),true);
+    await page.locator('#existingMkvRelayPrepare').click();
+    await page.waitForFunction(()=>['prepared','blocked'].includes(
+      document.querySelector('#existingMkvRelayStatus')?.dataset.state),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#existingMkvRelayStatus').getAttribute('data-state'),
+      'prepared',await page.locator('#existingMkvRelayStatus').textContent());
+    const uiProof=await page.locator('#existingMkvRelayEvidence').textContent();
+    assert.match(uiProof,/SHA-256/);
+    assert.match(uiProof,/CRC-32/);
+    assert.equal((uiProof.match(/已重算并复验/g)||[]).length,2,
+      'review UI must show independently checked inner + outer CRC coverage');
+    await page.setViewportSize({width:768,height:1024});
+    await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
+    await page.locator('#existingMkvRelayDetails').screenshot({
+      path:path.join(outDir,'mkv-nonterminal-crc32-relay-tablet-768.png'),animations:'disabled',
+    });
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),page.locator('#existingMkvRelaySave').click(),
+    ]);
+    await download.saveAs(resultFile);
+    assert.equal(createHash('sha256').update(await fs.readFile(crcSource)).digest('hex'),
+      originalHash,'CRC source must remain untouched');
+    const crcOutput=execFileSync('python3',[
+      path.join(process.cwd(),'scripts/p2-crc32-native-attachment-oracle.py'),
+      'audit',resultFile,
+    ],{timeout:60000,encoding:'utf8'});
+    assert.match(crcOutput,/PYTHON_ZLIB_NATIVE_MKV_PARENT_AND_NESTED_CRC32_PASS/);
+    const final=native(resultFile);
+    assert.equal(final.attachments?.length,2);
+    for(const name of ['p0-attachment-evidence.bin','p0-attachment-decoy.txt']){
+      const a=first.attachments.find(x=>x.file_name===name);
+      const b=final.attachments.find(x=>x.file_name===name);
+      assert.ok(a&&b);
+      assert.equal(exactPositiveUid(b.properties.uid),exactPositiveUid(a.properties.uid));
+      assert.equal(b.content_type,a.content_type);
+    }
+    for(const kind of ['chapters','tags']){
+      const a=path.join(outDir,'p2-crc-source-'+kind+'.xml'),
+        b=path.join(outDir,'p2-crc-result-'+kind+'.xml');
+      execFileSync('mkvextract',[crcSource,kind,a],{timeout:60000});
+      execFileSync('mkvextract',[resultFile,kind,b],{timeout:60000});
+      assert.deepEqual(await fs.readFile(b),await fs.readFile(a));
+    }
+    const linkedBefore=path.join(outDir,'p2-crc-linked-before.bin'),
+      linkedAfter=path.join(outDir,'p2-crc-linked-after.bin'),
+      replacementAfter=path.join(outDir,'p2-crc-free-after.bin');
+    execFileSync('mkvextract',[crcSource,'attachments',
+      String(linked.id)+':'+linkedBefore],{timeout:60000});
+    const newLinked=final.attachments.find(x=>x.file_name===linked.file_name);
+    const newFree=final.attachments.find(x=>x.file_name===free.file_name);
+    execFileSync('mkvextract',[resultFile,'attachments',
+      String(newLinked.id)+':'+linkedAfter,
+      String(newFree.id)+':'+replacementAfter],{timeout:60000});
+    assert.deepEqual(await fs.readFile(linkedAfter),await fs.readFile(linkedBefore));
+    assert.deepEqual(await fs.readFile(replacementAfter),replacement);
+    assert.deepEqual(packets(resultFile),oldPackets,
+      'original compressed packets and packet timestamps must survive both nested CRC edits');
+    console.log('P0/P2-C ORIGINAL native CRC32 Attachments + AttachedFile → Chromium changed FileData → INDEPENDENT Python zlib nested+parent CRC32 + mkvmerge/mkvextract/ffprobe PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioNonfinalAttachedFileRelayNative(browser) {
   console.log('P0/P2-N2 original native 3-attachment nonterminal: resize MIDDLE FileData, preserve LATER attachment UID, SHA and tags');
   const original=path.join(outDir,'p2-relay-original-native-three-attached.mkv');
@@ -5477,6 +5593,7 @@ try {
   await scenarioTailNoVoidExistingAttachmentResize(browser);
   await scenarioNonterminalIndexedAttachmentRelay(browser);
   await scenarioNonfinalAttachedFileRelayNative(browser);
+  await scenarioVerifiedNestedAttachmentCrcRelocation(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
