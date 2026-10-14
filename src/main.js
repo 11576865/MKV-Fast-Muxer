@@ -517,8 +517,26 @@ function safeOutputName(videoName) {
   return videoName.replace(/\.[^.]+$/, '') + '.mkv';
 }
 
+// A selected FileList is the explicit identity boundary. Browsers may hand
+// out new File wrappers on repeated reads even though selection did not
+// change. Pin each exact File grant to its FileList generation and invalidate
+// it on an actual picker change, never by matching display metadata.
+const liveFileListPins = new WeakMap();
+function exactSelectionFiles(input) {
+  const selection=input.files;
+  if(!selection)return [];
+  let pinned=liveFileListPins.get(input);
+  if(!pinned || pinned.list!==selection) {
+    pinned={list:selection,files:Array.from(selection)};
+    liveFileListPins.set(input,pinned);
+  }
+  return pinned.files.slice();
+}
+function invalidateExactSelectionFiles(input) {
+  liveFileListPins.delete(input);
+}
 function selectedFonts() {
-  return Array.from(fontInput.files || []);
+  return exactSelectionFiles(fontInput);
 }
 
 function fontSelectionKey(files = selectedFonts()) {
@@ -594,11 +612,11 @@ async function inspectSelectedFonts() {
 }
 
 function selectedExternalAudioFiles() {
-  return Array.from(audioInput.files || []);
+  return exactSelectionFiles(audioInput);
 }
 
 function selectedSubtitleRawFiles() {
-  return Array.from(subInput.files || []);
+  return exactSelectionFiles(subInput);
 }
 
 function subtitleSelectionKey(files = selectedSubtitleRawFiles()) {
@@ -2542,10 +2560,12 @@ videoInput.addEventListener('change', () => {
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(audioInput);
   syncNewTrackState();
   updateUI();
 });
 subInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(subInput);
   subtitleInspectGeneration += 1;
   subtitleInspectState = {
     status: 'idle',
@@ -2560,6 +2580,7 @@ subInput.addEventListener('change', () => {
   previewStatus.textContent = '字幕已更换；正在识别实际字幕格式。';
 });
 fontInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(fontInput);
   refreshExternalAssetAuthority();
   fontInspectGeneration += 1;
   fontInspectState = {
