@@ -195,7 +195,6 @@ test('unsupported source modifications reject the full mixed import', () => {
   const { state, live } = fixture();
   for (const unsupported of [
     ['attachment', 'reorder', null, 0],
-    ['audio', 'reorder', null, 0],
     ['video', 'set-attribute', 'title', 'new title'],
   ]) {
     const draft = editProject(live, [title, unsupported]);
@@ -396,4 +395,119 @@ test('attachment replay rejects malicious metadata and preserves entire edit set
   assert.throws(()=>prepare({draft:mixed,liveProjection:live,
     sourceProof:proof,trackState:state}),/ATTACHMENT_REPLAY_METADATA_INVALID/);
   assert.equal(JSON.stringify(state.tracks)+JSON.stringify(state.attachments),before);
+});
+
+function fixtureForSourceOrder() {
+  const f=fixtureWithTwoAttachments();
+  const second={index:4,codec_type:'audio',codec_name:'aac',
+    tags:{title:'Secondary',language:'eng'},disposition:{default:0}};
+  // Source audio index is intentionally sparse; project order slots
+  // cannot be copied directly to FFmpeg numeric order values.
+  f.state.streams.push(second);
+  f.state.tracks.push(mkTrack(4,'audio',second));
+  f.live=buildContainerDocument({video:f.file,trackState:f.state});
+  return f;
+}
+const sourceOrder = state => state.tracks.filter(t=>t.type==='audio')
+  .sort((a,b)=>a.order-b.order).map(row=>row.index);
+
+test('scanned audio permutation survives portable JSON and verified replay despite sparse stream order', async () => {
+  const {file,state}=fixtureForSourceOrder();
+  const baselineOrder=sourceOrder(state);
+  assert.deepEqual(baselineOrder,[1,4]);
+  const first=state.tracks.find(t=>t.index===1);
+  const second=state.tracks.find(t=>t.index===4);
+  [first.order,second.order]=[second.order,first.order];
+  first.title='Edited after ordering';
+  state.attachments[0].filename='New font.ttf';
+  const changed=buildContainerDocument({video:file,trackState:state});
+  const draft=parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(changed)));
+  const reorder=draft.editIntents.filter(i=>i.type==='reorder');
+  assert.equal(reorder.length,2);
+  assert.deepEqual(reorder.map(i=>[i.from,i.to]),[[2,1],[1,2]]);
+  [first.order,second.order]=[second.order,first.order];
+  first.title='';
+  state.attachments[0].filename='Font.ttf';
+  const clean=buildContainerDocument({video:file,trackState:state});
+  const plan=prepare({draft,liveProjection:clean,sourceProof:proof,trackState:state});
+  assert.equal(plan.tracks.length,2);
+  assert.equal(plan.attachments.length,1);
+  const receipt=apply(plan,state);
+  assert.equal(receipt.fileWritten,false);
+  assert.deepEqual(sourceOrder(state),[4,1]);
+  assert.deepEqual(state.tracks.filter(t=>t.type==='audio')
+    .map(t=>t.order).sort((a,b)=>a-b),[1,4]);
+  assert.equal(first.title,'Edited after ordering');
+  assert.equal(state.attachments[0].filename,'New font.ttf');
+  const {revertPreparedTrackReplay:undo}=await import('../src/container-project-restore.js');
+  const reversed=undo(plan,state);
+  assert.equal(reversed.revertedTracks,2);
+  assert.equal(reversed.revertedAttachments,1);
+  assert.deepEqual(sourceOrder(state),baselineOrder);
+  assert.equal(state.attachments[0].filename,'Font.ttf');
+});
+
+test('same-kind order intent cannot move a track into another kind slot or invent duplicate slots', () => {
+  const {state,live}=fixtureForSourceOrder();
+  const project=createContainerProjectFromProjection(live);
+  const audio=project.objects.filter(o=>o.kind==='audio' && o.sourceId);
+  const subtitle=project.objects.find(o=>o.kind==='subtitle' && o.sourceId);
+  assert.equal(audio.length,2);
+  for(const targetOrder of [audio[0].order,subtitle.order]) {
+    const unsafe=applyContainerProjectEdit(project,{
+      type:'reorder',objectId:audio[1].id,value:targetOrder,
+    });
+    const draft=parseContainerProjectDraft(serializeContainerProject(unsafe));
+    const previous=JSON.stringify(state.tracks);
+    assert.throws(()=>prepare({draft,liveProjection:live,sourceProof:proof,trackState:state}),
+      /TRACK_REPLAY_ORDER_NOT_PERMUTATION/);
+    assert.equal(JSON.stringify(state.tracks),previous);
+  }
+});
+
+test('order replay refuses excluded cohorts and executor order drift without partial state', () => {
+  const {file,state,live}=fixtureForSourceOrder();
+  const audio=state.tracks.filter(t=>t.type==='audio');
+  [audio[0].order,audio[1].order]=[audio[1].order,audio[0].order];
+  const changed=buildContainerDocument({video:file,trackState:state});
+  const draft=parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(changed)));
+  [audio[0].order,audio[1].order]=[audio[1].order,audio[0].order];
+  audio[1].include=false;
+  let current=buildContainerDocument({video:file,trackState:state});
+  assert.throws(()=>prepare({draft,liveProjection:current,sourceProof:proof,trackState:state}),
+    /TRACK_REPLAY_(BASELINE_NOT_VERIFIED|ORDER_INVENTORY_UNSAFE)/);
+  audio[1].include=true;
+  audio[1].order=audio[0].order;
+  current=buildContainerDocument({video:file,trackState:state});
+  const before=JSON.stringify(state.tracks);
+  assert.throws(()=>prepare({draft,liveProjection:current,sourceProof:proof,trackState:state}),
+    /TRACK_REPLAY_(BASELINE_NOT_VERIFIED|ORDER_INVENTORY_UNSAFE|ORDER_PROJECTION_DRIFT)/);
+  assert.equal(JSON.stringify(state.tracks),before);
+});
+
+test('order restore validates ALL kind peers at final commit and inverse before mutation', async () => {
+  const {file,state}=fixtureForSourceOrder();
+  const audio=state.tracks.filter(t=>t.type==='audio');
+  [audio[0].order,audio[1].order]=[audio[1].order,audio[0].order];
+  const edited=buildContainerDocument({video:file,trackState:state});
+  const draft=parseContainerProjectDraft(serializeContainerProject(
+    createEditedContainerProjectFromProjection(edited)));
+  [audio[0].order,audio[1].order]=[audio[1].order,audio[0].order];
+  const live=buildContainerDocument({video:file,trackState:state});
+  const plan=prepare({draft,liveProjection:live,sourceProof:proof,trackState:state});
+  const originalStream=audio[1].stream;
+  audio[1].stream={...originalStream};
+  assert.throws(()=>apply(plan,state),/TRACK_REPLAY_LIVE_STATE_CHANGED/);
+  assert.deepEqual(sourceOrder(state),[1,4]);
+  audio[1].stream=originalStream;
+  apply(plan,state);
+  assert.deepEqual(sourceOrder(state),[4,1]);
+  const {revertPreparedTrackReplay:undo}=await import('../src/container-project-restore.js');
+  audio[0].order=audio[1].order;
+  assert.throws(()=>undo(plan,state),/TRACK_REPLAY_UNDO_CONFLICT/);
+  audio[0].order=4;
+  undo(plan,state);
+  assert.deepEqual(sourceOrder(state),[1,4]);
 });
