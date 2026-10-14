@@ -189,6 +189,31 @@
               <div id="existingImpactInventory" class="existing-impact-inventory" aria-label="附件 UID 与模拟影响清单"></div>
               <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
             </details>
+            <details id="p2MetadataInlineDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="p2-metadata-title">
+              <summary id="p2-metadata-title">实际章节标题与标签文本编辑：仅等字节长度（独立 MKV 副本）</summary>
+              <p class="attachment-extraction-help">选择包含 Chapters/Tags 的 Matroska（允许没有视频的 .mka/.mks/.mkv），定位真实 ChapString 或 TagString。仅当新旧 UTF-8 编码字节长度完全相等、来源是完整已知长度 Segment、没有影响路径上的 CRC、全部相关原始字节可验证时才允许替换。不会修改 ChapterUID、TagTarget、Cues、SeekHead、Cluster 和任何源文件；这不是任意长度的章节／标签写入器。</p>
+              <div class="existing-mkv-limited-fields">
+                <label>Matroska 来源
+                  <input id="p2MetadataSource" type="file" accept=".mkv,.mka,.mks,.mk3d" />
+                </label>
+                <label>现有章节标题或 Tag 文本
+                  <select id="p2MetadataField" aria-label="选择真实 ChapString 或 TagString"></select>
+                </label>
+                <label>新的等 UTF-8 字节长度文本
+                  <input id="p2MetadataNewText" type="text" maxlength="512" />
+                </label>
+              </div>
+              <label class="multi-attachment-review">
+                <input id="p2MetadataReview" type="checkbox" />
+                我确认只编辑所选文本，并保持新旧 UTF-8 字节长度相同；无法证明的结构必须拒绝，只保存独立副本。
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="p2MetadataPrepare" class="button button-small" type="button" disabled>验证并制作独立 MKV 副本</button>
+                <button id="p2MetadataSave" class="button button-small" type="button" disabled>下载已核对的新副本</button>
+              </div>
+              <div id="p2MetadataStatus" role="status" aria-live="polite" data-state="idle"></div>
+              <div id="p2MetadataEvidence" class="existing-mkv-limited-evidence" aria-label="实际章节标签结构与内容字节验证摘要"></div>
+            </details>
             <details id="existingMkvRoutedEditDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-routed-title">
               <summary id="existing-mkv-routed-title">统一的已有 MKV 附件替换：自动选择经验证的安全写入路径</summary>
               <p class="attachment-extraction-help">选择真实来源、已有 FileUID 和替换文件。系统根据完整原始 UID/Tag 关系和受限 EBML 结构，优先尝试同长度局部替换、相邻 Void、末尾附件扩缩或非末尾 SeekHead 中继。每种能力仍由原独立写入器证明，统一再校验全部原附件、UID 关联、受保护顶层字节和输出 SHA-256；没有任何合格路径时拒绝。不修改源文件，不调用 FFmpeg，也不承诺任意 MKV/播放器兼容。来源 ≤60 MiB，新附件数据 ≤4 MiB。</p>
