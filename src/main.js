@@ -657,6 +657,10 @@ async function inspectSelectedSubtitles() {
     selectionKey,
     collected: null,
   };
+  // A newly selected FileList invalidates the old editor immediately,
+  // before asynchronous subtitle inspection can finish. Otherwise a rapid
+  // second-task edit may target an obsolete DOM row and lose the user's title.
+  syncNewTrackState();
   updateUI();
 
   const collected = await identifySubtitleInputs(files, { concurrency: 8 });
@@ -4435,7 +4439,19 @@ async function executeCurrentMuxTask(explicit = null) {
           verifyCurrent();
         } catch(error) {
           if (error?.message !== 'EXTERNAL_DOMAIN_INVENTORY_CHANGED') throw error;
-          syncNewTrackState();
+          // Rebinding an external font/file inventory must never re-infer
+          // authorized metadata. Validate exact currently selected File and
+          // sidecar references before rebuilding the immutable owner.
+          const audioFiles=selectedExternalAudioFiles();
+          const subtitles=selectedSubtitleTrackInputs().tracks;
+          if(audioFiles.length!==externalAudioState.length ||
+              subtitles.length!==newSubtitleState.length ||
+              audioFiles.some((file,index)=>externalAudioState[index]?.file!==file) ||
+              subtitles.some((track,index)=>
+                newSubtitleState[index]?.file!==track.file ||
+                newSubtitleState[index]?.sidecarFile!==(track.sidecarFile||null)))
+            throw Error('EXTERNAL_DOMAIN_REBIND_SOURCE_CHANGED');
+          refreshExternalAssetAuthority();
         }
         externalAssetPendingTaskRebind=false;
       }
