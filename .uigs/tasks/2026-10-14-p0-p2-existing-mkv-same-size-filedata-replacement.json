@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-14-p0-p2-same-size-existing-attachment-replace",
+  "level": "product-block-P0-P2",
+  "project_id": "MKV-Fast-Muxer",
+  "status": "submitted-pending-exact-head-node-build-chromium",
+  "goal": "Implement a genuinely useful existing-MKV non-remuxing attachment FileData replacement with byte-exact preservation for the original segment graph and independently audited output; never presume general EBML write authority.",
+  "branch": "feat/p0-p2-same-size-attachment-replace-block-20261014",
+  "pull_request": null,
+  "scope": {
+    "writer": "same-byte-length replacement of exactly one unreferenced existing AttachedFile FileData; protected original offsets and metadata remain unchanged",
+    "source": "small genuine Matroska with existing Attachments + Tracks/Cluster",
+    "guards": [
+      "<=60MiB source; <=4MiB replacement",
+      "target FileUID unreferenced by all observed Tags; unknown relation blocks",
+      "no Segment or Attachments CRC, no unknown top-level children",
+      "exact replacement length and source/payload hash",
+      "no old source overwrite, reviewed independent new Blob only",
+      "new output retains all non-Attachments raw commitments and all other attachment bytes"
+    ],
+    "out_of_scope": [
+      "variable size/SeekHead/Cues rewrite",
+      "referenced AttachmentUID replacement",
+      "general Chapter/Tag editing and unknown EBML",
+      "large files and all-player compatibility"
+    ]
+  },
+  "implemented": [
+    "existing-mkv-same-size-attachment-replace.js private frozen plan and source/substitute SHA bound to real Blob",
+    "bounded nested EBML Attachments CRC/range scan and UID relation gate",
+    "independent strict raw preservation and new reader + FileData SHA audit",
+    "workbench UID picker with linked target block, explicit consent and stale selection invalidation",
+    "synthetic adversarial Node tests and real Chromium MKVToolNix-authored complex fixture independent xml/packet/attachment oracle"
+  ],
+  "validation": {
+    "node": "pending",
+    "vite_build": "pending",
+    "browser_full": "pending",
+    "real_2_original_attachments_and_tagged_uid": "pending",
+    "source_unchanged": "pending",
+    "cross_device": "unknown",
+    "general_p0_issue77": "not_proven"
+  },
+  "next_units": [
+    "Open one direct-main integrated PR for entire P0/P2 same-size working block; run Node+build+full Chromium.",
+    "Correct exact-head failure if any, without suppressing negative tests or weakening targeted UID/CRC/unknown gates.",
+    "On passing independent real output and no regressions, merge user-visible bounded existing-container edit as one deliverable.",
+    "Separate future variable-size/reference-aware writer with independent seek/CRC/UID graph repair tests."
+  ],
+  "updated_at": "2026-10-14"
+}
