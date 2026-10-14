@@ -2475,7 +2475,8 @@ async function scenarioBatchFailedJobRetry(browser) {
     const report = JSON.parse(await fs.readFile(reportPath,'utf8'));
     assert.equal(report.plan.outputName,'Batch S01E02.mkv');
     assert.equal(report.output.sha256,createHash('sha256').update(await fs.readFile(retryPath)).digest('hex'));
-    assert.equal(report.subtitle.tracks[0].language,'en');
+    // Matroska/FFmpeg normalizes the frozen `en` request to ISO 639-2 `eng` in the delivered report.
+    assert.equal(report.subtitle.tracks[0].language,'eng');
     assert.equal(streams(probe(retryPath),'subtitle')[0].codec_name,'subrip');
     // Independently check actual recovered cue payload, not just report fields.
     const recovered = execFileSync('ffmpeg',['-v','error','-i',retryPath,'-map','0:s:0','-f','srt','-'],{encoding:'utf8'});
