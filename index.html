@@ -177,6 +177,32 @@
               <div id="existingImpactInventory" class="existing-impact-inventory" aria-label="附件 UID 与模拟影响清单"></div>
               <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
             </details>
+            <details id="existingMkvReservedVoidDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-void-title">
+              <summary id="existing-mkv-void-title">已有 MKV 附件的变长替换（仅限 FileData 后紧邻预留 Void）</summary>
+              <p class="attachment-extraction-help">仅针对原本已有的未被 TagAttachmentUID 引用的附件，在<strong>同一 AttachedFile 中</strong>使用紧邻 FileData 后方的 <code>Void</code> 预留空间，允许新数据增长或缩短。原 AttachedFile、Attachments 和 Segment 的整体大小不变；原有媒体包、Chapters、Tags、UID 及其他附件不重封装、不移动。不支持无 Void、CRC 影响范围不明、未知 EBML、原附件已被定向标签关联或超出原 FileData 编码容量的来源。来源不超过 60 MiB，新 FileData 不超过 4 MiB；输出为需要单独兼容性验收的实验性新副本。</p>
+              <div class="existing-mkv-limited-fields">
+                <label>来源 Matroska（包含已有附件）
+                  <input id="existingMkvReservedVoidSource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择包含原附件和预留 Void 的 Matroska" />
+                </label>
+                <label>原有附件 FileUID
+                  <select id="existingMkvReservedVoidTarget" aria-label="选择允许变长编辑的原附件 FileUID"></select>
+                </label>
+                <label>新 FileData（不同长度）
+                  <input id="existingMkvReservedVoidReplacement" type="file" aria-label="选择用于变长 FileData 替换的真实文件" />
+                </label>
+              </div>
+              <div id="existingMkvReservedVoidInventory" class="existing-mkv-limited-evidence" aria-live="polite"></div>
+              <label class="multi-attachment-review">
+                <input id="existingMkvReservedVoidReview" type="checkbox" />
+                我已核对被替换的 FileUID，理解此操作只会在已验证的紧邻 Void 中调整 FileData/填充长度，不能修改定向标签关系，也不会覆盖源文件；普通 MKV 不一定具有预留空间。
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="existingMkvReservedVoidPrepare" class="button button-small" type="button" disabled>验证预留空间并生成新副本</button>
+                <button id="existingMkvReservedVoidSave" class="button button-small" type="button" disabled>下载本地验证的实验副本</button>
+              </div>
+              <div id="existingMkvReservedVoidStatus" role="status" aria-live="polite" data-state="idle"></div>
+              <div id="existingMkvReservedVoidEvidence" class="existing-mkv-limited-evidence" aria-label="来源 SHA、原 FileData 与新 FileData、其他结构偏移保留证据"></div>
+            </details>
             <details id="existingMkvSameSizeReplaceDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-replace-title">
               <summary id="existing-mkv-replace-title">已有 MKV 的附件数据等长替换（实验性独立副本）</summary>
               <p class="attachment-extraction-help">可对包含已有附件、章节和关联标签的 Matroska，选择一个<strong>未被 TagAttachmentUID 指向</strong>的附件，使用字节长度<strong>完全相同</strong>的新文件替换其 FileData。保留原附件 UID、名称、MIME、其他附件、所有非附件顶层元素和字节偏移。仅适用于来源不超过 60 MiB、替换数据不超过 4 MiB、来源结构已完整检验且没有影响范围内 CRC 的受限布局；不提供附件增删、重命名、文件长度变化或通用 MKV 编辑。不会覆盖原文件，不调用 FFmpeg。独立本地字节验证不能代替外部播放器与标准兼容性证明。</p>
