@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "Next P0/P2: beyond verified nonterminal source SeekHead relay—support sources without correct direct index, non-last AttachedFile, incomplete original graph/CRC and genuine complex object shifts, only behind independent native proof.",
+  "current_work_unit": "Next P0/P2: original missing/stale SeekHead indexing, CRC affected original masters, unsupported EBML child layouts and >60MiB streaming; preserve independently native-verified source-specific writers #136/#137/#138/#139/#140 and do not treat as universal rewriter.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -96,19 +96,21 @@
     "Exact-head CI 38551049217 at bfa1be00b670c92bd572b73957c4a1191a06c53c SUCCESS: 542/542 Node, build, entire real Chromium, independently authored MKVToolNix source, native mkvmerge/mkvextract and ffprobe chapter/tag/UID/FileData/packet parity. Failed earlier runs diagnosed reversed positional current(targetUid,epoch) call, corrected without removal of data/safety gates.",
     "2026-10-14 P0/P2-T FOURTH COHESIVE PRODUCT BLOCK DELIVERED TO MAIN: PR #138 merged at c769a847b7e12023024fd01b4a931e5f6ed61925, exact-head 45da93c8d9f90535efd3090d9334d085ed067157 CI #38560282611 SUCCESS 545/545 Node, full build, Chromium and independently verified real MKVToolNix/mkvextract/ffprobe Chapter/Tag/AttachmentUID/packet identity. Source-owned terminal Attachments allows no-Void FileData grow/shrink via four fixed-width SIZE field updates, retaining all prior top-level byte offsets and non-attachment objects.",
     "Independent native source fixture originally rejected relocated narrow SeekPosition and then no-index source (native mkvmerge read zero attachments). Final test-only chained SeekHead relay at original Attachments location preserved native discoverability without granting production writer arbitrary SeekHead repair. Full browser output independently accepted.",
-    "2026-10-14 P0/P2-N FIFTH COHESIVE PRODUCT BLOCK DELIVERED: PR #139 merged at 4db7eee026aff7fabed0b566bc38715c3fb45f9c; exact-head #38566327194 SUCCESS 547/547 Node, build, full Chromium and native mkvmerge/mkvextract/ffprobe real nonterminal original attachment relocation/SeekHead relay with unchanged nested Chapter/Tags, targeted other FileUID/bytes, packet hashes/timestamps. User-visible source-bound true FileUID review, frozen plan, source/picker content SHA validation, manual new copy."
+    "2026-10-14 P0/P2-N FIFTH COHESIVE PRODUCT BLOCK DELIVERED: PR #139 merged at 4db7eee026aff7fabed0b566bc38715c3fb45f9c; exact-head #38566327194 SUCCESS 547/547 Node, build, full Chromium and native mkvmerge/mkvextract/ffprobe real nonterminal original attachment relocation/SeekHead relay with unchanged nested Chapter/Tags, targeted other FileUID/bytes, packet hashes/timestamps. User-visible source-bound true FileUID review, frozen plan, source/picker content SHA validation, manual new copy.",
+    "2026-10-14 P0/P2-N2 SIXTH COHESIVE PRODUCT BLOCK DELIVERED: PR #140 merged at 010e29f22679ff3e09f91aaca6068a38dff9da10, exact-head bdd03c20889cdcbb4ee71a0046c535685fa86741, Actions 38577634115 SUCCESS 549/549 Node, Vite, full Chromium and independent MKVToolNix/mkvextract/ffprobe three-attachment original source. New selectable NONFINAL FileUID within previously proven nonterminal indexed relay; exact offsets for later untouched FileData include delta while UID, data SHA, target Tags, chapters and all packets remain unchanged.",
+    "Two red real-browser fixture authoring attempts discovered incorrect original Tag TargetTypeValue and reintroduced MKVToolNix uint64 JSON Number rounding; final acceptance reused existing exact-UID parser and checked native extracted original Tag UID digits against source, rather than weakening product UID permissions."
   ],
   "next_units": [
-    "Design next coherent production class: nonterminal original Attachments with absent/stale/narrow index lacking an existing valid direct SeekHead, or existing Attachements selected nonfinal AttachedFile. Must precisely rewrite only proved source graph with MKVToolNix source/cue/CRC native oracle and reject unknowns.",
-    "Typed writer capability chooser: exact-size, adjacent Void, terminal no-Void, nonterminal source-indexed relay. Single source-bound editor preview for each verified capability and explicit refusal explanation; do not merge gates into a generic unproven writer.",
-    "Actual TrackUID, ChapterUID, EditionUID and AttachmentUID directed edit intents require complete graph plus externally verified semantic identity preservation and CRC/size/index rewriting before enablement.",
-    "Add >60MiB stream hashing, output publication/rollback and repeated multi-platform full media seeker compatibility. No claimed large-file production safety based solely on small green fixture.",
-    "Then P3/P4/P5/P6 flagship subtitle/style/font, density/responsive UI, performance and release after P2 structural foundations."
+    "Deliver a separate comprehensive P0/P2 indexed/no-index writer capability analysis for real MKVToolNix source families, and develop additional source-specific safe structural edit where original SeekHead is absent/stale only after independent native source/output discovery proof.",
+    "Investigate CRC-bearing Attachments/AttachedFile using scoped EBML CRC re-computation and original UID relation graph, with independently verified negative corpus; do not simply drop CRC refusal.",
+    "Scale beyond <=60MiB source and <=4MiB payload with streaming original/output hash, content-addressed source grant, transactional independent publication and native seek/playback on large multi-Cluster sample.",
+    "Unify actual editor UX around verified capabilities: exact-length #136, adjacent Void #137, terminal-master #138, original nonterminal indexed #139/#140 any unreferenced original AttachedFile; surface source eligibility and all explicit deny reasons without general writer overclaim.",
+    "Then resume P3/P4/P5/P6 professional subtitle/font, workspace UI, performance and release blocks."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "4db7eee026aff7fabed0b566bc38715c3fb45f9c",
+  "last_durable_commit": "010e29f22679ff3e09f91aaca6068a38dff9da10",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -155,7 +157,11 @@
     "pr139-nonterminal-source-indexed-relay-node-build-browser": "passed_exact_head_38566327194_547_of_547",
     "pr139-original-native-MKV-nonterminal-real-output": "passed_chained_SeekHead_attachment_discovery_and_independent_Chapters_Tags_UID_FileData_packet_oracle",
     "pr139-merged-main": "passed_4db7eee026aff7fabed0b566bc38715c3fb45f9c",
-    "general_matroska_SeekHead_Cues_CRC_UID_target_edit": "not_proven_not_exposed"
+    "general_matroska_SeekHead_Cues_CRC_UID_target_edit": "not_proven_not_exposed",
+    "pr140-nonfinal-fileuid-original-native-three-attachment": "passed_549_of_549_Node_Vite_full_Chromium_MKVToolNix_mkvextract_ffprobe_native_38577634115",
+    "pr140-merged-main": "passed_010e29f22679ff3e09f91aaca6068a38dff9da10",
+    "pr140-independently-proven-subsequent-AttachedFile-shift": "passed_output_exact_offset_old_plus_relocation_and_delta_with_same_UID_SHA",
+    "general_missing-index_CRC_unsupported_EBML_UID-edit": "unproven_keep_refused"
   },
   "blockers": [
     "Matroska nested Chapter hierarchy, ChapterUID/EditionUID/TrackUID/AttachmentUID targeted Tags, unknown EBML, indexing/CRC and byte/packet preservation are not generally proven writable; issue #77 is closed historically but its documented loss mechanism requires continuing capability-gated refusal.",
