@@ -1,11 +1,12 @@
 {
   "goal": "继续实现 2026-10-12 软封理论模型，保留57场景与完整证据门槛",
-  "status": "publication-authorized-submitting",
+  "status": "durable-checkpoint-pending-external-validation",
   "current_bounded_work_unit": "Round6 P3 finished-MKV SRT/WebVTT plain cue readback and original-model gap assessment",
   "completed_units": [
     "R1-R5 integration dd709601 exact-head Browser/Pages success; product PRs remain open",
     "R6 product demux audit/report/UI and adversarial Node tests",
-    "R6 full Chromium scenario and independent native expected-text oracle authored"
+    "R6 full Chromium scenario and independent native expected-text oracle authored",
+    "Published implementation commit debd158 and Draft PR149 with exact local/remote Git tree equality"
   ],
   "next_units": [
     "R6 exact-head full Chromium/native external acceptance",
@@ -16,14 +17,14 @@
     "Round10 release/model ledger proof closure"
   ],
   "branch": "feat/ten-round-p3-output-font-evidence-20261015",
-  "pr": null,
-  "latest_durable_commit": "b61b548b2b516ebe17afa2acf178361682751edc",
+  "pr": 149,
+  "latest_durable_commit": "debd158090598a0f2be3158135ff46806d7ecada",
   "external_validation_states": {
     "ancestor_r1_r5_browser": {
       "run_id": 38608413912,
       "conclusion": "success"
     },
-    "round6_chromium_native": "not-started"
+    "round6_chromium_native": "pending-exact-head-ci"
   },
   "local_validation": {
     "node": "586/586",
@@ -35,6 +36,12 @@
     "Product PR142-145/147 still unmerged",
     "General EBML preservation and full P3/P5/P6 not claimed"
   ],
-  "updated_timestamp": "2026-10-14T18:20:54.035634+00:00",
-  "publication_authorization": "2026-10-15 user explicitly approved branch push and Draft PR through GitHub plugin"
+  "updated_timestamp": "2026-10-14T18:22:59.190743+00:00",
+  "publication_authorization": "2026-10-15 user explicitly approved branch push and Draft PR through GitHub plugin",
+  "publication": {
+    "remote_tree": "416f3914ac5633eff6bb2fb472b2a5be6018a3cc",
+    "local_checked_commit": "6abd742",
+    "tree_identity": "exact",
+    "method": "authorized GitHub plugin"
+  }
 }

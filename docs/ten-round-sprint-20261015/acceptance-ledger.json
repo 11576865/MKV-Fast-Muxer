@@ -706,10 +706,10 @@
     {
       "round": 6,
       "focus": "P3字幕和字体",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "local-node-build-native-passed-external-pending",
+      "state": "submitted",
+      "head_sha": "debd158090598a0f2be3158135ff46806d7ecada",
+      "pr": 149,
+      "ci": "pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
