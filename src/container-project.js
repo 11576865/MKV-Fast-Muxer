@@ -208,7 +208,8 @@ export function createContainerProjectFromProjection(snapshot) {
  * Export the effective legacy editor as a portable source-baseline delta.
  * EditIntents here are derived differences (scanned vs current), NOT a claim
  * that these operations happened chronologically or that the JSON is signed.
- * Only source audio/subtitle rows have verified scan-time editable baselines.
+ * Source audio/subtitle fields/order and source attachment name/MIME/include
+ * are derived against scanned baselines; detached JSON is never execution authority.
  */
 export function createEditedContainerProjectFromProjection(snapshot) {
   if (snapshot?.identityDiagnostics?.length)
