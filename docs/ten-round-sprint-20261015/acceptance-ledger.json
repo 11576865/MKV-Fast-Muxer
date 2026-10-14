@@ -431,9 +431,14 @@
       "title": "只重新保存已有成品",
       "phase": "P3-B",
       "priority": "high",
-      "state": "unassessed",
-      "evidence": [],
-      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/150",
+          "scope": "Bounded retained MKV/report save-only retry; local593 Node/build passed; exact-head browser/native pending"
+        }
+      ],
+      "caveat": "会话内原成品保存重试代码/反证已提交，完整Chromium/native及真实目录设备验收Pending；不含跨页面Blob恢复"
     },
     {
       "id": "B-014",
@@ -715,10 +720,10 @@
     {
       "round": 7,
       "focus": "P3-B批量队列",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "local-node-build-passed-external-pending",
+      "state": "submitted",
+      "head_sha": "bd70554d2e7c97cd9814c8d12ff7de8be6ff2928",
+      "pr": 150,
+      "ci": "pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
