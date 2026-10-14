@@ -80,6 +80,7 @@ import { setupReservedVoidFileDataUI } from './existing-mkv-reserved-void-fileda
 import { setupTailAttachmentResizeUI } from './existing-mkv-tail-attachment-ui.js';
 import { setupNonterminalAttachmentRelayUI } from './existing-mkv-nonterminal-attachment-ui.js';
 import { setupExistingMkvRoutedEditorUI } from './p2-existing-mkv-writer-router-ui.js';
+import { setupMatroskaInlineMetadataUI } from './p2-matroska-inline-metadata-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -135,6 +136,16 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupMatroskaInlineMetadataUI({
+  sourceInput: $('p2MetadataSource'),
+  fieldSelect: $('p2MetadataField'),
+  newText: $('p2MetadataNewText'),
+  review: $('p2MetadataReview'),
+  inspectStatus: $('p2MetadataStatus'),
+  prepare: $('p2MetadataPrepare'),
+  save: $('p2MetadataSave'),
+  evidence: $('p2MetadataEvidence'),
 });
 setupExistingMkvRoutedEditorUI({
   sourceInput: $('existingMkvRoutedSource'),
