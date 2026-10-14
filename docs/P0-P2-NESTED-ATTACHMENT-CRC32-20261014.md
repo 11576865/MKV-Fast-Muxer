@@ -1,0 +1,25 @@
+# P0/P2-C — Verified original Matroska nested CRC-32 during indexed attachment relocation
+
+**Status: production candidate, exact-head Node/build/real Chromium + independent CRC oracle pending.** This extends the verified nonterminal source-indexed chained SeekHead relay writer [#139](https://github.com/11576865/MKV-Fast-Muxer/pull/139) and non-final AttachedFile support [#140](https://github.com/11576865/MKV-Fast-Muxer/pull/140), not arbitrary Matroska or the historical #77 FFmpeg-remux preservation issue.
+
+## User-visible ability and exact limits
+
+A user may now request a different-length FileData for an original unreferenced AttachedFile, even when the selected AttachedFile and/or its enclosing Attachments master has a CRC-32 child. The source must still be a finite one-Segment Matroska with nonterminal Attachments indexed by an existing exact SeekHead reference, a same-span SeekHead relay at its original location, a complete UID target graph and enough original fixed-width EBML SIZE capacity. Selected original FileUIDs targeted by TagAttachmentUID remain blocked. Unknown top-level/affected inner fields, malformed CRC children, affected old CRC content mismatches, unknown-sized elements and over-budget sources remain fail-closed. Original Cues, Clusters, Tracks, nested Chapters, Tags and their top-level offsets/bytes remain protected.
+
+**CRC semantics:** The EBML `CRC-32` element (ID `0xBF`) carries exactly four little-endian bytes of IEEE/ISO-HDLC CRC-32. Its checksum covers the parent Master **data** except the entire CRC-32 child element (both header and payload). An existing CRC-32 child is only admitted when exactly one such element is observed in each affected Master, with a four-byte payload, and the original independent source bytes compute to the exact stored value. Invalid or duplicate CRCs refuse. Existing unrelated attached files' CRC elements, if present, must be valid as well; their bytes are preserved without regeneration.
+
+After resizing and re-encoding FileData/AttachedFile/Attachments size fields in the new appended Attachments copy, **recompute the selected AttachedFile CRC first**, then its **enclosing Attachments CRC**, because outer checksum coverage includes the updated inner CRC-32 bytes. CRC field positions may shift when they follow the changed FileData, so compute relative positions with the exact requested `delta`; rewrite only four CRC value bytes per affected CRC element. After each patch, independently parse and verify the emitted Master CRC. No original source file CRC bytes, original SeekHead or original unrelated metadata are modified.
+
+The writer retains a private frozen source/replacement File-bound plan, original source SHA-256, exact FileUID and untouched attachment data and tag target graph proof, current source File selection and explicit user review, and a manual new-copy download. The generic raw preservation comparator remains non-authorizing. Source is capped at 60MiB and one new FileData at 4MiB, not a streaming general EBML writer.
+
+## Independent test matrix
+
+Node tests include known CRC-32 reference vector `123456789 → 0xCBF43926`, little-endian storage `26 39 F4 CB`, positive grow and shrink with both AttachedFile and Attachments CRC-32 present, correct original later FileUID/metadata/data and strict refusal on invalid original child/parent CRC, as well as all previously green #139/#140 indexed/UID/unknown/forged-plan gates.
+
+The full real-browser scenario starts with an **independently mkvmerge/mkvpropedit-authored Matroska** with two existing attachments, the first tagged by its actual 64-bit AttachmentUID, a second free attachment, nested Chapters and original compressed media packets. The *transparent test-only fixture* uses the original free FileData's final 12 payload bytes to finance a 6-byte CRC child in that AttachedFile and a second 6-byte CRC child in the enclosing Attachments master, without changing original Attachments master total bytes or any original top-level offsets. CRC values are authored by **Python zlib.crc32, independent of JavaScript**. Source and result must first independently parse in native `mkvmerge -J`; browser then reviews actual unreferenced UID and downloads a changed FileData MKV. A separate **Python zlib external oracle** audits BOTH source and output parent + inner CRC coverage; native `mkvextract` must preserve original nested Chapters and Tags XML, the first UID-linked FileData and produce exact new second FileData; `ffprobe` packet SHA-256 and timestamp invariance must hold.
+
+This is native source/output acceptance, not approval from internal synthetic EBML parsing. **Do not merge until all exact-head Node/build/full Chromium/Python-zlib/MKVToolNix outputs pass.**
+
+## Non-claims
+
+No CRC-32 repair in unrelated SeekHead, Cues, Tags, Chapters, arbitrary ancestor levels or general Matroska; no source with missing/stale SeekHead, no new UID target rewrites, no unknown EBML, no VINT widening or >60MiB streaming. A single verified CRC-bearing source family cannot certify all third-party MKVs or player seeking behavior. Preserve bounded refusal gates.
