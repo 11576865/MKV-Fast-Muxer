@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P3-B v2 real two-output metadata recipe complete; parent #133 cancellation scenario 10 now green, sequential subtitle title regression repaired with verified-owner no-double-sync contract, exact-head CI still pending",
+  "current_work_unit": "P1 + P3-B integrated, user-visible batch delivery: external assets live domain; direct per-episode subtitle edits; reviewed portable Recipe v2; exact-File rebind; immutable JobPlan; two real MKV outputs and independent final ffprobe audit.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -76,20 +76,20 @@
     "PR #133 new head 9fe7625993817c0193c8cde1e77e7b2a9e6964eb preserves verified immutable external metadata and performs one bounded rebind only if a newly selected primary task has stale inventory. It removes unconditional syncNewTrackState after successful domain verification.",
     "Identical scenario11 repair is integrated on dependent Batch Recipe v2 branch as e3193aee38aa724e58edbc01e27599c7781c7cab; branch is directly based on #133 source semantics rather than overwriting old code.",
     "PR #134 Batch Recipe v2 is open in draft: strict portable per-output metadata, actual UI Export/Import/review/explicit approval, source/subtitle/sidecar exact File binding at consent and freeze, 2-output frozen JobPlan/FFmpeg/ffprobe real Chromium scenario. Complete CI still pending.",
-    "Foundry Case for reviewed v2 metadata-to-frozen-plan trust boundary and two distinct Bugs (cancel inventory and post-verify resync) recorded without Canonical promotion."
+    "Foundry Case for reviewed v2 metadata-to-frozen-plan trust boundary and two distinct Bugs (cancel inventory and post-verify resync) recorded without Canonical promotion.",
+    "Consolidated product-block PR #134 is the active integrated route: P1 external session, BatchRecipe v2 typed policies and per-output metadata, direct in-app episode inspector edits, inert import/explicit review, exact current File+sidecar identity, frozen JobPlan, two-result real-browser/ffprobe acceptance cases. PR #135 overlaps and must not be silently added or double-merged.",
+    "Applied latest PR #133 anti-regression safeguards to integrated PR #134 branch: pending subtitle inspection synchronously invalidates stale row; inventory-only external rebind validates exact File/sidecar references and retains user-authored metadata, rather than running syncNewTrackState() and losing the next task's title. Code commit 3a92e52."
   ],
   "next_units": [
-    "Observe exact-head repaired PR #133 Node/build/Chromium, including both scenario10 cancel/restart and scenario11 sequential authored title; only if green mark ready and merge.",
-    "Then retarget the stacked PR #134 to main, observe one exact-head full Node/Vite/Chromium two-output audit; fix concrete failures in a bounded batch and merge.",
-    "Extend P3-B batch recipes with persistent verified audit/status history without storing output media bytes or File permissions; test real directory collision and recovery boundaries.",
-    "Finish one global immutable ContainerProject execution owner spanning source and external objects with audited cross-surface atomic undo, while keeping original writer.",
-    "Resolve P0 #77 complex EBML Chapter/Tag/UID writer preservation independently, preserve closed-world capability gates.",
-    "Run actual tablet/desktop and large-media workload matrix before global P6."
+    "Validate integrated PR #134 at exact head using Node/build/full real Chromium, including scenario 10 cancellation/restart, scenario 11 consecutive output title, Recipe v2 genuine two-MKV mux and independent per-output ffprobe; repair only confirmed failures in bounded follow-up.",
+    "Reconcile PR #133 latest safe domain changes and #135 semantic-only deltas against integrated #134; supersede overlapping PR #135 only after preserving unique verified functionality. Do not mechanically merge two conflicting Recipe v2 schemas.",
+    "Once upstream #133 and integrated #134 are green, merge one coherent user-visible P1/P3-B block to main with legacy single-task and batch acceptance, without expanding unsafe EBML writer permissions.",
+    "Next product block: P0/P2 compatible, independently verified Matroska structural edits; retain #77 refusal for unproven nested chapter/UID/unknown EBML preservation."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "e3193aee38aa724e58edbc01e27599c7781c7cab",
+  "last_durable_commit": "3a92e52acb439b093d0319b61bd951d68da51249",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -102,13 +102,18 @@
     "batch-v2-source-static-syntax": "passed",
     "batch-v2-two-output-real-chromium": "pending",
     "batch-v2-full-node-build": "pending",
-    "field-device": "unknown"
+    "field-device": "unknown",
+    "pr134-integrated-fresh-head-node-build-chromium": "pending",
+    "pr133-external-authority-chromium": "failed-at-400ee-head; latest separate repair validation unknown",
+    "pr134-real-two-output-ffprobe": "pending",
+    "complex-ebml-preservation": "blocked-by-p0-77",
+    "actual-device": "unknown"
   },
   "blockers": [
-    "Parent PR #133 latest exact-head full browser gate is pending; do not merge until both actual restart and second-task title delivered parity are green.",
-    "PR #134 is stacked on #133 and must not treat parent's already-failed CI as its own success; v2 full Node/Chromium output audit pending.",
-    "Batch recipe v2 confirms current-session exact File references but cannot serialize File or destination permissions, historical output blobs or resumed workers.",
-    "Matroska structural preservation issue #77, single cross-project domain authority, source-neutral writer and actual-device testing remain open."
+    "PR #133 earlier complete Chromium run failed consecutive-task subtitle title retention; integrated #134 includes bounded repair but exact-head full CI is Pending.",
+    "PR #134/#135 overlap; avoid accepting two incompatible portable BatchRecipe v2 schemas without semantic reconciliation.",
+    "P0 #77 nested Chapter/targeted Tag/AttachmentUID/unknown EBML remains blocked or refused by existing writer guards.",
+    "Source-neutral attachment-only browser execution, durable OPFS/batch resumption and full device/performance acceptance remain outside this block."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
@@ -122,7 +127,8 @@
     "No separate writer or file permission: restored domain permutation only changes existing FFmpeg-facing trackState.order after all verified source and old-state gates pass. Current numeric multiset of same-kind order values is retained.",
     "Precise promise: external audio/subtitle metadata and preserve/force font policy author via immutable project revisions, with exact File grants in session only. Font inventory objects are not a new font-edit capability. Independent frozen batch processing is not modified by this UI migration.",
     "P3-B v2 is a non-authoritative declarative recipe; only a user-approved fresh exact-File binding and successful original frozen JobPlan preflight authorize current-session execution. Do not confuse inferred file-name match with byte-level provenance.",
-    "State boundary: a verified external domain owner must not be immediately resynchronized from inferred filename defaults before FFmpeg handoff. The new task binding is exceptional and explicit; normal writes stay in immutable semantic owner. Two distinct Foundry Bugs record this causal distinction."
+    "State boundary: a verified external domain owner must not be immediately resynchronized from inferred filename defaults before FFmpeg handoff. The new task binding is exceptional and explicit; normal writes stay in immutable semantic owner. Two distinct Foundry Bugs record this causal distinction.",
+    "User explicitly directed large coherent block-level implementation rather than multiple micro PRs. PR #134 is the unified integration authority for this block; #133 upstream must pass; #135 is overlapping, not an independently additive milestone."
   ],
   "updated_at": "2026-10-14"
 }
