@@ -253,3 +253,73 @@ export function verifyBatchRecipeV2Binding(binding,pairing) {
         ref.formatId===(job.subtitleTracks[i].format?.id||''));
   });
 }
+
+/**
+ * Current-session authoring extension (P3-B). Kept deliberately separate
+ * from portable JSON import/rebind: metadata edits are keyed by EXACT File
+ * and source/sidecar/format references, never by same-looking names.
+ * This produces one nonmutating pairing projection for freezeBatchJobPlan.
+ */
+const TASK_EDITABLE = Object.freeze(['title','language','default','forced',
+  'original','commentary','hearingImpaired']);
+function inferredRule(track,index=0) {
+  const inferred=inferredSubtitleMetadata(track.file,track.format);
+  return validMeta({
+    fileName:track.file.name,sidecarName:track.sidecarFile?.name||'',
+    formatId:track.format?.id||'',
+    title:track.title??inferred.title??track.file.name,
+    language:track.language??inferred.language??'und',
+    default:track.default??index===0,
+    forced:track.forced??false,
+    original:track.original??false,
+    commentary:track.commentary??false,
+    hearingImpaired:track.hearingImpaired??false,
+  });
+}
+export function setCurrentBatchTaskMetadata(overrides,{job,track,field,value}={}) {
+  if(!(overrides instanceof Map)||!job?.video||
+      !job.subtitleTracks?.some(item=>item===track)||
+      !TASK_EDITABLE.includes(field)||!track?.file||!track.format)
+    throw Error('BATCH_RECIPE_V2_EDITOR_TARGET_INVALID');
+  const prior=overrides.get(job.video);
+  const rows=new Map(prior||[]);
+  const current=rows.get(track.file);
+  if(current && (current.sidecar!== (track.sidecarFile||null) ||
+      current.format!==track.format?.id))
+    throw Error('BATCH_RECIPE_V2_EDITOR_STALE_SOURCE');
+  const index=job.subtitleTracks.indexOf(track);
+  const before=current?.metadata||inferredRule(track,index);
+  const next=validMeta({...before,[field]:value});
+  rows.set(track.file,Object.freeze({
+    sidecar:track.sidecarFile||null,format:track.format.id,
+    metadata:Object.freeze(next),
+  }));
+  const updated=new Map(overrides);
+  updated.set(job.video,rows);
+  return updated;
+}
+export function projectCurrentBatchTaskMetadata(pairing,overrides) {
+  if(!(overrides instanceof Map)||!pairing?.jobs)
+    throw Error('BATCH_RECIPE_V2_EDIT_PROJECTION_INVALID');
+  const actualVideos=new Set(pairing.jobs.map(job=>job.video));
+  for(const video of overrides.keys())
+    if(!actualVideos.has(video))throw Error('BATCH_RECIPE_V2_EDITOR_SOURCE_STALE');
+  const jobs=pairing.jobs.map(job=>{
+    const rows=overrides.get(job.video);
+    if(!rows)return job;
+    const byFile=new Map(job.subtitleTracks.map(track=>[track.file,track]));
+    for(const [file,binding] of rows) {
+      const track=byFile.get(file);
+      if(!track || !track.format ||
+          binding.sidecar!==(track.sidecarFile||null) ||
+          binding.format!==track.format.id)
+        throw Error('BATCH_RECIPE_V2_EDITOR_TRACK_STALE');
+      validMeta(binding.metadata);
+    }
+    return {...job,subtitleTracks:job.subtitleTracks.map((track,index)=>{
+      const edit=rows.get(track.file);
+      return edit?Object.freeze({...track,...edit.metadata}):track;
+    })};
+  });
+  return {...pairing,jobs};
+}
