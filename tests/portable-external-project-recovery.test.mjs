@@ -55,13 +55,13 @@ test('wrong file bytes, same-name replacement and stale row after await deny rec
  wrong.context.audioRows[0].file=file('original.flac','different payload');
  await assert.rejects(prepareExternalMetadataRecovery(wrong.ws,wrong.context,cp),/EXTERNAL_DOMAIN_SOURCE_CHANGED/);
  const after=fresh();
- after.context.audioRows[0].file=file('original.flac','different payload');
+ after.context.audioRows[0].file=file('original.flac',Buffer.alloc(Buffer.byteLength('real audio bytes'),0x78));
  after.ws=createLiveWorkspaceAuthority({externalSession:createLiveExternalAssetSession({
   ...after.context,fontMode:'preserve',
  })});
  await assert.rejects(prepareExternalMetadataRecovery(after.ws,after.context,cp),/RESOURCE_DIGEST_MISMATCH/);
  const withSidecar=fresh();
- withSidecar.context.subtitleRows[0].sidecarFile=file('zh.assfonts.zip','not the same');
+ withSidecar.context.subtitleRows[0].sidecarFile=file('zh.assfonts.zip',Buffer.alloc(Buffer.byteLength('font-sidecar'),0x78));
  withSidecar.ws=createLiveWorkspaceAuthority({externalSession:createLiveExternalAssetSession({
   ...withSidecar.context,fontMode:'preserve',
  })});
