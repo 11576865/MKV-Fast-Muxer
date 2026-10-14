@@ -4590,7 +4590,11 @@ async function scenarioVerifiedNestedAttachmentCrcRelocation(browser) {
       null,{timeout:120000});
     assert.equal(await page.locator('#existingMkvRelayStatus').getAttribute('data-state'),
       'prepared',await page.locator('#existingMkvRelayStatus').textContent());
-    assert.match(await page.locator('#existingMkvRelayEvidence').textContent(),/SHA-256/);
+    const uiProof=await page.locator('#existingMkvRelayEvidence').textContent();
+    assert.match(uiProof,/SHA-256/);
+    assert.match(uiProof,/CRC-32/);
+    assert.equal((uiProof.match(/已重算并复验/g)||[]).length,2,
+      'review UI must show independently checked inner + outer CRC coverage');
     await page.setViewportSize({width:768,height:1024});
     await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
     await page.locator('#existingMkvRelayDetails').screenshot({
