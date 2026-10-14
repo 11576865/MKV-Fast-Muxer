@@ -5,6 +5,7 @@ import { prepareNonterminalAttachmentRelay,executeNonterminalAttachmentRelay }
  from '../src/existing-mkv-nonterminal-attachment-relay.js';
 import { inspectRawSegmentPreservation } from '../src/matroska-raw-preservation-contract.js';
 import { createMatroskaAttachmentReader } from '../src/matroska-attachment-reader.js';
+import { crc32IEEE,ebmlCrc32LE } from '../src/ebml-crc32-bounded.js';
 
 const cat=(...xs)=>Buffer.concat(xs.map(x=>Buffer.from(x)));
 function size(n,w=null){
@@ -18,23 +19,32 @@ const uint=(n,w)=>{let v=BigInt(n);const a=Buffer.alloc(w);
 const blob=(data,name='fixture.mkv')=>{const b=new Blob([data]);b.name=name;return b;};
 const srcDataA=Buffer.from('TAGGED-ORIGINAL-FILEDATA-A');
 const srcDataB=Buffer.from('UNREFERENCED-FILEDATA-B');
-const attach=(uid,name,data,opts={})=>element('61A7',cat(
- element('466E',Buffer.from(name)),
- element('4660',Buffer.from('application/octet-stream')),
- element('465C',data,opts.fileDataWidth||2),
- ...(opts.crc?[element('BF',Buffer.alloc(4))]:[]),
- ...(opts.unknown?[element('4ABC',Buffer.from([1]))]:[]),
- element('46AE',Buffer.from([uid])),
-),2);
+const attach=(uid,name,data,opts={})=>{
+ const body=cat(
+  element('466E',Buffer.from(name)),
+  element('4660',Buffer.from('application/octet-stream')),
+  element('465C',data,opts.fileDataWidth||2),
+  ...(opts.unknown?[element('4ABC',Buffer.from([1]))]:[]),
+  element('46AE',Buffer.from([uid])),
+ );
+ const crc=opts.crc?element('BF',
+   opts.crc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(body)))):Buffer.alloc(0);
+ return element('61A7',cat(body,crc),2);
+};
 function source({tail=false,badSeek=false,noSeek=false,seekCrc=false,
-  attachedCrc=false,unknownAttached=false,unknownTop=false,tagFree=false,
+  attachedCrc=false,attachmentsCrc=false,unknownAttached=false,unknownTop=false,tagFree=false,
   targetNotFinal=false,lowDataWidth=false}={}){
- const attachments=element('1941A469',cat(
-  ...(targetNotFinal?[attach(4,'free.bin',srcDataB)]:[attach(3,'tagged.bin',srcDataA)]),
+ const content=cat(
+  ...(targetNotFinal?[attach(4,'free.bin',srcDataB,{crc:attachedCrc,
+    unknown:unknownAttached,fileDataWidth:lowDataWidth?1:2})]:
+    [attach(3,'tagged.bin',srcDataA)]),
   ...(targetNotFinal?[attach(3,'tagged.bin',srcDataA)]:
    [attach(4,'free.bin',srcDataB,{crc:attachedCrc,unknown:unknownAttached,
      fileDataWidth:lowDataWidth?1:2})]),
- ),3);
+ );
+ const parentCrc=attachmentsCrc?element('BF',
+  attachmentsCrc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(content)))):Buffer.alloc(0);
+ const attachments=element('1941A469',cat(content,parentCrc),3);
  const chapter=element('1043A770',element('45B9',element('B6',cat(
   element('73C4',Buffer.from([21])),
   element('B6',element('73C4',Buffer.from([22]))),
@@ -132,12 +142,40 @@ test('indexed nonterminal: shrink NON-FINAL original FileData without corrupting
    (changed.length-srcDataB.length));
  assert.deepEqual(Buffer.from(await after.openAttachment(next.attachments[1].id).data.arrayBuffer()),srcDataA);
 });
+test('EBML CRC-32 IEEE fixture vector and little-endian value are exact',()=>{
+ assert.equal(crc32IEEE(Buffer.from('123456789')),0xcbf43926);
+ assert.deepEqual([...ebmlCrc32LE(0xcbf43926)],[0x26,0x39,0xf4,0xcb]);
+});
+test('indexed nonterminal CRC: valid nested AttachedFile plus Attachments CRC are independently changed/revalidated on GROW',async()=>{
+ const src=source({attachmentsCrc:true,attachedCrc:true,targetNotFinal:true});
+ const plan=await prepare(src,Buffer.alloc(srcDataB.length+42,0x51));
+ assert.equal(plan.geometry.originalAttachedFileCrc32Recomputed,true);
+ assert.equal(plan.geometry.originalAttachmentsCrc32Recomputed,true);
+ const result=await executeNonterminalAttachmentRelay(plan);
+ assert.equal(result.evidence.originalAttachedFileCrc32Recomputed,true);
+ assert.equal(result.evidence.originalAttachmentsCrc32Recomputed,true);
+ const reader=createMatroskaAttachmentReader(result.output),inventory=await reader.inspect();
+ assert.deepEqual(inventory.attachments.map(x=>x.fileUid),['4','3']);
+ const changed=Buffer.from(await reader.openAttachment(inventory.attachments[0].id).data.arrayBuffer());
+ assert.deepEqual(changed,Buffer.alloc(srcDataB.length+42,0x51));
+ assert.deepEqual(Buffer.from(await reader.openAttachment(inventory.attachments[1].id).data.arrayBuffer()),srcDataA);
+});
+test('indexed nonterminal CRC: valid nested and parent CRC are recomputed on SHRINK',async()=>{
+ const src=source({attachmentsCrc:true,attachedCrc:true});
+ const value=await executeNonterminalAttachmentRelay(await prepare(src,Buffer.from('new')));
+ assert.equal(value.evidence.boundedOriginalAndOutputCrc32Verified,true);
+ assert.equal(value.evidence.originalAttachedFileCrc32Recomputed,true);
+ assert.equal(value.evidence.originalAttachmentsCrc32Recomputed,true);
+ const reader=createMatroskaAttachmentReader(value.output),result=await reader.inspect();
+ assert.deepEqual(Buffer.from(await reader.openAttachment(result.attachments[1].id).data.arrayBuffer()),Buffer.from('new'));
+});
 test('indexed non-terminal negative gates reject CRC, unknown, referenced UID, wrong index and non-terminal mismatch',async()=>{
  await assert.rejects(prepare(source({tail:true}),Buffer.alloc(55)),/UNIQUE_NONTERMINAL/);
  await assert.rejects(prepare(source({badSeek:true}),Buffer.alloc(55)),/STALE_OR_ALTERNATE/);
  await assert.rejects(prepare(source({noSeek:true}),Buffer.alloc(55)),/SEEK_ENTRY_REQUIRED/);
  await assert.rejects(prepare(source({seekCrc:true}),Buffer.alloc(55)),/SEEKHEAD_CRC_UNSUPPORTED/);
- await assert.rejects(prepare(source({attachedCrc:true}),Buffer.alloc(55)),/ATTACHEDFILE_CRC_BLOCKED/);
+ await assert.rejects(prepare(source({attachedCrc:'corrupt'}),Buffer.alloc(55)),/ORIGINAL_ATTACHEDFILE_CRC_INVALID/);
+ await assert.rejects(prepare(source({attachmentsCrc:'corrupt'}),Buffer.alloc(55)),/ORIGINAL_ATTACHMENTS_CRC_INVALID/);
  await assert.rejects(prepare(source({unknownAttached:true}),Buffer.alloc(55)),/UNKNOWN_ATTACHEDFILE_CHILD/);
  await assert.rejects(prepare(source({unknownTop:true}),Buffer.alloc(55)),/RAW_SOURCE_INELIGIBLE/);
  await assert.rejects(prepare(source({tagFree:true}),Buffer.alloc(55)),/REFERENCED_ATTACHMENT_BLOCKED/);
