@@ -57,7 +57,11 @@ test('batch review UI uses the same pairing and existing execution gate', () => 
   const main = source('../src/main.js');
   const html = source('../index.html');
   const css = source('../src/workbench.css');
-  assert.match(main, /manualAssignments: batchManualAssignments/);
+  // Pairing remains the same content-derived source + manual tie resolver.
+  // Recipe v2 projects metadata AFTER pairing; it must never replace pairing
+  // or bypass the old ambiguity gate.
+  assert.match(main, /buildBatchJobsFromCollected\(\s*videos\s*,\s*subtitleRecognition\s*,\s*\{\s*manualAssignments:\s*batchManualAssignments\s*\}\s*\)/);
+  assert.match(main, /projectCurrentBatchTaskMetadata\(inferredPairing\s*,\s*currentBatchTaskMetadata\)/);
   assert.match(main, /batchManualAssignments\.set\(ambiguous\.track\.file, video\)/);
   assert.match(main, /batchManualAssignments\.delete\(confirmed\.track\.file\)/);
   assert.match(main, /batchManualAssignments\.clear\(\)/);
