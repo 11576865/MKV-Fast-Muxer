@@ -171,3 +171,42 @@ test('stale per-job File reference must not become a current JobPlan track',()=>
  };
  assert.throws(()=>applyBatchTaskOverrides(changed,map),/RECIPE_V2_STALE_TRACK_BINDING/);
 });
+
+test('twenty-episode recipe round-trip and freeze are plan-only, never twenty claimed media outputs',()=>{
+ const n=20;
+ const videos=Array.from({length:n},(_,index)=>file(
+   'Series S01E'+String(index+1).padStart(2,'0')+'.mp4'));
+ const subtitles=Array.from({length:n},(_,index)=>file(
+   'Series S01E'+String(index+1).padStart(2,'0')+'.zh.ass'));
+ const batch=buildBatchJobs(videos,subtitles);
+ batch.fonts=[];
+ batch.fontRecognition={recognized:[],ignored:[]};
+ batch.videoRecognition={ignored:[]};
+ batch.directoryConflicts=[];batch.directoryCheckError='';
+ for(const job of batch.jobs) {
+   for(const track of job.subtitleTracks){
+     track.format={id:'ass',label:'ASS',assLike:true};
+     track.language='zho';track.title='Episode '+job.video.name;
+     track.default=true;track.forced=false;track.original=false;
+     track.commentary=false;track.hearingImpaired=false;
+   }
+ }
+ assert.equal(batch.jobs.length,n);
+ const portable=buildBatchRecipeV2FromPairing(batch,policy);
+ const next=parseBatchRecipeV2(stringifyBatchRecipeV2(portable));
+ const review=reviewBatchRecipeV2(next,batch);
+ assert.equal(review.ready,true);
+ assert.equal(review.matchedJobs,n);
+ assert.equal(review.matchedSubtitles,n);
+ const approval=approveBatchRecipeV2(review,batch);
+ const effective=applyBatchTaskOverrides(batch,approval);
+ const plan=freezeBatchJobPlan(effective,{generation:92});
+ assert.equal(plan.jobs.length,n);
+ assert.equal(plan.jobs[19].subtitleTracks[0].title,
+   'Episode '+videos[19].name);
+ assert.equal(plan.policy.directoryName,'');
+ assert.ok(Object.isFrozen(plan.jobs));
+ // All 20 items remain only reviewed plans: none has run FFmpeg or
+ // produced a Blob, outputSHA, directory write or final MKV artifact.
+ assert.equal(plan.jobs.some(job=>job.outputSha256||job.blob),false);
+});
