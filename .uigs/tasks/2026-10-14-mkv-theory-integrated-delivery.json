@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "Next P0/P2: source-specific non-terminal Attachments relocation with independently verified SeekHead/Cues offset repairs, CRC coverage and UID graph semantics. Already delivered exact-size #136, reserved-Void #137 and terminal-no-Void #138 writer classes.",
+  "current_work_unit": "Next P0/P2: beyond verified nonterminal source SeekHead relay—support sources without correct direct index, non-last AttachedFile, incomplete original graph/CRC and genuine complex object shifts, only behind independent native proof.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -95,19 +95,20 @@
     "2026-10-14 P0/P2-V THIRD COHESIVE PRODUCT BLOCK DELIVERED: PR #137 merged at 2e56a856f2dc2f58c291e532cb251833b3f54b91. Existing Matroska with original unreferenced AttachedFile/FileData directly followed by source-owned Void now permits data grow/shrink within same combined byte span, unchanged enclosing hierarchy size, offset and protected Chapters/Tags/other UID, other attachment FileData and packets. Genuine current-file review and full SHA-256 at prepare + download, new independent copy.",
     "Exact-head CI 38551049217 at bfa1be00b670c92bd572b73957c4a1191a06c53c SUCCESS: 542/542 Node, build, entire real Chromium, independently authored MKVToolNix source, native mkvmerge/mkvextract and ffprobe chapter/tag/UID/FileData/packet parity. Failed earlier runs diagnosed reversed positional current(targetUid,epoch) call, corrected without removal of data/safety gates.",
     "2026-10-14 P0/P2-T FOURTH COHESIVE PRODUCT BLOCK DELIVERED TO MAIN: PR #138 merged at c769a847b7e12023024fd01b4a931e5f6ed61925, exact-head 45da93c8d9f90535efd3090d9334d085ed067157 CI #38560282611 SUCCESS 545/545 Node, full build, Chromium and independently verified real MKVToolNix/mkvextract/ffprobe Chapter/Tag/AttachmentUID/packet identity. Source-owned terminal Attachments allows no-Void FileData grow/shrink via four fixed-width SIZE field updates, retaining all prior top-level byte offsets and non-attachment objects.",
-    "Independent native source fixture originally rejected relocated narrow SeekPosition and then no-index source (native mkvmerge read zero attachments). Final test-only chained SeekHead relay at original Attachments location preserved native discoverability without granting production writer arbitrary SeekHead repair. Full browser output independently accepted."
+    "Independent native source fixture originally rejected relocated narrow SeekPosition and then no-index source (native mkvmerge read zero attachments). Final test-only chained SeekHead relay at original Attachments location preserved native discoverability without granting production writer arbitrary SeekHead repair. Full browser output independently accepted.",
+    "2026-10-14 P0/P2-N FIFTH COHESIVE PRODUCT BLOCK DELIVERED: PR #139 merged at 4db7eee026aff7fabed0b566bc38715c3fb45f9c; exact-head #38566327194 SUCCESS 547/547 Node, build, full Chromium and native mkvmerge/mkvextract/ffprobe real nonterminal original attachment relocation/SeekHead relay with unchanged nested Chapter/Tags, targeted other FileUID/bytes, packet hashes/timestamps. User-visible source-bound true FileUID review, frozen plan, source/picker content SHA validation, manual new copy."
   ],
   "next_units": [
-    "Next whole P0/P2 source-aware rewriter: nonterminal Attachments resizing with actual SeekHead/Cues/Cluster byte positions repaired when shifted, CRC rebuild or explicit scoped rejection, full TagAttachmentUID, TrackUID and ChapterUID graph preservation. No FFmpeg remux fallback.",
-    "Pass separate MKVToolNix-authored corpus that includes varied SeekHead size widths, multiple clusters/Cues, nested Chapters and target Tags, known and unknown EBML, and independent native mkvextract/ffprobe packet and seek audits with fail-closed negatives.",
-    "Introduce a unified writer capability matrix and edit-impact UI: exact-length, reserved local Void, terminal-master no-Void, and future relocated masters. Explicit user approvals + current File grant identity, no overwrite, fully auditable output.",
-    "Engineer streaming hashes, sparse byte patching and safe publication for >60 MiB, then multi-platform media player seek/attachment tests before claiming large-file production conformance.",
-    "Then P3/P4/P5/P6 flagship subtitle/style/font and professional UI/performance/release blocks; P1/P3-B verified Recipe v2 and P0/P2 narrow operators remain stable."
+    "Design next coherent production class: nonterminal original Attachments with absent/stale/narrow index lacking an existing valid direct SeekHead, or existing Attachements selected nonfinal AttachedFile. Must precisely rewrite only proved source graph with MKVToolNix source/cue/CRC native oracle and reject unknowns.",
+    "Typed writer capability chooser: exact-size, adjacent Void, terminal no-Void, nonterminal source-indexed relay. Single source-bound editor preview for each verified capability and explicit refusal explanation; do not merge gates into a generic unproven writer.",
+    "Actual TrackUID, ChapterUID, EditionUID and AttachmentUID directed edit intents require complete graph plus externally verified semantic identity preservation and CRC/size/index rewriting before enablement.",
+    "Add >60MiB stream hashing, output publication/rollback and repeated multi-platform full media seeker compatibility. No claimed large-file production safety based solely on small green fixture.",
+    "Then P3/P4/P5/P6 flagship subtitle/style/font, density/responsive UI, performance and release after P2 structural foundations."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "c769a847b7e12023024fd01b4a931e5f6ed61925",
+  "last_durable_commit": "4db7eee026aff7fabed0b566bc38715c3fb45f9c",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -150,7 +151,11 @@
     "p0-general-structure-resize-CRC-UID-seekhead-cues": "not_implemented_or_unproven_keep_fail_closed",
     "pr138-no-void-tail-writer-exact-head": "passed_545_of_545_Node_build_real_Chromium_native_MKVToolNix_38560282611",
     "pr138-merged-main": "passed_c769a847b7e12023024fd01b4a931e5f6ed61925",
-    "p0-general-nonterminal-offset-CRC-UID-rewrite": "not_proven_keep_refused"
+    "p0-general-nonterminal-offset-CRC-UID-rewrite": "not_proven_keep_refused",
+    "pr139-nonterminal-source-indexed-relay-node-build-browser": "passed_exact_head_38566327194_547_of_547",
+    "pr139-original-native-MKV-nonterminal-real-output": "passed_chained_SeekHead_attachment_discovery_and_independent_Chapters_Tags_UID_FileData_packet_oracle",
+    "pr139-merged-main": "passed_4db7eee026aff7fabed0b566bc38715c3fb45f9c",
+    "general_matroska_SeekHead_Cues_CRC_UID_target_edit": "not_proven_not_exposed"
   },
   "blockers": [
     "Matroska nested Chapter hierarchy, ChapterUID/EditionUID/TrackUID/AttachmentUID targeted Tags, unknown EBML, indexing/CRC and byte/packet preservation are not generally proven writable; issue #77 is closed historically but its documented loss mechanism requires continuing capability-gated refusal.",
