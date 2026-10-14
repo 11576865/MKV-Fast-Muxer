@@ -3329,6 +3329,25 @@ pre {
   min-height: 31px;
 }
 
+.batch-recipe-tool {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+.batch-recipe-tool > .button,
+.batch-recipe-tool > label.button {
+  min-width: 0;
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.batch-recipe-tool > [hidden] { display: none !important; }
+.batch-recipe-tool small {
+  font-size: .66rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .batch-output-tool {
   display: grid;
   gap: 6px;
