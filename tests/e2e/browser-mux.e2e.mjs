@@ -5808,15 +5808,26 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
       return ids.length === new Set(ids).size;
     });
     assert.equal(uniqueIds,true,'rehost may not clone legacy IDs/controls');
-    await page.setInputFiles('#unifiedAssetInput',path.join(root,'base.mp4'));
-    await page.waitForFunction(() =>
-      document.querySelector('#outputCompositionPanel')?.hidden === false
-      && document.querySelector('#videoInput')?.files?.[0]?.name === 'base.mp4',
-      null,{timeout:60000});
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    assert.equal(await page.locator('#sourceFilesDetails').evaluate(el => el.open),true);
+    assert.match(await page.locator('#assetInventory').textContent(),/source-multitrack\.mkv/);
+    assert.equal(await page.locator('#sf14Recovery').evaluate(el => el.open),false);
+    assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el => el.open),false);
+    await page.locator('.composition-select[data-composition-id="source:audio:2"]').click();
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
     assert.equal(await page.locator('#sf14CompositionEmpty').isVisible(),false);
     await page.screenshot({path:path.join(outDir,'softmux-1014-desktop-1440.png'),fullPage:false});
     await page.locator('[data-sf-view="batch"]').click();
     assert.equal(await page.locator('#sf14Batch').isVisible(),true);
+    await page.setInputFiles('#batchUnifiedInput',[
+      path.join(root,'Batch S01E01.mp4'),path.join(root,'Batch S01E01.zh-Hans.ass'),
+      path.join(root,'Batch S01E02.mp4'),path.join(root,'Batch S01E02.en.srt')]);
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#batchAssetInventory .asset-entry').length===4 &&
+      (document.querySelector('#batchPlan')?.textContent||'').includes('Batch S01E01.mp4') &&
+      (document.querySelector('#batchPlan')?.textContent||'').includes('Batch S01E02.mp4'),
+      null,{timeout:120000});
     assert.equal(await page.locator('#batchPlan').isVisible(),true);
     await page.screenshot({path:path.join(outDir,'softmux-1014-batch-1440.png'),fullPage:false});
     await page.locator('[data-sf-view="tools"]').click();
@@ -5830,7 +5841,7 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     await page.locator('#sf14SettingsDialog form button').click();
     // A layout change cannot replace input File or recreate independent state.
     const sameFile = await page.locator('#videoInput').evaluate(input => input.files?.[0]?.name);
-    assert.equal(sameFile,'base.mp4');
+    assert.equal(sameFile,'source-multitrack.mkv');
     await page.setViewportSize({width:800,height:950});
     assert.equal(await page.locator('#sf14Source').isVisible(),false);
     await page.locator('#sf14SourceToggle').click();
@@ -5846,7 +5857,7 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     assert.equal(await page.locator('#compositionTracks').isVisible(),true);
     await page.locator('[data-sf-focus="inspector"]').click();
     assert.equal(await page.locator('#sf14Inspector').isVisible(),true);
-    assert.equal(await page.locator('#videoInput').evaluate(input => input.files[0]?.name),'base.mp4');
+    assert.equal(await page.locator('#videoInput').evaluate(input => input.files[0]?.name),'source-multitrack.mkv');
     await page.screenshot({path:path.join(outDir,'softmux-1014-phone-390.png'),fullPage:false});
     await page.setViewportSize({width:360,height:780});
     await page.screenshot({path:path.join(outDir,'softmux-1014-phone-360.png'),fullPage:false});
