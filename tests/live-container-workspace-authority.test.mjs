@@ -130,7 +130,7 @@ test('font policy and source attachment editing dispatch through same project',(
     .attributes.value,'force');
   const changed=inspectLiveWorkspaceAuthority(f.workspace,{...f.context,mode:'force'});
   assert.equal(changed.fontCount,1);
-  assert.throws(()=>f.change('source-attachments',{changes:[
+  assert.throws(()=>f.change('source-attachments',{mode:'force',changes:[
     {index:999,field:'include',value:false},
   ]}),/LIVE_ATTACHMENT_NOT_FOUND/);
   assert.equal(f.sourceSession.project,f.externalSession.project);
