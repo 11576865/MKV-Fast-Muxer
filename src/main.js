@@ -658,6 +658,12 @@ async function inspectSelectedSubtitles() {
     selectionKey,
     collected: null,
   };
+  // The new subtitle FileList has not been inspected yet. Immediately
+  // invalidate the previous selection's editable row/DOM, rather than
+  // leaving an old form mounted while async content identification runs.
+  // Otherwise a quick next-task edit can target the previous subtitle and
+  // silently disappear when the new scan finishes.
+  syncNewTrackState();
   updateUI();
 
   const collected = await identifySubtitleInputs(files, { concurrency: 8 });
