@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P0+P2 next cohesive block: independently proven Matroska structural editing and preservation. First P1+P3-B product block merged into main via PR #134 at 8155280 and fully accepted pre-merge.",
+  "current_work_unit": "P0/P2: transition from merged strict same-size existing attachment FileData operator to independently proven variable-length, reference-aware Chapters/Tags/Attachments writer. Explicitly retain P0 #77 general remux loss gate.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -90,19 +90,20 @@
     "2 regression unit tests committed in 105dce34: preserved authored title and a new font File ref accepted only after explicit safe rebind; rejects metadata bypass, audio/subtitle row drift, File/sidecar change, policy mismatch and unnecessary rebind. Current exact-head full CI awaiting outcome.",
     "2026-10-14 PRODUCT BLOCK I DELIVERED TO MAIN: PR #134 merged at 815528027048e05d0d39660a1c21199d84dcd4d9, integrating live external audio/subtitle/font immutable ContainerProject, exact File/sidecar/format/identity and FileList pinning, per-output subtitle metadata editor, strict inert portable Batch Recipe v2 explicit import/review/rebind, frozen two-job real MKV execution and independent final audit.",
     "Exact-head PR #134 CI 38524496562 COMPLETED SUCCESS: Node, Vite build and complete Chromium E2E. Earlier real browser log 38523889152 explicitly confirmed Batch Recipe v2 independent output and execution audit PASS, cancellation and consecutive-task metadata without regression; latest exact head retested all successfully.",
-    "Overlapping upstream P1 PR #133 and alternative Batch Recipe v2 PR #135 were closed as superseded, not merged; their rationale and alternative schema/no-media policy-only option retained as explicit unshipped follow-up decision rather than silently combining incompatible recipe JSON."
+    "Overlapping upstream P1 PR #133 and alternative Batch Recipe v2 PR #135 were closed as superseded, not merged; their rationale and alternative schema/no-media policy-only option retained as explicit unshipped follow-up decision rather than silently combining incompatible recipe JSON.",
+    "2026-10-14 P0/P2 VERIFIED FIRST EXECUTABLE EXISTING-CONTAINER ATTACHMENT REPLACEMENT BLOCK: PR #136 merged at 17ff592ae33e6dc70d3696ea0724577eae649d56. Genuine FileUID identity, target Tag refusal, exact-length FileData copy-on-write, SHA-256 source + payload proof, unchanged Chapters/Tags/other attachments/raw offsets, separate experimental new copy. Final real Node/Vite/Chromium #38535796837 success (539/539 tests and native mkvmerge/mkvextract/ffprobe proof on complex MKV)."
   ],
   "next_units": [
-    "P0/P2 cohesive block: preserve true Matroska Segment graph and output bytes through a separately verified reader/writer, not legacy FFmpeg remux. Inventory the real P0 #77 nested Chapter, targeted Tag, UID and unknown EBML fixture matrix; define which existing-MKV edit intents are actually writable, fail-closed otherwise.",
-    "Implement source/UID/offset aware Chapter, Tags, Attachments and Track reference changes with independent real MKVToolNix/mkvextract/ffprobe semantic + byte oracle, crash-safe publication, and no source overwrite. Reuse existing read-only raw preservation graph, guarded single-attachment candidate and direct EBML constructs only within their proven scope.",
-    "Bind only independently verified P2 writer capabilities into the professional workbench: preview verified change impact, explicitly approve, create frozen edit JobPlan, output new MKV, show independent audit and reliable rollback; test with multiple complex external MKV fixtures.",
-    "After P2 block: P3 subtitle/font flagship, P4 large high-density responsive UI, P5 large-media performance/recovery, P6 cross-platform release and acceptance. Explicitly retain unknowns rather than marking all P0-P6 done.",
-    "Evaluate policy-only/no-media Batch Recipe v2 authoring and schema migration from superseded PR #135 as an independent compatibility decision; do not accept its sourceKey/fileKey schema implicitly into shipped v2."
+    "Engineer a second coherent existing-container variable-length writer class with explicit parent Element-size and SeekHead/Cues/CRC/offset repair, or a proven safe Matroska-native editing backend; don't substitute FFmpeg remux, which loses #77 semantics.",
+    "Represent original AttachmentUID/TrackUID/ChapterUID/EditionUID reference graph and change impact as source-bound live domain intents; fail closed on incomplete graph, unknown EBML, malformed CRC/size and ambiguous UID mutation.",
+    "Build independent MKVToolNix authored corpus and native validators comparing original nested chapter tree, target Tags, unaffected FileData, all media packets/timestamps, Seek/Cues and source bytes. Include browser run + cancellation and exact-session invalidation.",
+    "Expand P2 output from narrow <=60MiB same-size file to large real media via streaming source hashing/range-aware writer, transactional independent save and end-user compatibility matrix; no generalized writer claim until proven.",
+    "Then advance P3/P4/P5/P6 product blocks and cross-platform acceptance; P1/P3-B batch Recipe v2 remains fully merged at #134."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "815528027048e05d0d39660a1c21199d84dcd4d9",
+  "last_durable_commit": "17ff592ae33e6dc70d3696ea0724577eae649d56",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -135,7 +136,10 @@
     "pr134-merged-main": "passed_815528027048e05d0d39660a1c21199d84dcd4d9",
     "pr133-pr135-duplicate-triage": "closed_unmerged_superseded_by_pr134",
     "main-post-merge-CI": "pending_or_not_queried_separately",
-    "p0-p2-complex-ebml-production-writer": "not_proven_keep_fail_closed"
+    "p0-p2-complex-ebml-production-writer": "not_proven_keep_fail_closed",
+    "pr136-existing-attachment-same-size-node-build-browser": "passed_539_of_539_chromium_mkvtoolnix_independent_38535796837",
+    "pr136-merged-main": "passed_17ff592ae33e6dc70d3696ea0724577eae649d56",
+    "p0-77-general-structural-edit": "still_unproven_keep_blocked"
   },
   "blockers": [
     "Matroska nested Chapter hierarchy, ChapterUID/EditionUID/TrackUID/AttachmentUID targeted Tags, unknown EBML, indexing/CRC and byte/packet preservation are not generally proven writable; issue #77 is closed historically but its documented loss mechanism requires continuing capability-gated refusal.",
