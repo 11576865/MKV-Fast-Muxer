@@ -34,3 +34,7 @@ No assumption is made that every legal Matroska input can be remuxed losslessly.
 ## Roadmap
 
 Next: authenticated baseline snapshots and conflict-checked portable attachment replay, actual AttachmentUID and Tag relation graph gating for any write capability expansion, batch recipe v2 durable tasks, and wider device/browser acceptance. Do not label P1 complete or P2 fully safe based on this source-state migration.
+
+## Subsequent P1 recovery implementation (2026-10-14)
+
+The earlier statement that source attachment edits are nonportable describes the first source attachment **live editing** milestone (#130), not the later recovery work. Follow-on [verified attachment replay report](p1-verified-source-attachment-replay-20261014.md) adds real scan-based source attachment edit intents, SHA-bound import, old-value and exact ffprobe stream-identity comparison, explicit all-or-nothing mixed track/attachment apply, and guarded undo. Its full PR CI is pending until independently verified. The source-order/AttachmentUID/Chapter/Tag writer restrictions above **remain unchanged**. Read the later report for current scope and acceptance status.

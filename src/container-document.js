@@ -80,6 +80,9 @@ export function buildContainerDocument({
         original: Boolean(track.originalOriginal ?? stream?.disposition?.original),
         commentary: Boolean(track.originalCommentary ?? stream?.disposition?.comment),
         hearingImpaired: Boolean(track.originalHearingImpaired ?? stream?.disposition?.hearing_impaired),
+      } : attachment ? {
+        name: attachment.originalFilename,
+        mime: attachment.originalMimetype,
       } : undefined;
     return {
       id: scopedId(scope, item.id),

@@ -219,7 +219,7 @@ export function createEditedContainerProjectFromProjection(snapshot) {
   const originals = current.objects.map(object => {
     const item = observed.get(object.id);
     if (item?.target?.type !== 'source' ||
-        !['audio', 'subtitle'].includes(object.kind) || !item.originalAttributes)
+        !['audio', 'subtitle', 'attachment'].includes(object.kind) || !item.originalAttributes)
       return object;
     return {
       ...object,
@@ -238,12 +238,15 @@ export function createEditedContainerProjectFromProjection(snapshot) {
   for (const target of current.objects) {
     const item = observed.get(target.id);
     if (item?.target?.type !== 'source' ||
-        !['audio', 'subtitle'].includes(target.kind) || !item.originalAttributes)
+        !['audio', 'subtitle', 'attachment'].includes(target.kind) || !item.originalAttributes)
       continue;
     // Persist all effective field differences, including side effects of
     // source-track exclusion. A bounded log is safer than truncating edits.
-    for (const field of ['title', 'language', 'default', 'forced',
-      'original', 'commentary', 'hearingImpaired']) {
+    const editable = target.kind === 'attachment'
+      ? ['name', 'mime']
+      : ['title', 'language', 'default', 'forced',
+        'original', 'commentary', 'hearingImpaired'];
+    for (const field of editable) {
       const previous = result.objects.find(object => object.id === target.id).attributes[field];
       const next = target.attributes[field];
       if (previous !== next) {

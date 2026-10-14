@@ -1388,9 +1388,53 @@ async function scenarioLiveSourceAttachmentDomainMux(browser) {
     assert.ok(attachment && attachment.sourceId,
       'immutable project represents the actual source attachment changes');
     assert.equal(attachment.attributes.mime,'font/ttf');
-    assert.ok(draft.editIntents.every(intent=>intent.objectId!==attachment.id),
-      'nonportable attachment changes must not pretend to have verified replay intents');
-    assert.match(await page.locator('#status').textContent(), /来源附件的保留、文件名和 MIME 修改尚不能从草稿安全恢复/);
+    assert.ok(draft.editIntents.some(intent => intent.objectId===attachment.id &&
+      intent.type==='set-attribute' && intent.field==='name' &&
+      intent.to==='domain-renamed-font.ttf'),
+      'the real attachment filename delta must have an explicit scan-baseline intent');
+    assert.ok(draft.editIntents.some(intent => intent.objectId===attachment.id &&
+      intent.type==='set-attribute' && intent.field==='mime' && intent.to==='font/ttf'));
+    assert.ok(draft.editIntents.some(intent => intent.type==='include' && intent.to===false &&
+      draft.objects.some(obj => obj.kind==='attachment' && obj.id===intent.objectId)));
+    assert.match(await page.locator('#status').textContent(),
+      /来源附件的保留、文件名和 MIME 修改已记录为可核验的草稿意图/);
+
+    // Explicitly restore the original inspected attachment baseline. A saved
+    // draft must not silently mutate the source on import, but verified replay
+    // should reapply the exact previously reviewed output intention.
+    await items.nth(0).locator('input[data-attachment-field="filename"]')
+      .fill('fixture-original.ttf');
+    await items.nth(0).locator('input[data-attachment-field="mimetype"]')
+      .fill('application/x-truetype-font');
+    await items.nth(1).locator('input[data-attachment-action="include"]').check();
+    assert.equal(await items.nth(1).locator('input[data-attachment-action="include"]').isChecked(),true);
+    await page.setInputFiles('#containerProjectImportInput',draftPath);
+    await page.waitForFunction(() =>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'));
+    assert.equal(await items.nth(0).locator('input[data-attachment-field="filename"]').inputValue(),
+      'fixture-original.ttf', 'import itself must never apply edits');
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#containerProjectImportReview')?.dataset.state===
+      'digest-matches-draft',null,{timeout:120_000});
+    await page.locator('#containerProjectRestoreConfirm').check();
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),false);
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.equal(await items.nth(0).locator('input[data-attachment-field="filename"]').inputValue(),
+      'domain-renamed-font.ttf');
+    assert.equal(await items.nth(0).locator('input[data-attachment-field="mimetype"]').inputValue(),
+      'font/ttf');
+    assert.equal(await items.nth(1).locator('input[data-attachment-action="include"]').isChecked(),false);
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(), /2 个来源附件/);
+    await page.locator('#containerProjectRestoreUndoBtn').click();
+    assert.equal(await items.nth(0).locator('input[data-attachment-field="filename"]').inputValue(),
+      'fixture-original.ttf');
+    assert.equal(await items.nth(1).locator('input[data-attachment-action="include"]').isChecked(),true);
+    await page.locator('#containerProjectRestoreConfirm').check();
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.equal(await items.nth(0).locator('input[data-attachment-field="filename"]').inputValue(),
+      'domain-renamed-font.ttf');
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page,'完成。');

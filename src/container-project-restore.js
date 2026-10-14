@@ -16,10 +16,24 @@ const FIELDS = Object.freeze([
 ]);
 const capture = track => Object.fromEntries(FIELDS.map(field => [field, track[field]]));
 const equal = (a, b) => FIELDS.every(field => a[field] === b[field]);
+const ATTACHMENT_FIELDS = Object.freeze(['include','filename','mimetype']);
+const captureAttachment = item => Object.fromEntries(ATTACHMENT_FIELDS.map(field => [field,item[field]]));
+const equalAttachment = (a,b) => ATTACHMENT_FIELDS.every(field => a[field] === b[field]);
 const freeze = x => Object.freeze(x);
 const allowed = new Set([
   'title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired',
 ]);
+
+function validateAttachmentValue(field,value) {
+  if (field === 'include') {
+    if (typeof value !== 'boolean') throw Error('ATTACHMENT_REPLAY_INCLUDE_INVALID');
+  } else if (typeof value !== 'string' ||
+    value.length > (field === 'filename' ? 240 : 120) ||
+    /[\u0000-\u001f\u007f]/.test(value) ||
+    field === 'filename' && (value.includes('/') || value.includes('\\'))) {
+    throw Error('ATTACHMENT_REPLAY_METADATA_INVALID');
+  }
+}
 
 function validateValue(field, value) {
   if (field === 'title') {
@@ -58,10 +72,36 @@ export function prepareVerifiedTrackReplay({
   const objects = new Map(currentProject.objects.map((object, index) =>
     [object.id, liveProjection.objects[index]]));
   const patches = new Map();
+  const attachmentPatches = new Map();
   for (const change of preview.changes) {
     const object = objects.get(change.objectId);
     const [kind, indexText] = String(object?.target?.key || '').split(':');
     const index = Number(indexText);
+    if (object?.target?.type === 'source' && kind === 'attachment' &&
+        object.kind === 'attachment' && /^\d+$/.test(indexText || '') &&
+        Number.isSafeInteger(index)) {
+      const attachment=trackState.attachments?.find(row=>row.index===index);
+      const stream=trackState.streams?.find(row=>row.index===index);
+      if (!attachment || !stream || attachment.stream!==stream ||
+          stream.codec_type!=='attachment')
+        throw Error('ATTACHMENT_REPLAY_SCAN_IDENTITY_DRIFT');
+      const field = change.type === 'include' ? 'include' :
+        change.type === 'set-attribute' && change.field === 'name' ? 'filename' :
+        change.type === 'set-attribute' && change.field === 'mime' ? 'mimetype' : '';
+      if (!ATTACHMENT_FIELDS.includes(field))
+        throw Error('ATTACHMENT_REPLAY_UNSUPPORTED_EDIT');
+      validateAttachmentValue(field,change.to);
+      let patch=attachmentPatches.get(index);
+      if (!patch) {
+        const before=captureAttachment(attachment);
+        patch={index,kind:'attachment',stream,before,after:{...before}};
+        attachmentPatches.set(index,patch);
+      }
+      if (patch.before[field]!==change.current)
+        throw Error('ATTACHMENT_REPLAY_LIVE_FIELD_DRIFT');
+      patch.after[field]=change.to;
+      continue;
+    }
     if (object?.target?.type !== 'source' ||
         !['audio', 'subtitle'].includes(kind) || object.kind !== kind ||
         !/^\d+$/.test(indexText || '') || !Number.isSafeInteger(index))
@@ -113,6 +153,16 @@ export function prepareVerifiedTrackReplay({
         (patch.after.default || patch.after.forced))
       throw Error('TRACK_REPLAY_EXCLUDED_FLAG');
   }
+  for (const patch of attachmentPatches.values()) {
+    // An excluded attachment's metadata is not part of the executable
+    // output. Refuse to hide metadata edits behind an exclusion command.
+    if (!patch.after.include &&
+        (patch.after.filename !== patch.before.filename ||
+         patch.after.mimetype !== patch.before.mimetype))
+      throw Error('ATTACHMENT_REPLAY_EXCLUDED_METADATA_EDIT');
+  }
+  if (patches.size + attachmentPatches.size > 100)
+    throw Error('TRACK_REPLAY_CHANGE_BUDGET');
   return freeze({
     schema: TRACK_REPLAY_SCHEMA,
     sourceKey: liveProjection.sourceKey,
@@ -122,7 +172,12 @@ export function prepareVerifiedTrackReplay({
       index: patch.index, kind: patch.kind,
       before: freeze(patch.before), after: freeze(patch.after),
     }))),
-    // No permission, execution token or source bytes are carried into a plan.
+    attachments: freeze([...attachmentPatches.values()].map(patch => freeze({
+      index: patch.index, kind: patch.kind, stream: patch.stream,
+      before: freeze(patch.before), after: freeze(patch.after),
+    }))),
+    // Stream references are in-memory identity sentinels only. No permission,
+    // execution token or source bytes are carried into a plan.
     executionAuthorized: false, sourceMutationAuthorized: false,
   });
 }
@@ -132,9 +187,13 @@ export function applyPreparedTrackReplay(plan, trackState) {
       !trackState || plan.sourceScanKey !== trackState.fileKey ||
       !Array.isArray(trackState.tracks))
     throw Error('TRACK_REPLAY_PLAN_STALE');
-  if (!plan.tracks.length || plan.tracks.length > 100)
+  const attachments = plan.attachments || [];
+  if (!Array.isArray(attachments) ||
+      !plan.tracks.length && !attachments.length ||
+      plan.tracks.length + attachments.length > 100)
     throw Error('TRACK_REPLAY_PLAN_INVALID');
   const targets = [];
+  const attachmentTargets = [];
   const seen = new Set();
   // Validate every target before mutating the first; no partial commit on a
   // stale/changed editor state. This path has no awaits or File writes.
@@ -147,12 +206,30 @@ export function applyPreparedTrackReplay(plan, trackState) {
       throw Error('TRACK_REPLAY_LIVE_STATE_CHANGED');
     targets.push([track, patch.after]);
   }
+  for (const patch of attachments) {
+    if (seen.has(patch.index)) throw Error('TRACK_REPLAY_DUPLICATE_TARGET');
+    seen.add(patch.index);
+    const item=trackState.attachments?.find(row=>row.index===patch.index);
+    const stream=trackState.streams?.find(row=>row.index===patch.index);
+    if (!item || !stream || patch.kind!=='attachment' ||
+        patch.stream!==stream || item.stream!==stream ||
+        stream.codec_type!=='attachment' ||
+        !equalAttachment(captureAttachment(item),patch.before))
+      throw Error('ATTACHMENT_REPLAY_LIVE_STATE_CHANGED');
+    attachmentTargets.push([item,patch.after]);
+  }
+  // Nothing from either collection changes until every track AND attachment
+  // is proven still equal to the prepared before state.
   for (const [track, after] of targets) {
     for (const field of FIELDS) track[field] = after[field];
+  }
+  for (const [item,after] of attachmentTargets) {
+    for (const field of ATTACHMENT_FIELDS) item[field]=after[field];
   }
   return freeze({
     status: 'applied-to-current-edit-plan',
     updatedTracks: targets.length,
+    updatedAttachments: attachmentTargets.length,
     reviewedFields: plan.proposedCount,
     fileWritten: false, muxStarted: false, executionAuthorized: false,
   });
@@ -166,6 +243,7 @@ export function revertPreparedTrackReplay(plan, trackState) {
       !Array.isArray(trackState.tracks))
     throw Error('TRACK_REPLAY_UNDO_STALE');
   const targets = [];
+  const attachmentTargets = [];
   for (const patch of plan.tracks) {
     const track = trackState.tracks.find(row =>
       row.index === patch.index && row.type === patch.kind);
@@ -173,9 +251,23 @@ export function revertPreparedTrackReplay(plan, trackState) {
       throw Error('TRACK_REPLAY_UNDO_CONFLICT');
     targets.push([track, patch.before]);
   }
+  for (const patch of plan.attachments || []) {
+    const item=trackState.attachments?.find(row=>row.index===patch.index);
+    const stream=trackState.streams?.find(row=>row.index===patch.index);
+    if (!item || !stream || patch.kind!=='attachment' ||
+        patch.stream!==stream || item.stream!==stream ||
+        stream.codec_type!=='attachment' ||
+        !equalAttachment(captureAttachment(item),patch.after))
+      throw Error('ATTACHMENT_REPLAY_UNDO_CONFLICT');
+    attachmentTargets.push([item,patch.before]);
+  }
   for (const [track, before] of targets) {
     for (const field of FIELDS) track[field] = before[field];
   }
+  for (const [item,before] of attachmentTargets) {
+    for (const field of ATTACHMENT_FIELDS) item[field]=before[field];
+  }
   return freeze({ status: 'reverted-in-current-edit-plan',
-    revertedTracks: targets.length, fileWritten: false, muxStarted: false });
+    revertedTracks: targets.length, revertedAttachments: attachmentTargets.length,
+    fileWritten: false, muxStarted: false });
 }
