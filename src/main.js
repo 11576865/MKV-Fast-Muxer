@@ -576,12 +576,29 @@ async function inspectSelectedFonts() {
   return recognition;
 }
 
+// FileList can be re-enumerated during async inspection and re-rendering.
+// Pin the actual File wrapper references for ONE FileList object; a genuine
+// selection replacement (new FileList or change event) creates new bindings.
+const liveFileListPins=new WeakMap();
+function exactSelectionFiles(input) {
+  const selection=input.files;
+  if(!selection)return [];
+  let pinned=liveFileListPins.get(input);
+  if(!pinned||pinned.list!==selection) {
+    pinned={list:selection,files:Array.from(selection)};
+    liveFileListPins.set(input,pinned);
+  }
+  return pinned.files.slice();
+}
+function invalidateExactSelectionFiles(input) {
+  liveFileListPins.delete(input);
+}
 function selectedExternalAudioFiles() {
-  return Array.from(audioInput.files || []);
+  return exactSelectionFiles(audioInput);
 }
 
 function selectedSubtitleRawFiles() {
-  return Array.from(subInput.files || []);
+  return exactSelectionFiles(subInput);
 }
 
 function subtitleSelectionKey(files = selectedSubtitleRawFiles()) {
@@ -2461,10 +2478,12 @@ videoInput.addEventListener('change', () => {
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(audioInput);
   syncNewTrackState();
   updateUI();
 });
 subInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(subInput);
   subtitleInspectGeneration += 1;
   subtitleInspectState = {
     status: 'idle',
