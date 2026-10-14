@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-14-p0-p2-nonterminal-seekhead-relay",
+  "status": "submitted-pending-exact-head-ci-and-native-chromium-audit",
+  "base": "main@2507a5d45739a3ae94fc42bc53e2c342f4869aa8",
+  "branch": "feat/p0-p2-nonterminal-seekhead-relay-20261014",
+  "goal": "One full P0/P2 production slice: real, reviewed nonterminal Attachments FileData variable resizing without moving any old protected Segment offsets; replace old indexed Attachments slot with equal-span SeekHead relay, append modified master, independently verify actual native MKV.",
+  "implementation": [
+    "Source-bound frozen WeakMap plan, current true source/replacement File selections, hash before execute and manual download",
+    "Reject referenced TagAttachmentUID, ambiguous target, no original direct Attachments SeekHead index, CRC, unknown top-level and altered/non-final AttachedFile, lacking relay room and VINT capacity",
+    "Repoint old SeekID at old offset to new SeekHead; new same-span SeekHead points to appended original Attachments copy resized at Seg EOF; grow finite Segment size",
+    "Original protected SeekHead except precisely authorized SeekID bytes, existing Cluster/Cues/Tracks/Chapters/Tags raw elements and all offsets remain invariant",
+    "Read output inventory, exact FileUID/other FileData SHA and Tag target relations; no FFmpeg/overwrite",
+    "Distinct reviewed workbench controls, typed blocked reasons and 768px tablet capture",
+    "Synthetic positive and negative tests and original native MKVToolNix/mkvpropedit source browser with independent mkvmerge, mkvextract and ffprobe packet oracle"
+  ],
+  "validation": {
+    "node": "pending",
+    "build": "pending",
+    "fullChromium": "pending",
+    "nativeOutput": "pending",
+    "generalSeekCuesCrc": "not_supported"
+  },
+  "outOfScope": [
+    "multiple Attachments masters",
+    "source lacking original accurate Attachments SeekHead",
+    "tagged original target",
+    "source CRC in affected region",
+    "arbitrary offset/SeekHead/Cues retargeting",
+    "large source over 60MiB",
+    "unverified players/devices"
+  ],
+  "next": [
+    "Gate entire PR head on 545+ Node/build/real Chromium independent native audit.",
+    "Localize and repair exact failures without dropping #77 preservation or source-reference protections.",
+    "Merge only after real native MKV discovered final attachments and packets/Tags/Chapters exact audit green."
+  ],
+  "date": "2026-10-14"
+}
