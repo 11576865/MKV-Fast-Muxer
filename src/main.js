@@ -56,14 +56,10 @@ import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPOR
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
+import { createLiveSourceTrackSession } from './live-source-track-authority.js';
 import {
-  createLiveSourceTrackSession, commitLiveSourceTrackChanges,
-  commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
-} from './live-source-track-authority.js';
-import {
-  createLiveExternalAssetSession,commitLiveExternalAssetChanges,
-  commitExternalFontMode,inspectLiveExternalAssets,
-  rebindLiveExternalFontInventory,
+  createLiveExternalAssetSession, commitLiveExternalAssetChanges,
+  inspectLiveExternalAssets, rebindLiveExternalFontInventory,
 } from './live-external-asset-authority.js';
 import {
   createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
