@@ -32,6 +32,12 @@ import { inspectMatroskaPreservation, preservationBlockMessage } from './preserv
 import { preservationReadiness } from './preservation-readiness.js';
 import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
 import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
+import {
+  buildBatchRecipeV2,stringifyBatchRecipeV2,parseBatchRecipeV2,
+  previewBatchRecipeV2,captureBatchRecipeV2Binding,
+  verifyBatchRecipeV2Binding,applyBatchRecipeV2ToPairing,
+  BATCH_RECIPE_V2_MAX_BYTES,
+} from './batch-recipe-v2.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
@@ -232,6 +238,12 @@ const batchSubsetScope = $('batchSubsetScope');
 const batchRecipeExportBtn = $('batchRecipeExportBtn');
 const batchRecipeImportInput = $('batchRecipeImportInput');
 const batchRecipeNotice = $('batchRecipeNotice');
+const batchRecipeV2ExportBtn=$('batchRecipeV2ExportBtn');
+const batchRecipeV2ImportInput=$('batchRecipeV2ImportInput');
+const batchRecipeV2ConfirmBtn=$('batchRecipeV2ConfirmBtn');
+const batchRecipeV2Notice=$('batchRecipeV2Notice');
+const batchRecipeV2Review=$('batchRecipeV2Review');
+const batchRecipeV2ReviewItems=$('batchRecipeV2ReviewItems');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
@@ -424,6 +436,8 @@ let batchStartCancelled = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
+let pendingBatchRecipeV2=null;
+let approvedBatchRecipeV2=null;
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
@@ -5805,6 +5819,25 @@ async function syncBatchPlan() {
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
+  // Never silently carry recipe approval to a different File selection.
+  if(approvedBatchRecipeV2 &&
+      !verifyBatchRecipeV2Binding(approvedBatchRecipeV2,pairing)) {
+    approvedBatchRecipeV2=null;
+    batchRecipeV2Notice.textContent='当前批次的 File/字幕归属已变化；先前的 v2 确认已撤销，请重新核对。';
+  }
+  if(pendingBatchRecipeV2) {
+    const review=previewBatchRecipeV2(pendingBatchRecipeV2,pairing);
+    batchRecipeV2ConfirmBtn.hidden=false;
+    batchRecipeV2ConfirmBtn.disabled=
+      review.state!=='ready'||batchRunning||batchStartPending||isBusy();
+    if(!approvedBatchRecipeV2)
+      batchRecipeV2Notice.textContent=review.state==='ready'
+        ? '逐输出规则已匹配 '+review.matchedJobs+' 个任务；必须点击“确认应用”，仍须冻结时再次预检。'
+        : '逐输出规则尚不能应用：'+review.issues.join('；');
+  } else {
+    batchRecipeV2ConfirmBtn.hidden=true;
+    batchRecipeV2ConfirmBtn.disabled=true;
+  }
   return pairing;
 }
 
@@ -6026,6 +6059,9 @@ batchRecipeImportInput?.addEventListener('change', async () => {
       hasSelectedSources: Boolean(batchVideoFiles().length),
     });
     // No implicit restoration of manual source pairings or old save paths.
+    pendingBatchRecipeV2=null;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
     batchManualAssignments.clear();
     selectedBatchVideoFile = null;
     activeBatchJobLedger = null;
@@ -6038,6 +6074,115 @@ batchRecipeImportInput?.addEventListener('change', async () => {
     batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
   }
 });
+
+function renderBatchRecipeV2Review(recipe) {
+  if(!batchRecipeV2Review || !batchRecipeV2ReviewItems)return;
+  batchRecipeV2Review.hidden=!recipe;
+  if(!recipe){batchRecipeV2ReviewItems.innerHTML='';return;}
+  batchRecipeV2ReviewItems.innerHTML=recipe.jobs.map(job=>`
+    <section class="batch-recipe-v2-review-job">
+      <strong>${escapeHtml(job.sourceName)} → ${escapeHtml(job.outputName)}</strong>
+      ${job.subtitleRules.map(row=>`
+        <div class="track-meta">${escapeHtml(row.fileName)} ${row.sidecarName
+          ? ' + '+escapeHtml(row.sidecarName) : ''} · ${escapeHtml(row.title)}
+          · ${escapeHtml(row.language)} · ${escapeHtml(row.formatId||'未声明格式')}
+          · Default:${row.default?'是':'否'} · Forced:${row.forced?'是':'否'}
+          · Original:${row.original?'是':'否'}
+          · Commentary:${row.commentary?'是':'否'}
+          · Hearing impaired:${row.hearingImpaired?'是':'否'}</div>`).join('')}
+    </section>`).join('');
+}
+function isApprovedBatchRecipeV2SelectionCurrent(binding,pairing) {
+  if(!binding)return true;
+  if(!verifyBatchRecipeV2Binding(binding,pairing))return false;
+  const selectedVideos=batchVideoFiles();
+  const selectedSubtitles=batchSubtitleFiles();
+  return pairing.jobs.every(job=>selectedVideos.includes(job.video) &&
+    (job.subtitleInputFiles||[]).every(file=>selectedSubtitles.includes(file)));
+}
+
+batchRecipeV2ExportBtn?.addEventListener('click',()=>{
+  if(batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  try {
+    if(!latestBatchPairing?.jobs?.length)throw Error('请先选择有效媒体并完成配对');
+    const recipe=buildBatchRecipeV2({
+      pairing:latestBatchPairing,
+      policy:{
+        preserveAttachments:Boolean(batchPreserveAttachments.checked),
+        subsetEnabled:Boolean(batchFontSubsetEnabled.checked),
+        subsetScope:batchSubsetScope.value,
+      },
+    });
+    const url=URL.createObjectURL(new Blob([stringifyBatchRecipeV2(recipe)],{
+      type:'application/json;charset=utf-8',
+    }));
+    const link=document.createElement('a');
+    link.href=url;link.download='mkv-batch-recipe-v2.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30_000);
+    batchRecipeV2Notice.textContent='逐输出 v2 规则已导出；文件、保存路径和执行权限均不包含。';
+  }catch(error){
+    batchRecipeV2Notice.textContent='逐输出规则导出被拒绝：'+
+      (error?.message||String(error));
+  }
+});
+batchRecipeV2ImportInput?.addEventListener('change',async()=>{
+  const file=batchRecipeV2ImportInput.files?.[0];
+  batchRecipeV2ImportInput.value='';
+  if(!file)return;
+  if(batchRunning||batchStartPending||batchImportInProgress||isBusy()){
+    batchRecipeV2Notice.textContent='批次进行中不能读取 v2 规则。';
+    return;
+  }
+  try {
+    if(file.size>BATCH_RECIPE_V2_MAX_BYTES)throw Error('BATCH_RECIPE_V2_SIZE_LIMIT');
+    const parsed=parseBatchRecipeV2(await file.text());
+    if(batchRunning||batchStartPending||batchImportInProgress||isBusy())
+      throw Error('BATCH_RECIPE_V2_BUSY');
+    pendingBatchRecipeV2=parsed;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(parsed);
+    activeBatchJobLedger=null;
+    const review=previewBatchRecipeV2(parsed,latestBatchPairing);
+    batchRecipeV2ConfirmBtn.hidden=false;
+    batchRecipeV2ConfirmBtn.disabled=review.state!=='ready';
+    batchRecipeV2Notice.textContent=review.state==='ready'
+      ? '已读取 '+review.totalJobs+' 个逐输出任务：核对当前素材后点击确认；导入本身未改变配对和执行状态。'
+      : '配方未绑定当前媒体：'+review.issues.join('；');
+  }catch(error){
+    pendingBatchRecipeV2=null;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
+    batchRecipeV2ConfirmBtn.hidden=true;
+    batchRecipeV2Notice.textContent='逐输出 v2 导入拒绝：'+
+      (error?.message||String(error));
+  }
+});
+batchRecipeV2ConfirmBtn?.addEventListener('click',()=>{
+  if(!pendingBatchRecipeV2||batchRunning||batchStartPending||
+      batchImportInProgress||isBusy())return;
+  try {
+    const pairing=latestBatchPairing;
+    const approval=captureBatchRecipeV2Binding(pendingBatchRecipeV2,pairing);
+    if(!isApprovedBatchRecipeV2SelectionCurrent(approval,pairing))
+      throw Error('BATCH_RECIPE_V2_CURRENT_FILES_CHANGED');
+    // Only explicit user confirmation may update current task-level policies.
+    const policy=approval.recipe.policy;
+    batchPreserveAttachments.checked=policy.preserveAttachments;
+    batchFontSubsetEnabled.checked=policy.subsetEnabled;
+    batchSubsetScope.value=policy.subsetScope;
+    approvedBatchRecipeV2=approval;
+    activeBatchJobLedger=null;
+    batchRecipeV2Notice.textContent='已确认 '+approval.bindings.length+
+      ' 个逐输出字幕规则；冻结前仍将重新核查 File 来源、配对、保真和目录冲突。';
+    void requestBatchPlanSync();
+  }catch(error){
+    approvedBatchRecipeV2=null;
+    batchRecipeV2Notice.textContent='逐输出规则尚未确认：'+
+      (error?.message||String(error));
+  }
+});
+
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
 batchCancelBtn?.addEventListener('click', () => {
@@ -6074,6 +6219,17 @@ async function prepareBatchStart() {
       return null;
     }
     const generation = batchPlanGeneration;
+    const currentRecipeV2Approval=approvedBatchRecipeV2;
+    if(pendingBatchRecipeV2&&!currentRecipeV2Approval){
+      batchStatus.textContent='批量未开始：导入的 v2 规则尚未确认或已失效。';
+      return null;
+    }
+    if(currentRecipeV2Approval &&
+        !isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing)){
+      batchStatus.textContent='批量未开始：逐输出字幕规则与当前来源绑定失效。';
+      approvedBatchRecipeV2=null;
+      return null;
+    }
     const selectedOutputDirectory = batchOutputDirectoryHandle;
     // The legacy executor reads live rules; freeze their identities too.
     const snapshot = {
@@ -6086,6 +6242,8 @@ async function prepareBatchStart() {
     };
     const isCurrent = () => !batchStartCancelled &&
       generation === batchPlanGeneration &&
+      approvedBatchRecipeV2 === currentRecipeV2Approval &&
+      isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing) &&
       selectedOutputDirectory === batchOutputDirectoryHandle &&
       !batchImportInProgress && !batchRunning && !isBusy() &&
       snapshot.source === batchVideoFiles().map(fileIdentity).join('\u0000') &&
@@ -6162,7 +6320,10 @@ async function prepareBatchStart() {
     // Freeze every actual input choice and batch policy after destructive
     // preservation preflight; do not let the legacy executor read live batch
     // settings once the run has started.
-    const frozenPlan = freezeBatchJobPlan(pairing, {
+    const approvedPairing=currentRecipeV2Approval
+      ? applyBatchRecipeV2ToPairing(currentRecipeV2Approval.recipe,pairing)
+      : pairing;
+    const frozenPlan = freezeBatchJobPlan(approvedPairing, {
       generation,
       preserveAttachments: batchPreserveAttachments?.checked,
       subsetEnabled: batchFontSubsetEnabled?.checked,
