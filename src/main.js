@@ -4456,7 +4456,21 @@ async function executeCurrentMuxTask(explicit = null) {
           verifyCurrent();
         } catch(error) {
           if (error?.message !== 'EXTERNAL_DOMAIN_INVENTORY_CHANGED') throw error;
-          syncNewTrackState();
+          // An inventory-only change (for example a freshly selected font
+          // File) must never re-infer and overwrite title/language values
+          // already accepted by the current external track editor. Rebind
+          // immutable authority only when the exact current File/sidecar
+          // objects still match the current execution-facing rows.
+          const audioFiles=selectedExternalAudioFiles();
+          const subtitles=selectedSubtitleTrackInputs().tracks;
+          if(audioFiles.length!==externalAudioState.length ||
+              subtitles.length!==newSubtitleState.length ||
+              audioFiles.some((file,index)=>externalAudioState[index]?.file!==file) ||
+              subtitles.some((track,index)=>
+                newSubtitleState[index]?.file!==track.file ||
+                newSubtitleState[index]?.sidecarFile!==(track.sidecarFile||null)))
+            throw Error('EXTERNAL_DOMAIN_REBIND_SOURCE_CHANGED');
+          refreshExternalAssetAuthority();
         }
         externalAssetPendingTaskRebind=false;
       }
