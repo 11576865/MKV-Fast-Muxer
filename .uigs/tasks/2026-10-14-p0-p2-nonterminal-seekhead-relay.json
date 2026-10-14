@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "2026-10-14-p0-p2-nonterminal-seekhead-relay",
-  "status": "submitted-pending-exact-head-ci-and-native-chromium-audit",
+  "status": "independently-native-audited-merged-main",
   "base": "main@2507a5d45739a3ae94fc42bc53e2c342f4869aa8",
   "branch": "feat/p0-p2-nonterminal-seekhead-relay-20261014",
   "goal": "One full P0/P2 production slice: real, reviewed nonterminal Attachments FileData variable resizing without moving any old protected Segment offsets; replace old indexed Attachments slot with equal-span SeekHead relay, append modified master, independently verify actual native MKV.",
@@ -15,10 +15,10 @@
     "Synthetic positive and negative tests and original native MKVToolNix/mkvpropedit source browser with independent mkvmerge, mkvextract and ffprobe packet oracle"
   ],
   "validation": {
-    "node": "pending",
-    "build": "pending",
-    "fullChromium": "pending",
-    "nativeOutput": "pending",
+    "node": "passed_547_547_exact_head_38566327194",
+    "build": "passed_exact_head_38566327194",
+    "fullChromium": "passed_every_scenario_38566327194",
+    "nativeOutput": "passed_unmodified_original_nonterminal_source_renamed_real_attachments_discoverable_through_chain_mkvmerge_mkvextract_ffprobe",
     "generalSeekCuesCrc": "not_supported"
   },
   "outOfScope": [
@@ -31,9 +31,20 @@
     "unverified players/devices"
   ],
   "next": [
-    "Gate entire PR head on 545+ Node/build/real Chromium independent native audit.",
-    "Localize and repair exact failures without dropping #77 preservation or source-reference protections.",
-    "Merge only after real native MKV discovered final attachments and packets/Tags/Chapters exact audit green."
+    "Develop next independently audited P0/P2 structural editing class beyond original correct direct SeekHead/nonterminal final AttachedFile and byte-equal-size relay constraints.",
+    "Preserve existing reference graph by proving file-wide data, original packet offsets, SeekHead/Cues + CRC scope; no auto fallback to lossy FFmpeg remux.",
+    "Assess larger >60 MiB streaming source and output hashing and transactional publication, cross-platform/player seek and chapter/tag discoverability.",
+    "Consolidate user-facing UI writer capability chooser without losing separately tested permission bounds, P1/P3-B Recipe v2, P0 #77 gate."
   ],
-  "date": "2026-10-14"
+  "date": "2026-10-14",
+  "pull_request": 139,
+  "head_sha": "13fbeebd5a012ae0e67ac1e798860c64dd57fb6d",
+  "merge_sha": "4db7eee026aff7fabed0b566bc38715c3fb45f9c",
+  "completed": [
+    "Source nonterminal Attachments indexed by source SeekHead, real original FileUID selected/confirmed, source/replacement actual File SHA bound to frozen plan",
+    "Same-span chained SeekHead at old master byte address, original narrow direct SeekPosition kept, only SeekID bytes changed, grown Segment SIZE and appended changed last AttachedFile",
+    "Exactly same original protected offsets/Cues/Clusters/Chapters/Tags/Track bytes, other original FileData and all TagUID target edges source-to-output verified locally",
+    "Full real Chromium output uses unmodified native MKVToolNix/mkvpropedit-authored nonterminal original, independently native mkvmerge, mkvextract and ffprobe proof, tablet screenshot",
+    "Exact head CI 38566327194 SUCCESS Node 547/547, build, full Chromium; product PR #139 merged at 4db7eee"
+  ]
 }
