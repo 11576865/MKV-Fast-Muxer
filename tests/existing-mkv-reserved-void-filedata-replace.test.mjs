@@ -112,7 +112,7 @@ test('P0/P2 linked target, missing Void, CRC, unknown top-level, fake plan, no r
   await assert.rejects(prepare(mkv({unknown:true}),Buffer.alloc(35)),/UNKNOWN_OR_UNVERIFIED_SOURCE/);
   await assert.rejects(prepare(mkv(),Buffer.alloc(payloadB.length)),/EQUAL_LENGTH_USE_EXISTING_WRITER/);
   await assert.rejects(prepare(mkv(),Buffer.alloc(35),{approveVariableLength:false}),/REVIEW_REQUIRED/);
-  await assert.rejects(prepare(mkv(),Buffer.alloc(2_000)),/REMAINDER_TOO_SMALL/);
+  await assert.rejects(prepare(mkv(),Buffer.alloc(2_000)),/SIZE_VINT_CAPACITY|REMAINDER_TOO_SMALL/);
   const plan=await prepare(mkv(),Buffer.alloc(35));
   await assert.rejects(executeReservedVoidFileDataReplacement({...plan}),/FORGED_OR_STALE_PLAN/);
 });
