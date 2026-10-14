@@ -1,6 +1,6 @@
 # P0 + P2 — Existing MKV same-length FileData replacement (strict experimental editing block)
 
-Status: **code and Node/real-browser acceptance submitted; exact-head CI and independent output audit pending**. This is a bounded, user-visible existing-container edit, not a general Matroska writer or a replacement for the FFmpeg muxer.
+Status: **verified and merged into main** by [PR #136](https://github.com/11576865/MKV-Fast-Muxer/pull/136), merge commit [17ff592](https://github.com/11576865/MKV-Fast-Muxer/commit/17ff592ae33e6dc70d3696ea0724577eae649d56). Exact-head [Actions 38535796837](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38535796837) **SUCCESS**: 539/539 Node tests, Vite build, complete real Chromium, and logged native independent chapter/tag/UID/packet/FileData output audit PASS. This is a bounded, user-visible existing-container edit, not a general Matroska writer or a replacement for the FFmpeg muxer.
 
 ## Product capability
 
@@ -24,7 +24,7 @@ No source chapters, tracks, Tags, SeekHead/Cues, Info, Segment layout or other o
 
 `scenarioExistingMkvSameSizeAttachmentReplace()` in real Chromium E2E uses the independently `mkvmerge`/`mkvpropedit`-authored `p0-independent-attachmenttag.mkv`, adds independently authored nested Chapters, then replaces the **decoy** attachment with equal-byte-length bytes. The browser must refuse wrong sizes, invalidate past confirmations, produce a *real downloaded MKV*, and native independent `mkvmerge -J`, `mkvextract` and `ffprobe -show_packets -show_data_hash sha256` must prove original UID/track identity, exact original chapters/tags XML, still-targeted attachment bytes, exact replacement bytes and packet/timing identity.
 
-The full Node/Vite/Chromium GitHub Actions check is a gating step. **Do not claim actual independent green until that exact-head run succeeds**.
+The full Node/Vite/Chromium GitHub Actions check is a gating step. **Exact-head independent evidence satisfied for this tested layout.** No general consumer-player conformance claim follows from this single fixture and browser environment.
 
 ## Explicit non-claims and next structural block
 
