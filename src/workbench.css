@@ -1699,6 +1699,7 @@ body { background: var(--bg); }
   padding: 8px 9px; color: var(--text-strong);
   background: var(--surface-0); border: 1px solid var(--line); border-radius: 6px;
 }
+#existingMkvTailTarget,
 #existingMkvReservedVoidTarget,
 #existingMkvSameSizeTarget {
   box-sizing: border-box; width: 100%; min-width: 0;
@@ -1707,6 +1708,7 @@ body { background: var(--bg); }
   background: var(--surface-0); border: 1px solid var(--line);
   border-radius: 6px;
 }
+#existingMkvTailTarget option[disabled],
 #existingMkvReservedVoidTarget option[disabled],
 #existingMkvSameSizeTarget option[disabled] { color: var(--muted); }
 .existing-mkv-limited [data-state="blocked"] { color: var(--danger); }

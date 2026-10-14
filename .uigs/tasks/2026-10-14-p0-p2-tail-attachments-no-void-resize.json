@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-14-p0-p2-tail-attachments-no-void-resize",
+  "status": "implemented-PENDING-exact-head-unit-build-chromium-native-audit",
+  "branch": "feat/p0-p2-tail-master-no-void-resize-20261014",
+  "goal": "Deliver reviewed no-Void final-Attachments length-changing existing-MKV writer, updating exactly four size fields and user data while preserving every other original top-level element offset/raw byte and UID relation.",
+  "implemented": [
+    "Strict original Segment end Attachments + final AttachedFile structural eligibility; original FileUID selected by source-bound reader; refuse UID-targeted Tag and incomplete graph",
+    "Rewrite original fixed-width FileData, AttachedFile, Attachments, Segment EBML size fields and replace target data, no Void/filler, no FFmpeg",
+    "Source and candidate whole-byte SHA-256, immutable private grants and strict output inventory, other attachment SHA, original protected top-level raw commitments and unchanged offsets, output graph checks",
+    "Explicit workbench UID selector, current File inputs SHA comparison before execution and download, manual independent new MKV",
+    "Adversarial grow/shrink Node fixtures; independently authored MKVToolNix+test-only tail layout native fixture with SeekHead adjustment; real full Chromium downloadable output and native mkvmerge/mkvextract/ffprobe UID/Chapter/Tag/FileData/packet audit",
+    "Responsive tablet screenshot, P0/P2-T source layout contract"
+  ],
+  "limits": [
+    "<=60MiB source <=4MiB target data",
+    "finite Segment and final sole Attachments master",
+    "target final AttachedFile, unreferenced by Tags",
+    "four original SIZE VINT widths must fit",
+    "no CRC within mutated masters and no unknown top-level EBML",
+    "no general SeekHead/Cues repositioning, UID retarget, no overwrite"
+  ],
+  "validation": {
+    "node": "pending",
+    "vite": "pending",
+    "real_chromium": "pending",
+    "independent_native_artifact": "pending",
+    "general_writer": "not_proven"
+  },
+  "next": [
+    "Open one draft full-block PR and obtain full Node/Vite/Chromium workflow, fix only confirmed failures.",
+    "Pass real browser output + independently extracted nested Chapters/Tags/fileUID and packet hash evidence before merging.",
+    "After merging, next block handles multi-position structural relocation, SeekHead/Cues recomputation, CRC and wider EBML/VINT capacities."
+  ]
+}
