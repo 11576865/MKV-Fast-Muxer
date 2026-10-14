@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1 bounded source-neutral external resource ContainerProject owner: real external audio/subtitle metadata, font mode/inventory, exact File binding and legacy mux projection",
+  "current_work_unit": "P3-B real Batch Recipe v2: per-episode subtitle metadata editor, source-reselect/review-gated portable JSON, identity-bound overrides into actual frozen JobPlan and independent final MKV audit",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -61,41 +61,49 @@
     "Added strict external domain/executor/File coherence check to single-task mux before the original FFmpeg writer handoff; independent frozen batch JobPlan remains unaffected.",
     "Added extensive Node regressions for two-resource atomic commits, invalid field no-op rollback, old authoring bypass, File/sidecar/format identity drift, font mode, 150 input revisions, no-resource candidate and rebind.",
     "Added real Chromium MKV scenario with external FLAC, ASS, TTF, metadata/flags, exact-same-metadata File replacement and independent final-MKV ffprobe audit.",
-    "Ran actual module smoke with audio/subtitle domain writes, font-mode transition, bad batch rejection, 125 title revisions and exact File identity refusal; changed JS syntax checks PASS."
+    "Ran actual module smoke with audio/subtitle domain writes, font-mode transition, bad batch rejection, 125 title revisions and exact File identity refusal; changed JS syntax checks PASS.",
+    "PR #133 fixed async cancel/restart and two-task metadata leakage in separate bounded generations. Node and Vite passed; repaired head 35411ad3a9976ecd9e0881610cc2231efdde7bee exact-head Chromium was in progress during Batch Recipe v2 work. Do not claim PR #133 merged yet.",
+    "Built complete strict batch-recipe-v2.js: 128 KiB max, at most 200 tasks/30 subtitle identities each, typed per-task title/language/Default/Forced/Original/Commentary/HearingImpaired, source/track display identity hints, no File grants or execution authorization.",
+    "Integrated real batch task inspector title/language/Default/Forced inputs; task-specific File-bound override map feeds current reviewed pairing before existing freezeBatchJobPlan and createFrozenBatchMuxContext.",
+    "Implemented two-phase v2 import: policy can load, task metadata remains inert and blocks queue until fresh actual matching source/subtitle inventory is reviewed and explicitly applied, or discarded; old strict v1 import remains supported.",
+    "Added asynchronous pairing-generation guard for real per-job export and approval, source reselection invalidates old per-task overrides and manual pairing; only source-free policy template export can proceed without media scan.",
+    "Added responsive task-inspector and v2 review/discard controls without duplicating the existing queue, frozen batch runner, FFmpeg writer, output collision gate or final MKV artifact audit.",
+    "Added actual Chromium two-episode Batch S01E01/S01E02 ASS/SRT flow: author different metadata, export v2, reselect files, reject automatic replay, explicitly approve, mux real outputs, independently ffprobe each delivered subtitle title/language/Forced.",
+    "Added 8 isolated batch recipe tests, all passed: strict parser, cross-job isolation, bad/duplicate identity refusal, exact current File approval, actual frozen JobPlan and MuxContext authored fields, 20-job plan-only freeze vs false 20 actual MKV claim.",
+    "Ran static syntax validation on batch-recipe-v2.js, main.js, tests and existing batch dependency modules: all passed in isolated parser."
   ],
   "next_units": [
-    "Submit external resource domain PR direct-to-main; observe one exact-head Node/Vite/real Chromium cycle later and fix only documented failures in a bounded revision.",
-    "Join source-bound and external domain object graphs into a single overall ContainerProject transaction only after explicit cross-surface identity, delivery and undo contract is established.",
-    "Implement and verify Batch Recipe v2 per-output frozen JobPlan with distinct source rebind and copy-safe queue evidence.",
-    "Continue source-neutral resource-only Matroska capability analysis with independent writer output oracle; do not imply video-rooted browser writer handles resource-only files.",
-    "Investigate and resolve Matroska P0 #77 Chapter/targeted Tag/AttachmentUID graph preservation before extending general write permission.",
-    "Complete actual desktop/tablet acceptance and sustained workload/performance evidence."
+    "Observe PR #133 fixed-head Chromium; merge only on exact-head Node/build/E2E success. If it fails, repair concrete observed issue in a bounded separate PR #133 commit without rewriting Batch v2 feature.",
+    "Observe the independent stacked v2 PR exact-head Node/build/Chromium suite; reconcile parent integration and retarget to main only after parent merge/CI.",
+    "Expand Batch Recipe v2 to optional same-task font/audio resources, richer matching and durable task-level conflict/rollback controls with separate evidence.",
+    "Finish sustained 20-real-MKV batch stress, distinct save/audit/FFmpeg memory/cancel evidence and real desktop/tablet device checks.",
+    "Resolve general Matroska P0 #77 nested Chapter/targeted Tag/AttachmentUID preservation before writer permission expansion."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
-  "branch": "feat/p1-external-assets-live-domain-20261014",
+  "branch": "feat/p3-batch-recipe-v2-reviewed-task-metadata-20261014",
   "pull_request": null,
   "last_durable_commit": "daa81ebdea555d4b56527678d61b4316637d5b86",
   "external_validation": {
-    "pr130-browser-build": "passed",
-    "pr130-merged-main": "passed",
-    "pr131-browser-build": "passed",
-    "pr131-merged-main": "passed",
-    "pr132-fixed-exact-head-browser-build": "passed",
+    "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
-    "p1-external-domain-isolated-module-smoke": "passed",
-    "p1-external-domain-static-js": "passed",
-    "p1-external-domain-exact-head-node": "pending",
-    "p1-external-domain-exact-head-build": "pending",
-    "p1-external-domain-exact-head-browser": "pending",
-    "actual-device": "unknown",
-    "resource-only-writer": "not-supported"
+    "pr133-latest-node-build": "passed",
+    "pr133-latest-chromium": "pending",
+    "batch-recipe-v2-isolated-8-tests": "passed",
+    "batch-recipe-v2-js-syntax": "passed",
+    "batch-recipe-v2-exact-head-node": "pending",
+    "batch-recipe-v2-exact-head-build": "pending",
+    "batch-recipe-v2-exact-head-chromium": "pending",
+    "batch-recipe-v2-real-two-mkv-output": "pending",
+    "batch-twenty-plan-only": "passed",
+    "batch-twenty-actual-mkv": "not-tested",
+    "actual-device": "unknown"
   },
   "blockers": [
-    "Full Node/build/Chromium exact-head validation of the new live external resource owner not yet observed.",
-    "External assets are a separate bounded source-neutral domain session, not an all-in-one atomic transaction with scanned source MKV objects; browser File permissions cannot be serialized.",
-    "Resource-only plans are still non-executable in current video-rooted browser writer; independent audio/subtitle/font content delivery audits unchanged.",
-    "Matroska #77 complex Chapters/targeted Tags/AttachmentUID and unknown EBML preservation unresolved.",
-    "Batch recipe v2, OPFS and real desktop/tablet acceptance remain separate tasks."
+    "PR #133 external-domain exact-head full Chromium unresolved; v2 branch is stacked on its repaired predecessor, cannot claim main integration.",
+    "v2 portable identity matching uses filename/path/size/mtime hints for human approval, not SHA verification; v2 does not serialize runnable JobPlan, File grants, saved artifacts or prior output permissions.",
+    "Existing browser writer requires real video-root source; resource-only output not generalized.",
+    "Complex nested Chapters, targeted Tags and unknown EBML/AttachmentUID structure preservation P0 #77 unresolved.",
+    "20 actual batch media output stress, multi-platform tablet/device acceptance and OPFS persistent source rebind not yet completed."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
@@ -107,7 +115,8 @@
     "Preserve the existing validated mux/writer path. Do not imply domain-level attachment edits are standalone safe media writes; independent final ffprobe and raw EBML/UID gates remain separate.",
     "Restoration uses the existing untrusted JSON boundary; File SHA match is comparison evidence, not authorship. Full track+attachment mutation is protected by exact old-state validation immediately before synchronous commit.",
     "No separate writer or file permission: restored domain permutation only changes existing FFmpeg-facing trackState.order after all verified source and old-state gates pass. Current numeric multiset of same-kind order values is retained.",
-    "Precise promise: external audio/subtitle metadata and preserve/force font policy author via immutable project revisions, with exact File grants in session only. Font inventory objects are not a new font-edit capability. Independent frozen batch processing is not modified by this UI migration."
+    "Precise promise: external audio/subtitle metadata and preserve/force font policy author via immutable project revisions, with exact File grants in session only. Font inventory objects are not a new font-edit capability. Independent frozen batch processing is not modified by this UI migration.",
+    "Batch v2 explicitly separates human-reviewed identity hints from verified contents. The only executable composition is freshly paired actual File object references frozen after independent preflight; imported JSON does not become a write grant."
   ],
   "updated_at": "2026-10-14"
 }
