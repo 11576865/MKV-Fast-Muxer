@@ -11,6 +11,7 @@ import { compareAssV4PlusStyles } from '../../src/ass-style-output-audit.js';
 import { verifyFinishedMkvAssRender } from '../../scripts/p3-final-ass-render-proof.mjs';
 import { verifyP3DynamicMkv } from '../../scripts/p3-dynamic-ass-render-proof.mjs';
 import { createResearchFixture, pngBytes } from '../../scripts/r02-attachment-only-fixture.mjs';
+import { parseMkvmergeJsonWithExactUids, exactPositiveUid } from '../../src/mkvmerge-exact-uid-json.js';
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
@@ -4547,22 +4548,14 @@ async function scenarioNonfinalAttachedFileRelayNative(browser) {
     '--attach-file',path.join(root,'notes.txt'),
     path.join(root,'base.mp4'),
   ],{timeout:60000});
-  const native=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],
+  const native=file=>parseMkvmergeJsonWithExactUids(execFileSync('mkvmerge',['-J',file],
     {encoding:'utf8',timeout:60000}));
   let before=native(original);
   assert.deepEqual(before.attachments.map(a=>a.file_name),[
     'p0-attachment-evidence.bin','p0-attachment-decoy.txt','p0-following-fixed.bin']);
-  // FileUID is uint64, frequently beyond Number.MAX_SAFE_INTEGER.
-  // JSON.parse(mkvmerge -J) would silently round the real UID and author an
-  // orphan AttachmentUID Tag that LOOKS correct but targets no real file.
-  // Obtain exact decimal digits with Python's arbitrary-precision JSON int.
-  const referenceUid=execFileSync('python3',[
-    '-c',
-    'import json,subprocess,sys; data=json.loads(subprocess.check_output(["mkvmerge","-J",sys.argv[1]],text=True)); print(data["attachments"][0]["properties"]["uid"])',
-    original,
-  ],{encoding:'utf8',timeout:60000}).trim();
-  assert.match(referenceUid,/^[1-9][0-9]*$/,
-    'native source first attachment UID must retain exact uint64 digits');
+  // Reuse the project's proven lossless MKVToolNix uint64 UID adapter:
+  // JSON.parse would round >2^53 FileUID and author an orphan target.
+  const referenceUid=exactPositiveUid(before.attachments[0].properties.uid);
   const tagXml=`<?xml version="1.0" encoding="UTF-8"?>
 <Tags>
   <Tag><Targets><TargetTypeValue>20</TargetTypeValue><AttachmentUID>${referenceUid}</AttachmentUID></Targets>
@@ -4584,7 +4577,8 @@ async function scenarioNonfinalAttachedFileRelayNative(browser) {
   before=native(original);
   assert.equal(before.attachments.length,3);
   const editable=before.attachments[1],following=before.attachments[2];
-  assert.ok(editable.properties?.uid&&following.properties?.uid);
+  exactPositiveUid(editable.properties.uid);
+  exactPositiveUid(following.properties.uid);
   const replacement=Buffer.alloc(700,0x39);
   assert.notEqual(replacement.length,editable.size);
   const originalSha=createHash('sha256').update(await fs.readFile(original)).digest('hex');
