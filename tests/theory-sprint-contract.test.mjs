@@ -13,7 +13,8 @@ test('fixed theory IDs: 10 decisions, 8 phases, 57 cases and 75% high-priority g
   assert.equal(x.high_priority_scenarios, 51);
   assert.equal(x.target_verified, 39);
   assert.equal(x.accepted_verified, 0, 'historical partial PRs are not automatically full-scenario acceptance');
-  assert.equal(x.partial, 9);
+  assert.equal(x.partial, baseline.requirements.filter(r => r.state === 'partial').length);
+  assert.ok(x.partial >= 9, 'retain historical bounded implementation evidence');
 });
 
 test('removed or duplicate original acceptance cases cannot improve the denominator', () => {

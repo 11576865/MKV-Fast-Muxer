@@ -2426,6 +2426,69 @@ async function scenarioBatchRecipeV2PerOutputRealMux(browser) {
   } finally { await context.close(); }
 }
 
+async function scenarioBatchFailedJobRetry(browser) {
+  console.log('R7: actual batch failed-job retry retains other finished artifacts');
+  const { context, page } = await openApp(browser);
+  try {
+    // Fault injection only at the worker boundary. Successful outputs and the
+    // retry still use the real wasm worker; no production test hooks exist.
+    await page.evaluate(() => {
+      const original = Worker.prototype.postMessage;
+      window.__batchMuxAttempts = 0;
+      window.__batchFailSecond = true;
+      Worker.prototype.postMessage = function(message, ...rest) {
+        if (message?.type === 'EXEC' && message.data?.args?.at(-1)?.endsWith('-output.mkv')) {
+          window.__batchMuxAttempts++;
+          if (window.__batchFailSecond && window.__batchMuxAttempts === 2) {
+            window.__batchFailSecond = false;
+            queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', {
+              data: {id: message.id, type: 'EXEC', data: 1},
+            })));
+            return;
+          }
+        }
+        return original.call(this, message, ...rest);
+      };
+    });
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', [path.join(root,'Batch S01E01.mp4'), path.join(root,'Batch S01E02.mp4')]);
+    await page.setInputFiles('#batchSubtitleInput', [path.join(root,'Batch S01E01.zh-Hans.ass'), path.join(root,'Batch S01E02.en.srt')]);
+    await page.waitForFunction(() => !document.querySelector('#batchStartBtn').disabled);
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => /批量完成：成功 1，失败 1/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    const originalUrl = await page.locator('#batchResults a.download').getAttribute('href');
+    const firstPath = path.join(outDir,'r7-retry-retained-first.mkv');
+    await saveDownload(page, '#batchResults a.download', firstPath);
+    const firstHash = createHash('sha256').update(await fs.readFile(firstPath)).digest('hex');
+    assert.equal(await page.evaluate(()=>window.__batchMuxAttempts),2);
+    // Live batch input/policy edits must not replace frozen failed-job choices.
+    await page.setInputFiles('#batchSubtitleInput', path.join(root,'Batch S01E01.zh-Hans.ass'));
+    await page.locator('[data-batch-job-retry]').click();
+    await page.waitForFunction(() => /批量完成：成功 2，失败 0/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    assert.equal(await page.evaluate(()=>window.__batchMuxAttempts),3,'only the failed task is muxed again');
+    assert.equal(await page.locator('#batchResults .new-track-row:first-child a.download').getAttribute('href'), originalUrl);
+    assert.equal(await page.locator('[data-batch-job-retry]').count(),0);
+    const retryPath = path.join(outDir,'r7-retry-second.mkv');
+    const reportPath = path.join(outDir,'r7-retry-second-report.json');
+    await saveDownload(page,'#batchResults .new-track-row:last-child a.download',retryPath);
+    await saveDownload(page,'#batchResults .new-track-row:last-child a.report-download',reportPath);
+    const report = JSON.parse(await fs.readFile(reportPath,'utf8'));
+    assert.equal(report.plan.outputName,'Batch S01E02.mkv');
+    assert.equal(report.output.sha256,createHash('sha256').update(await fs.readFile(retryPath)).digest('hex'));
+    assert.equal(report.subtitle.tracks[0].language,'en');
+    assert.equal(streams(probe(retryPath),'subtitle')[0].codec_name,'subrip');
+    // Independently check actual recovered cue payload, not just report fields.
+    const recovered = execFileSync('ffmpeg',['-v','error','-i',retryPath,'-map','0:s:0','-f','srt','-'],{encoding:'utf8'});
+    const expected = await fs.readFile(path.join(root,'Batch S01E02.en.srt'),'utf8');
+    const text = value => value.replace(/\r/g,'').trim();
+    assert.equal(text(recovered),text(expected));
+    const retainedAgain = path.join(outDir,'r7-retry-retained-first-again.mkv');
+    await saveDownload(page,'#batchResults .new-track-row:first-child a.download',retainedAgain);
+    assert.equal(createHash('sha256').update(await fs.readFile(retainedAgain)).digest('hex'),firstHash);
+    console.log('R7 actual failed-job retry PASS');
+  } finally { await context.close(); }
+}
+
 async function scenarioBatchQueue(browser) {
   console.log('E2E scenario 28: two-job batch queue with filename pairing');
   const { context, page } = await openApp(browser);
@@ -5888,6 +5951,7 @@ try {
   await scenarioBatchReportSavePartialPersistence(browser);
   await scenarioBatchRecipeV2PerOutputRealMux(browser);
   await scenarioBatchQueue(browser);
+  await scenarioBatchFailedJobRetry(browser);
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);

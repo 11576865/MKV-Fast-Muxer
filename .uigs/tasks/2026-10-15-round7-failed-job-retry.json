@@ -1,0 +1,36 @@
+{
+  "goal": "将软封实际项目推进到既定理论模型，继续Round7独立批次失败任务恢复",
+  "status": "work-unit-complete-local-pending-external-validation",
+  "current_bounded_work_unit": "原冻结计划的失败单项重试，保留已生成结果",
+  "completed_units": [
+    "failed-only atomic requeue authorization",
+    "selected headless queue and original indices",
+    "actual result-row retry and conflict/source preflight",
+    "20-task orchestration adversarial tests",
+    "real wasm browser/native output regression authored",
+    "independent review repair: subset retry preserves earlier fatal/cancelled batch truth"
+  ],
+  "next_units": [
+    "exact-head full Chromium/native acceptance",
+    "20-job actual output/cancellation/memory evidence",
+    "B-015 confirmed task-list cross-session restoration"
+  ],
+  "branch": "feat/ten-round-p3b-failed-job-retry-20261015",
+  "pr": null,
+  "parent_pr": 150,
+  "latest_durable_commit": "fb670f739a485b25ce027ec40db6753f5b66cc63",
+  "external_validation_states": {
+    "parent_r7": "Browser38617379805 success; Pages38617380268 success on bd70554d",
+    "current_browser": "not-started"
+  },
+  "local_validation": {
+    "node": "598/598",
+    "build": "passed"
+  },
+  "blockers": [
+    "full browser and 20 actual episodes remain unverified",
+    "stacked product PR review and merge pending"
+  ],
+  "uigs_intake": "Pending dedup/write",
+  "updated_timestamp": "2026-10-14T18:58:26.368149+00:00"
+}

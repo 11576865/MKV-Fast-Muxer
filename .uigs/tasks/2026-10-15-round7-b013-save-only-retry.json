@@ -1,6 +1,6 @@
 {
   "goal": "继续原软封理论模型，落实B-013不重新封装的成品保存重试",
-  "status": "work-unit-complete-local-pending-external-validation",
+  "status": "durable-checkpoint-pending-external-validation",
   "current_bounded_work_unit": "Round7 B-013 retained finished-artifact save-only retry",
   "completed_units": [
     "session-only immutable artifact save registry",
@@ -15,12 +15,12 @@
     "P4 real-task UI measurements and P5 platform/performance"
   ],
   "branch": "feat/ten-round-p3b-save-only-retry-20261015",
-  "pr": null,
-  "latest_durable_commit": "b2928791b054689204a9cbafc5e909efca52cb62",
+  "pr": 150,
+  "latest_durable_commit": "bd70554d2e7c97cd9814c8d12ff7de8be6ff2928",
   "parent_pr": 149,
   "external_validation_states": {
     "parent_r6_repair": "pending; no polling this work unit",
-    "r7_chromium_native": "not-started"
+    "r7_chromium_native": "pending-exact-head-ci"
   },
   "local_validation": {
     "node": "593/593",
@@ -30,5 +30,5 @@
     "R6 and prior stacked product review/merge pending",
     "real directory/native-device F4 behavior and complete 20-job theory coverage not claimed"
   ],
-  "updated_timestamp": "2026-10-14T18:40:39.053061+00:00"
+  "updated_timestamp": "2026-10-14T18:42:24.239525+00:00"
 }
