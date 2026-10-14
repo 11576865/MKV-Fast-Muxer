@@ -409,6 +409,7 @@ let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
 let liveExternalAssetSession = null;
+let externalAssetAuthorityEpoch = 0;
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
@@ -731,6 +732,7 @@ function refreshExternalAssetAuthority() {
     fonts:selectedFonts(),
     fontMode:fontMode.value,
   });
+  externalAssetAuthorityEpoch++;
   return liveExternalAssetSession;
 }
 function changeExternalAssetFields(changes) {
@@ -749,6 +751,11 @@ function changeExternalAssetFields(changes) {
 }
 
 function renderNewTrackLists() {
+  // Mark the DOM with the exact selection-generation it actually depicts.
+  // When a picker replaced File objects, stale form fields from the prior
+  // selection must never be copied onto same-named new files.
+  newAudioList.dataset.externalDomainEpoch = String(externalAssetAuthorityEpoch);
+  newSubtitleList.dataset.externalDomainEpoch = String(externalAssetAuthorityEpoch);
   newAudioList.innerHTML = externalAudioState.length
     ? externalAudioState.map((item, index) => `
       <div class="new-track-row is-audio">
@@ -1129,6 +1136,9 @@ function captureNewTrackEditorState() {
   // Background inspector/probe refresh may replace form markup while the
   // user is typing. Reconcile from the controls through the domain, never
   // secretly bypass it by writing straight into the executor arrays.
+  if(newAudioList.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch) ||
+      newSubtitleList.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch))
+    return;
   const changes=[];
   for(const [list,kind,attribute] of [
     [newAudioList,'audio','newAudioField'],
@@ -1278,7 +1288,8 @@ function bindNewTrackEditor(container, selector, getState, kind) {
     if(!input)return;
     const index=Number(input.dataset.index);
     const row=getState()[index];
-    if(!row)return;
+    if(!row || container.dataset.externalDomainEpoch !==
+        String(externalAssetAuthorityEpoch))return;
     const field=input.dataset.newAudioField||input.dataset.newSubField;
     const value=input.type==='checkbox'?input.checked:input.value;
     if(!changeExternalAssetFields([{kind,index,field,value}])) {
