@@ -128,6 +128,48 @@ export function createLiveExternalAssetSession({
   return session;
 }
 
+/**
+ * Rebind ONLY a changed font File inventory when every external audio/subtitle
+ * editor row is still exactly source-bound and identical to its committed
+ * ContainerProject attributes. Browser pickers can replace an unchanged-looking
+ * font File without preserving its old object reference or firing a useful
+ * change event. That is not permission to replay stale track metadata.
+ *
+ * This returns a new *session-local* authority; it never authorizes a writer,
+ * serializes a File grant, or edits existing source objects.
+ */
+export function rebindLiveExternalFontInventory(session,{
+  audioRows,subtitleRows,fonts,mode,
+}={}) {
+  if(!session || !Array.isArray(fonts) || mode!==session.mode ||
+      !EXTERNAL_FONT_MODES.includes(mode))
+    throw Error('EXTERNAL_DOMAIN_FONT_REBIND_MODE_INVALID');
+  const now=enumerate(audioRows,subtitleRows);
+  if(now.length!==session.rows.length)
+    throw Error('EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SET_CHANGED');
+  for(let i=0;i<now.length;i++){
+    const current=now[i],prior=session.rows[i],row=current.row;
+    if(current.kind!==prior.kind || current.index!==prior.index ||
+        row!==prior.row || row?.file!==prior.file ||
+        row?.sidecarFile!==prior.sidecarFile ||
+        row?.format!==prior.format || row?.identity!==prior.identity)
+      throw Error('EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SOURCE_CHANGED');
+    const original=projectFields(session,current);
+    for(const field of fieldsFor(current.kind))
+      if(row[field]!==original.attributes[field])
+        throw Error('EXTERNAL_DOMAIN_FONT_REBIND_EDITOR_DRIFT');
+  }
+  if(fonts.length===session.fonts.length &&
+      fonts.every((file,i)=>file===session.fonts[i]))
+    throw Error('EXTERNAL_DOMAIN_FONT_REBIND_NOT_REQUIRED');
+  // Source File references and all metadata have already been verified.
+  // Only the new, currently selected font references may enter a fresh
+  // immutable session. Do NOT carry previous File grants or writer rights.
+  return createLiveExternalAssetSession({
+    audioRows,subtitleRows,fonts,fontMode:mode,
+  });
+}
+
 /** Validate all edits, then atomically generate executor-view fields. */
 export function commitLiveExternalAssetChanges(session,{
   audioRows,subtitleRows,fonts,mode,changes=[],
