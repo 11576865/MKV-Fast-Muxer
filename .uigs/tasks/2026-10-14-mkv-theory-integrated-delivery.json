@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1/P3-B unified PR #134: Chromium Scenario 11's rejected subtitle edit diagnosed as EXTERNAL_DOMAIN_INVENTORY_CHANGED (not output FFmpeg). Added exact-track/sidecar/editor-verified font-inventory-only rebind with negative tests; validate production current head with full CI.",
+  "current_work_unit": "P0+P2 next cohesive block: independently proven Matroska structural editing and preservation. First P1+P3-B product block merged into main via PR #134 at 8155280 and fully accepted pre-merge.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -87,17 +87,22 @@
     "Committed 0772c75 production stabilization: background UI refresh retains current external track controls when actual File/sidecar identities, immutable-domain editor epoch, track field count and all displayed field values still match; source changes and rejected changes still remount. Existing Scenario 11 now acts as exact-head browser regression.",
     "Real Chromium run 38523268340 reproduced pre-mux subtitle title fallback and logged EXTERNAL_DOMAIN_INVENTORY_CHANGED. No changes in actual media output are required to reproduce: the external domain refused typed subtitle title before freeze.",
     "Scoped production repair in 7af94eec+ac4e52bc: exported rebindLiveExternalFontInventory rebinds only changed selected font File objects; requires identical audio/subtitle row objects, exact File/sidecar/format/identity references, unchanged all authoritative editor fields and same font mode. The first refused edit retries only against a fresh, verified immutable session; no writer permission or file metadata is imported.",
-    "2 regression unit tests committed in 105dce34: preserved authored title and a new font File ref accepted only after explicit safe rebind; rejects metadata bypass, audio/subtitle row drift, File/sidecar change, policy mismatch and unnecessary rebind. Current exact-head full CI awaiting outcome."
+    "2 regression unit tests committed in 105dce34: preserved authored title and a new font File ref accepted only after explicit safe rebind; rejects metadata bypass, audio/subtitle row drift, File/sidecar change, policy mismatch and unnecessary rebind. Current exact-head full CI awaiting outcome.",
+    "2026-10-14 PRODUCT BLOCK I DELIVERED TO MAIN: PR #134 merged at 815528027048e05d0d39660a1c21199d84dcd4d9, integrating live external audio/subtitle/font immutable ContainerProject, exact File/sidecar/format/identity and FileList pinning, per-output subtitle metadata editor, strict inert portable Batch Recipe v2 explicit import/review/rebind, frozen two-job real MKV execution and independent final audit.",
+    "Exact-head PR #134 CI 38524496562 COMPLETED SUCCESS: Node, Vite build and complete Chromium E2E. Earlier real browser log 38523889152 explicitly confirmed Batch Recipe v2 independent output and execution audit PASS, cancellation and consecutive-task metadata without regression; latest exact head retested all successfully.",
+    "Overlapping upstream P1 PR #133 and alternative Batch Recipe v2 PR #135 were closed as superseded, not merged; their rationale and alternative schema/no-media policy-only option retained as explicit unshipped follow-up decision rather than silently combining incompatible recipe JSON."
   ],
   "next_units": [
-    "Evaluate exact-head PR #134 run 38523818220: Node including two new negative tests, build and Chromium Scenario 11, then real two-output Recipe v2 independent ffprobe and output audit.",
-    "On green only, reconcile #135 unique semantics and merge #134 to main, close redundant PRs; on fail, repair first real failing cause while preserving strict source authority.",
-    "Do not expand P0 #77 nested Chapters, targeted Tags, AttachmentUID or unknown EBML writer permissions. Ship first P1/P3-B user-visible block independently of unproved P2 native writer."
+    "P0/P2 cohesive block: preserve true Matroska Segment graph and output bytes through a separately verified reader/writer, not legacy FFmpeg remux. Inventory the real P0 #77 nested Chapter, targeted Tag, UID and unknown EBML fixture matrix; define which existing-MKV edit intents are actually writable, fail-closed otherwise.",
+    "Implement source/UID/offset aware Chapter, Tags, Attachments and Track reference changes with independent real MKVToolNix/mkvextract/ffprobe semantic + byte oracle, crash-safe publication, and no source overwrite. Reuse existing read-only raw preservation graph, guarded single-attachment candidate and direct EBML constructs only within their proven scope.",
+    "Bind only independently verified P2 writer capabilities into the professional workbench: preview verified change impact, explicitly approve, create frozen edit JobPlan, output new MKV, show independent audit and reliable rollback; test with multiple complex external MKV fixtures.",
+    "After P2 block: P3 subtitle/font flagship, P4 large high-density responsive UI, P5 large-media performance/recovery, P6 cross-platform release and acceptance. Explicitly retain unknowns rather than marking all P0-P6 done.",
+    "Evaluate policy-only/no-media Batch Recipe v2 authoring and schema migration from superseded PR #135 as an independent compatibility decision; do not accept its sourceKey/fileKey schema implicitly into shipped v2."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "105dce34a0434680daf71223b6e1438baa2e7961",
+  "last_durable_commit": "815528027048e05d0d39660a1c21199d84dcd4d9",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -113,7 +118,7 @@
     "field-device": "unknown",
     "pr134-integrated-fresh-head-node-build-chromium": "pending_external_validation_at_0772c75",
     "pr133-external-authority-chromium": "failed-at-400ee-head; latest separate repair validation unknown",
-    "pr134-real-two-output-ffprobe": "pending",
+    "pr134-real-two-output-ffprobe": "passed_in_full_browser_38523889152_and_38524496562",
     "complex-ebml-preservation": "blocked-by-p0-77",
     "actual-device": "unknown",
     "pr134-sequential-task-planned-title": "pending",
@@ -125,13 +130,18 @@
     "pr134-chromium-scenario11-at-8fa0c74": "failed_pre_mux_editor_value_default_instead_of_second_task",
     "pr134-next-chromium-after-dom-stability": "pending_external_validation",
     "pr134-font-inventory-guarded-rebind-node-chromium": "pending_exact_head_105dce34_run_38523818220",
-    "pr134-chromium-pre-mux-title-diagnostic": "failed_38523268340_EXTERNAL_DOMAIN_INVENTORY_CHANGED"
+    "pr134-chromium-pre-mux-title-diagnostic": "failed_38523268340_EXTERNAL_DOMAIN_INVENTORY_CHANGED",
+    "pr134-final-exact-head-node-build-chromium": "passed_38524496562_at_1e41ee8722e22ba26cf9fc9c960e0a1cfe4b0559",
+    "pr134-merged-main": "passed_815528027048e05d0d39660a1c21199d84dcd4d9",
+    "pr133-pr135-duplicate-triage": "closed_unmerged_superseded_by_pr134",
+    "main-post-merge-CI": "pending_or_not_queried_separately",
+    "p0-p2-complex-ebml-production-writer": "not_proven_keep_fail_closed"
   },
   "blockers": [
-    "Exact-head #134 full Node/build/Chromium CI result unverified following two test repairs; previous build and Chromium jobs stopped at npm test.",
-    "The prior #133 consecutive-task subtitle title rollback regression needs independent finished-MKV acceptance on this combined code.",
-    "Do not mechanically merge overlapping Recipe v2 PR #135 or widen complex EBML P0 #77 writer permissions.",
-    "Current integrated #134 still unmerged: Scenario 11 failed at 8fa0c74; 0772c75 editor remount fix requires exact-head browser evidence."
+    "Matroska nested Chapter hierarchy, ChapterUID/EditionUID/TrackUID/AttachmentUID targeted Tags, unknown EBML, indexing/CRC and byte/packet preservation are not generally proven writable; issue #77 is closed historically but its documented loss mechanism requires continuing capability-gated refusal.",
+    "Existing narrow EBML append-only candidates and generic attachment-only constructors do not constitute a general existing-container editor, and 64 MiB raw comparator research budget is not a product-wide file limit.",
+    "Per-episode Batch Recipe v2 is delivered for verified two-output scope; 20 real outputs, durable resumable queue, multi-device and large-file performance have not been proven.",
+    "Alternative v2 JSON variant from closed PR #135 is incompatible and not silently migrated."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
@@ -147,7 +157,8 @@
     "P3-B v2 is a non-authoritative declarative recipe; only a user-approved fresh exact-File binding and successful original frozen JobPlan preflight authorize current-session execution. Do not confuse inferred file-name match with byte-level provenance.",
     "State boundary: a verified external domain owner must not be immediately resynchronized from inferred filename defaults before FFmpeg handoff. The new task binding is exceptional and explicit; normal writes stay in immutable semantic owner. Two distinct Foundry Bugs record this causal distinction.",
     "User explicitly directed large coherent block-level implementation rather than multiple micro PRs. PR #134 is the unified integration authority for this block; #133 upstream must pass; #135 is overlapping, not an independently additive milestone.",
-    "2026-10-14 integrated PR #134 now targets main directly to trigger one meaningful full acceptance run. Production/CI state remains Pending until exact-head evidence passes; do not treat retargeting as merge."
+    "2026-10-14 integrated PR #134 now targets main directly to trigger one meaningful full acceptance run. Production/CI state remains Pending until exact-head evidence passes; do not treat retargeting as merge.",
+    "2026-10-14 16:07+08: Product Block I fully merged main, no unverified post-merge release claim. Main next block is P0+P2 independently verified Matroska structural writer; P0 #77 historical issue marked closed but general preservation remains technically unproven."
   ],
   "updated_at": "2026-10-14"
 }
