@@ -5832,6 +5832,12 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     const sameFile = await page.locator('#videoInput').evaluate(input => input.files?.[0]?.name);
     assert.equal(sameFile,'base.mp4');
     await page.setViewportSize({width:800,height:950});
+    assert.equal(await page.locator('#sf14Source').isVisible(),false);
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),true);
+    assert.equal(await page.locator('#sf14SourceToggle').getAttribute('aria-expanded'),'true');
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),false);
     await page.screenshot({path:path.join(outDir,'softmux-1014-tablet-800.png'),fullPage:false});
     await page.setViewportSize({width:390,height:844});
     await page.locator('[data-sf-focus="source"]').click();
