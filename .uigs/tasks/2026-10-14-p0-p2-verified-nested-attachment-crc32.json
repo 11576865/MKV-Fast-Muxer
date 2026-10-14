@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-14-p0-p2-verified-nested-attachment-crc32",
+  "status": "submitted-pending-exact-head-CI-and-independent-native-output",
+  "baseline_main": "00bf9982cbf83e8236f4ddf68e5fbe90a484a60f",
+  "branch": "feat/p0-p2-verified-attachment-crc-20261014",
+  "goal": "Safely grow/shrink genuine original FileData when a source-indexed nonterminal Attachments and/or selected AttachedFile contains a valid CRC-32, proving original CRC first, then recomputing nested->outer and independently auditing native output.",
+  "implemented": [
+    "Chunked EBML CRC-32 IEEE little-endian helper with bounded child-exclusion scope",
+    "Source original CRC coverage verification and duplicate/invalid CRC fail-closed gating for master, target and unaffected AttachedFile",
+    "Frozen source SHA and UID-verified nonterminal writer patches altered child CRC first then master CRC in appended master, offset-aware after length delta",
+    "Original source top-level protected segments byte invariant and other FileData SHA, tag graph and genuine File approval retained",
+    "Original native MKVToolNix fixture converted only within existing FileData 12-byte budget into CRC-bearing master and nested child of same outer byte size, independent Python zlib oracle on both source/output",
+    "Real chromium edited output plus native mkvmerge/mkvextract/ffprobe Chapter/Tags/UID/FileData/packet validation and 768px tablet screenshot"
+  ],
+  "acceptance": {
+    "node": "pending",
+    "build": "pending",
+    "browser": "pending",
+    "independentPythonZlib": "pending",
+    "nativeOutput": "pending",
+    "generalCRCWriter": "not_supported"
+  },
+  "limits": [
+    "<=60 MiB source <=4 MiB selected FileData",
+    "single nonterminal exact SeekHead indexed Attachments and equal-span relay room",
+    "no UID-target edit, no unknown EBML, no CRC in original SeekHead, no VINT widening",
+    "CRC in selected AttachedFile and Attachments only; unrelated CRC preserved/checked if present",
+    "no general SeekHead/Cues/Chapter/Tag CRC repair or streaming >60MiB"
+  ],
+  "next": [
+    "Read full CI and fix any original-source/native/byte-audit failure without dropping safety guards",
+    "Merge only upon real native-chromium-Python zlib independent double CRC proof green",
+    "Then progress remaining missing-index/CRC-scope/large-file limits as whole blocks"
+  ]
+}
