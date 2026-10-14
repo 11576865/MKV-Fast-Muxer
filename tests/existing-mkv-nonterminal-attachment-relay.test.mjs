@@ -29,22 +29,22 @@ const attach=(uid,name,data,opts={})=>{
  );
  const crc=opts.crc?element('BF',
    opts.crc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(body)))):Buffer.alloc(0);
- return element('61A7',cat(crc,body),2);
+ return element('61A7',opts.crcLast?cat(body,crc):cat(crc,body),2);
 };
 function source({tail=false,badSeek=false,noSeek=false,seekCrc=false,
-  attachedCrc=false,attachmentsCrc=false,unknownAttached=false,unknownTop=false,tagFree=false,
+  attachedCrc=false,attachmentsCrc=false,attachedCrcLast=false,attachmentsCrcLast=false,unknownAttached=false,unknownTop=false,tagFree=false,
   targetNotFinal=false,lowDataWidth=false}={}){
  const content=cat(
-  ...(targetNotFinal?[attach(4,'free.bin',srcDataB,{crc:attachedCrc,
+  ...(targetNotFinal?[attach(4,'free.bin',srcDataB,{crc:attachedCrc,crcLast:attachedCrcLast,
     unknown:unknownAttached,fileDataWidth:lowDataWidth?1:2})]:
     [attach(3,'tagged.bin',srcDataA)]),
   ...(targetNotFinal?[attach(3,'tagged.bin',srcDataA)]:
-   [attach(4,'free.bin',srcDataB,{crc:attachedCrc,unknown:unknownAttached,
+   [attach(4,'free.bin',srcDataB,{crc:attachedCrc,crcLast:attachedCrcLast,unknown:unknownAttached,
      fileDataWidth:lowDataWidth?1:2})]),
  );
  const parentCrc=attachmentsCrc?element('BF',
   attachmentsCrc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(content)))):Buffer.alloc(0);
- const attachments=element('1941A469',cat(parentCrc,content),3);
+ const attachments=element('1941A469',attachmentsCrcLast?cat(content,parentCrc):cat(parentCrc,content),3);
  const chapter=element('1043A770',element('45B9',element('B6',cat(
   element('73C4',Buffer.from([21])),
   element('B6',element('73C4',Buffer.from([22]))),
@@ -176,6 +176,10 @@ test('indexed non-terminal negative gates reject CRC, unknown, referenced UID, w
  await assert.rejects(prepare(source({seekCrc:true}),Buffer.alloc(55)),/SEEKHEAD_CRC_UNSUPPORTED/);
  await assert.rejects(prepare(source({attachedCrc:'corrupt'}),Buffer.alloc(55)),/ORIGINAL_ATTACHEDFILE_CRC_INVALID/);
  await assert.rejects(prepare(source({attachmentsCrc:'corrupt'}),Buffer.alloc(55)),/ORIGINAL_ATTACHMENTS_CRC_INVALID/);
+ await assert.rejects(prepare(source({attachmentsCrc:true,attachmentsCrcLast:true}),
+   Buffer.alloc(55)),/CRC_MUST_BE_FIRST_CHILD/);
+ await assert.rejects(prepare(source({attachedCrc:true,attachedCrcLast:true}),
+   Buffer.alloc(55)),/CRC_MUST_BE_FIRST_CHILD/);
  await assert.rejects(prepare(source({unknownAttached:true}),Buffer.alloc(55)),/UNKNOWN_ATTACHEDFILE_CHILD/);
  await assert.rejects(prepare(source({unknownTop:true}),Buffer.alloc(55)),/RAW_SOURCE_INELIGIBLE/);
  await assert.rejects(prepare(source({tagFree:true}),Buffer.alloc(55)),/REFERENCED_ATTACHMENT_BLOCKED/);
