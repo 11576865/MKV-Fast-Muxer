@@ -82,6 +82,10 @@ export function mountSoftmux1014Workbench(doc = document) {
   get(doc,'sf14Composition').appendChild(composition);
   get(doc,'sf14Inspector').appendChild(inspector);
   get(doc,'sf14Output').appendChild(output);
+  // Present the REAL finished-file evidence within object context, not a
+  // hidden parallel badge or a fabricated success state.
+  const finishedEvidence = get(doc,'outputEvidencePanel');
+  if (finishedEvidence) get(doc,'sf14Inspector').appendChild(finishedEvidence);
   get(doc,'sf14Batch').appendChild(batch);
   const tools = get(doc,'sf14ToolList');
   for (const detail of [...source.querySelectorAll('.unified-intake > details')]) {
