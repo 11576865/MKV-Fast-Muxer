@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-14-p0-p2-variable-filedata-reserved-void",
+  "status": "submitted-pending-exact-head-full-node-vite-chromium-and-native-audit",
+  "base": "main@1f8dcefa7c05b4752399d7160b65392612e78b05",
+  "branch": "feat/p0-p2-variable-filedata-reserved-void-20261014",
+  "goal": "Ship a functional reviewed browser operator that resizes the FileData of an existing unreferenced Matroska attachment strictly inside an adjacent EBML Void, retaining all original non-target bytes and offsets.",
+  "implemented": [
+    "Separate real new-copy source-bound Frozen Plan + WeakMap binding to genuine Source/Replacement File refs",
+    "Reader inventories unique FileUIDs and source TagAttachmentUID reference graph; targeted UID and incomplete graphs block",
+    "Bounded element parser confirms one Attachments master, CRC/unknown refusal, exact FileData identity and directly adjacent Void in same AttachedFile",
+    "Same-width VINT encode of changed FileData length and remainder Void; parent/Segment sizes untouched, source total size unchanged",
+    "Before/after source and payload SHA-256, original bytes outside changed slot and all protected EBML commitments/offsets and other attachment FileData match",
+    "Reviewed new workbench subsection with UID-specific choices, stale async source/replacement invalidation, local proof and manual new-copy download",
+    "Node positive grow/shrink and fail-closed negative tests; real Chromium independently authored native MKVToolNix fixture and native chapter/tag/UID/packet/FileData validation",
+    "Responsive tablet visual evidence and explicitly bounded engineering contract"
+  ],
+  "acceptance": [
+    "Node test suite and Vite build pass on PR head",
+    "Full Chromium E2E passes without suppressing original P0 preservation restrictions",
+    "Browser E2E log includes P0/P2-V reserved Void variable-length ... independent MKVToolNix/ffprobe ... PASS",
+    "Original file remains unmodified with SHA-256; real output preserves extracted chapter/tag XML, targeted attachment, track packets/timebase",
+    "Only after exact-head green merge one complete block, not a sequence of partial PRs"
+  ],
+  "validation": {
+    "node": "pending",
+    "vite": "pending",
+    "chromium": "pending",
+    "native_mkvtoolnix": "pending",
+    "general_ebml_writer": "not_proven_keep_blocked"
+  },
+  "limitations": [
+    "<=60MiB source <=4MiB payload",
+    "single existing Attachments master with FileData directly followed by Void inside original AttachedFile",
+    "requires old FileData VINT capacity and >=2 byte remainder Void",
+    "no UID retargeting/no CRC repaired/no Segment header or SeekHead/Cues rewrite",
+    "no general arbitrary resize, no no-Void writer and no player compatibility claim"
+  ],
+  "next": [
+    "Inspect exact-head CI failures and correct first confirmed cause without weakened tests.",
+    "Merge only after actual Chromium downloaded MKV and independent XML/UID/media packet proof.",
+    "Then address truly variable parent/Segment size, UID target rewrite and CRC/SeekHead/Cues refactoring as another whole product block."
+  ],
+  "date": "2026-10-14"
+}
