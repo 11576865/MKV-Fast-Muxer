@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P0/P2: transition from merged strict same-size existing attachment FileData operator to independently proven variable-length, reference-aware Chapters/Tags/Attachments writer. Explicitly retain P0 #77 general remux loss gate.",
+  "current_work_unit": "P0/P2 next: implement general reference-aware structural editing beyond local FileData+Void slots (parent Element-size, Segment length, SeekHead/Cues offsets, CRC and targeted UID graph), gated by independent MKVToolNix media/metadata/packet proof.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -91,19 +91,21 @@
     "2026-10-14 PRODUCT BLOCK I DELIVERED TO MAIN: PR #134 merged at 815528027048e05d0d39660a1c21199d84dcd4d9, integrating live external audio/subtitle/font immutable ContainerProject, exact File/sidecar/format/identity and FileList pinning, per-output subtitle metadata editor, strict inert portable Batch Recipe v2 explicit import/review/rebind, frozen two-job real MKV execution and independent final audit.",
     "Exact-head PR #134 CI 38524496562 COMPLETED SUCCESS: Node, Vite build and complete Chromium E2E. Earlier real browser log 38523889152 explicitly confirmed Batch Recipe v2 independent output and execution audit PASS, cancellation and consecutive-task metadata without regression; latest exact head retested all successfully.",
     "Overlapping upstream P1 PR #133 and alternative Batch Recipe v2 PR #135 were closed as superseded, not merged; their rationale and alternative schema/no-media policy-only option retained as explicit unshipped follow-up decision rather than silently combining incompatible recipe JSON.",
-    "2026-10-14 P0/P2 VERIFIED FIRST EXECUTABLE EXISTING-CONTAINER ATTACHMENT REPLACEMENT BLOCK: PR #136 merged at 17ff592ae33e6dc70d3696ea0724577eae649d56. Genuine FileUID identity, target Tag refusal, exact-length FileData copy-on-write, SHA-256 source + payload proof, unchanged Chapters/Tags/other attachments/raw offsets, separate experimental new copy. Final real Node/Vite/Chromium #38535796837 success (539/539 tests and native mkvmerge/mkvextract/ffprobe proof on complex MKV)."
+    "2026-10-14 P0/P2 VERIFIED FIRST EXECUTABLE EXISTING-CONTAINER ATTACHMENT REPLACEMENT BLOCK: PR #136 merged at 17ff592ae33e6dc70d3696ea0724577eae649d56. Genuine FileUID identity, target Tag refusal, exact-length FileData copy-on-write, SHA-256 source + payload proof, unchanged Chapters/Tags/other attachments/raw offsets, separate experimental new copy. Final real Node/Vite/Chromium #38535796837 success (539/539 tests and native mkvmerge/mkvextract/ffprobe proof on complex MKV).",
+    "2026-10-14 P0/P2-V THIRD COHESIVE PRODUCT BLOCK DELIVERED: PR #137 merged at 2e56a856f2dc2f58c291e532cb251833b3f54b91. Existing Matroska with original unreferenced AttachedFile/FileData directly followed by source-owned Void now permits data grow/shrink within same combined byte span, unchanged enclosing hierarchy size, offset and protected Chapters/Tags/other UID, other attachment FileData and packets. Genuine current-file review and full SHA-256 at prepare + download, new independent copy.",
+    "Exact-head CI 38551049217 at bfa1be00b670c92bd572b73957c4a1191a06c53c SUCCESS: 542/542 Node, build, entire real Chromium, independently authored MKVToolNix source, native mkvmerge/mkvextract and ffprobe chapter/tag/UID/FileData/packet parity. Failed earlier runs diagnosed reversed positional current(targetUid,epoch) call, corrected without removal of data/safety gates."
   ],
   "next_units": [
-    "Engineer a second coherent existing-container variable-length writer class with explicit parent Element-size and SeekHead/Cues/CRC/offset repair, or a proven safe Matroska-native editing backend; don't substitute FFmpeg remux, which loses #77 semantics.",
-    "Represent original AttachmentUID/TrackUID/ChapterUID/EditionUID reference graph and change impact as source-bound live domain intents; fail closed on incomplete graph, unknown EBML, malformed CRC/size and ambiguous UID mutation.",
-    "Build independent MKVToolNix authored corpus and native validators comparing original nested chapter tree, target Tags, unaffected FileData, all media packets/timestamps, Seek/Cues and source bytes. Include browser run + cancellation and exact-session invalidation.",
-    "Expand P2 output from narrow <=60MiB same-size file to large real media via streaming source hashing/range-aware writer, transactional independent save and end-user compatibility matrix; no generalized writer claim until proven.",
-    "Then advance P3/P4/P5/P6 product blocks and cross-platform acceptance; P1/P3-B batch Recipe v2 remains fully merged at #134."
+    "Whole next P0/P2 structural writer class: true variable-sized top-level/parent EBML rewrite of existing Matroska without adjacent Void; maintain Segment size and SeekHead/Cues offset validity, CRC repair/refusal, and full edition/chapter/track/attachment UID graph. Prevent FFmpeg remux fallback on protected structures.",
+    "Independent auditable source-to-output proof across MKVToolNix/mkvextract/ffprobe native fixtures including nested Chapters and UID-tag targets, media packet bytes/timestamps, unknown EBML, CRC and corrupt negative corpus. Only publish a capability when actual output passes.",
+    "Scale bounded writer from <=60 MiB small source to large files using streaming original-content digests, source-range sparse transformations, transaction-safe download/publication and multi-player/device acceptance; do not infer broad playback from browser-only green.",
+    "Extend P2/professional ContainerProject editor with user-visible structural impact preview, explicit per-output review, frozen writer intent, progress and reversible abort; keep P1/P3-B Recipe v2 and #136/#137 narrow exact-body operators stable.",
+    "Then next P3/P4/P5/P6 product areas after structural preservation block proves real user outcome."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "17ff592ae33e6dc70d3696ea0724577eae649d56",
+  "last_durable_commit": "2e56a856f2dc2f58c291e532cb251833b3f54b91",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -139,7 +141,11 @@
     "p0-p2-complex-ebml-production-writer": "not_proven_keep_fail_closed",
     "pr136-existing-attachment-same-size-node-build-browser": "passed_539_of_539_chromium_mkvtoolnix_independent_38535796837",
     "pr136-merged-main": "passed_17ff592ae33e6dc70d3696ea0724577eae649d56",
-    "p0-77-general-structural-edit": "still_unproven_keep_blocked"
+    "p0-77-general-structural-edit": "still_unproven_keep_blocked",
+    "pr137-reserved-void-variable-filedata-node-build-browser": "passed_exact_head_38551049217_542_of_542",
+    "pr137-native-mkvtoolnix-variable-filedata-audit": "passed_real_browser_output_independent_chapter_tag_uid_filedata_ffprobe_packets",
+    "pr137-main-merge": "passed_2e56a856f2dc2f58c291e532cb251833b3f54b91",
+    "p0-general-structure-resize-CRC-UID-seekhead-cues": "not_implemented_or_unproven_keep_fail_closed"
   },
   "blockers": [
     "Matroska nested Chapter hierarchy, ChapterUID/EditionUID/TrackUID/AttachmentUID targeted Tags, unknown EBML, indexing/CRC and byte/packet preservation are not generally proven writable; issue #77 is closed historically but its documented loss mechanism requires continuing capability-gated refusal.",
