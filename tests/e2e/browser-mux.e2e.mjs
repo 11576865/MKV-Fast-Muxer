@@ -906,11 +906,23 @@ async function scenarioSequentialTasks(browser) {
     // The editable DOM and the actual planned output must agree BEFORE
     // execution. Catch a stale external-domain epoch or silently rejected
     // input before an independently probed MKV appears with a wrong title.
-    assert.equal(
-      await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue(),
-      'Second Task',
-      'second-task editable title must survive selection and input dispatch',
-    );
+    const secondTitleActual =
+      await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue();
+    if (secondTitleActual !== 'Second Task') {
+      const diagnostic = await page.evaluate(() => ({
+        status: document.querySelector('#status')?.textContent || '',
+        subtitleControls: Array.from(document.querySelectorAll('#newSubtitleList [data-new-sub-field]'))
+          .map(el => ({field: el.dataset.newSubField, index: el.dataset.index,
+            value: el.type === 'checkbox' ? el.checked : el.value})),
+        audioEpoch: document.querySelector('#newAudioList')?.dataset.externalDomainEpoch,
+        subtitleEpoch: document.querySelector('#newSubtitleList')?.dataset.externalDomainEpoch,
+        plan: document.querySelector('#muxPlan')?.textContent?.slice(0, 1200),
+        subtitleLabel: document.querySelector('#subName')?.textContent,
+      }));
+      console.error('Second task pre-mux editor authority diagnostic:', JSON.stringify(diagnostic));
+    }
+    assert.equal(secondTitleActual, 'Second Task',
+      'second-task editable title must survive selection and input dispatch');
     await page.waitForFunction(() =>
       (document.querySelector('#muxPlan')?.textContent || '').includes('Second Task'),
     null, { timeout: 15_000 });
