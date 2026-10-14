@@ -5786,11 +5786,74 @@ async function scenarioStreamedSourceDigestBrowser(browser) {
   }
 }
 
+
+async function scenarioSoftmux1014WholeWorkbench(browser) {
+  console.log('软封10.14版本: cohesive production DOM UI candidate');
+  const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
+  const page = await context.newPage();
+  page.on('pageerror', error => { throw error; });
+  try {
+    const target = new URL(baseUrl);
+    target.searchParams.set('ui','10.14');
+    await page.goto(target.toString(), {waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'single');
+    assert.equal(await page.locator('#sf14Single .sf14-pane').count(),3);
+    assert.equal(await page.locator('#outputCompositionPanel').count(),1);
+    assert.equal(await page.locator('#assetInspectorHost').count(),1);
+    assert.equal(await page.locator('#muxBtn').count(),1);
+    assert.equal(await page.locator('#batchPlan').count(),1);
+    const uniqueIds = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll('[id]')].map(n => n.id);
+      return ids.length === new Set(ids).size;
+    });
+    assert.equal(uniqueIds,true,'rehost may not clone legacy IDs/controls');
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'base.mp4'));
+    await page.waitForFunction(() =>
+      document.querySelector('#outputCompositionPanel')?.hidden === false
+      && document.querySelector('#videoInput')?.files?.[0]?.name === 'base.mp4',
+      null,{timeout:60000});
+    assert.equal(await page.locator('#sf14CompositionEmpty').isVisible(),false);
+    await page.screenshot({path:path.join(outDir,'softmux-1014-desktop-1440.png'),fullPage:false});
+    await page.locator('[data-sf-view="batch"]').click();
+    assert.equal(await page.locator('#sf14Batch').isVisible(),true);
+    assert.equal(await page.locator('#batchPlan').isVisible(),true);
+    await page.screenshot({path:path.join(outDir,'softmux-1014-batch-1440.png'),fullPage:false});
+    await page.locator('[data-sf-view="tools"]').click();
+    assert.equal(await page.locator('#sf14Tools').isVisible(),true);
+    assert.equal(await page.locator('#existingMkvRoutedEditDetails').count(),1);
+    await page.locator('[data-sf-view="single"]').click();
+    await page.locator('#sf14Settings').click();
+    assert.equal(await page.locator('#sf14SettingsDialog').isVisible(),true);
+    await page.locator('[data-sf-density="comfortable"]').click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-density'),'comfortable');
+    await page.locator('#sf14SettingsDialog form button').click();
+    // A layout change cannot replace input File or recreate independent state.
+    const sameFile = await page.locator('#videoInput').evaluate(input => input.files?.[0]?.name);
+    assert.equal(sameFile,'base.mp4');
+    await page.setViewportSize({width:800,height:950});
+    await page.screenshot({path:path.join(outDir,'softmux-1014-tablet-800.png'),fullPage:false});
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('[data-sf-focus="source"]').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),true);
+    await page.locator('[data-sf-focus="composition"]').click();
+    assert.equal(await page.locator('#compositionTracks').isVisible(),true);
+    await page.locator('[data-sf-focus="inspector"]').click();
+    assert.equal(await page.locator('#sf14Inspector').isVisible(),true);
+    assert.equal(await page.locator('#videoInput').evaluate(input => input.files[0]?.name),'base.mp4');
+    await page.screenshot({path:path.join(outDir,'softmux-1014-phone-390.png'),fullPage:false});
+    await page.setViewportSize({width:360,height:780});
+    await page.screenshot({path:path.join(outDir,'softmux-1014-phone-360.png'),fullPage:false});
+    console.log('软封10.14候选整体 UI real DOM and responsive contract PASS');
+  } finally { await context.close(); }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
   await scenarioContentFirstSourceAmbiguity(browser);
