@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "2026-10-14-p0-p2-nonfinal-fileuid-relay",
-  "status": "full-block-submitted-CI-pending",
+  "status": "merged-with-exact-head-independently-native-audited-real-output",
   "branch": "feat/p0-p2-nonfinal-attachment-target-20261014",
   "goal": "Enable non-last original AttachedFile FileData resize within verified nonterminal Attachments relay writer, without compromising any later UID-linked attachment, protected original top-level byte, or source-bound file permissions.",
   "scope": [
@@ -12,16 +12,28 @@
     "Original native three-attachment test with Tag targeting first, middle free target and last free downstream; assert independent native FileData/chapter/tag/UID/packet parity"
   ],
   "validation": {
-    "node": "pending",
-    "vite": "pending",
-    "fullChromium": "pending",
-    "nativeOriginalThreeAttachment": "pending",
-    "generalWriter": "not_implemented"
+    "node": "passed_549_of_549_actions_38577634115",
+    "vite": "passed_actions_38577634115",
+    "fullChromium": "passed_all_browser_scenarios_38577634115",
+    "nativeOriginalThreeAttachment": "passed_unmodified_source_three_Attachments_mkvmerge_mkvextract_ffprobe_middle_FileData_changed_linked_first_and_unmodified_third_SHA_and_UID_exact",
+    "generalWriter": "not_implemented_or_proven"
   },
   "next": [
-    "Run exact-head Node + full browser, inspect failing conditions and repair without weakening protected source constraints.",
-    "After fully independently proven artifact, merge one complete P0/P2-N2 block.",
-    "Do not claim UID retarget, general SeekHead repair, arbitrary EBML CRC rewrite or large-file streaming."
+    "Next true P0/P2 gap: sources lacking correct direct SeekHead index and those with CRC or unsupported EBML children require separate independently proven reference/index repair before any write.",
+    "Improve large-source streaming evidence >60MiB and external multi-player conformance; retain exact-source File session and explicit review.",
+    "Consolidate the four bounded source-specific writing capability paths in user-facing UI without overpromising general Matroska editing."
   ],
-  "date": "2026-10-14"
+  "date": "2026-10-14",
+  "pull_request": 140,
+  "head_sha": "bdd03c20889cdcbb4ee71a0046c535685fa86741",
+  "merge_sha": "010e29f22679ff3e09f91aaca6068a38dff9da10",
+  "completed": [
+    "Actual source-bound FileUID selection is no longer restricted to final AttachedFile within original indexed nonterminal Attachments",
+    "All original later AttachedFile output offsets are calculated with delta and each untouched UID, metadata and FileData SHA verified, unrelated original source top-level byte positions unchanged",
+    "Node positive grow/shrink for nonfinal target plus previous targeted UID, CRC, unknown EBML, incorrect SeekHead, stale/forged plan refusals all pass",
+    "Original independent native three-attachment MKV plus nested Chapters and exact uint64 AttachmentUID tag source; real Chromium writes middle FileData; independent native MKVToolNix/mkvextract/ffprobe confirms all three and original packets",
+    "Full CI #38577634115 exact head bdd03c2 passes 549/549 Node, Vite and full Chromium; PR #140 merged main at 010e29f"
+  ],
+  "incident": "First CI red invalid source Tag target; TargetTypeValue fixed. Second red because test parsed uint64 UID using regular JSON.parse and silently rounded >53-bit UID. Reused existing project parseMkvmergeJsonWithExactUids and exactPositiveUid, asserted native exported tag references exact UID; third exact-head native output green. No product unsafe fallback or UID checks weakened.",
+  "updated_at": "2026-10-14"
 }
