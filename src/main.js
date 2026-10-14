@@ -36,6 +36,7 @@ import {
   buildBatchRecipeV2,stringifyBatchRecipeV2,parseBatchRecipeV2,
   previewBatchRecipeV2,captureBatchRecipeV2Binding,
   verifyBatchRecipeV2Binding,applyBatchRecipeV2ToPairing,
+  setCurrentBatchTaskMetadata,projectCurrentBatchTaskMetadata,
   BATCH_RECIPE_V2_MAX_BYTES,
 } from './batch-recipe-v2.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
@@ -438,6 +439,7 @@ let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
 let pendingBatchRecipeV2=null;
 let approvedBatchRecipeV2=null;
+let currentBatchTaskMetadata=new Map();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
@@ -5471,6 +5473,7 @@ function replaceBatchAdapterFiles() {
   // Import/removal starts a new source selection; a choice for an older File
   // object must never silently authorize a different batch.
   batchManualAssignments.clear();
+  currentBatchTaskMetadata=new Map();
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   const roles = resolveBatchImportedAssets(batchImportEntries);
@@ -5624,9 +5627,24 @@ function renderBatchJobInspector(pairing) {
         : '无新字体')}</dd></div>
     </dl>
     <div class="batch-inspector-subtitles">
-      ${job.subtitleTracks.map((track) =>
-        `<div class="batch-inspector-subtitle">${escapeHtml(track.displayName || track.file.name)}</div>`
-      ).join('')}
+      ${job.subtitleTracks.map((track,index)=>`
+        <div class="batch-inspector-subtitle batch-task-meta-editor">
+          <strong>${escapeHtml(track.displayName || track.file.name)}</strong>
+          <label>标题 <input data-batch-task-field="title"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            maxlength="160" value="${escapeHtml(track.title||'')}"
+            aria-label="任务 ${escapeHtml(job.outputName)} 字幕标题"></label>
+          <label>语言 <input data-batch-task-field="language"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            maxlength="35" value="${escapeHtml(track.language||'und')}"
+            aria-label="任务 ${escapeHtml(job.outputName)} 字幕语言"></label>
+          <label><input type="checkbox" data-batch-task-field="default"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.default?'checked':''}>Default</label>
+          <label><input type="checkbox" data-batch-task-field="forced"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.forced?'checked':''}>Forced</label>
+        </div>`).join('')}
     </div>
     ${confirmed.map((entry) =>
       `<div class="batch-reviewed-choice">
@@ -5692,7 +5710,12 @@ async function syncBatchPlan() {
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
-  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition, { manualAssignments: batchManualAssignments });
+  // User-authored metadata is an in-memory, File-bound projection, not
+  // changes to the recognized source or a second mutable executor. The
+  // reviewed pairing is what the existing frozen JobPlan will receive.
+  const inferredPairing=buildBatchJobsFromCollected(videos,subtitleRecognition,
+    {manualAssignments:batchManualAssignments});
+  const pairing=projectCurrentBatchTaskMetadata(inferredPairing,currentBatchTaskMetadata);
   pairing.videoRecognition = recognition;
   pairing.subtitleRecognition = subtitleRecognition;
   pairing.fontRecognition = fontRecognition;
@@ -5876,6 +5899,31 @@ batchPlan?.addEventListener('click', (event) => {
   }
   renderBatchJobInspector(latestBatchPairing);
 });
+batchJobInspector?.addEventListener('change',(event)=>{
+  const control=event.target.closest('[data-batch-task-field]');
+  if(!control||batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  if(Number(control.dataset.batchGeneration)!==batchPlanGeneration)return;
+  const job=latestBatchPairing?.jobs?.find(item=>item.video===selectedBatchVideoFile);
+  const track=job?.subtitleTracks?.[Number(control.dataset.batchTrackIndex)];
+  if(!job||!track)return;
+  try{
+    const value=control.type==='checkbox'?control.checked:control.value;
+    currentBatchTaskMetadata=setCurrentBatchTaskMetadata(currentBatchTaskMetadata,{
+      job,track,field:control.dataset.batchTaskField,value,
+    });
+    // Changing an individual track after approving imported JSON must
+    // invalidate the old whole-pairing approval, not stack silent overrides.
+    if(approvedBatchRecipeV2){
+      approvedBatchRecipeV2=null;
+      batchRecipeV2Notice.textContent='逐任务属性已重新编辑；先前导入配方的整体确认已失效。';
+    }
+    activeBatchJobLedger=null;
+    requestBatchPlanSync();
+  }catch(error){
+    batchRecipeV2Notice.textContent='逐任务字幕编辑被拒绝：'+(error?.message||String(error));
+    renderBatchJobInspector(latestBatchPairing);
+  }
+});
 batchJobInspector?.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-batch-revoke]');
   if (!button || batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
@@ -5990,6 +6038,8 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
   batchManualAssignments.clear();
+  currentBatchTaskMetadata=new Map();
+  approvedBatchRecipeV2=null;
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   if (batchUnifiedMode) {
