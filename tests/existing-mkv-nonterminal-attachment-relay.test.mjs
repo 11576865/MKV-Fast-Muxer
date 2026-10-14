@@ -29,7 +29,7 @@ const attach=(uid,name,data,opts={})=>{
  );
  const crc=opts.crc?element('BF',
    opts.crc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(body)))):Buffer.alloc(0);
- return element('61A7',cat(body,crc),2);
+ return element('61A7',cat(crc,body),2);
 };
 function source({tail=false,badSeek=false,noSeek=false,seekCrc=false,
   attachedCrc=false,attachmentsCrc=false,unknownAttached=false,unknownTop=false,tagFree=false,
@@ -44,7 +44,7 @@ function source({tail=false,badSeek=false,noSeek=false,seekCrc=false,
  );
  const parentCrc=attachmentsCrc?element('BF',
   attachmentsCrc==='corrupt'?Buffer.alloc(4):Buffer.from(ebmlCrc32LE(crc32IEEE(content)))):Buffer.alloc(0);
- const attachments=element('1941A469',cat(content,parentCrc),3);
+ const attachments=element('1941A469',cat(parentCrc,content),3);
  const chapter=element('1043A770',element('45B9',element('B6',cat(
   element('73C4',Buffer.from([21])),
   element('B6',element('73C4',Buffer.from([22]))),
