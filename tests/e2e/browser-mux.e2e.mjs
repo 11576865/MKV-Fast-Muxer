@@ -88,10 +88,12 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     await page.waitForFunction(() => !document.querySelector('#batchSubsetScope')?.disabled,
       null, { timeout: 30_000 });
     await page.locator('#batchSubsetScope').selectOption('group');
-    const wire = path.join(outDir, 'five-step-batch-recipe-v1.json');
+    const wire = path.join(outDir, 'five-step-batch-recipe-v2.json');
     await saveDownload(page, '#batchRecipeExportBtn', wire);
     const raw = JSON.parse(await fs.readFile(wire, 'utf8'));
-    assert.equal(raw.schema, 'batch-recipe-v1');
+    assert.equal(raw.schema, 'batch-recipe-v2');
+    assert.deepEqual(raw.tasks,[]);
+    assert.equal(raw.recipeKind,'episode-subtitle-review');
     assert.deepEqual(raw.policy, {
       preserveAttachments: false, subsetEnabled: true, subsetScope: 'group',
     });
@@ -119,7 +121,7 @@ async function scenarioFiveStepRecipeAndCapabilityWorkbench(browser) {
     await page.locator('#batchFontSubsetEnabled').uncheck();
     await page.setInputFiles('#batchRecipeImportInput', wire);
     await page.waitForFunction(() =>
-      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('已加载配方规则'));
+      (document.querySelector('#batchRecipeNotice')?.textContent || '').includes('配方 v2'));
     assert.equal(await page.locator('#batchPreserveAttachments').isChecked(), false);
     assert.equal(await page.locator('#batchFontSubsetEnabled').isChecked(), true);
     assert.equal(await page.locator('#batchSubsetScope').inputValue(), 'group');
@@ -2151,6 +2153,108 @@ async function scenarioBatchDirectorySaveFallback(browser) {
     assert.equal(await page.locator('#batchResults a.download').count(), 1);
     assert.equal(await page.locator('#batchResults a.report-download').count(), 1);
     console.log('Batch directory save fallback PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+
+async function scenarioBatchRecipeV2RealDelivery(browser) {
+  console.log('E2E Batch Recipe v2: author per-episode subtitle metadata, export, reselect, explicitly approve, mux and ffprobe');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    const videos=[path.join(root,'Batch S01E01.mp4'),path.join(root,'Batch S01E02.mp4')];
+    const subtitles=[
+      path.join(root,'Batch S01E01.zh-Hans.ass'),
+      path.join(root,'Batch S01E02.en.srt'),
+    ];
+    await page.setInputFiles('#batchVideoInput',videos);
+    await page.setInputFiles('#batchSubtitleInput',subtitles);
+    await page.waitForFunction(()=>document.querySelectorAll(
+      '#batchPlan [data-batch-job-index]').length===2 &&
+      !document.querySelector('#batchStartBtn')?.disabled,
+      null,{timeout:120_000});
+    const rows=page.locator('#batchPlan button[data-batch-job-index]');
+    const inspector=page.locator('#batchJobInspector');
+    await rows.nth(0).click();
+    await inspector.locator('[data-batch-task-field="title"]').fill('Episode 01 Verified');
+    await inspector.locator('[data-batch-task-field="language"]').fill('jpn');
+    await rows.nth(1).click();
+    await inspector.locator('[data-batch-task-field="title"]').fill('Episode 02 Verified');
+    await inspector.locator('[data-batch-task-field="language"]').fill('eng');
+    await inspector.locator('[data-batch-task-field="forced"]').check();
+    await page.waitForFunction(()=>{
+      const input=document.querySelector('#batchJobInspector [data-batch-task-field="title"]');
+      return input?.value==='Episode 02 Verified';
+    });
+    const wire=path.join(outDir,'p3-batch-recipe-v2-episodes.json');
+    await saveDownload(page,'#batchRecipeExportBtn',wire);
+    const exported=JSON.parse(await fs.readFile(wire,'utf8'));
+    assert.equal(exported.schema,'batch-recipe-v2');
+    assert.equal(exported.tasks.length,2);
+    assert.equal(exported.tasks[0].subtitles[0].metadata.title,'Episode 01 Verified');
+    assert.equal(exported.tasks[0].subtitles[0].metadata.language,'jpn');
+    assert.equal(exported.tasks[1].subtitles[0].metadata.title,'Episode 02 Verified');
+    assert.equal(exported.tasks[1].subtitles[0].metadata.forced,true);
+    assert.equal(exported.outputDirectoryPermission,'not-exported');
+    assert.equal(exported.sourceBindings,'must-reselect-and-review');
+
+    // A fresh File selection invalidates prior in-memory task overrides.
+    await page.setInputFiles('#batchVideoInput',[]);
+    await page.setInputFiles('#batchSubtitleInput',[]);
+    await page.setInputFiles('#batchVideoInput',videos);
+    await page.setInputFiles('#batchSubtitleInput',subtitles);
+    await page.waitForFunction(()=>document.querySelectorAll(
+      '#batchPlan [data-batch-job-index]').length===2 &&
+      !document.querySelector('#batchStartBtn')?.disabled,
+      null,{timeout:120_000});
+    await rows.nth(0).click();
+    assert.notEqual(await inspector.locator('[data-batch-task-field="title"]').inputValue(),
+      'Episode 01 Verified');
+
+    await page.setInputFiles('#batchRecipeImportInput',wire);
+    await page.waitForFunction(()=>{
+      const button=document.querySelector('#batchRecipeApplyBtn');
+      return button && !button.hidden && !button.disabled;
+    },null,{timeout:120_000});
+    assert.equal(await page.locator('#batchStartBtn').isDisabled(),true,
+      'pending imported metadata may not become a runnable plan');
+    assert.notEqual(await inspector.locator('[data-batch-task-field="title"]').inputValue(),
+      'Episode 01 Verified','import itself cannot mutate the current pairing');
+    await page.locator('#batchRecipeApplyBtn').click();
+    await page.waitForFunction(()=>!document.querySelector('#batchStartBtn')?.disabled &&
+      (document.querySelector('#batchRecipeNotice')?.textContent||'').includes('已按当前实际文件完成'),
+      null,{timeout:120_000});
+    await rows.nth(0).click();
+    assert.equal(await inspector.locator('[data-batch-task-field="title"]').inputValue(),
+      'Episode 01 Verified');
+    await rows.nth(1).click();
+    assert.equal(await inspector.locator('[data-batch-task-field="title"]').inputValue(),
+      'Episode 02 Verified');
+    assert.equal(await inspector.locator('[data-batch-task-field="forced"]').isChecked(),true);
+
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(()=>(
+      document.querySelector('#batchStatus')?.textContent||'').startsWith('批量完成：'),
+      null,{timeout:360_000});
+    assert.match(await page.locator('#batchStatus').textContent(),/成功 2，失败 0/);
+    const outputs=page.locator('#batchResults a.download');
+    assert.equal(await outputs.count(),2);
+    const first=path.join(outDir,'p3-batch-v2-e01-final.mkv');
+    const second=path.join(outDir,'p3-batch-v2-e02-final.mkv');
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(1) a.download',first);
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(2) a.download',second);
+    const e01=streams(probe(first),'subtitle');
+    const e02=streams(probe(second),'subtitle');
+    assert.equal(e01.length,1);
+    assert.equal(e02.length,1);
+    assert.equal(e01[0].tags?.title,'Episode 01 Verified');
+    assert.equal(e01[0].tags?.language,'jpn');
+    assert.equal(e02[0].tags?.title,'Episode 02 Verified');
+    assert.equal(e02[0].tags?.language,'eng');
+    assert.equal(Boolean(e02[0].disposition?.forced),true);
+    console.log('P3 Batch Recipe v2 actual paired JobPlan and independent MKV artifacts PASS');
   } finally {
     await context.close();
   }
@@ -4782,6 +4886,7 @@ try {
   await scenarioBatchDirectorySaveFallback(browser);
   await scenarioBatchReportSavePartialPersistence(browser);
   await scenarioBatchQueue(browser);
+  await scenarioBatchRecipeV2RealDelivery(browser);
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
