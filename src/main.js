@@ -65,6 +65,11 @@ import {
   createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
   inspectLiveWorkspaceAuthority,
 } from './live-container-workspace-authority.js';
+import {
+  exportExternalMetadataCheckpoint, parseExternalMetadataCheckpoint,
+  prepareExternalMetadataRecovery, applyPreparedExternalRecovery,
+  undoAppliedExternalRecovery,
+} from './portable-external-project-recovery.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -2176,6 +2181,123 @@ containerProjectVerifySourceBtn?.addEventListener('click', async () => {
     renderOutputComposition();
   }
 });
+// External checkpoint recovery is a separate, user-reviewed authorization
+// boundary. Imported JSON is inert and does not retain File/sidecar grants.
+const externalCheckpointControls = {
+  export: $('externalCheckpointExportBtn'),
+  input: $('externalCheckpointImportInput'),
+  prepare: $('externalCheckpointPrepareBtn'),
+  confirm: $('externalCheckpointConfirm'),
+  apply: $('externalCheckpointApplyBtn'),
+  undo: $('externalCheckpointUndoBtn'),
+  status: $('externalCheckpointStatus'),
+};
+let pendingExternalCheckpoint = null;
+let preparedExternalCheckpoint = null;
+let externalCheckpointUndo = null;
+let externalCheckpointBusy = false;
+function resetExternalCheckpointApproval() {
+  preparedExternalCheckpoint = null;
+  externalCheckpointControls.confirm.checked = false;
+  externalCheckpointControls.confirm.disabled = true;
+  externalCheckpointControls.apply.disabled = true;
+}
+externalCheckpointControls.export?.addEventListener('click', async () => {
+  if(externalCheckpointBusy || isBusy() || batchRunning) return;
+  externalCheckpointBusy = true;
+  try {
+    if(!liveWorkspaceAuthority) throw Error('EXTERNAL_CHECKPOINT_NO_ACTIVE_PROJECT');
+    const json = await exportExternalMetadataCheckpoint(
+      liveWorkspaceAuthority,liveWorkspaceContext());
+    const url = URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
+    const a=document.createElement('a');
+    a.href=url;a.download='mkv-external-metadata-checkpoint-v1.json';
+    document.body.appendChild(a);a.click();a.remove();
+    // Give the browser download handler ownership of the URL first.
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    externalCheckpointControls.status.textContent =
+      '已导出不含文件权限的外部元数据草稿；恢复时必须重新选择文件并逐字节验证 SHA-256。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='外部草稿导出失败：'+(e.message||String(e));
+  } finally { externalCheckpointBusy = false; }
+});
+externalCheckpointControls.input?.addEventListener('change',async()=>{
+  const file=externalCheckpointControls.input.files?.[0];
+  externalCheckpointControls.input.value='';
+  pendingExternalCheckpoint=null;
+  resetExternalCheckpointApproval();
+  externalCheckpointControls.prepare.disabled=true;
+  if(!file)return;
+  try {
+    if(file.size>1024*1024)throw Error('EXTERNAL_CHECKPOINT_TOO_LARGE');
+    pendingExternalCheckpoint=parseExternalMetadataCheckpoint(await file.text());
+    externalCheckpointControls.prepare.disabled=false;
+    externalCheckpointControls.status.textContent =
+      '草稿已作为未授权数据读取。请确认当前外部文件与 sidecar 选择，再点击 SHA-256 验证。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='外部草稿无效：'+(e.message||String(e));
+  }
+});
+externalCheckpointControls.prepare?.addEventListener('click',async()=>{
+  if(externalCheckpointBusy||isBusy()||batchRunning||!pendingExternalCheckpoint)return;
+  resetExternalCheckpointApproval();
+  externalCheckpointBusy=true;
+  externalCheckpointControls.status.textContent='正在核验当前音频、字幕和 sidecar 全部内容 SHA-256…';
+  try {
+    if(!liveWorkspaceAuthority)throw Error('EXTERNAL_CHECKPOINT_NO_ACTIVE_PROJECT');
+    const workspace=liveWorkspaceAuthority,context=liveWorkspaceContext();
+    const prepared=await prepareExternalMetadataRecovery(
+      workspace,context,pendingExternalCheckpoint);
+    if(workspace!==liveWorkspaceAuthority)
+      throw Error('EXTERNAL_CHECKPOINT_WORKSPACE_CHANGED');
+    preparedExternalCheckpoint=prepared;
+    externalCheckpointControls.confirm.disabled=false;
+    externalCheckpointControls.status.textContent=
+      '所有外部文件内容已与草稿摘要匹配；待恢复 '+prepared.changes.length+
+      ' 项字段。摘要匹配不证明草稿作者或写入权限。请检查当前字段后单独确认。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='来源重新绑定未通过：'+(e.message||String(e));
+  } finally {externalCheckpointBusy=false;}
+});
+externalCheckpointControls.confirm?.addEventListener('change',()=>{
+  externalCheckpointControls.apply.disabled=
+    !externalCheckpointControls.confirm.checked||!preparedExternalCheckpoint;
+});
+externalCheckpointControls.apply?.addEventListener('click',()=>{
+  if(!preparedExternalCheckpoint||!externalCheckpointControls.confirm.checked||
+      isBusy()||batchRunning)return;
+  try {
+    if(!liveWorkspaceAuthority)throw Error('EXTERNAL_CHECKPOINT_WORKSPACE_MISSING');
+    const result=applyPreparedExternalRecovery(
+      liveWorkspaceAuthority,liveWorkspaceContext(),preparedExternalCheckpoint,
+      {confirmed:true});
+    externalCheckpointUndo=result.undo;
+    externalCheckpointControls.undo.disabled=!externalCheckpointUndo;
+    resetExternalCheckpointApproval();
+    externalCheckpointControls.status.textContent=
+      '已明确应用 '+(result.applied||0)+' 项外部元数据；没有恢复文件权限或自动执行封装。';
+    updateUI();renderMuxPlan();
+  } catch(e) {
+    resetExternalCheckpointApproval();
+    externalCheckpointControls.status.textContent='恢复拒绝：'+(e.message||String(e));
+  }
+});
+externalCheckpointControls.undo?.addEventListener('click',()=>{
+  if(!externalCheckpointUndo||isBusy()||batchRunning)return;
+  try {
+    undoAppliedExternalRecovery(
+      liveWorkspaceAuthority,liveWorkspaceContext(),externalCheckpointUndo);
+    externalCheckpointUndo=null;
+    externalCheckpointControls.undo.disabled=true;
+    externalCheckpointControls.status.textContent='已撤销本次外部元数据恢复。';
+    updateUI();renderMuxPlan();
+  } catch(e) {
+    externalCheckpointControls.status.textContent='撤销拒绝：'+(e.message||String(e));
+    externalCheckpointUndo=null;
+    externalCheckpointControls.undo.disabled=true;
+  }
+});
+
 containerProjectExportBtn?.addEventListener('click', async () => {
   // Detached domain export is an explicit READ, never a writer authorization.
   // It can run during track scanning, but must not retain stale source bytes.
