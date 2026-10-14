@@ -399,12 +399,12 @@ test('attachment replay rejects malicious metadata and preserves entire edit set
 
 function fixtureForSourceOrder() {
   const f=fixtureWithTwoAttachments();
-  const second={index:4,codec_type:'audio',codec_name:'aac',
+  const second={index:6,codec_type:'audio',codec_name:'aac',
     tags:{title:'Secondary',language:'eng'},disposition:{default:0}};
   // Source audio index is intentionally sparse; project order slots
   // cannot be copied directly to FFmpeg numeric order values.
   f.state.streams.push(second);
-  f.state.tracks.push(mkTrack(4,'audio',second));
+  f.state.tracks.push(mkTrack(6,'audio',second));
   f.live=buildContainerDocument({video:f.file,trackState:f.state});
   return f;
 }
@@ -414,7 +414,7 @@ const sourceOrder = state => state.tracks.filter(t=>t.type==='audio')
 test('scanned audio permutation survives portable JSON and verified replay despite sparse stream order', async () => {
   const {file,state}=fixtureForSourceOrder();
   const baselineOrder=sourceOrder(state);
-  assert.deepEqual(baselineOrder,[1,4]);
+  assert.deepEqual(baselineOrder,[1,6]);
   const first=state.tracks.find(t=>t.index===1);
   const second=state.tracks.find(t=>t.index===4);
   [first.order,second.order]=[second.order,first.order];
@@ -435,9 +435,9 @@ test('scanned audio permutation survives portable JSON and verified replay despi
   assert.equal(plan.attachments.length,1);
   const receipt=apply(plan,state);
   assert.equal(receipt.fileWritten,false);
-  assert.deepEqual(sourceOrder(state),[4,1]);
+  assert.deepEqual(sourceOrder(state),[6,1]);
   assert.deepEqual(state.tracks.filter(t=>t.type==='audio')
-    .map(t=>t.order).sort((a,b)=>a-b),[1,4]);
+    .map(t=>t.order).sort((a,b)=>a-b),[1,6]);
   assert.equal(first.title,'Edited after ordering');
   assert.equal(state.attachments[0].filename,'New font.ttf');
   const {revertPreparedTrackReplay:undo}=await import('../src/container-project-restore.js');
@@ -500,14 +500,14 @@ test('order restore validates ALL kind peers at final commit and inverse before 
   const originalStream=audio[1].stream;
   audio[1].stream={...originalStream};
   assert.throws(()=>apply(plan,state),/TRACK_REPLAY_LIVE_STATE_CHANGED/);
-  assert.deepEqual(sourceOrder(state),[1,4]);
+  assert.deepEqual(sourceOrder(state),[1,6]);
   audio[1].stream=originalStream;
   apply(plan,state);
-  assert.deepEqual(sourceOrder(state),[4,1]);
+  assert.deepEqual(sourceOrder(state),[6,1]);
   const {revertPreparedTrackReplay:undo}=await import('../src/container-project-restore.js');
   audio[0].order=audio[1].order;
   assert.throws(()=>undo(plan,state),/TRACK_REPLAY_UNDO_CONFLICT/);
-  audio[0].order=4;
+  audio[0].order=6;
   undo(plan,state);
-  assert.deepEqual(sourceOrder(state),[1,4]);
+  assert.deepEqual(sourceOrder(state),[1,6]);
 });
