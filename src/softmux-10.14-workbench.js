@@ -31,6 +31,7 @@ export function mountSoftmux1014Workbench(doc = document) {
         '<button type="button" data-sf-view="tools">容器工具</button>',
       '</nav>',
       '<div class="sf14-header-actions">',
+        '<button type="button" id="sf14SourceToggle" aria-expanded="false">来源</button>',
         '<button type="button" id="sf14Add">＋ 添加资源</button>',
         '<button type="button" id="sf14Help">帮助</button>',
         '<button type="button" id="sf14Settings">设置</button>',
@@ -114,6 +115,12 @@ export function mountSoftmux1014Workbench(doc = document) {
   for (const button of root.querySelectorAll('[data-sf-focus]'))
     button.addEventListener('click', () => setFocus(button.dataset.sfFocus));
   setFocus('source');
+  const sourceToggle = get(doc,'sf14SourceToggle');
+  sourceToggle.addEventListener('click', () => {
+    const show = single.dataset.showSource !== 'true';
+    single.dataset.showSource = String(show);
+    sourceToggle.setAttribute('aria-expanded', String(show));
+  });
   composition.addEventListener('click', () => {
     if (doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) setFocus('inspector');
   });
@@ -121,6 +128,10 @@ export function mountSoftmux1014Workbench(doc = document) {
   const changeView = (view) => {
     if (!['single','batch','tools'].includes(view)) return;
     root.dataset.view = view;
+    if (view !== 'single') {
+      single.dataset.showSource = 'false';
+      sourceToggle.setAttribute('aria-expanded', 'false');
+    }
     single.hidden = view !== 'single';
     get(doc,'sf14MobileFocus').hidden = view !== 'single';
     root.querySelector('.sf14-output').hidden = view !== 'single';
