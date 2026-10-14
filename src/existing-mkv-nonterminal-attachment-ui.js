@@ -87,7 +87,7 @@ export function setupNonterminalAttachmentRelayUI({
       if(first)targetSelect.value=first.fileUid;
       else targetSelect.selectedIndex=-1;
       inventory.textContent='共 '+r.attachments.length+
-        ' 个原始附件；'+targets.size+' 个 UID 已被 Tag 引用。此工具仅接受非末尾、已有正确 SeekHead 索引的 Attachments；严格来源布局由写入器复核。';
+        ' 个原始附件；'+targets.size+' 个 UID 已被 Tag 引用。此工具仅接受非末尾、已有正确 SeekHead 索引的 Attachments。可审核任意未被 Tag 引用的现有 FileUID；后续附件在新主元素内的位置变化由写入器逐一验证。';
       report(first?'请选择不同长度的新文件并明确确认；缺少原附件 SeekHead 索引或原位置不能放置中继时将拒绝。':
         '没有可修改的未关联附件。',first?'ready':'blocked');
     }catch(error){
@@ -123,7 +123,7 @@ export function setupNonterminalAttachmentRelayUI({
       evidence.textContent='原始 FileData '+plan.target.originalLength+
         ' bytes → '+plan.target.newLength+
         ' bytes；变化 '+plan.geometry.delta+
-        ' bytes。将修改后的 Attachments 追加到 Segment 末尾；旧位置换成等长 SeekHead 中继，并更新原索引 SeekID。来源 SHA-256：'+
+        ' bytes。将修改后的 Attachments 追加到 Segment 末尾；旧位置换成等长 SeekHead 中继。若修改中间附件，后续附件在新主元素内的偏移按变长差异重算并以 SHA-256 验证。来源 SHA-256：'+
         value.evidence.sourceSha256+'，成品 SHA-256：'+
         value.evidence.outputSha256+
         '。原有章节、标签、媒体轨与 Cues 原始字节及偏移不变；SeekHead 仅做有依据的重定向；播放器兼容仍需单独验收。';
@@ -158,6 +158,6 @@ export function setupNonterminalAttachmentRelayUI({
     }
   });
   window.addEventListener('pagehide',expire);
-  report('选择含已有附件的 MKV。仅支持非末尾、可从原始 SeekHead 索引发现的 Attachments，且目标是最后一个未引用 AttachedFile。');
+  report('选择含已有附件的 MKV。仅支持非末尾且可从原始 SeekHead 索引发现的 Attachments；可选择任意未被 Tag 引用的已有 AttachedFile。');
   controls();
 }
