@@ -57,7 +57,7 @@
 .sf14-empty {color:var(--muted);font-size:.76rem;line-height:1.7;padding:28px 15px;border:1px dashed var(--line);border-radius:7px;}
 .sf14-composition .output-composition[hidden],.sf14-empty[hidden] {display:none!important;}
 .sf14-inspector .editor-column {display:flex;flex-direction:column;gap:9px;}
-.sf14-inspector .column-head {min-height:0;padding:0;display:flex;justify-content:flex-end;}
+.sf14-inspector .column-head {display:none!important;}
 .sf14-inspector .column-head h2 {display:none;}
 .sf14-inspector #editorMuxBtn {display:none;}
 .sf14-inspector .editor-grid {min-width:0;display:block;}
