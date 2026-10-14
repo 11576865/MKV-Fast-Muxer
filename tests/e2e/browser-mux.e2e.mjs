@@ -903,6 +903,29 @@ async function scenarioSequentialTasks(browser) {
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
     await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('eng');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Second Task');
+    // The editable DOM and the actual planned output must agree BEFORE
+    // execution. Catch a stale external-domain epoch or silently rejected
+    // input before an independently probed MKV appears with a wrong title.
+    const secondTitleActual =
+      await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue();
+    if (secondTitleActual !== 'Second Task') {
+      const diagnostic = await page.evaluate(() => ({
+        status: document.querySelector('#status')?.textContent || '',
+        subtitleControls: Array.from(document.querySelectorAll('#newSubtitleList [data-new-sub-field]'))
+          .map(el => ({field: el.dataset.newSubField, index: el.dataset.index,
+            value: el.type === 'checkbox' ? el.checked : el.value})),
+        audioEpoch: document.querySelector('#newAudioList')?.dataset.externalDomainEpoch,
+        subtitleEpoch: document.querySelector('#newSubtitleList')?.dataset.externalDomainEpoch,
+        plan: document.querySelector('#muxPlan')?.textContent?.slice(0, 1200),
+        subtitleLabel: document.querySelector('#subName')?.textContent,
+      }));
+      console.error('Second task pre-mux editor authority diagnostic:', JSON.stringify(diagnostic));
+    }
+    assert.equal(secondTitleActual, 'Second Task',
+      'second-task editable title must survive selection and input dispatch');
+    await page.waitForFunction(() =>
+      (document.querySelector('#muxPlan')?.textContent || '').includes('Second Task'),
+    null, { timeout: 15_000 });
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     const second = path.join(outDir, 'sequential-second.mkv');
@@ -1303,6 +1326,70 @@ async function scenarioBulkTrackMetadata(browser) {
     assert.equal(Boolean(streams(out, 'audio')[1].disposition?.default), false);
     assert.equal(streams(out, 'subtitle').at(-1).tags?.language, 'zho');
     console.log('Scenario 21 PASS');
+  } finally {
+    await context.close();
+  }
+}
+
+async function scenarioExternalAssetDomainAuthority(browser) {
+  console.log('E2E P1: external audio/subtitle/domain font policy -> real mux and same-metadata File replacement');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'base.mp4'));
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    await page.setInputFiles('#subInput',path.join(root,'zh.ass'));
+    await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
+    const audio=page.locator('#newAudioList input[data-new-audio-field="title"][data-index="0"]');
+    const subtitle=page.locator('#newSubtitleList input[data-new-sub-field="title"][data-index="0"]');
+    await audio.fill('Old-selection private title');
+    assert.equal(await audio.inputValue(),'Old-selection private title');
+
+    // Browser File grants are object identity, not just name|size|mtime.
+    // Re-select a different File object containing the exact same bytes and
+    // identical display metadata. The stale form and title MUST NOT leak.
+    await page.evaluate(async ()=>{
+      const input=document.querySelector('#audioInput');
+      const old=input.files[0];
+      const clone=new File([await old.arrayBuffer()],old.name,{
+        lastModified:old.lastModified,type:old.type,
+      });
+      const transfer=new DataTransfer();
+      transfer.items.add(clone);
+      input.files=transfer.files;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    await page.waitForFunction(()=>{
+      const text=document.querySelector('#newAudioList input[data-new-audio-field="title"][data-index="0"]');
+      return text && text.value==='external';
+    },null,{timeout:30000});
+    assert.equal(await audio.inputValue(),'external');
+    await audio.fill('Domain external audio');
+    await page.locator('#newAudioList select[data-new-audio-field="language"]').selectOption('eng');
+    await page.locator('#newAudioList details.track-advanced summary').click();
+    await page.locator('#newAudioList input[data-new-audio-field="commentary"]').check();
+    await subtitle.fill('Domain Chinese subtitles');
+    await page.locator('#newSubtitleList select[data-new-sub-field="language"]').selectOption('zho');
+    await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').check();
+    await page.locator('#fontMode').selectOption('force');
+    assert.equal(await page.locator('#fontMode').inputValue(),'force');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-external-domain-authored.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const checked=probe(output);
+    const audios=streams(checked,'audio');
+    const subtitles=streams(checked,'subtitle');
+    const fonts=streams(checked,'attachment');
+    assert.equal(audios.at(-1).tags?.title,'Domain external audio');
+    assert.equal(audios.at(-1).tags?.language,'eng');
+    assert.equal(Boolean(audios.at(-1).disposition?.comment),true);
+    assert.equal(subtitles.at(-1).tags?.title,'Domain Chinese subtitles');
+    assert.equal(subtitles.at(-1).tags?.language,'zho');
+    assert.equal(Boolean(subtitles.at(-1).disposition?.forced),true);
+    assert.ok(fonts.some(font=>font.tags?.filename==='DejaVuSans.ttf'),
+      'font inventory and mode must be compatible with actual executor output');
+    console.log('External asset domain and independent finished-MKV oracle PASS');
   } finally {
     await context.close();
   }
@@ -2090,6 +2177,93 @@ async function scenarioBatchDirectorySaveFallback(browser) {
   } finally {
     await context.close();
   }
+}
+
+async function scenarioBatchRecipeV2PerOutputRealMux(browser) {
+  console.log('E2E Batch Recipe v2: 2 separate episode metadata rules -> frozen job plan -> independently probed MKVs');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput',[
+      path.join(root,'Batch S01E01.mp4'),
+      path.join(root,'Batch S01E02.mp4'),
+    ]);
+    await page.setInputFiles('#batchSubtitleInput',[
+      path.join(root,'Batch S01E01.zh-Hans.ass'),
+      path.join(root,'Batch S01E02.en.srt'),
+    ]);
+    await page.waitForFunction(()=>
+      !document.querySelector('#batchStartBtn')?.disabled &&
+      document.querySelectorAll('#batchPlan [data-batch-job-index]').length===2,
+      null,{timeout:60000});
+    const original=path.join(outDir,'batch-recipe-v2-original.json');
+    await saveDownload(page,'#batchRecipeV2ExportBtn',original);
+    const source=JSON.parse(await fs.readFile(original,'utf8'));
+    assert.equal(source.schema,'batch-recipe-v2');
+    assert.equal(source.jobs.length,2);
+    assert.equal(source.sourceBindings,'must-reselect-and-verify');
+    assert.equal(source.directoryPermission,'not-exported');
+    assert.equal(source.jobs[0].subtitleRules.length,1);
+    assert.equal(source.jobs[1].subtitleRules.length,1);
+    assert.equal(source.savedArtifacts,'not-included');
+    assert.equal(source.fileHandles,undefined);
+
+    source.jobs[0].subtitleRules[0].title='Episode One V2 Approved';
+    source.jobs[0].subtitleRules[0].language='jpn';
+    source.jobs[0].subtitleRules[0].forced=true;
+    source.jobs[1].subtitleRules[0].title='Episode Two V2 Approved';
+    source.jobs[1].subtitleRules[0].language='eng';
+    source.jobs[1].subtitleRules[0].commentary=true;
+    const edited=path.join(outDir,'batch-recipe-v2-user-edited.json');
+    await fs.writeFile(edited,JSON.stringify(source,null,2)+'\n');
+    await page.setInputFiles('#batchRecipeV2ImportInput',edited);
+    await page.waitForFunction(()=>
+      (document.querySelector('#batchRecipeV2Notice')?.textContent||'')
+        .includes('已读取 2 个逐输出任务'));
+    assert.equal(await page.locator('#batchRecipeV2ConfirmBtn').isDisabled(),false);
+    assert.equal(await page.locator('#batchResults a.download').count(),0);
+
+    // A parsed JSON cannot grant execution, even if the actual sources happen
+    // to match. The confirmation is an explicit distinct user interaction.
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(()=>
+      (document.querySelector('#batchStatus')?.textContent||'').includes('v2 规则尚未确认'),
+      null,{timeout:60000});
+    assert.equal(await page.locator('#batchResults a.download').count(),0);
+    await page.locator('#batchRecipeV2ConfirmBtn').click();
+    await page.waitForFunction(()=>
+      (document.querySelector('#batchRecipeV2Notice')?.textContent||'')
+        .includes('已确认 2 个逐输出字幕规则'),null,{timeout:60000});
+    await page.waitForFunction(()=>
+      !document.querySelector('#batchStartBtn')?.disabled,null,{timeout:60000});
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(()=>
+      (document.querySelector('#batchStatus')?.textContent||'')
+        .startsWith('批量完成：'),null,{timeout:360000});
+    assert.match(await page.locator('#batchStatus').textContent(),/成功 2，失败 0/);
+    const rows=page.locator('#batchResults .new-track-row');
+    assert.equal(await rows.count(),2);
+    const first=path.join(outDir,'batch-recipe-v2-first.mkv');
+    const second=path.join(outDir,'batch-recipe-v2-second.mkv');
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(1) a.download',first);
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(2) a.download',second);
+    const firstSub=streams(probe(first),'subtitle')[0];
+    const secondSub=streams(probe(second),'subtitle')[0];
+    assert.equal(firstSub.tags?.title,'Episode One V2 Approved');
+    assert.equal(firstSub.tags?.language,'jpn');
+    assert.equal(Boolean(firstSub.disposition?.forced),true);
+    assert.equal(secondSub.tags?.title,'Episode Two V2 Approved');
+    assert.equal(secondSub.tags?.language,'eng');
+    assert.equal(Boolean(secondSub.disposition?.comment),true);
+    const report=path.join(outDir,'batch-recipe-v2-first-report.json');
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(1) a.report-download',report);
+    const firstAudit=JSON.parse(await fs.readFile(report,'utf8'));
+    assert.equal(firstAudit.plan.execution,'frozen-batch-context-v1');
+    assert.equal(firstAudit.plan.subtitles[0].title,'Episode One V2 Approved');
+    assert.equal(firstAudit.plan.outputName,'Batch S01E01.mkv');
+    assert.equal(await page.locator('#batchPlan .batch-review-state[data-state="awaitingSave"]').count(),2);
+    console.log('Batch Recipe v2 independent output and execution audit PASS');
+  } finally { await context.close(); }
 }
 
 async function scenarioBatchQueue(browser) {
@@ -4704,6 +4878,7 @@ try {
   await scenarioTenSequential(browser);
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
+  await scenarioExternalAssetDomainAuthority(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
@@ -4716,6 +4891,7 @@ try {
   await scenarioBatchDirectoryConflict(browser);
   await scenarioBatchDirectorySaveFallback(browser);
   await scenarioBatchReportSavePartialPersistence(browser);
+  await scenarioBatchRecipeV2PerOutputRealMux(browser);
   await scenarioBatchQueue(browser);
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);

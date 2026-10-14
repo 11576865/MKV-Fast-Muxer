@@ -32,6 +32,13 @@ import { inspectMatroskaPreservation, preservationBlockMessage } from './preserv
 import { preservationReadiness } from './preservation-readiness.js';
 import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
 import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
+import {
+  buildBatchRecipeV2,stringifyBatchRecipeV2,parseBatchRecipeV2,
+  previewBatchRecipeV2,captureBatchRecipeV2Binding,
+  verifyBatchRecipeV2Binding,applyBatchRecipeV2ToPairing,
+  setCurrentBatchTaskMetadata,projectCurrentBatchTaskMetadata,
+  BATCH_RECIPE_V2_MAX_BYTES,
+} from './batch-recipe-v2.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
@@ -53,6 +60,11 @@ import {
   createLiveSourceTrackSession, commitLiveSourceTrackChanges,
   commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
 } from './live-source-track-authority.js';
+import {
+  createLiveExternalAssetSession,commitLiveExternalAssetChanges,
+  commitExternalFontMode,inspectLiveExternalAssets,
+  rebindLiveExternalFontInventory,
+} from './live-external-asset-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -228,6 +240,12 @@ const batchSubsetScope = $('batchSubsetScope');
 const batchRecipeExportBtn = $('batchRecipeExportBtn');
 const batchRecipeImportInput = $('batchRecipeImportInput');
 const batchRecipeNotice = $('batchRecipeNotice');
+const batchRecipeV2ExportBtn=$('batchRecipeV2ExportBtn');
+const batchRecipeV2ImportInput=$('batchRecipeV2ImportInput');
+const batchRecipeV2ConfirmBtn=$('batchRecipeV2ConfirmBtn');
+const batchRecipeV2Notice=$('batchRecipeV2Notice');
+const batchRecipeV2Review=$('batchRecipeV2Review');
+const batchRecipeV2ReviewItems=$('batchRecipeV2ReviewItems');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
@@ -404,6 +422,9 @@ let scannedSourceFile = null;
 let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
+let liveExternalAssetSession = null;
+let externalAssetAuthorityEpoch = 0;
+let externalAssetPendingTaskRebind = false;
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
@@ -417,6 +438,9 @@ let batchStartCancelled = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
+let pendingBatchRecipeV2=null;
+let approvedBatchRecipeV2=null;
+let currentBatchTaskMetadata=new Map();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
@@ -493,8 +517,26 @@ function safeOutputName(videoName) {
   return videoName.replace(/\.[^.]+$/, '') + '.mkv';
 }
 
+// A selected FileList is the explicit identity boundary. Browsers may hand
+// out new File wrappers on repeated reads even though selection did not
+// change. Pin each exact File grant to its FileList generation and invalidate
+// it on an actual picker change, never by matching display metadata.
+const liveFileListPins = new WeakMap();
+function exactSelectionFiles(input) {
+  const selection=input.files;
+  if(!selection)return [];
+  let pinned=liveFileListPins.get(input);
+  if(!pinned || pinned.list!==selection) {
+    pinned={list:selection,files:Array.from(selection)};
+    liveFileListPins.set(input,pinned);
+  }
+  return pinned.files.slice();
+}
+function invalidateExactSelectionFiles(input) {
+  liveFileListPins.delete(input);
+}
 function selectedFonts() {
-  return Array.from(fontInput.files || []);
+  return exactSelectionFiles(fontInput);
 }
 
 function fontSelectionKey(files = selectedFonts()) {
@@ -570,11 +612,11 @@ async function inspectSelectedFonts() {
 }
 
 function selectedExternalAudioFiles() {
-  return Array.from(audioInput.files || []);
+  return exactSelectionFiles(audioInput);
 }
 
 function selectedSubtitleRawFiles() {
-  return Array.from(subInput.files || []);
+  return exactSelectionFiles(subInput);
 }
 
 function subtitleSelectionKey(files = selectedSubtitleRawFiles()) {
@@ -634,6 +676,10 @@ async function inspectSelectedSubtitles() {
     selectionKey,
     collected: null,
   };
+  // A newly selected FileList invalidates the old editor immediately,
+  // before asynchronous subtitle inspection can finish. Otherwise a rapid
+  // second-task edit may target an obsolete DOM row and lose the user's title.
+  syncNewTrackState();
   updateUI();
 
   const collected = await identifySubtitleInputs(files, { concurrency: 8 });
@@ -670,7 +716,7 @@ function syncNewTrackState() {
   const oldAudio = new Map(externalAudioState.map((item) => [fileKey(item.file), item]));
   externalAudioState = selectedExternalAudioFiles().map((file) => {
     const old = oldAudio.get(fileKey(file));
-    return old || {
+    return old?.file === file ? old : {
       file,
       language: 'und',
       title: stripExtension(file.name),
@@ -686,7 +732,8 @@ function syncNewTrackState() {
   newSubtitleState = collected.tracks.map((trackInput, index) => {
     const key = subtitleTrackKey(trackInput);
     const old = oldSubs.get(key);
-    if (old) {
+    if (old && old.file === trackInput.file &&
+        old.sidecarFile === (trackInput.sidecarFile || null)) {
       old.file = trackInput.file;
       old.sidecarFile = trackInput.sidecarFile || null;
       old.format = trackInput.format;
@@ -713,9 +760,102 @@ function syncNewTrackState() {
       hearingImpaired: false,
     };
   });
+  // Selection changes are a new authority generation. Keep the already
+  // inspected File objects in legacy executor rows; never serialize grants.
+  refreshExternalAssetAuthority();
+}
+
+function refreshExternalAssetAuthority() {
+  liveExternalAssetSession = createLiveExternalAssetSession({
+    audioRows:externalAudioState,
+    subtitleRows:newSubtitleState,
+    fonts:selectedFonts(),
+    fontMode:fontMode.value,
+  });
+  externalAssetAuthorityEpoch++;
+  return liveExternalAssetSession;
+}
+function changeExternalAssetFields(changes) {
+  try {
+    if(!liveExternalAssetSession)refreshExternalAssetAuthority();
+    const context={
+      audioRows:externalAudioState,subtitleRows:newSubtitleState,
+      fonts:selectedFonts(),mode:fontMode.value,
+    };
+    let owner=liveExternalAssetSession;
+    try{
+      commitLiveExternalAssetChanges(owner,{...context,changes});
+    }catch(error){
+      if(error?.message!=='EXTERNAL_DOMAIN_INVENTORY_CHANGED')throw error;
+      // A browser font picker may replace a same-looking File object without
+      // invalidating the subtitle editor. Rebind ONLY the font inventory when
+      // every source track File, sidecar, format, identity and canonical field
+      // is still exact. Never reconstruct subtitle metadata from filenames.
+      const rebound=rebindLiveExternalFontInventory(owner,context);
+      commitLiveExternalAssetChanges(rebound,{...context,changes});
+      owner=rebound;
+    }
+    liveExternalAssetSession=owner;
+    // The immutable owner changed only its font inventory, not its editor
+    // rows. Keep the current DOM selection epoch for in-flight field input.
+    return true;
+  } catch(error) {
+    status.textContent='外部轨道领域修改未执行：'+
+      (error?.message||String(error))+'。未提交部分变更。';
+    return false;
+  }
+}
+
+// Background readiness refreshes are NOT editor-selection changes. Avoid
+// unmounting a current, coherent input mid-keystroke: DOM replacement between
+// Playwright/user input and its dispatch can silently restore inferred titles.
+// Exact File reference and authority-epoch checks still force a fresh editor
+// whenever the source selection actually changes.
+function renderedExternalTrackFieldsMatch(container, kind, rows, fields) {
+  if (container.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch))
+    return false;
+  const selector = kind === 'audio' ? 'data-new-audio-field' : 'data-new-sub-field';
+  if (container.querySelectorAll('[' + selector + ']').length !== rows.length * fields.length)
+    return false;
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    for (const field of fields) {
+      const control = container.querySelector(
+        '[' + selector + '="' + field + '"][data-index="' + index + '"]',
+      );
+      if (!control || (control.type === 'checkbox' ? control.checked : control.value) !== row[field])
+        return false;
+    }
+  }
+  return true;
+}
+
+function canRetainExternalTrackEditorMarkup() {
+  const audio = selectedExternalAudioFiles();
+  const subtitles = selectedSubtitleTrackInputs().tracks;
+  if (audio.length !== externalAudioState.length ||
+      subtitles.length !== newSubtitleState.length ||
+      audio.some((file, i) => file !== externalAudioState[i]?.file) ||
+      subtitles.some((track, i) =>
+        track.file !== newSubtitleState[i]?.file ||
+        (track.sidecarFile || null) !== (newSubtitleState[i]?.sidecarFile || null)))
+    return false;
+  return renderedExternalTrackFieldsMatch(
+    newAudioList, 'audio', externalAudioState,
+    ['title', 'language', 'default', 'original', 'commentary', 'hearingImpaired'],
+  ) && renderedExternalTrackFieldsMatch(
+    newSubtitleList, 'subtitle', newSubtitleState,
+    ['title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
+  );
 }
 
 function renderNewTrackLists() {
+  if (canRetainExternalTrackEditorMarkup()) return;
+  // Mark the DOM with the exact selection-generation it actually depicts.
+  // When a picker replaced File objects, stale form fields from the prior
+  // selection must never be copied onto same-named new files.
+  newAudioList.dataset.externalDomainEpoch = String(externalAssetAuthorityEpoch);
+  newSubtitleList.dataset.externalDomainEpoch = String(externalAssetAuthorityEpoch);
   newAudioList.innerHTML = externalAudioState.length
     ? externalAudioState.map((item, index) => `
       <div class="new-track-row is-audio">
@@ -1093,17 +1233,31 @@ function resetTrackState() {
   if (!batchRunning) syncBatchPlan?.();
 }
 function captureNewTrackEditorState() {
-  for (const control of newAudioList.querySelectorAll('[data-new-audio-field]')) {
-    const item = externalAudioState[Number(control.dataset.index)];
-    if (!item) continue;
-    const field = control.dataset.newAudioField;
-    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  // Background inspector/probe refresh may replace form markup while the
+  // user is typing. Reconcile from the controls through the domain, never
+  // secretly bypass it by writing straight into the executor arrays.
+  if(newAudioList.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch) ||
+      newSubtitleList.dataset.externalDomainEpoch !== String(externalAssetAuthorityEpoch))
+    return;
+  const changes=[];
+  for(const [list,kind,attribute] of [
+    [newAudioList,'audio','newAudioField'],
+    [newSubtitleList,'subtitle','newSubField'],
+  ]) {
+    for(const control of list.querySelectorAll('[data-'+
+      (kind==='audio'?'new-audio':'new-sub')+'-field]')) {
+      const index=Number(control.dataset.index);
+      const item=(kind==='audio'?externalAudioState:newSubtitleState)[index];
+      if(!item)continue;
+      const field=control.dataset[attribute];
+      const value=control.type==='checkbox'?control.checked:control.value;
+      if(item[field]!==value)changes.push({kind,index,field,value});
+    }
   }
-  for (const control of newSubtitleList.querySelectorAll('[data-new-sub-field]')) {
-    const item = newSubtitleState[Number(control.dataset.index)];
-    if (!item) continue;
-    const field = control.dataset.newSubField;
-    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  if(changes.length && !changeExternalAssetFields(changes)) {
+    // No silently displayed but unapplied field: restore the last
+    // authoritative executor projection if validation was rejected.
+    renderNewTrackLists();
   }
 }
 
@@ -1228,18 +1382,26 @@ function updateUI() {
   if (!batchRunning) requestBatchPlanSync();
 }
 
-function bindNewTrackEditor(container, selector, getState) {
-  const update = (event) => {
-    const input = event.target.closest(selector);
-    if (!input) return;
-    const item = getState()[Number(input.dataset.index)];
-    if (!item) return;
-    const field = input.dataset.newAudioField || input.dataset.newSubField;
-    item[field] = input.type === 'checkbox' ? input.checked : input.value;
+function bindNewTrackEditor(container, selector, getState, kind) {
+  const update = event => {
+    const input=event.target.closest(selector);
+    if(!input)return;
+    const index=Number(input.dataset.index);
+    const row=getState()[index];
+    if(!row || container.dataset.externalDomainEpoch !==
+        String(externalAssetAuthorityEpoch))return;
+    const field=input.dataset.newAudioField||input.dataset.newSubField;
+    const value=input.type==='checkbox'?input.checked:input.value;
+    if(!changeExternalAssetFields([{kind,index,field,value}])) {
+      // Restore only this control; do not remount an actively edited form.
+      if(input.type==='checkbox')input.checked=row[field];
+      else input.value=row[field];
+      return;
+    }
     renderMuxPlan();
   };
-  container.addEventListener('input', update);
-  container.addEventListener('change', update);
+  container.addEventListener('input',update);
+  container.addEventListener('change',update);
 }
 
 // Content-first intake adapter. This module keeps the existing audited
@@ -2371,6 +2533,12 @@ assetInventory?.addEventListener('click', (event) => {
 });
 
 videoInput.addEventListener('change', () => {
+  // Selecting another primary media begins a different task authorization
+  // generation. In particular, cancelled/restarted tasks must not retain
+  // an external-domain inventory snapshot from the previous source.
+  liveExternalAssetSession = null;
+  externalAssetPendingTaskRebind = true;
+  externalAssetAuthorityEpoch++;
   containerScanGeneration += 1;
   containerAutoScanSuppressedKey = '';
   resetTrackState();
@@ -2392,10 +2560,12 @@ videoInput.addEventListener('change', () => {
   previewStatus.textContent = '视频已更换；正在识别实际容器。';
 });
 audioInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(audioInput);
   syncNewTrackState();
   updateUI();
 });
 subInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(subInput);
   subtitleInspectGeneration += 1;
   subtitleInspectState = {
     status: 'idle',
@@ -2410,6 +2580,8 @@ subInput.addEventListener('change', () => {
   previewStatus.textContent = '字幕已更换；正在识别实际字幕格式。';
 });
 fontInput.addEventListener('change', () => {
+  invalidateExactSelectionFiles(fontInput);
+  refreshExternalAssetAuthority();
   fontInspectGeneration += 1;
   fontInspectState = {
     status: 'idle',
@@ -2425,6 +2597,18 @@ fontSubsetEnabled?.addEventListener('change', () => {
   renderMuxPlan();
 });
 fontMode.addEventListener('change', () => {
+  try {
+    if(!liveExternalAssetSession)refreshExternalAssetAuthority();
+    const previousMode=liveExternalAssetSession.mode;
+    commitExternalFontMode(liveExternalAssetSession,{
+      audioRows:externalAudioState,subtitleRows:newSubtitleState,
+      fonts:selectedFonts(),previousMode,nextMode:fontMode.value,
+    });
+  } catch(error) {
+    if(liveExternalAssetSession)fontMode.value=liveExternalAssetSession.mode;
+    status.textContent='字体模式未提交：'+(error?.message||String(error));
+    return;
+  }
   destroySubtitlePreview();
   updateUI();
   previewStatus.textContent = '字体模式已更换；点击“生成预览帧”重新检查。';
@@ -2476,8 +2660,8 @@ preserveAttachments.addEventListener('change', () => {
   renderMuxPlan();
 });
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
-bindNewTrackEditor(newAudioList, '[data-new-audio-field]', () => externalAudioState);
-bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleState);
+bindNewTrackEditor(newAudioList, '[data-new-audio-field]', () => externalAudioState,'audio');
+bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleState,'subtitle');
 
 function applyLanguageToSelectedTracks(type) {
   if (!trackState) return;
@@ -2509,8 +2693,11 @@ clearAllDefaults?.addEventListener('click', () => {
   const chosen = [...selectedTracks('audio'), ...selectedTracks('subtitle')];
   if (chosen.length && !changeSourceTracks(chosen.map(track =>
     ({ index: track.index, field: 'default', value: false })))) return;
-  externalAudioState.forEach((track) => { track.default = false; });
-  newSubtitleState.forEach((track) => { track.default = false; });
+  const clearExternal=[
+    ...externalAudioState.map((track,index)=>({kind:'audio',index,field:'default',value:false})),
+    ...newSubtitleState.map((track,index)=>({kind:'subtitle',index,field:'default',value:false})),
+  ];
+  if(clearExternal.length && !changeExternalAssetFields(clearExternal))return;
   renderTrackList();
   renderImportedAssetInventory();
   renderNewTrackLists();
@@ -4317,7 +4504,49 @@ async function executeCurrentMuxTask(explicit = null) {
   const video = independent ? explicit.source : videoInput.files[0];
   const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
-  if (!independent) syncNewTrackState();
+  if (!independent) {
+    try {
+      if (!liveExternalAssetSession) syncNewTrackState();
+      const verifyCurrent=()=>inspectLiveExternalAssets(liveExternalAssetSession,{
+        audioRows:externalAudioState,subtitleRows:newSubtitleState,
+        fonts:selectedFonts(),mode:fontMode.value,
+      });
+      if (externalAssetPendingTaskRebind) {
+        // An explicitly selected new primary video grants ONE bounded
+        // inventory rebind if the async picker/font inventory remained from
+        // the previous task (not a general bypass for source/field drift).
+        // If the current owner is coherent, keep its authored title/flags:
+        // recreating it after a successful check discards domain revisions.
+        try {
+          verifyCurrent();
+        } catch(error) {
+          if (error?.message !== 'EXTERNAL_DOMAIN_INVENTORY_CHANGED') throw error;
+          // Rebinding an external font/file inventory must never re-infer
+          // authorized metadata. Validate exact currently selected File and
+          // sidecar references before rebuilding the immutable owner.
+          const audioFiles=selectedExternalAudioFiles();
+          const subtitles=selectedSubtitleTrackInputs().tracks;
+          if(audioFiles.length!==externalAudioState.length ||
+              subtitles.length!==newSubtitleState.length ||
+              audioFiles.some((file,index)=>externalAudioState[index]?.file!==file) ||
+              subtitles.some((track,index)=>
+                newSubtitleState[index]?.file!==track.file ||
+                newSubtitleState[index]?.sidecarFile!==(track.sidecarFile||null)))
+            throw Error('EXTERNAL_DOMAIN_REBIND_SOURCE_CHANGED');
+          refreshExternalAssetAuthority();
+        }
+        externalAssetPendingTaskRebind=false;
+      }
+      verifyCurrent();
+      // No second syncNewTrackState here. A successful authoritative
+      // domain check commits the exact editor values to the legacy executor;
+      // re-inference from a filename can erase a user's second-task title.
+    } catch(error) {
+      status.textContent='外部音频、字幕或字体来源已变化，请重新选择并确认后封装（'+
+        (error?.message||String(error))+'）。';
+      return;
+    }
+  }
   const fontRecognition = independent ? explicit.fontRecognition : selectedFontRecognition();
   if (!independent && fontIdentityPending()) return;
   if ((independent ? explicit.fonts.length : selectedFonts().length) && fontRecognition.ignored.length) {
@@ -5252,6 +5481,7 @@ async function executeCurrentMuxTask(explicit = null) {
       subInput.value = '';
       externalAudioState = [];
       newSubtitleState = [];
+      refreshExternalAssetAuthority();
       renderNewTrackLists();
       resetTrackState();
     }
@@ -5341,6 +5571,7 @@ function replaceBatchAdapterFiles() {
   // Import/removal starts a new source selection; a choice for an older File
   // object must never silently authorize a different batch.
   batchManualAssignments.clear();
+  currentBatchTaskMetadata=new Map();
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   const roles = resolveBatchImportedAssets(batchImportEntries);
@@ -5494,9 +5725,24 @@ function renderBatchJobInspector(pairing) {
         : '无新字体')}</dd></div>
     </dl>
     <div class="batch-inspector-subtitles">
-      ${job.subtitleTracks.map((track) =>
-        `<div class="batch-inspector-subtitle">${escapeHtml(track.displayName || track.file.name)}</div>`
-      ).join('')}
+      ${job.subtitleTracks.map((track,index)=>`
+        <div class="batch-inspector-subtitle batch-task-meta-editor">
+          <strong>${escapeHtml(track.displayName || track.file.name)}</strong>
+          <label>标题 <input data-batch-task-field="title"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            maxlength="160" value="${escapeHtml(track.title||'')}"
+            aria-label="任务 ${escapeHtml(job.outputName)} 字幕标题"></label>
+          <label>语言 <input data-batch-task-field="language"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            maxlength="35" value="${escapeHtml(track.language||'und')}"
+            aria-label="任务 ${escapeHtml(job.outputName)} 字幕语言"></label>
+          <label><input type="checkbox" data-batch-task-field="default"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.default?'checked':''}>Default</label>
+          <label><input type="checkbox" data-batch-task-field="forced"
+            data-batch-track-index="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.forced?'checked':''}>Forced</label>
+        </div>`).join('')}
     </div>
     ${confirmed.map((entry) =>
       `<div class="batch-reviewed-choice">
@@ -5562,7 +5808,12 @@ async function syncBatchPlan() {
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
-  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition, { manualAssignments: batchManualAssignments });
+  // User-authored metadata is an in-memory, File-bound projection, not
+  // changes to the recognized source or a second mutable executor. The
+  // reviewed pairing is what the existing frozen JobPlan will receive.
+  const inferredPairing=buildBatchJobsFromCollected(videos,subtitleRecognition,
+    {manualAssignments:batchManualAssignments});
+  const pairing=projectCurrentBatchTaskMetadata(inferredPairing,currentBatchTaskMetadata);
   pairing.videoRecognition = recognition;
   pairing.subtitleRecognition = subtitleRecognition;
   pairing.fontRecognition = fontRecognition;
@@ -5697,6 +5948,25 @@ async function syncBatchPlan() {
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
+  // Never silently carry recipe approval to a different File selection.
+  if(approvedBatchRecipeV2 &&
+      !verifyBatchRecipeV2Binding(approvedBatchRecipeV2,pairing)) {
+    approvedBatchRecipeV2=null;
+    batchRecipeV2Notice.textContent='当前批次的 File/字幕归属已变化；先前的 v2 确认已撤销，请重新核对。';
+  }
+  if(pendingBatchRecipeV2) {
+    const review=previewBatchRecipeV2(pendingBatchRecipeV2,pairing);
+    batchRecipeV2ConfirmBtn.hidden=false;
+    batchRecipeV2ConfirmBtn.disabled=
+      review.state!=='ready'||batchRunning||batchStartPending||isBusy();
+    if(!approvedBatchRecipeV2)
+      batchRecipeV2Notice.textContent=review.state==='ready'
+        ? '逐输出规则已匹配 '+review.matchedJobs+' 个任务；必须点击“确认应用”，仍须冻结时再次预检。'
+        : '逐输出规则尚不能应用：'+review.issues.join('；');
+  } else {
+    batchRecipeV2ConfirmBtn.hidden=true;
+    batchRecipeV2ConfirmBtn.disabled=true;
+  }
   return pairing;
 }
 
@@ -5726,6 +5996,35 @@ batchPlan?.addEventListener('click', (event) => {
     row.setAttribute('aria-pressed', String(selected));
   }
   renderBatchJobInspector(latestBatchPairing);
+});
+batchJobInspector?.addEventListener('change',(event)=>{
+  const control=event.target.closest('[data-batch-task-field]');
+  if(!control||batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  if(Number(control.dataset.batchGeneration)!==batchPlanGeneration)return;
+  const job=latestBatchPairing?.jobs?.find(item=>item.video===selectedBatchVideoFile);
+  const track=job?.subtitleTracks?.[Number(control.dataset.batchTrackIndex)];
+  if(!job||!track)return;
+  try{
+    const value=control.type==='checkbox'?control.checked:control.value;
+    currentBatchTaskMetadata=setCurrentBatchTaskMetadata(currentBatchTaskMetadata,{
+      job,track,field:control.dataset.batchTaskField,value,
+    });
+    // Changing an individual track after approving imported JSON must
+    // invalidate the old whole-pairing approval, not stack silent overrides.
+    if(approvedBatchRecipeV2||pendingBatchRecipeV2){
+      approvedBatchRecipeV2=null;
+      pendingBatchRecipeV2=null;
+      renderBatchRecipeV2Review(null);
+      batchRecipeV2ConfirmBtn.hidden=true;
+      batchRecipeV2ConfirmBtn.disabled=true;
+      batchRecipeV2Notice.textContent='当前逐任务编辑已取代先前的导入建议和整体确认；需要重新导入才能使用那份配方。';
+    }
+    activeBatchJobLedger=null;
+    requestBatchPlanSync();
+  }catch(error){
+    batchRecipeV2Notice.textContent='逐任务字幕编辑被拒绝：'+(error?.message||String(error));
+    renderBatchJobInspector(latestBatchPairing);
+  }
 });
 batchJobInspector?.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-batch-revoke]');
@@ -5841,6 +6140,8 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
   batchManualAssignments.clear();
+  currentBatchTaskMetadata=new Map();
+  approvedBatchRecipeV2=null;
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   if (batchUnifiedMode) {
@@ -5918,6 +6219,9 @@ batchRecipeImportInput?.addEventListener('change', async () => {
       hasSelectedSources: Boolean(batchVideoFiles().length),
     });
     // No implicit restoration of manual source pairings or old save paths.
+    pendingBatchRecipeV2=null;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
     batchManualAssignments.clear();
     selectedBatchVideoFile = null;
     activeBatchJobLedger = null;
@@ -5930,6 +6234,115 @@ batchRecipeImportInput?.addEventListener('change', async () => {
     batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
   }
 });
+
+function renderBatchRecipeV2Review(recipe) {
+  if(!batchRecipeV2Review || !batchRecipeV2ReviewItems)return;
+  batchRecipeV2Review.hidden=!recipe;
+  if(!recipe){batchRecipeV2ReviewItems.innerHTML='';return;}
+  batchRecipeV2ReviewItems.innerHTML=recipe.jobs.map(job=>`
+    <section class="batch-recipe-v2-review-job">
+      <strong>${escapeHtml(job.sourceName)} → ${escapeHtml(job.outputName)}</strong>
+      ${job.subtitleRules.map(row=>`
+        <div class="track-meta">${escapeHtml(row.fileName)} ${row.sidecarName
+          ? ' + '+escapeHtml(row.sidecarName) : ''} · ${escapeHtml(row.title)}
+          · ${escapeHtml(row.language)} · ${escapeHtml(row.formatId||'未声明格式')}
+          · Default:${row.default?'是':'否'} · Forced:${row.forced?'是':'否'}
+          · Original:${row.original?'是':'否'}
+          · Commentary:${row.commentary?'是':'否'}
+          · Hearing impaired:${row.hearingImpaired?'是':'否'}</div>`).join('')}
+    </section>`).join('');
+}
+function isApprovedBatchRecipeV2SelectionCurrent(binding,pairing) {
+  if(!binding)return true;
+  if(!verifyBatchRecipeV2Binding(binding,pairing))return false;
+  const selectedVideos=batchVideoFiles();
+  const selectedSubtitles=batchSubtitleFiles();
+  return pairing.jobs.every(job=>selectedVideos.includes(job.video) &&
+    (job.subtitleInputFiles||[]).every(file=>selectedSubtitles.includes(file)));
+}
+
+batchRecipeV2ExportBtn?.addEventListener('click',()=>{
+  if(batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  try {
+    if(!latestBatchPairing?.jobs?.length)throw Error('请先选择有效媒体并完成配对');
+    const recipe=buildBatchRecipeV2({
+      pairing:latestBatchPairing,
+      policy:{
+        preserveAttachments:Boolean(batchPreserveAttachments.checked),
+        subsetEnabled:Boolean(batchFontSubsetEnabled.checked),
+        subsetScope:batchSubsetScope.value,
+      },
+    });
+    const url=URL.createObjectURL(new Blob([stringifyBatchRecipeV2(recipe)],{
+      type:'application/json;charset=utf-8',
+    }));
+    const link=document.createElement('a');
+    link.href=url;link.download='mkv-batch-recipe-v2.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30_000);
+    batchRecipeV2Notice.textContent='逐输出 v2 规则已导出；文件、保存路径和执行权限均不包含。';
+  }catch(error){
+    batchRecipeV2Notice.textContent='逐输出规则导出被拒绝：'+
+      (error?.message||String(error));
+  }
+});
+batchRecipeV2ImportInput?.addEventListener('change',async()=>{
+  const file=batchRecipeV2ImportInput.files?.[0];
+  batchRecipeV2ImportInput.value='';
+  if(!file)return;
+  if(batchRunning||batchStartPending||batchImportInProgress||isBusy()){
+    batchRecipeV2Notice.textContent='批次进行中不能读取 v2 规则。';
+    return;
+  }
+  try {
+    if(file.size>BATCH_RECIPE_V2_MAX_BYTES)throw Error('BATCH_RECIPE_V2_SIZE_LIMIT');
+    const parsed=parseBatchRecipeV2(await file.text());
+    if(batchRunning||batchStartPending||batchImportInProgress||isBusy())
+      throw Error('BATCH_RECIPE_V2_BUSY');
+    pendingBatchRecipeV2=parsed;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(parsed);
+    activeBatchJobLedger=null;
+    const review=previewBatchRecipeV2(parsed,latestBatchPairing);
+    batchRecipeV2ConfirmBtn.hidden=false;
+    batchRecipeV2ConfirmBtn.disabled=review.state!=='ready';
+    batchRecipeV2Notice.textContent=review.state==='ready'
+      ? '已读取 '+review.totalJobs+' 个逐输出任务：核对当前素材后点击确认；导入本身未改变配对和执行状态。'
+      : '配方未绑定当前媒体：'+review.issues.join('；');
+  }catch(error){
+    pendingBatchRecipeV2=null;
+    approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
+    batchRecipeV2ConfirmBtn.hidden=true;
+    batchRecipeV2Notice.textContent='逐输出 v2 导入拒绝：'+
+      (error?.message||String(error));
+  }
+});
+batchRecipeV2ConfirmBtn?.addEventListener('click',()=>{
+  if(!pendingBatchRecipeV2||batchRunning||batchStartPending||
+      batchImportInProgress||isBusy())return;
+  try {
+    const pairing=latestBatchPairing;
+    const approval=captureBatchRecipeV2Binding(pendingBatchRecipeV2,pairing);
+    if(!isApprovedBatchRecipeV2SelectionCurrent(approval,pairing))
+      throw Error('BATCH_RECIPE_V2_CURRENT_FILES_CHANGED');
+    // Only explicit user confirmation may update current task-level policies.
+    const policy=approval.recipe.policy;
+    batchPreserveAttachments.checked=policy.preserveAttachments;
+    batchFontSubsetEnabled.checked=policy.subsetEnabled;
+    batchSubsetScope.value=policy.subsetScope;
+    approvedBatchRecipeV2=approval;
+    activeBatchJobLedger=null;
+    batchRecipeV2Notice.textContent='已确认 '+approval.bindings.length+
+      ' 个逐输出字幕规则；冻结前仍将重新核查 File 来源、配对、保真和目录冲突。';
+    void requestBatchPlanSync();
+  }catch(error){
+    approvedBatchRecipeV2=null;
+    batchRecipeV2Notice.textContent='逐输出规则尚未确认：'+
+      (error?.message||String(error));
+  }
+});
+
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
 batchCancelBtn?.addEventListener('click', () => {
@@ -5966,6 +6379,17 @@ async function prepareBatchStart() {
       return null;
     }
     const generation = batchPlanGeneration;
+    const currentRecipeV2Approval=approvedBatchRecipeV2;
+    if(pendingBatchRecipeV2&&!currentRecipeV2Approval){
+      batchStatus.textContent='批量未开始：导入的 v2 规则尚未确认或已失效。';
+      return null;
+    }
+    if(currentRecipeV2Approval &&
+        !isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing)){
+      batchStatus.textContent='批量未开始：逐输出字幕规则与当前来源绑定失效。';
+      approvedBatchRecipeV2=null;
+      return null;
+    }
     const selectedOutputDirectory = batchOutputDirectoryHandle;
     // The legacy executor reads live rules; freeze their identities too.
     const snapshot = {
@@ -5978,6 +6402,8 @@ async function prepareBatchStart() {
     };
     const isCurrent = () => !batchStartCancelled &&
       generation === batchPlanGeneration &&
+      approvedBatchRecipeV2 === currentRecipeV2Approval &&
+      isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing) &&
       selectedOutputDirectory === batchOutputDirectoryHandle &&
       !batchImportInProgress && !batchRunning && !isBusy() &&
       snapshot.source === batchVideoFiles().map(fileIdentity).join('\u0000') &&
@@ -6054,7 +6480,10 @@ async function prepareBatchStart() {
     // Freeze every actual input choice and batch policy after destructive
     // preservation preflight; do not let the legacy executor read live batch
     // settings once the run has started.
-    const frozenPlan = freezeBatchJobPlan(pairing, {
+    const approvedPairing=currentRecipeV2Approval
+      ? applyBatchRecipeV2ToPairing(currentRecipeV2Approval.recipe,pairing)
+      : pairing;
+    const frozenPlan = freezeBatchJobPlan(approvedPairing, {
       generation,
       preserveAttachments: batchPreserveAttachments?.checked,
       subsetEnabled: batchFontSubsetEnabled?.checked,

@@ -27,6 +27,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 **来源附件领域化编辑（2026-10-14，待整体验收）：** 现有 MKV 来源附件的保留、文件名、MIME 属性已统一通过扫描来源绑定的不可变 `ContainerProject` 事务修改，并同步到原有 FFmpeg 封装计划；对象检查器、附件列表、批量保留/删除和元数据重置均使用同一编辑状态。**这不意味着 AttachmentUID、目标 Tag 或任意 EBML 结构已实现无损重写。** 经完整来源 SHA-256 核验、同一来源流身份与字段旧值对比及用户显式确认后，工程草稿现在可以原子恢复来源附件的保留、文件名和 MIME 修改，并支持冲突保护撤销；单纯导入 JSON 不会应用任何修改。**受支持的同类型来源轨道完整置换可经来源核验、排列检查、明确确认后跨会话恢复**；带已排除同类轨道的复杂排列依然被保守阻断，复杂 EBML 写入安全限制没有放宽。详见 [P1 来源附件领域权威实施记录](docs/p1-live-source-attachment-authority-20261014.md)与 [来源附件核验恢复报告](docs/p1-verified-source-attachment-replay-20261014.md)。
 
+**外部音频／字幕／字体领域状态（2026-10-14，待完整 CI）：** 外部音频与新增字幕的标题、语言、Default、Forced（字幕）及 Original／Commentary／Hearing Impaired，已改由独立的不可变 `ContainerProject` 会话统一提交，再同步给原有 FFmpeg 执行模型；选中的字体文件进入领域来源清单，`preserve / force` 字体策略也由领域状态记录。资源 `File` 和字幕 sidecar 保持严格对象引用绑定，替换同名同大小文件不会继承旧标题；后台刷新不再把旧表单值写入新资源。**这仍是与来源 MKV 轨道会话并列的有界领域所有者，并非覆盖全部对象的单个可执行总工程，也未提供外部资源工程草稿跨会话文件授权或无视频资源封装功能。** 详见 [P1 外部资源领域化实施说明](docs/p1-external-resource-domain-authority-20261014.md)。
+
 **这并非整个 P0–P6 理论计划的最终稳定版。** 对应功能、失败边界和仍未通过的阶段退出条件见 [五步工程验收账本](docs/five-step-theory-initial-preview-20261013.md)。
 
 ### P1：来源轨道修改的导出与显式恢复（2026-10-14，待完整 CI 验收）

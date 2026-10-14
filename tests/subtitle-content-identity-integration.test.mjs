@@ -37,7 +37,10 @@ test('subtitle preview capability follows detected format instead of filename ex
 });
 
 test('batch subtitle pairing consumes content-derived subtitle collection', () => {
-  assert.match(main, /buildBatchJobsFromCollected\(videos, subtitleRecognition, \{ manualAssignments: batchManualAssignments \}\)/);
+  // Accept formatting changes but still require content-derived identities,
+  // the pre-existing manual tie resolver, and downstream recipe projection.
+  assert.match(main, /buildBatchJobsFromCollected\(\s*videos\s*,\s*subtitleRecognition\s*,\s*\{\s*manualAssignments:\s*batchManualAssignments\s*\}\s*\)/);
+  assert.match(main, /projectCurrentBatchTaskMetadata\(inferredPairing\s*,\s*currentBatchTaskMetadata\)/);
   assert.match(main, /batchSubtitleIdentityCache/);
   assert.match(main, /subtitleRecognition\.mismatches/);
   assert.match(batch, /export function buildBatchJobsFromCollected/);
