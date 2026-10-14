@@ -9,6 +9,7 @@ import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { auditProducedFontAttachments } from './output-font-payload-audit.js';
 import { auditProducedAssEvents } from './ass-event-output-audit.js';
 import { auditProducedAssStyles } from './ass-style-output-audit.js';
+import { auditProducedSubripCues } from './subrip-output-audit.js';
 import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
@@ -1693,6 +1694,13 @@ function renderActualOutputEvidence() {
     counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
       .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
     `SHA-256：${model.sha256}`,
+    model.subripCue?.status === 'pass'
+      ? `新增 SRT/WebVTT 成品回读：${model.subripCue.verified}/${model.subripCue.total} 条轨的纯文本与毫秒时间一致（不含排版/播放器）`
+      : model.subripCue?.status === 'warning'
+        ? '新增 SRT/WebVTT 成品回读：存在差异'
+        : model.subripCue?.status === 'unavailable'
+          ? '新增 SRT/WebVTT 成品回读：未验证（带标记格式、解析或资源限制）'
+          : '新增 SRT/WebVTT 成品回读：未请求此范围',
     model.assEvent?.status === 'pass'
       ? `新增 ASS 事件成品回读：${model.assEvent.verified}/${model.assEvent.total} 条轨一致（不含 Style/字体渲染）`
       : model.assEvent?.status === 'warning'
@@ -5565,6 +5573,45 @@ async function executeCurrentMuxTask(explicit = null) {
         assStyleAudit.issues.join('；') + '\n';
     }
     finalAudit.assStyleAudit = assStyleAudit;
+    const subripCueAudit = await auditProducedSubripCues({
+      claims: assOutputClaims, outputProbe: actualOutputProbe,
+      outputBytes: data.byteLength,
+      readFinalSrt: async (ordinal) => {
+        const extractedPath = prefix + '-final-subrip-check-' + ordinal + '.srt';
+        try {
+          const extraction = await execWithCapturedLogs([
+            '-hide_banner', '-loglevel', 'error', '-copyts', '-i', outputPath,
+            '-map', '0:s:' + ordinal, '-c:s', 'srt', '-f', 'srt', '-y', extractedPath,
+          ]);
+          if (extraction.code !== 0) throw new Error('成品 SubRip 回读失败');
+          const recovered = await ffmpeg.readFile(extractedPath);
+          if (!(recovered instanceof Uint8Array) || recovered.byteLength > 2 * 1024 * 1024) {
+            throw new Error('成品 SubRip 回读超过 2 MiB 预算');
+          }
+          return new TextDecoder('utf-8', { fatal: true }).decode(recovered);
+        } finally {
+          await removeQuietly(extractedPath);
+        }
+      },
+    });
+    finalAudit.subripCueAudit = subripCueAudit;
+    if (subripCueAudit.status === 'pass') {
+      logEl.textContent += `AUDIT: 最终 MKV 的 ${subripCueAudit.verified}/${subripCueAudit.total} 条新增 SRT/WebVTT 轨，纯文本、毫秒时间、数量与顺序一致；排版和播放器未验证。\n`;
+    } else if (subripCueAudit.status === 'warning') {
+      const detail = subripCueAudit.issues.join('；');
+      finalAudit.status = 'warning';
+      finalAudit.ok = false;
+      finalAudit.issues = [...(finalAudit.issues || []), ...subripCueAudit.issues];
+      completionNote += '；新增 SRT/WebVTT 成品条目存在差异';
+      logEl.textContent += 'AUDIT WARNING: ' + detail + '\n';
+      if (!independent) {
+        auditResult.className = 'audit-result warn';
+        auditResult.textContent = '成品 SRT/WebVTT 条目待复核：' + detail;
+      }
+    } else if (subripCueAudit.status === 'unavailable') {
+      completionNote += '；新增 SRT/WebVTT 成品条目未验证';
+      logEl.textContent += 'AUDIT UNAVAILABLE: ' + subripCueAudit.issues.join('；') + '\n';
+    }
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({

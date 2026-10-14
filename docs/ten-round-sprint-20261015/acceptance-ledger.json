@@ -697,19 +697,19 @@
     {
       "round": 5,
       "focus": "P2章节标签与非视频容器",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "not-run",
+      "state": "submitted",
+      "head_sha": "dd709601645a8e5787f2b6e8e22c026823e2981e",
+      "pr": 147,
+      "ci": "exact-head-passed",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
       "round": 6,
       "focus": "P3字幕和字体",
-      "state": "planned",
+      "state": "in-progress",
       "head_sha": null,
       "pr": null,
-      "ci": "not-run",
+      "ci": "local-node-build-native-passed-external-pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {

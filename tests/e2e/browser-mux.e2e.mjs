@@ -1848,11 +1848,13 @@ async function scenarioAdditionalSubtitleFormats(browser) {
   const { context, page } = await openApp(browser);
 
   try {
+    const r6Vtt = path.join(outDir, 'r6-plain-millisecond.vtt');
+    await fs.writeFile(r6Vtt, 'WEBVTT\n\ncue-one\n00:00.123 --> 00:01.456\n第一行\nsecond line\n\n00:01.000 --> 00:01.789\nOverlapping cue\n');
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', [
       path.join(root, 'sample.ssa'),
       path.join(root, 'sample.srt'),
-      path.join(root, 'sample.vtt'),
+      r6Vtt,
     ]);
 
     await page.waitForFunction(() => {
@@ -1891,6 +1893,29 @@ async function scenarioAdditionalSubtitleFormats(browser) {
     assert.equal(report.compatibility?.execution?.muxSucceeded, true);
     assert.equal(report.fonts.selectedCount, 0);
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.subripCueAudit?.status, 'pass');
+    assert.equal(report.audit.subripCueAudit.verified, 2);
+    assert.equal(report.audit.subripCueAudit.presentationVerified, false);
+    assert.equal(report.audit.subripCueAudit.playerVerified, false);
+    assert.ok((await page.locator('#outputEvidenceFacts').textContent()).includes('SRT/WebVTT 成品回读'));
+    // Independent native demux, with an explicit expected string rather than
+    // the browser audit/parser as its oracle. Preserve subsecond overlap/text.
+    const actualVttSrt = execFileSync('ffmpeg', ['-v', 'error', '-copyts', '-i', output,
+      '-map', '0:s:2', '-c:s', 'srt', '-f', 'srt', 'pipe:1'], { encoding: 'utf8' });
+    assert.equal(actualVttSrt.replace(/\r\n?/g, '\n').trimEnd(),
+      '1\n00:00:00,123 --> 00:00:01,456\n第一行\nsecond line\n\n2\n00:00:01,000 --> 00:00:01,789\nOverlapping cue');
+    // A valid WebVTT layout cue still muxes, but must never claim presentation
+    // or plain-text equivalence from the successful ffprobe track audit.
+    await page.setInputFiles('#subInput', { name: 'r6-layout.vtt', mimeType: 'text/vtt',
+      buffer: Buffer.from('WEBVTT\n\n00:00.123 --> 00:01.456 align:start\nlayout cue\n') });
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const layoutReportPath = path.join(outDir, 'r6-layout.mux-report.json');
+    await saveDownload(page, '#reportLink', layoutReportPath);
+    const layoutReport = JSON.parse(await fs.readFile(layoutReportPath, 'utf8'));
+    assert.equal(layoutReport.audit?.subripCueAudit?.status, 'unavailable');
+    assert.equal(layoutReport.audit.subripCueAudit.presentationVerified, false);
+    assert.ok((await page.locator('#outputEvidenceFacts').textContent()).includes('SRT/WebVTT 成品回读：未验证'));
     console.log('Scenario 26 PASS');
   } finally {
     await context.close();
