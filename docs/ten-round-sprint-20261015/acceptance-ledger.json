@@ -688,16 +688,16 @@
     {
       "round": 4,
       "focus": "P2结构安全操作",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "not-run",
+      "state": "submitted",
+      "head_sha": "17a81ee8bc2d057dc633b297a172e986da0f68db",
+      "pr": 145,
+      "ci": "pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
       "round": 5,
       "focus": "P2章节标签与非视频容器",
-      "state": "planned",
+      "state": "in-progress",
       "head_sha": null,
       "pr": null,
       "ci": "not-run",
