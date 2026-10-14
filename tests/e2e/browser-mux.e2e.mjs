@@ -5194,6 +5194,78 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
   }finally{await context.close();}
 }
 
+async function scenarioRoutedExistingMkvNativeOutput(browser) {
+  console.log('P2 Round4 unified writer router: native MKV + UID risk -> one path -> independent output');
+  const source=path.join(outDir,'p2-r4-router-native-source.mkv');
+  await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),source);
+  execFileSync('mkvpropedit',[source,'--chapters',
+    path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
+  const inspect=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
+    encoding:'utf8',timeout:60000,
+  }));
+  const sourceInfo=inspect(source);
+  const tagged=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-evidence.bin');
+  const target=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-decoy.txt');
+  assert.ok(tagged&&target);
+  const original=await fs.readFile(source);
+  const originalDigest=createHash('sha256').update(original).digest('hex');
+  const originalData=await fs.readFile(path.join(root,'zh.ass'));
+  const replacement=Buffer.alloc(originalData.length,0x61);
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#existingMkvRoutedEditDetails > summary').click();
+    await page.setInputFiles('#existingMkvRoutedSource',source);
+    await page.waitForFunction(()=>
+      document.querySelector('#existingMkvRoutedTarget')?.options.length===2,
+      null,{timeout:60000});
+    const opts=await page.locator('#existingMkvRoutedTarget option').evaluateAll(
+      options=>options.map(x=>({value:x.value,text:x.textContent})));
+    const selected=opts.find(x=>x.text.includes('p0-attachment-decoy.txt'));
+    assert.ok(selected);
+    await page.locator('#existingMkvRoutedTarget').selectOption(selected.value);
+    await page.setInputFiles('#existingMkvRoutedReplacement',{
+      name:'replacement.bin',mimeType:'application/octet-stream',buffer:replacement,
+    });
+    assert.equal(await page.locator('#existingMkvRoutedPrepare').isDisabled(),true);
+    await page.locator('#existingMkvRoutedReview').check();
+    await page.locator('#existingMkvRoutedPrepare').click();
+    await page.waitForFunction(()=>['ready','blocked'].includes(
+      document.querySelector('#existingMkvRoutedStatus')?.dataset.state),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#existingMkvRoutedStatus').getAttribute('data-state'),
+      'ready',await page.locator('#existingMkvRoutedStatus').textContent());
+    assert.match(await page.locator('#existingMkvRoutedEvidence').textContent(),
+      /same-size/);
+    const output=path.join(outDir,'p2-r4-router-native-output.mkv');
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#existingMkvRoutedSave').click(),
+    ]);
+    await download.saveAs(output);
+    assert.equal(createHash('sha256').update(await fs.readFile(source))
+      .digest('hex'),originalDigest);
+    const final=inspect(output);
+    assert.deepEqual((final.tracks||[]).map(x=>[x.id,x.type,x.codec,x.properties?.uid]),
+      (sourceInfo.tracks||[]).map(x=>[x.id,x.type,x.codec,x.properties?.uid]));
+    for(const kind of ['chapters','tags']){
+      const a=path.join(outDir,'p2-r4-before-'+kind+'.xml');
+      const b=path.join(outDir,'p2-r4-after-'+kind+'.xml');
+      execFileSync('mkvextract',[source,kind,a],{timeout:60000});
+      execFileSync('mkvextract',[output,kind,b],{timeout:60000});
+      assert.deepEqual(await fs.readFile(b),await fs.readFile(a));
+    }
+    const newTarget=final.attachments.find(x=>x.file_name===target.file_name);
+    const newTagged=final.attachments.find(x=>x.file_name===tagged.file_name);
+    assert.equal(newTarget?.properties?.uid,target.properties.uid);
+    assert.equal(newTagged?.properties?.uid,tagged.properties.uid);
+    const extracted=path.join(outDir,'p2-r4-replaced-content.bin');
+    execFileSync('mkvextract',[output,'attachments',
+      String(newTarget.id)+':'+extracted],{timeout:60000});
+    assert.deepEqual(await fs.readFile(extracted),replacement);
+    console.log('P2 Round4 routed operator actual native MKV/UID/Chapter/Tag SHA PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioExistingMkvSameSizeAttachmentReplace(browser) {
   console.log('P0/P2 real browser: replace one existing unreferenced FileData, preserve tagged UID and nested Chapters');
   // This source was authored independently by MKVToolNix and already has
@@ -5678,6 +5750,7 @@ try {
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioExistingMkvLimitedAppendReviewed(browser);
   await scenarioExistingMkvSameSizeAttachmentReplace(browser);
+  await scenarioRoutedExistingMkvNativeOutput(browser);
   await scenarioReservedVoidExistingFileDataVariableReplace(browser);
   await scenarioTailNoVoidExistingAttachmentResize(browser);
   await scenarioNonterminalIndexedAttachmentRelay(browser);
