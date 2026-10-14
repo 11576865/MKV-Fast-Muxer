@@ -132,7 +132,7 @@ export function parseExternalMetadataCheckpoint(text) {
 export async function prepareExternalMetadataRecovery(workspace,ctx,checkpoint,{hashOptions={}}={}) {
   if(checkpoint?.authorization!=='requires-current-file-rebind')
     fail('IMPORTED_DRAFT_REQUIRED');
-  const entries=validateCheckpoint(checkpoint);
+  const entries=validateCheckpoint({schema:checkpoint.schema,rows:checkpoint.rows});
   const inventory=exactInventory(workspace,ctx),locked=witness(inventory);
   const owner=workspace.project,generation=workspace.generation;
   if(inventory.length!==entries.rows.length)fail('RESOURCE_COUNT_CHANGED');
