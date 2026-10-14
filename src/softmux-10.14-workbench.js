@@ -24,7 +24,7 @@ export function mountSoftmux1014Workbench(doc = document) {
   root.innerHTML = [
     '<header class="sf14-header">',
       '<div class="sf14-identity"><span class="sf14-mark" aria-hidden="true">SF</span>',
-      '<div><strong>软封</strong><span>10.14版本 · 本地 Matroska 工作台</span></div></div>',
+      '<div><strong></strong><span>本地 Matroska 工作台</span></div></div>',
       '<nav class="sf14-nav" aria-label="工作台导航">',
         '<button type="button" data-sf-view="single" aria-current="page">单工程</button>',
         '<button type="button" data-sf-view="batch">批量任务</button>',
@@ -72,8 +72,12 @@ export function mountSoftmux1014Workbench(doc = document) {
       '<div class="sf14-density"><button type="button" data-sf-density="compact" aria-pressed="true">紧凑</button>',
       '<button type="button" data-sf-density="comfortable" aria-pressed="false">舒展</button></div>',
       '<form method="dialog"><button>关闭</button></form></dialog>',
-    '<footer class="sf14-version-note">软封10.14版本 · 候选 UI / 真实功能以当前执行后端和审计为准 · 原始来源不会被此布局操作修改</footer>'
+    '<footer class="sf14-version-note"></footer>'
   ].join('');
+
+  root.querySelector('.sf14-identity strong').textContent = SOFTMUX_1014_UI_VERSION;
+  root.querySelector('.sf14-version-note').textContent =
+    SOFTMUX_1014_UI_VERSION + ' · 候选 UI / 真实功能以当前执行后端和审计为准 · 原始来源不会被此布局操作修改';
 
   // Rehost actual production DOM nodes, preserving listeners, File grants,
   // track editing state, stable IDs, preview and audit/queue lifecycle.
