@@ -52,7 +52,7 @@ export function mountSoftmux1014Workbench(doc = document) {
           '<p class="sf14-empty" id="sf14CompositionEmpty">添加资源后，在此检查将要生成的 Matroska 容器。来源列表不会成为第二个编辑器。</p>',
         '</div></section>',
       '<section class="sf14-pane sf14-inspector" aria-label="选中对象检查器">',
-        '<header class="sf14-pane-head"><strong>当前对象</strong><span>属性 · 字幕预览 · 证据</span></header>',
+        '<header class="sf14-pane-head"><strong>当前对象</strong><span>检查与编辑</span><button id="sf14BackToComposition" type="button">返回拟输出</button></header>',
         '<div id="sf14Inspector" class="sf14-pane-body"></div></section>',
     '</div>',
     '<section class="sf14-output" aria-label="执行、检查与成品">',
@@ -97,7 +97,56 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (detail.id !== 'sourceFilesDetails') tools.appendChild(detail);
   }
   const sourceDetails = get(doc,'sourceFilesDetails');
-  if (sourceDetails) sourceDetails.open = true;
+  if (sourceDetails) {
+    // Source identity belongs in the visible source pane, not a silently
+    // re-collapsed legacy disclosure after content reclassification.
+    sourceDetails.open = true;
+    sourceDetails.dataset.userToggled = 'true';
+  }
+
+  // Progressive disclosure of recovery workflows, not an always-visible
+  // form that outranks the prospective MKV objects themselves.
+  const recovery = doc.createElement('details');
+  recovery.id = 'sf14Recovery';
+  recovery.className = 'sf14-recovery';
+  const recoverySummary = doc.createElement('summary');
+  recoverySummary.textContent = '工程草稿 · 核验与恢复';
+  recovery.appendChild(recoverySummary);
+  const recoveryNodes = [
+    '.container-project-intent-review:not([id])',
+    '#containerProjectImportReview', '#containerProjectIntentReview',
+    '#containerProjectConflictReview', '#containerProjectVerifySourceBtn',
+    '#containerProjectHashActions', '#containerProjectRestorePanel',
+  ];
+  for (const selector of recoveryNodes) {
+    const node = composition.querySelector(selector);
+    if (node) recovery.appendChild(node);
+  }
+  composition.insertBefore(recovery,composition.querySelector('.composition-actions'));
+  for (const id of ['containerProjectImportInput','externalCheckpointImportInput']) {
+    get(doc,id)?.addEventListener('change', () => { recovery.open = true; });
+  }
+
+  const preview = inspector.querySelector('.subtitle-preview-card');
+  const editor = inspector.querySelector('.editor-grid');
+  const inspectorColumn = inspector;
+  const createDrawer = (id, title, child) => {
+    if (!child) return null;
+    const detail = doc.createElement('details');
+    detail.id = id;
+    detail.className = 'sf14-inspector-drawer';
+    const summary = doc.createElement('summary');
+    summary.textContent = title;
+    detail.appendChild(summary);
+    child.before(detail);
+    detail.appendChild(child);
+    return detail;
+  };
+  const previewDrawer = createDrawer('sf14PreviewDrawer','字幕预览 · 按需生成',preview);
+  const optionsDrawer = createDrawer('sf14OptionsDrawer','轨道、音频与字体选项',editor);
+  get(doc,'previewImage')?.addEventListener('load', () => {
+    if (previewDrawer) previewDrawer.open = true;
+  });
 
   const nav = doc.querySelector('.workbench-jump-nav');
   if (nav) nav.hidden = true;
@@ -115,13 +164,23 @@ export function mountSoftmux1014Workbench(doc = document) {
   for (const button of root.querySelectorAll('[data-sf-focus]'))
     button.addEventListener('click', () => setFocus(button.dataset.sfFocus));
   setFocus('source');
+  get(doc,'sf14BackToComposition')?.addEventListener('click', () => setFocus('composition'));
+  get(doc,'assetInventory')?.addEventListener('click', event => {
+    if (!doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) return;
+    if (event.target.closest('[data-tree-select], [data-asset-focus-key]')) {
+      if (optionsDrawer) optionsDrawer.open = true;
+      setFocus('inspector');
+    }
+  });
   const sourceToggle = get(doc,'sf14SourceToggle');
   sourceToggle.addEventListener('click', () => {
     const show = single.dataset.showSource !== 'true';
     single.dataset.showSource = String(show);
     sourceToggle.setAttribute('aria-expanded', String(show));
   });
-  composition.addEventListener('click', () => {
+  composition.addEventListener('click', event => {
+    if (!event.target.closest('button[data-composition-id]')) return;
+    if (optionsDrawer) optionsDrawer.open = true;
     if (doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) setFocus('inspector');
   });
 
