@@ -715,10 +715,10 @@
     {
       "round": 7,
       "focus": "P3-B批量队列",
-      "state": "planned",
+      "state": "in-progress",
       "head_sha": null,
       "pr": null,
-      "ci": "not-run",
+      "ci": "local-node-build-passed-external-pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
