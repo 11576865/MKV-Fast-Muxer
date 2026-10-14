@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "2026-10-14-p0-p2-tail-attachments-no-void-resize",
-  "status": "implemented-PENDING-exact-head-unit-build-chromium-native-audit",
+  "status": "verified-native-output-and-merged-main",
   "branch": "feat/p0-p2-tail-master-no-void-resize-20261014",
   "goal": "Deliver reviewed no-Void final-Attachments length-changing existing-MKV writer, updating exactly four size fields and user data while preserving every other original top-level element offset/raw byte and UID relation.",
   "implemented": [
@@ -21,15 +21,27 @@
     "no general SeekHead/Cues repositioning, UID retarget, no overwrite"
   ],
   "validation": {
-    "node": "pending",
-    "vite": "pending",
-    "real_chromium": "pending",
-    "independent_native_artifact": "pending",
-    "general_writer": "not_proven"
+    "node": "success_545_of_545_exact_head_38560282611",
+    "vite": "success_exact_head_38560282611",
+    "real_chromium": "success_complete_scenarios_exact_head_38560282611",
+    "independent_native_artifact": "PASS_mkvmerge_mkvextract_ffprobe_Chapters_Tags_AttachmentUID_FileData_original_packets",
+    "source_layout": "source_derived_from_MKVToolNix_with_test_only_Chained_SeekHead_tail_prep_independently_native_parsed",
+    "general_writer": "not_proven_no_arbitrary_SeekHead_Cues_CRC_UID_target_writer"
   },
   "next": [
-    "Open one draft full-block PR and obtain full Node/Vite/Chromium workflow, fix only confirmed failures.",
-    "Pass real browser output + independently extracted nested Chapters/Tags/fileUID and packet hash evidence before merging.",
-    "After merging, next block handles multi-position structural relocation, SeekHead/Cues recomputation, CRC and wider EBML/VINT capacities."
-  ]
+    "Implement a separately accepted writer with non-terminal Attachments relocation and actual SeekHead/CuePosition adjustment, complete offset audit and no unknown EBML loss; bounded negative and native source matrix before enabling.",
+    "CRC-32 rewriting or explicit denial and targeted UID graph editing with provenance and independent extraction proof.",
+    "Large MKV streaming/range integrity and non-destructive save, multi-player/device acceptance. Do not mark generic #77 risk closed."
+  ],
+  "pr_number": 138,
+  "head_sha": "45da93c8d9f90535efd3090d9334d085ed067157",
+  "merge_sha": "c769a847b7e12023024fd01b4a931e5f6ed61925",
+  "completed": [
+    "Reviewed source-bound no-Void Segment-tail structural resize UI and four original EBML master/data SIZE field rewrites",
+    "Original source/source picker SHA checks and private frozen plan, complete metadata/raw preservation checks",
+    "Exact-head 545/545 Node, Vite and real Chromium all green, original Chapter/Tag hierarchy, targeted other FileUID and packet byte/timestamps independently proven via native MKVToolNix",
+    "Two exact-head browser failures in native fixture preparation localized and repaired by spec-conforming chained SeekHead test-only relay; no production guard weakened",
+    "One cohesive PR #138 merged to main at c769a847"
+  ],
+  "updated_at": "2026-10-14"
 }
