@@ -1473,8 +1473,10 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     const audios=streams(final,'audio'), subs=streams(final,'subtitle');
     assert.equal(audios[0].tags?.title,'R2 Original Source');
     assert.equal(audios.at(-1).tags?.title,'R2 Added Audio');
-    assert.equal(subs.at(-1).tags?.title,'R2 Added ASS');
-    assert.equal(Boolean(subs.at(-1).disposition?.forced),true);
+    // Preserve-all original subtitle order is not an identity guarantee.
+    const addedAss=subs.filter(s=>s.tags?.title==='R2 Added ASS');
+    assert.equal(addedAss.length,1,'one actual R2 authored ASS output stream');
+    assert.equal(Boolean(addedAss[0].disposition?.forced),true);
     assert.ok(streams(final,'attachment').some(s=>
       s.tags?.filename==='DejaVuSans.ttf'));
     console.log('P1 ROUND2 shared-domain source + external + font actual MKV/ffprobe PASS');
