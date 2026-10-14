@@ -4,6 +4,7 @@ import {
   BATCH_RECIPE_V2_SCHEMA,buildBatchRecipeV2,stringifyBatchRecipeV2,
   parseBatchRecipeV2,previewBatchRecipeV2,applyBatchRecipeV2ToPairing,
   captureBatchRecipeV2Binding,verifyBatchRecipeV2Binding,
+  setCurrentBatchTaskMetadata,projectCurrentBatchTaskMetadata,
 } from '../src/batch-recipe-v2.js';
 import {freezeBatchJobPlan,createBatchJobLedger} from '../src/batch-job-plan.js';
 import {createFrozenBatchMuxContext} from '../src/batch-mux-context.js';
@@ -176,4 +177,122 @@ test('frozen runner retains per-job output and independent audit states',async()
   assert.equal(plan.jobs[0].subtitleTracks[0].title,'Episode One Reviewed');
   assert.equal(plan.jobs[1].subtitleTracks[0].title,'Episode Two Reviewed');
   assert.equal(result.results.every(x=>x.auditStatus==='pass'),true);
+});
+
+test('new task inspector edits are nonmutating, per-episode and survive the actual frozen mux context',()=>{
+  const original=fixture();
+  let edits=new Map();
+  edits=setCurrentBatchTaskMetadata(edits,{
+    job:original.jobs[0],track:original.jobs[0].subtitleTracks[0],
+    field:'title',value:'Episode 01 UI authored',
+  });
+  edits=setCurrentBatchTaskMetadata(edits,{
+    job:original.jobs[0],track:original.jobs[0].subtitleTracks[0],
+    field:'language',value:'jpn',
+  });
+  edits=setCurrentBatchTaskMetadata(edits,{
+    job:original.jobs[1],track:original.jobs[1].subtitleTracks[0],
+    field:'title',value:'Episode 02 UI authored',
+  });
+  edits=setCurrentBatchTaskMetadata(edits,{
+    job:original.jobs[1],track:original.jobs[1].subtitleTracks[0],
+    field:'forced',value:true,
+  });
+  const next=projectCurrentBatchTaskMetadata(original,edits);
+  assert.equal(original.jobs[0].subtitleTracks[0].title,undefined);
+  assert.equal(original.jobs[1].subtitleTracks[0].forced,undefined);
+  assert.equal(next.jobs[0].subtitleTracks[0].title,'Episode 01 UI authored');
+  assert.equal(next.jobs[0].subtitleTracks[0].language,'jpn');
+  assert.equal(next.jobs[1].subtitleTracks[0].title,'Episode 02 UI authored');
+  assert.equal(next.jobs[1].subtitleTracks[0].forced,true);
+  const portable=parseBatchRecipeV2(stringifyBatchRecipeV2(
+    buildBatchRecipeV2({pairing:next,policy:policy()})));
+  assert.equal(portable.jobs[0].subtitleRules[0].title,'Episode 01 UI authored');
+  assert.equal(portable.jobs[1].subtitleRules[0].title,'Episode 02 UI authored');
+  const frozen=freezeBatchJobPlan(next,{generation:121});
+  const context=createFrozenBatchMuxContext(frozen,frozen.jobs[1],{
+    headerIdentity:{container:'iso-bmff'},fonts:[],fontIdentities:[],
+  });
+  assert.equal(frozen.jobs[0].subtitleTracks[0].title,'Episode 01 UI authored');
+  assert.equal(context.subtitles[0].title,'Episode 02 UI authored');
+  assert.equal(context.subtitles[0].forced,true);
+  assert.equal(context.reportPlan.subtitles[0].title,'Episode 02 UI authored');
+  assert.equal(context.source,frozen.jobs[1].video);
+  assert.equal(context.kind,'frozen-batch-mux-context-v1');
+});
+
+test('in-app edits reject invalid mixed metadata, different source tracks and stale exact sidecar refs',()=>{
+  const original=fixture(),track=original.jobs[0].subtitleTracks[0];
+  const initial=new Map();
+  let good=setCurrentBatchTaskMetadata(initial,{
+    job:original.jobs[0],track,field:'title',value:'Safe',
+  });
+  assert.throws(()=>setCurrentBatchTaskMetadata(good,{
+    job:original.jobs[1],track,field:'title',value:'Cross job',
+  }),/BATCH_RECIPE_V2_EDITOR_TARGET_INVALID/);
+  assert.throws(()=>setCurrentBatchTaskMetadata(good,{
+    job:original.jobs[0],track,field:'language',value:'invalid language!',
+  }),/BATCH_RECIPE_V2_SUBTITLE_INVALID/);
+  assert.throws(()=>setCurrentBatchTaskMetadata(good,{
+    job:original.jobs[0],track,field:'forced',value:'true',
+  }),/BATCH_RECIPE_V2_SUBTITLE_INVALID/);
+  assert.equal(projectCurrentBatchTaskMetadata(original,good)
+    .jobs[0].subtitleTracks[0].title,'Safe');
+  assert.equal(original.jobs[0].subtitleTracks[0].title,undefined);
+  const clone={...original,jobs:[{
+    ...original.jobs[0],subtitleTracks:[{
+      ...track,file:{...track.file},
+    }],
+  },original.jobs[1]]};
+  assert.throws(()=>projectCurrentBatchTaskMetadata(clone,good),
+    /BATCH_RECIPE_V2_EDITOR_TRACK_STALE/);
+  const wrongSidecar={...original,jobs:[{
+    ...original.jobs[0],subtitleTracks:[{
+      ...track,sidecarFile:{name:'fake.idx'},
+    }],
+  },original.jobs[1]]};
+  assert.throws(()=>projectCurrentBatchTaskMetadata(wrongSidecar,good),
+    /BATCH_RECIPE_V2_EDITOR_TRACK_STALE/);
+  const changedVideo={...original,jobs:[{
+    ...original.jobs[0],video:{...original.jobs[0].video},
+  },original.jobs[1]]};
+  assert.throws(()=>projectCurrentBatchTaskMetadata(changedVideo,good),
+    /BATCH_RECIPE_V2_EDITOR_SOURCE_STALE/);
+});
+
+test('twenty-episode domain review and freeze is explicitly PLAN-ONLY, not twenty actual outputs',()=>{
+  const fmt={id:'ass',label:'ASS',assLike:true};
+  const jobs=Array.from({length:20},(_,i)=>{
+    const stem='Series S01E'+String(i+1).padStart(2,'0');
+    const video=file(stem+'.mp4'),subtitle=file(stem+'.zh.ass');
+    return {video,outputName:stem+'.mkv',
+      subtitles:[subtitle],subtitleInputFiles:[subtitle],
+      subtitleTracks:[{file:subtitle,format:fmt,sidecarFile:null,
+        title:'Episode '+String(i+1),language:'zho',default:true,
+        forced:false,original:false,commentary:false,hearingImpaired:false}]};
+  });
+  const pairing={jobs,fonts:[],fontRecognition:{recognized:[],ignored:[]},
+    videoRecognition:{ignored:[]},directoryCheckError:'',
+    directoryConflicts:[],ambiguousPairings:[],outputNameCollisions:[],
+    invalidSubtitles:[]};
+  let changes=new Map();
+  for(const job of pairing.jobs) {
+    changes=setCurrentBatchTaskMetadata(changes,{
+      job,track:job.subtitleTracks[0],field:'title',
+      value:'Reviewed '+job.outputName,
+    });
+  }
+  const projected=projectCurrentBatchTaskMetadata(pairing,changes);
+  const recipe=buildBatchRecipeV2({pairing:projected,policy:policy()});
+  const parsed=parseBatchRecipeV2(stringifyBatchRecipeV2(recipe));
+  assert.equal(parsed.jobs.length,20);
+  assert.equal(previewBatchRecipeV2(parsed,projected).state,'ready');
+  const frozen=freezeBatchJobPlan(projected,{generation:20});
+  assert.equal(frozen.jobs.length,20);
+  assert.equal(frozen.jobs[19].subtitleTracks[0].title,
+    'Reviewed '+jobs[19].outputName);
+  assert.equal(frozen.jobs.some(x=>x.blob||x.outputSha256),false);
+  assert.equal(frozen.jobs.every(x=>x.subtitleTracks.length===1),true);
+  // Deliberately do not run FFmpeg, a real 20-output performance test,
+  // upload files, create downloads, or imply successful delivered MKVs.
 });
