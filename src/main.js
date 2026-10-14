@@ -4404,26 +4404,34 @@ async function executeCurrentMuxTask(explicit = null) {
 
   if (!independent) {
     try {
-      // Only a new primary media selection authorizes rebinding a *new
-      // task*. A cancelled task can leave a previous font FileList wrapper
-      // in the session even after the user reselects the same-named font.
-      // Rebuild from the real File inputs once, preserving edits only for
-      // identical File/sidecar object references. Ordinary same-task drift
-      // still fails closed; do not silently self-heal arbitrary changes.
-      if (externalAssetPendingTaskRebind || !liveExternalAssetSession) {
-        syncNewTrackState();
-        externalAssetPendingTaskRebind = false;
-      }
-      inspectLiveExternalAssets(liveExternalAssetSession,{
+      if (!liveExternalAssetSession) syncNewTrackState();
+      const verifyCurrent=()=>inspectLiveExternalAssets(liveExternalAssetSession,{
         audioRows:externalAudioState,subtitleRows:newSubtitleState,
         fonts:selectedFonts(),mode:fontMode.value,
       });
+      if (externalAssetPendingTaskRebind) {
+        // An explicitly selected new primary video grants ONE bounded
+        // inventory rebind if the async picker/font inventory remained from
+        // the previous task (not a general bypass for source/field drift).
+        // If the current owner is coherent, keep its authored title/flags:
+        // recreating it after a successful check discards domain revisions.
+        try {
+          verifyCurrent();
+        } catch(error) {
+          if (error?.message !== 'EXTERNAL_DOMAIN_INVENTORY_CHANGED') throw error;
+          syncNewTrackState();
+        }
+        externalAssetPendingTaskRebind=false;
+      }
+      verifyCurrent();
+      // No second syncNewTrackState here. A successful authoritative
+      // domain check commits the exact editor values to the legacy executor;
+      // re-inference from a filename can erase a user's second-task title.
     } catch(error) {
       status.textContent='外部音频、字幕或字体来源已变化，请重新选择并确认后封装（'+
         (error?.message||String(error))+'）。';
       return;
     }
-    syncNewTrackState();
   }
   const fontRecognition = independent ? explicit.fontRecognition : selectedFontRecognition();
   if (!independent && fontIdentityPending()) return;
