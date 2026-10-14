@@ -1906,6 +1906,10 @@ async function scenarioAdditionalSubtitleFormats(browser) {
       '1\n00:00:00,123 --> 00:00:01,456\n第一行\nsecond line\n\n2\n00:00:01,000 --> 00:00:01,789\nOverlapping cue');
     // A valid WebVTT layout cue still muxes, but must never claim presentation
     // or plain-text equivalence from the successful ffprobe track audit.
+    // This scenario uses the legacy hidden inputs. Their completed-task
+    // cleanup clears the primary media too; stage a complete second task.
+    await page.waitForFunction(() => !document.querySelector('#videoInput').disabled);
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', { name: 'r6-layout.vtt', mimeType: 'text/vtt',
       buffer: Buffer.from('WEBVTT\n\n00:00.123 --> 00:01.456 align:start\nlayout cue\n') });
     await page.locator('#muxBtn').click();

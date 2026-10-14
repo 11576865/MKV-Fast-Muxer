@@ -47,3 +47,9 @@
 ## 提交状态
 
 2026-10-15 用户明确授权公开推送本轮分支及创建 Draft PR。此前审批阻断已经解决；本机 git push 缺少登录凭据，改用已授权的 GitHub 插件发布同一 Git tree，并校验远程 tree 身份。准确提交的全 Chromium/native CI 必须单独取得成功结果，方可晋级验收。
+
+## 第一次完整 CI 反证与有界修复
+
+Run 38614716399 (#718), head 3c887590：586 Node 和 build 成功。完整浏览器套件在 additional-formats 的第二个 layout cue 任务失败：legacy hidden-input 完成首个任务后按原行为清空 videoInput，测试仅重新选择字幕，导致封装按钮正确保持禁用，点击超时。首个实际 Wasm 成品的 subripCueAudit=pass、UTF-8 多行/毫秒/重叠、独立 native 明示文本期望均已越过断言。
+
+修复只调整该第二任务的 fixture 准备：等待媒体输入实际解锁，再重新选取 base.mp4。所有已有 pass/unavailable、native 时间/文本和 UI 断言保留，未强制点击禁用按钮、未绕过前置核验。此为一次有界 CI 修复；新的准确提交必须重跑完整 Chromium/native，本次不轮询下一代结果。P3 与 T-005 完整验收仍未宣称闭合。
