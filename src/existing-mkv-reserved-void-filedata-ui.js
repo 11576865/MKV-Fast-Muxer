@@ -80,7 +80,7 @@ export function setupReservedVoidFileDataUI({
         currentRowLength:row?.byteLength,
       };
       prepareButton.dataset.guardDiagnostic=JSON.stringify(flags);
-      if(!current(source,substitute,epoch,row.fileUid))
+      if(!current(source,substitute,row.fileUid,epoch))
         reasons.push('EXACT_FILE_OR_SELECTION_EPOCH_CHANGED');
     }
     prepareButton.dataset.blockReason=reasons.join(',')||'READY_FOR_STRICT_WRITER_CHECK';
