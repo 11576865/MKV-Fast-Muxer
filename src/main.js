@@ -63,6 +63,7 @@ import {
 import {
   createLiveExternalAssetSession,commitLiveExternalAssetChanges,
   commitExternalFontMode,inspectLiveExternalAssets,
+  rebindLiveExternalFontInventory,
 } from './live-external-asset-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
@@ -759,10 +760,26 @@ function refreshExternalAssetAuthority() {
 function changeExternalAssetFields(changes) {
   try {
     if(!liveExternalAssetSession)refreshExternalAssetAuthority();
-    commitLiveExternalAssetChanges(liveExternalAssetSession,{
+    const context={
       audioRows:externalAudioState,subtitleRows:newSubtitleState,
-      fonts:selectedFonts(),mode:fontMode.value,changes,
-    });
+      fonts:selectedFonts(),mode:fontMode.value,
+    };
+    let owner=liveExternalAssetSession;
+    try{
+      commitLiveExternalAssetChanges(owner,{...context,changes});
+    }catch(error){
+      if(error?.message!=='EXTERNAL_DOMAIN_INVENTORY_CHANGED')throw error;
+      // A browser font picker may replace a same-looking File object without
+      // invalidating the subtitle editor. Rebind ONLY the font inventory when
+      // every source track File, sidecar, format, identity and canonical field
+      // is still exact. Never reconstruct subtitle metadata from filenames.
+      const rebound=rebindLiveExternalFontInventory(owner,context);
+      commitLiveExternalAssetChanges(rebound,{...context,changes});
+      owner=rebound;
+    }
+    liveExternalAssetSession=owner;
+    // The immutable owner changed only its font inventory, not its editor
+    // rows. Keep the current DOM selection epoch for in-flight field input.
     return true;
   } catch(error) {
     status.textContent='外部轨道领域修改未执行：'+
