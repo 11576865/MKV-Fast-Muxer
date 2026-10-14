@@ -32,6 +32,11 @@ import { inspectMatroskaPreservation, preservationBlockMessage } from './preserv
 import { preservationReadiness } from './preservation-readiness.js';
 import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
 import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
+import {
+  BATCH_RECIPE_V2_MAX_BYTES,buildBatchRecipeV2FromPairing,
+  stringifyBatchRecipeV2,parseBatchRecipeV2,reviewBatchRecipeV2,
+  approveBatchRecipeV2,setBatchTaskOverride,applyBatchTaskOverrides,
+} from './batch-recipe-v2.js';
 import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './file-dedupe.js';
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
@@ -231,6 +236,8 @@ const batchFontSubsetEnabled = $('batchFontSubsetEnabled');
 const batchSubsetScope = $('batchSubsetScope');
 const batchRecipeExportBtn = $('batchRecipeExportBtn');
 const batchRecipeImportInput = $('batchRecipeImportInput');
+const batchRecipeApplyBtn = $('batchRecipeApplyBtn');
+const batchRecipeDiscardBtn = $('batchRecipeDiscardBtn');
 const batchRecipeNotice = $('batchRecipeNotice');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
@@ -429,6 +436,10 @@ let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
 let activeBatchJobLedger = null;
 const batchManualAssignments = new Map();
+// Exact in-memory File references. Portable v2 proposals are untrusted and
+// never become overrides until a separate, visible user confirmation.
+let batchTaskOverrides = new Map();
+let pendingBatchRecipeV2 = null;
 let selectedBatchVideoFile = null;
 const batchVideoIdentityCache = new Map();
 const batchFontIdentityCache = new Map();
@@ -5482,6 +5493,7 @@ function replaceBatchAdapterFiles() {
   // Import/removal starts a new source selection; a choice for an older File
   // object must never silently authorize a different batch.
   batchManualAssignments.clear();
+  batchTaskOverrides = new Map();
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   const roles = resolveBatchImportedAssets(batchImportEntries);
@@ -5635,9 +5647,22 @@ function renderBatchJobInspector(pairing) {
         : '无新字体')}</dd></div>
     </dl>
     <div class="batch-inspector-subtitles">
-      ${job.subtitleTracks.map((track) =>
-        `<div class="batch-inspector-subtitle">${escapeHtml(track.displayName || track.file.name)}</div>`
-      ).join('')}
+      ${job.subtitleTracks.map((track,index)=>`
+        <div class="batch-inspector-subtitle batch-task-meta-editor">
+          <strong>${escapeHtml(track.displayName || track.file.name)}</strong>
+          <label>标题 <input data-batch-task-field="title" data-batch-task-track="${index}"
+            data-batch-generation="${batchPlanGeneration}" value="${escapeHtml(track.title || '')}"
+            maxlength="160" aria-label="任务 ${escapeHtml(job.outputName)} 字幕标题"></label>
+          <label>语言 <input data-batch-task-field="language" data-batch-task-track="${index}"
+            data-batch-generation="${batchPlanGeneration}" value="${escapeHtml(track.language||'und')}"
+            maxlength="35" aria-label="任务 ${escapeHtml(job.outputName)} 字幕语言"></label>
+          <label><input type="checkbox" data-batch-task-field="default"
+            data-batch-task-track="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.default?'checked':''}>Default</label>
+          <label><input type="checkbox" data-batch-task-field="forced"
+            data-batch-task-track="${index}" data-batch-generation="${batchPlanGeneration}"
+            ${track.forced?'checked':''}>Forced</label>
+        </div>`).join('')}
     </div>
     ${confirmed.map((entry) =>
       `<div class="batch-reviewed-choice">
@@ -5703,7 +5728,11 @@ async function syncBatchPlan() {
   const videos = recognition.recognized.map((entry) => entry.file);
   const fonts = fontRecognition.recognized.map((entry) => entry.file);
   const identityByVideo = new Map(recognition.recognized.map((entry) => [entry.file, entry]));
-  const pairing = buildBatchJobsFromCollected(videos, subtitleRecognition, { manualAssignments: batchManualAssignments });
+  // Reviewed per-job metadata is projected on the REAL current pairing.
+  // The writer later freezes these exact subtitle track objects into JobPlan.
+  const inferredPairing = buildBatchJobsFromCollected(videos, subtitleRecognition,
+    { manualAssignments: batchManualAssignments });
+  const pairing = applyBatchTaskOverrides(inferredPairing,batchTaskOverrides);
   pairing.videoRecognition = recognition;
   pairing.subtitleRecognition = subtitleRecognition;
   pairing.fontRecognition = fontRecognition;
@@ -5838,6 +5867,21 @@ async function syncBatchPlan() {
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
+  if(pendingBatchRecipeV2) {
+    const review=reviewBatchRecipeV2(pendingBatchRecipeV2,pairing);
+    const proposed=pendingBatchRecipeV2.tasks.length;
+    const blocked=Boolean(proposed);
+    batchRecipeApplyBtn.hidden=!blocked;
+    batchRecipeDiscardBtn.hidden=false;
+    batchRecipeApplyBtn.disabled=!review.ready||batchRunning||batchStartPending;
+    batchRecipeNotice.textContent=review.ready
+      ? `配方 v2 待确认：${review.matchedJobs} 项任务、${review.matchedSubtitles} 条字幕，仅名称/路径/大小/时间匹配，未证明内容一致；请核对当前来源后明确应用。`
+      : `配方 v2 仍待重新绑定：${review.issues.join('；')}。不允许自动开始或恢复目录权限。`;
+    if(blocked)batchStartBtn.disabled=true;
+  } else {
+    batchRecipeApplyBtn.hidden=true;
+    batchRecipeDiscardBtn.hidden=true;
+  }
   return pairing;
 }
 
@@ -5867,6 +5911,25 @@ batchPlan?.addEventListener('click', (event) => {
     row.setAttribute('aria-pressed', String(selected));
   }
   renderBatchJobInspector(latestBatchPairing);
+});
+batchJobInspector?.addEventListener('change',(event)=>{
+  const input=event.target.closest('[data-batch-task-field]');
+  if(!input||batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  if(Number(input.dataset.batchGeneration)!==batchPlanGeneration)return;
+  const job=latestBatchPairing?.jobs?.find(row=>row.video===selectedBatchVideoFile);
+  const track=job?.subtitleTracks?.[Number(input.dataset.batchTaskTrack)];
+  if(!job||!track)return;
+  try {
+    const value=input.type==='checkbox'?input.checked:input.value;
+    batchTaskOverrides=setBatchTaskOverride(batchTaskOverrides,{
+      job,track,field:input.dataset.batchTaskField,value,
+    });
+    activeBatchJobLedger=null;
+    requestBatchPlanSync();
+  }catch(error){
+    batchRecipeNotice.textContent='逐任务字幕属性被拒绝：'+(error?.message||String(error));
+    renderBatchJobInspector(latestBatchPairing);
+  }
 });
 batchJobInspector?.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-batch-revoke]');
@@ -5982,6 +6045,7 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
 ].forEach((input) => input?.addEventListener('change', () => {
   if (batchInternalAdapterUpdate) return;
   batchManualAssignments.clear();
+  batchTaskOverrides = new Map();
   selectedBatchVideoFile = null;
   activeBatchJobLedger = null;
   if (batchUnifiedMode) {
@@ -6017,29 +6081,28 @@ batchSubsetScope?.addEventListener('change', () => {
   activeBatchJobLedger = null;
   requestBatchPlanSync();
 });
-// A portable Recipe saves ONLY explicit policies. It never stores browser File
-// handles, destination permissions, output Blobs or a runnable JobPlan.
+// Recipe v2 adds explicit per-job subtitle metadata suggestions. These are NOT
+// executable File grants or an implicit resumption. Import always stages a
+// review; explicit apply binds proposals to CURRENT exact File references.
 batchRecipeExportBtn?.addEventListener('click', () => {
   if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
   try {
-    const recipe = buildBatchRecipe({
-      policy: {
-        preserveAttachments: Boolean(batchPreserveAttachments.checked),
-        subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
-        subsetScope: batchSubsetScope.value,
-      },
+    const recipe = buildBatchRecipeV2FromPairing(latestBatchPairing,{
+      preserveAttachments: Boolean(batchPreserveAttachments.checked),
+      subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
+      subsetScope: batchSubsetScope.value,
     });
-    const url = URL.createObjectURL(new Blob([stringifyBatchRecipe(recipe)], {
+    const url = URL.createObjectURL(new Blob([stringifyBatchRecipeV2(recipe)], {
       type: 'application/json;charset=utf-8',
     }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'mkv-batch-recipe-v1.json';
+    link.download = 'mkv-batch-recipe-v2.json';
     document.body.appendChild(link);
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    batchRecipeNotice.textContent = '规则已导出；素材、权限及成品不包含在配方中。';
+    batchRecipeNotice.textContent = '配方 v2 已导出逐任务字幕属性与规则；不包含素材字节、File 权限、任务状态或成品。';
   } catch (error) {
     batchRecipeNotice.textContent = '导出配方失败：' + (error?.message || String(error));
   }
@@ -6053,23 +6116,51 @@ batchRecipeImportInput?.addEventListener('change', async () => {
     return;
   }
   try {
-    if (file.size > BATCH_RECIPE_MAX_BYTES) throw Error('RECIPE_TOO_LARGE');
-    const parsed = parseBatchRecipe(await file.text());
-    const preview = recipeApplyPreview(parsed, {
-      hasSelectedSources: Boolean(batchVideoFiles().length),
-    });
-    // No implicit restoration of manual source pairings or old save paths.
+    if (file.size > BATCH_RECIPE_V2_MAX_BYTES) throw Error('RECIPE_TOO_LARGE');
+    const raw=await file.text();
+    let schema;
+    try{schema=JSON.parse(raw)?.schema;}catch{throw Error('RECIPE_JSON_INVALID')}
+    const isV2=schema==='batch-recipe-v2';
+    const parsed=isV2?parseBatchRecipeV2(raw):parseBatchRecipe(raw);
+    const preview=recipeApplyPreview(isV2
+      ? buildBatchRecipe({policy:parsed.policy,title:parsed.title,note:parsed.note})
+      : parsed,{hasSelectedSources:Boolean(batchVideoFiles().length)});
+    // Imported task-level metadata is only a proposal. Never transplant an
+    // earlier manual pairing, artifact, output permission or File handle.
     batchManualAssignments.clear();
-    selectedBatchVideoFile = null;
-    activeBatchJobLedger = null;
-    batchPreserveAttachments.checked = preview.policy.preserveAttachments;
-    batchFontSubsetEnabled.checked = preview.policy.subsetEnabled;
-    batchSubsetScope.value = preview.policy.subsetScope;
-    batchRecipeNotice.textContent = preview.notice;
+    batchTaskOverrides=new Map();
+    selectedBatchVideoFile=null;
+    activeBatchJobLedger=null;
+    pendingBatchRecipeV2=isV2?parsed:null;
+    batchPreserveAttachments.checked=preview.policy.preserveAttachments;
+    batchFontSubsetEnabled.checked=preview.policy.subsetEnabled;
+    batchSubsetScope.value=preview.policy.subsetScope;
+    batchRecipeNotice.textContent=preview.notice+
+      (isV2?' 逐任务属性需要重新选择素材并明确批准。':'');
     await requestBatchPlanSync();
   } catch (error) {
     batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
   }
+});
+batchRecipeApplyBtn?.addEventListener('click',async()=>{
+  if(!pendingBatchRecipeV2||batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  try{
+    // Re-evaluate against the latest actually scanned pairing immediately
+    // before approval; no File metadata string may impersonate File permission.
+    const review=reviewBatchRecipeV2(pendingBatchRecipeV2,latestBatchPairing);
+    if(!review.ready)throw Error(review.issues.join('；')||'RECIPE_V2_REVIEW_NOT_READY');
+    batchTaskOverrides=approveBatchRecipeV2(review,latestBatchPairing);
+    pendingBatchRecipeV2=null;
+    activeBatchJobLedger=null;
+    await requestBatchPlanSync();
+    batchRecipeNotice.textContent='已按当前实际文件完成逐任务属性确认；仍须单独审核配对、运行来源预检并显式启动。';
+  }catch(error){batchRecipeNotice.textContent='配方 v2 审核失败：'+(error?.message||String(error));}
+});
+batchRecipeDiscardBtn?.addEventListener('click',()=>{
+  if(batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
+  pendingBatchRecipeV2=null;
+  batchRecipeNotice.textContent='已放弃导入的逐任务属性建议；保留当前已选择的素材及可见规则。';
+  void requestBatchPlanSync();
 });
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
@@ -6089,6 +6180,10 @@ batchCancelBtn?.addEventListener('click', () => {
 // only after the batch has been atomically marked running or refused.
 async function prepareBatchStart() {
   if (batchStartPending || batchRunning || batchImportInProgress || isBusy()) return null;
+  if(pendingBatchRecipeV2?.tasks.length){
+    batchStatus.textContent='批量尚未开始：导入的逐任务字幕配方必须先明确审核应用或放弃。';
+    return null;
+  }
   batchStartPending = true;
   batchStartCancelled = false;
   batchStatus.textContent = '正在冻结批量计划并检查来源结构……';
