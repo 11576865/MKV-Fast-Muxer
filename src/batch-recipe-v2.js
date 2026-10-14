@@ -234,7 +234,7 @@ export function captureBatchRecipeV2Binding(recipe,pairing) {
       source:job.video,outputName:job.outputName,
       subtitleRefs:Object.freeze(job.subtitleTracks.map(track=>
         Object.freeze({file:track.file,sidecarFile:track.sidecarFile||null,
-          format:track.format}))),
+          formatId:track.format?.id||''}))),
     }))),
   });
 }
@@ -250,6 +250,6 @@ export function verifyBatchRecipeV2Binding(binding,pairing) {
       bound.subtitleRefs.length===job.subtitleTracks.length &&
       bound.subtitleRefs.every((ref,i)=>ref.file===job.subtitleTracks[i].file &&
         ref.sidecarFile===(job.subtitleTracks[i].sidecarFile||null) &&
-        ref.format===job.subtitleTracks[i].format);
+        ref.formatId===(job.subtitleTracks[i].format?.id||''));
   });
 }
