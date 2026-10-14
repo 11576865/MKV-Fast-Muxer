@@ -20,7 +20,6 @@ import {
 } from './live-external-asset-authority.js';
 
 export const LIVE_WORKSPACE_SCHEMA = 'live-container-workspace-v1';
-const isExternalId = id => id.startsWith('external-');
 const isExternalSourceId = id => id.startsWith('external-input:') ||
   id.startsWith('external-font-input:');
 const externalObject = id => id.startsWith('external-audio:') ||
