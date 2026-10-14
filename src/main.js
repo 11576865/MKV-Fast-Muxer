@@ -73,6 +73,7 @@ import { setupExistingMkvLimitedAppendUI } from './existing-mkv-limited-append-u
 import { setupExistingMkvSameSizeAttachmentReplaceUI } from './existing-mkv-same-size-attachment-replace-ui.js';
 import { setupReservedVoidFileDataUI } from './existing-mkv-reserved-void-filedata-ui.js';
 import { setupTailAttachmentResizeUI } from './existing-mkv-tail-attachment-ui.js';
+import { setupNonterminalAttachmentRelayUI } from './existing-mkv-nonterminal-attachment-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -128,6 +129,17 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupNonterminalAttachmentRelayUI({
+  sourceInput: $('existingMkvRelaySource'),
+  replacementInput: $('existingMkvRelayReplacement'),
+  targetSelect: $('existingMkvRelayTarget'),
+  review: $('existingMkvRelayReview'),
+  prepareButton: $('existingMkvRelayPrepare'),
+  saveButton: $('existingMkvRelaySave'),
+  status: $('existingMkvRelayStatus'),
+  inventory: $('existingMkvRelayInventory'),
+  evidence: $('existingMkvRelayEvidence'),
 });
 setupTailAttachmentResizeUI({
   sourceInput: $('existingMkvTailSource'),

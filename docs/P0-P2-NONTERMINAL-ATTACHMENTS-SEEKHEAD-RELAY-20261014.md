@@ -1,0 +1,36 @@
+# P0/P2-N — Non-terminal indexed Attachments relocation via chained SeekHead
+
+**Status: implemented as a cohesive reviewed writer/real-browser candidate; exact-head CI and independent native MKV evidence pending.** This is not universal Matroska structural editing, and does not waive historical #77 loss-of-chapters-and-tags remux protections.
+
+## Why this qualifies a new source class
+
+The shipped existing-MKV writers #136 (same-size), #137 (source-owned adjacent Void) and #138 (terminal Attachments with four size edits) refuse an **original non-terminal Attachments master without adjacent capacity**. Growing it in place would shift all later top-level Cluster/Cues/Chapters/Tags and invalidate original SeekHead/Cues indexes; FFmpeg remux can silently erase nested ChapterAtom and UID-targeted Tags.
+
+An alternative, **source-specific** strategy avoids moving any other original top-level element: the original single Attachments master was previously located at byte offset A and is indexed by the existing original SeekHead as `SeekID=Attachments, SeekPosition=A-SegmentDataStart`. We construct a valid **new SeekHead of the exact original Attachments byte length**, put it *at A*, change every existing SeekHead SeekID which points to original Attachments to `SeekID=SeekHead` (same 4 bytes, SeekPosition unchanged), then append a modified copy of the original Attachments master at the **physical end of Segment**. The new same-span SeekHead contains an 8-byte `SeekPosition` to the appended final Attachments, using a legal internal EBML Void for any leftover padding. The final Segment size is extended to cover the appended master.
+
+This avoids needing to encode the new EOF Attachments position inside an original narrow SeekPosition field. It also avoids modifying the raw bytes or positions of any original existing non-SeekHead, non-Attachments Segment child, including all original Cluster, Cues, Tracks, nested Chapters and targeted Tags. Original SeekHead raw bytes are **deliberately different only in the precisely audited SeekID payload**, and the old Attachments top-level element becomes a new same-size SeekHead; new Attachments master is appended.
+
+Unlike #138, the total file-size change is `old Attachments master byteLength + replacementFileDataLength - originalFileDataLength`, because the old slot is retained as a relay and the entire modified master is newly appended. This is copy-on-write on an entirely new Blob; source File is never overwritten.
+
+## Strict source/writer gates
+
+- Source finite one-Segment Matroska, 1–60MiB; original one **non-terminal** Attachments master; has Tracks and Cluster; no unknown top-level EBML. Candidate output must still fall within the 64MiB raw commitment research budget. New FileData size 1B–4MiB.
+- Selected FileUID must be unique, belong to the **last AttachedFile in the original master**, and **not** be targeted by any original `TagAttachmentUID`. Incomplete target relation graphs refuse.
+- Original SeekHead must contain a discoverable, structurally valid **direct Seek entry** for the exact old Attachments-relative byte offset; all such entries are rewritten to refer to the same-position relay. Unknown SeekHead children, malformed or ambiguous Seek elements, non-4-byte SeekID payload and SeekHead CRC refuse. No direct Seek entry means no relocation permission.
+- No CRC inside the changed Attachments master or last AttachedFile; no unknown direct Attachments children or unsupported last AttachedFile fields. The original parent AttachedFile/FileData/Attachments/Segment size-VINT widths must encode required sizes without widening. Original Attachments master must have enough bytes for a complete equal-span relay SeekHead and its Void filler.
+- Source/current replacement selected via real File inputs, source session epoch invalidates on every selection/UID/review change; SHA-256 of current picker File content vs captured File grants is required immediately before execution and download. A frozen plan binds actual source/replacement Blob references in a private WeakMap, cannot execute from JSON/copies. No FFmpeg fallback or source overwrite.
+- Local output validator independently rescans all top-level raw EBML and verifies all original top-level **absolute byte offsets and lengths** unchanged; all originally protected elements except the touched SeekHead retain exact raw commitments. For touched SeekHead, the **entire output SeekHead raw byte span** is compared to a calculated source with *only* original matching SeekID bytes substituted. Old Attachments offset contains a full same-span SeekHead. One new Attachments master appears exactly at original source EOF. New source Inventory must preserve all previous FileUID/filename/MIME/description values and non-target FileData SHA; all original AttachmentUID-tag edges remain identical. Source and replacement whole-SHA are rechecked after output.
+
+The generic P0/P2 raw comparator remains read-only/non-authorizing; the capability resides in this separately scoped writer, not a general-purpose `approvedToWrite` promotion.
+
+## Independent actual-MKV evidence gate
+
+Node tests use nested ChapterAtom, a targeted Tag pointing at a *different* original attachment, a non-terminal indexed Attachments, final AttachedFile and real protected Cluster-like byte data. Positive tests change FileData size, confirm original raw top-level offsets/unaltered protected bytes/UID graph; negative tests cover no original index, stale index, modified CRC, nonterminal and final target mismatch, referenced UID, unknown elements, malformed size capacity, detached plans.
+
+The full Chromium test uses the **unchanged independent MKVToolNix** native original `p0-independent-attachmenttag.mkv` with nested Chapters added by `mkvpropedit`: it is NOT converted to tail layout by any fixture helper. Native `mkvmerge -J` first must discover the original two attachments. Chrome UI must disable the originally tagged FileUID and allow only a current explicitly reviewed UID, generate a new downloaded MKV and show SHA evidence. Native separate `mkvmerge -J`, `mkvextract` chapters/tags/attachments, and `ffprobe -show_packets -show_data_hash sha256` must discover the **appended** attachments through the newly inserted chained SeekHead and independently prove identical nested Chapter/Tag XML, FileUID/codec TrackUID, linked original FileData bytes, intended new FileData and exact compressed packet hashes/timestamps. The real 768px tablet workbench is captured.
+
+**No release/merge until exact-head Node/build/full browser/native audit green.** If native MKVToolNix cannot discover the appended master, that is a product failure even if our exhaustive custom reader can inspect it.
+
+## Not implemented or inferred
+
+No arbitrary relocation of unrelated EBML objects; no changing or retargeting AttachmentUID/TrackUID/ChapterUID or other metadata; no moving Cluster, recomputing original Cues or SeekHead relative positions; no CRC repairs; no unknown top-level elements; no resizing non-final AttachedFile; no source SeekHead without a correct direct Attachments index; no VINT widening, full streaming >60MiB, multipayer device compatibility or universal Matroska writer guarantee. The original nested chapter/tag loss risk #77 remains separately guarded.
