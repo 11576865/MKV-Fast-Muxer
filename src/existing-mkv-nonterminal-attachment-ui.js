@@ -109,7 +109,7 @@ export function setupNonterminalAttachmentRelayUI({
     const selection={source:original,replacement:changed,uid:targetSelect.value,token:epoch};
     if(busy||prepareButton.disabled||!eligible(selection))return;
     expire();selection.token=epoch;busy=true;controls();
-    report('验证非末尾 Attachments、原始 SeekHead 索引、中继容量与原始受保护字节……','checking');
+    report('验证原始索引、受影响的 CRC-32、FileUID 引用、中继容量与受保护字节……','checking');
     try{
       if(!await sameCurrentBytes(selection))throw Error('RELAY_UI_PICKER_BYTES_CHANGED');
       const plan=await prepareNonterminalAttachmentRelay({
