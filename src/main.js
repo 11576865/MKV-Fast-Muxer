@@ -65,6 +65,10 @@ import {
   commitExternalFontMode,inspectLiveExternalAssets,
   rebindLiveExternalFontInventory,
 } from './live-external-asset-authority.js';
+import {
+  createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
+  inspectLiveWorkspaceAuthority,
+} from './live-container-workspace-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -471,6 +475,7 @@ let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
 let liveExternalAssetSession = null;
+let liveWorkspaceAuthority = null;
 let externalAssetAuthorityEpoch = 0;
 let externalAssetPendingTaskRebind = false;
 let previewImageURL = null;
@@ -813,6 +818,21 @@ function syncNewTrackState() {
   refreshExternalAssetAuthority();
 }
 
+function reconcileLiveWorkspaceAuthority() {
+  liveWorkspaceAuthority = createLiveWorkspaceAuthority({
+    sourceSession: liveSourceTrackSession,
+    externalSession: liveExternalAssetSession,
+  });
+  return liveWorkspaceAuthority;
+}
+function liveWorkspaceContext(mode = fontMode.value) {
+  return {
+    source: videoInput.files?.[0] || null,
+    trackState,
+    audioRows: externalAudioState, subtitleRows: newSubtitleState,
+    fonts: selectedFonts(), mode,
+  };
+}
 function refreshExternalAssetAuthority() {
   liveExternalAssetSession = createLiveExternalAssetSession({
     audioRows:externalAudioState,
@@ -821,6 +841,7 @@ function refreshExternalAssetAuthority() {
     fontMode:fontMode.value,
   });
   externalAssetAuthorityEpoch++;
+  reconcileLiveWorkspaceAuthority();
   return liveExternalAssetSession;
 }
 function changeExternalAssetFields(changes) {
@@ -832,7 +853,9 @@ function changeExternalAssetFields(changes) {
     };
     let owner=liveExternalAssetSession;
     try{
-      commitLiveExternalAssetChanges(owner,{...context,changes});
+      commitLiveWorkspaceChange(liveWorkspaceAuthority,{
+        ...liveWorkspaceContext(),kind:'external-tracks',changes,
+      });
     }catch(error){
       if(error?.message!=='EXTERNAL_DOMAIN_INVENTORY_CHANGED')throw error;
       // A browser font picker may replace a same-looking File object without
@@ -844,6 +867,8 @@ function changeExternalAssetFields(changes) {
       owner=rebound;
     }
     liveExternalAssetSession=owner;
+    if(liveWorkspaceAuthority?.externalSession!==owner)
+      reconcileLiveWorkspaceAuthority();
     // The immutable owner changed only its font inventory, not its editor
     // rows. Keep the current DOM selection epoch for in-flight field input.
     return true;
@@ -1209,6 +1234,7 @@ function refreshLiveSourceTrackAuthority() {
     trackState?.fileKey === fileKey(source) ? trackState : null;
   if (!scanned) {
     liveSourceTrackSession = null;
+    reconcileLiveWorkspaceAuthority();
     return null;
   }
   const projection = buildContainerDocument({
@@ -1217,6 +1243,7 @@ function refreshLiveSourceTrackAuthority() {
   liveSourceTrackSession = createLiveSourceTrackSession({
     source, trackState: scanned, projection,
   });
+  reconcileLiveWorkspaceAuthority();
   return liveSourceTrackSession;
 }
 
@@ -1232,7 +1259,8 @@ function changeSourceTracks(changes) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    commitLiveSourceTrackChanges(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-tracks',
       source, trackState, changes,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -1256,7 +1284,8 @@ function changeSourceAttachments(changes) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    commitLiveSourceAttachmentChanges(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-attachments',
       source, trackState, changes,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -1272,6 +1301,7 @@ function resetTrackState() {
   trackState = null;
   scannedSourceFile = null;
   liveSourceTrackSession = null;
+  reconcileLiveWorkspaceAuthority();
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
   attachmentList.innerHTML = '';
   trackBulkTools?.classList.add('hidden');
@@ -2585,6 +2615,7 @@ videoInput.addEventListener('change', () => {
   // generation. In particular, cancelled/restarted tasks must not retain
   // an external-domain inventory snapshot from the previous source.
   liveExternalAssetSession = null;
+  reconcileLiveWorkspaceAuthority();
   externalAssetPendingTaskRebind = true;
   externalAssetAuthorityEpoch++;
   containerScanGeneration += 1;
@@ -2648,9 +2679,9 @@ fontMode.addEventListener('change', () => {
   try {
     if(!liveExternalAssetSession)refreshExternalAssetAuthority();
     const previousMode=liveExternalAssetSession.mode;
-    commitExternalFontMode(liveExternalAssetSession,{
-      audioRows:externalAudioState,subtitleRows:newSubtitleState,
-      fonts:selectedFonts(),previousMode,nextMode:fontMode.value,
+    commitLiveWorkspaceChange(liveWorkspaceAuthority,{
+      ...liveWorkspaceContext(previousMode),
+      kind:'font-mode',previousMode,nextMode:fontMode.value,
     });
   } catch(error) {
     if(liveExternalAssetSession)fontMode.value=liveExternalAssetSession.mode;
@@ -3706,7 +3737,8 @@ function moveTrack(track, delta) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    moveLiveSourceTrack(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-order',
       source, trackState, index: track.index, delta,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -4586,6 +4618,11 @@ async function executeCurrentMuxTask(explicit = null) {
         externalAssetPendingTaskRebind=false;
       }
       verifyCurrent();
+      // The source/attachment/external adapters must still own the SAME
+      // immutable ContainerProject. Detect legacy mutation of either half
+      // before any real single-task FFmpeg handoff.
+      if(liveWorkspaceAuthority)
+        inspectLiveWorkspaceAuthority(liveWorkspaceAuthority,liveWorkspaceContext());
       // No second syncNewTrackState here. A successful authoritative
       // domain check commits the exact editor values to the legacy executor;
       // re-inference from a filename can erase a user's second-task title.
