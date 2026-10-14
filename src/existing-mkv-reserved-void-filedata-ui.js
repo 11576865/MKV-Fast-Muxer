@@ -24,19 +24,31 @@ export function setupReservedVoidFileDataUI({
     status.textContent=message;status.dataset.state=state;
   }
   function current(sourceFile,newFile,target,token) {
-    // Bind each exact File grant once, at the original FileList selection
-    // change. Some Chromium FileList item accessors expose a new JS File
-    // wrapper for the SAME already-selected item on a subsequent read:
-    // re-reading input.files[0] to demand object === is then a false stale
-    // detection. A different file picker selection creates a new FileList
-    // generation and dispatches change, invalidating the epoch/approval.
-    // The writer also hashes both captured, genuine File values at prepare,
-    // execute and output audit. Never re-infer authority from names/sizes.
+    // The File grants come ONLY from the original picker change events.
+    // Browser FileList wrappers can change between reads, so object-identity
+    // comparisons against fresh input.files reads are not an authority check.
+    // Every picker change invalidates epoch/review, while a separate async
+    // full-SHA check compares current picker bytes with BOTH captured grants
+    // immediately before preparing a write and again before downloading.
     return token===epoch&&inspection?.source===sourceFile&&review.checked&&
       source===sourceFile&&substitute===newFile&&
-      sourceList===sourceInput.files&&
-      substituteList===replacementInput.files&&
+      sourceInput.files?.length===1&&replacementInput.files?.length===1&&
       targetSelect.value===target;
+  }
+  async function selectedBytesStillIdentical(old,newFile,target,token) {
+    if(!current(old,newFile,target,token))return false;
+    const actualSource=sourceInput.files?.[0],actualReplacement=replacementInput.files?.[0];
+    if(!actualSource||!actualReplacement||
+        actualSource.size!==old.size||actualReplacement.size!==newFile.size)return false;
+    if(!globalThis.crypto?.subtle)return false;
+    const hash=async file=>new Uint8Array(
+      await crypto.subtle.digest('SHA-256',await file.arrayBuffer()));
+    const digests=await Promise.all([
+      hash(old),hash(actualSource),hash(newFile),hash(actualReplacement),
+    ]);
+    const equals=(a,b)=>a.length===b.length&&a.every((byte,i)=>byte===b[i]);
+    return current(old,newFile,target,token)&&
+      equals(digests[0],digests[1])&&equals(digests[2],digests[3]);
   }
   function selected(){
     return inspection?.items.find(x=>x.fileUid===targetSelect.value);
@@ -129,6 +141,8 @@ export function setupReservedVoidFileDataUI({
     busy=true;refresh();
     announce('检查紧邻 Void、全部 EBML 原始对象、UID 引用以及 SHA-256……','checking');
     try{
+      if(!await selectedBytesStillIdentical(old,newFile,target,token))
+        throw Error('CURRENT_PICKER_FILE_BYTES_OR_EPOCH_CHANGED');
       const plan=await prepareReservedVoidFileDataReplacement({
         source:old,replacement:newFile,targetFileUid:target,approveVariableLength:true,
       });
@@ -149,12 +163,21 @@ export function setupReservedVoidFileDataUI({
         '。未使用 FFmpeg 回退，也没有修改原文件。','blocked');
     }finally{busy=false;refresh();}
   });
-  saveButton.addEventListener('click',()=>{
+  saveButton.addEventListener('click',async()=>{
     const p=prepared;
     if(!p||!current(p.source,p.substitute,p.target,p.token)||
         status.dataset.state!=='prepared'){
       invalidate();refresh();
       announce('来源、FileUID 或确认过期。请重新进行保护审计。','blocked');return;
+    }
+    saveButton.disabled=true;
+    let verified=false;
+    try{verified=await selectedBytesStillIdentical(p.source,p.substitute,p.target,p.token);}
+    catch{verified=false;}
+    if(!verified||prepared!==p||status.dataset.state!=='prepared'){
+      invalidate();refresh();
+      announce('当前文件选择的来源/替换数据哈希或审核代际失效；已拒绝下载。','blocked');
+      return;
     }
     if(url)URL.revokeObjectURL(url);
     url=URL.createObjectURL(p.result.output);
@@ -163,7 +186,11 @@ export function setupReservedVoidFileDataUI({
     document.body.append(link);
     try{
       link.click();announce('已请求浏览器下载新的实验性副本；来源原始 MKV 未覆盖。','prepared');
-    }finally{link.remove();}
+    }finally{
+      link.remove();
+      if(prepared===p&&current(p.source,p.substitute,p.target,p.token))
+        saveButton.disabled=false;
+    }
   });
   window.addEventListener('pagehide',invalidate);
   announce('仅支持既有附件 FileData 紧邻预留 Void 的严格变长场景。');
