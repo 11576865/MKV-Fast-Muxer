@@ -5913,9 +5913,13 @@ batchJobInspector?.addEventListener('change',(event)=>{
     });
     // Changing an individual track after approving imported JSON must
     // invalidate the old whole-pairing approval, not stack silent overrides.
-    if(approvedBatchRecipeV2){
+    if(approvedBatchRecipeV2||pendingBatchRecipeV2){
       approvedBatchRecipeV2=null;
-      batchRecipeV2Notice.textContent='逐任务属性已重新编辑；先前导入配方的整体确认已失效。';
+      pendingBatchRecipeV2=null;
+      renderBatchRecipeV2Review(null);
+      batchRecipeV2ConfirmBtn.hidden=true;
+      batchRecipeV2ConfirmBtn.disabled=true;
+      batchRecipeV2Notice.textContent='当前逐任务编辑已取代先前的导入建议和整体确认；需要重新导入才能使用那份配方。';
     }
     activeBatchJobLedger=null;
     requestBatchPlanSync();
