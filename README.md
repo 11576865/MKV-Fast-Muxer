@@ -24,6 +24,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 - **P0/P2-T 已合并的第三类已有 MKV 结构编辑（无需预留 `Void`）**：对于原 MKV 的**最后一个 Segment 子元素为 Attachments**、且目标是其最后一个未被标签引用的 AttachedFile，用户现在可审查后对 FileData 进行真正的增长/缩短。本地非重封装写入器仅修改 Segment／Attachments／AttachedFile／FileData 的四处已有 EBML 尺寸字段和选中 FileData 字节；原先的 SeekHead/Cues、轨道/媒体包、Chapters/Tags 与之前其他附件不移位、不改写。对非末尾附件、原编码尺寸容量不足、CRC、未知 EBML 或被定向标签引用的目标继续拒绝。来源不超过 60 MiB，单个新 FileData 不超过 4 MiB；并非任意 EBML Writer。真实 Chromium 545/545 Node + 原生 MKVToolNix／`mkvextract`／`ffprobe` 完整验收见 [#138](https://github.com/11576865/MKV-Fast-Muxer/pull/138)、[工程安全边界](docs/P0-P2-TAIL-ATTACHMENTS-NO-VOID-RESIZE-20261014.md)。
 
+- **P0/P2-N 已合并的第四类已有 MKV 附件编辑（原附件不在末尾）**：对原有单个 Attachments **位于 Segment 中途**，并且原 SeekHead **确实正确索引该附件**的来源，允许显式审核后变长替换其**最后一个、未被 TagAttachmentUID 指向的 AttachedFile**。不移动原有媒体包、Chapters、Tags、Cues、Tracks 等顶层对象；在旧附件所在同一原始字节空间新建链式 SeekHead 中继，把原索引 SeekID 由附件改指中继，原 SeekPosition 保持不变，再把修改后的完整附件主元素追加到 Segment 最末尾并更新必要尺寸。来源和新文件 SHA 及 UID 引用关系、受保护字节通过本地审计，原生 MKVToolNix/`mkvextract`/`ffprobe` 独立验收和完整 Chromium 547/547 Node 证据见 [#139](https://github.com/11576865/MKV-Fast-Muxer/pull/139)、[工程说明](docs/P0-P2-NONTERMINAL-ATTACHMENTS-SEEKHEAD-RELAY-20261014.md)。无正确原始 SeekHead、受影响 CRC、不能容纳中继、非最后 AttachedFile 或被定向标签引用的来源**拒绝**；不是任意 EBML Writer，不修复一般 SeekHead/Cues、不覆盖来源文件。
+
 **重要：**历史问题 [#77](https://github.com/11576865/MKV-Fast-Muxer/issues/77) 所揭示的 FFmpeg 重封装嵌套章节与定向标签丢失风险未被通用修复。新的等长附件数据替换采取不重封装媒体、原位置保留的独立路径，不能据此推论任意 EBML 编辑安全。
 
 ## 理论初版五步集成预览（2026-10-13）
