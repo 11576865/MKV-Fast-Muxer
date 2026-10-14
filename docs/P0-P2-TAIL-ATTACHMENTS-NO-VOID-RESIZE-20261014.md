@@ -1,6 +1,6 @@
 # P0/P2-T — Source-bound final Attachments EBML resize with no Void
 
-**Status: code, reviewed UI and independent E2E submitted; full exact-head CI PENDING.** This is a new bounded *real existing-container* writer class, not general Matroska structural rewriting or universal replacement of historical P0 issue #77.
+**Status: independently verified in complete Node/build/Chromium and merged to `main` via [PR #138](https://github.com/11576865/MKV-Fast-Muxer/pull/138), [merge c769a847](https://github.com/11576865/MKV-Fast-Muxer/commit/c769a847b7e12023024fd01b4a931e5f6ed61925).** Exact-head [Actions 38560282611](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38560282611) succeeded: **545/545 Node, Vite build, full real Chromium, native MKVToolNix/`mkvextract`/`ffprobe` artifact audit**. This is a new bounded *real existing-container* writer class, not general Matroska structural rewriting or universal replacement of historical P0 issue #77.
 
 ## Source property that makes no-Void growth possible
 
@@ -29,4 +29,8 @@ After browser manual download the independent native `mkvmerge -J`, `mkvextract`
 
 No general arbitrary-position Attachments relocation, shifting Chapters/Tags/Cluster/Cues, rewriting SeekHead/Cue positions, changing UID targets, CRC repair, unknown EBML preservation for modified masters, VINT width widening, other AttachedFile editing, >60 MiB streaming or cross-player guarantee. Those require a genuinely different source layout and further independent proof, not removal of this operator's refusal gates. Do not treat a passing synthetic Node fixture as equivalent to native output acceptance.
 
-**Engineering status:** pending full CI until browser/native log explicitly states success. Do not merge as a passing product feature before proof.
+**Verified result:** the exact-head Chromium log records `P0/P2-T tail no-Void FOUR SIZE FIELD real browser output + native MKVToolNix chapters, targeted Tags, FileUID, FileData and ffprobe packet audit PASS` and `All browser E2E scenarios PASS`. Source remains unmodified and all prior P0 fail-closed gates passed. This verifies only the tested terminal-Attachments source family; neither generic SeekHead repair nor CRC/UID target modification is now implemented.
+
+## Acceptance failure analysis retained
+
+First full run [38558866210](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38558866210) was red because the original MKVToolNix `SeekPosition` field for Attachments was too narrow to represent its new test-only EOF location. A second test-only variant that deleted the invalid Seek entry made the fixture parseable by our reader, but native `mkvmerge -J` saw zero attachments ([38559509527](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38559509527)). The final source test helper [45da93c](https://github.com/11576865/MKV-Fast-Muxer/commit/45da93c8d9f90535efd3090d9334d085ed067157) uses a valid **chained SeekHead relay** located in the original Attachments byte span. This preserved the old narrow index address, gave native MKVToolNix a discoverable path to the relocated final master, and subsequently enabled true browser output plus independent native verification. These failures belong to test-fixture authenticity, not production write authorization; they were never silenced or misreported as success.
