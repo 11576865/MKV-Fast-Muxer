@@ -4556,13 +4556,22 @@ async function scenarioNonfinalAttachedFileRelayNative(browser) {
   assert.ok(referenceUid);
   const tagXml=`<?xml version="1.0" encoding="UTF-8"?>
 <Tags>
-  <Tag><Targets><TargetTypeValue>50</TargetTypeValue><AttachmentUID>${referenceUid}</AttachmentUID></Targets>
+  <Tag><Targets><TargetTypeValue>20</TargetTypeValue><AttachmentUID>${referenceUid}</AttachmentUID></Targets>
     <Simple><Name>P0_ORIGINAL_ATTACHMENT_KEEP</Name><String>tagged-first</String></Simple></Tag>
   <Tag><Targets><TargetTypeValue>30</TargetTypeValue><ChapterUID>510011</ChapterUID></Targets>
     <Simple><Name>P0_NESTED_CHAPTER_KEEP</Name><String>untouched-nested</String></Simple></Tag>
 </Tags>`;
   await fs.writeFile(tagPath,tagXml);
   execFileSync('mkvpropedit',[original,'--tags','all:'+tagPath],{timeout:60000});
+  const verifiedTags=path.join(outDir,'p2-nonfinal-native-source-tags.xml');
+  execFileSync('mkvextract',[original,'tags',verifiedTags],{timeout:60000});
+  const verifiedTagXml=await fs.readFile(verifiedTags,'utf8');
+  assert.match(verifiedTagXml,/<AttachmentUID>/,
+    'native authored source must genuinely contain an AttachmentUID target');
+  assert.match(verifiedTagXml,new RegExp('<AttachmentUID>'+referenceUid+'</AttachmentUID>'),
+    'native output must target exact FIRST attachment UID');
+  assert.match(verifiedTagXml,/P0_NESTED_CHAPTER_KEEP/,
+    'native source must retain nested chapter targeted metadata');
   before=native(original);
   assert.equal(before.attachments.length,3);
   const editable=before.attachments[1],following=before.attachments[2];
