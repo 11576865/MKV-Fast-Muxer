@@ -107,3 +107,21 @@ test('P0 leaves WebM outside the Matroska-specific risk policy', async () => {
   assert.equal(result.state, 'NOT_MATROSKA');
   assert.equal(preservationBlockMessage('a.webm', result), '');
 });
+
+test('P0 cannot claim no known hazard after an unchecked finite Segment tail', async () => {
+  const first = e(0x18538067, e(0x1549a966, txt('info')));
+  const riskySecond = e(0x18538067, chapters(chapter(chapter())));
+  const bytes = concat(ebml(), first, riskySecond);
+  const blob = new Blob([bytes]);
+  const file = { size: blob.size, slice: blob.slice.bind(blob) };
+  const check = await inspectMatroskaPreservation(file);
+  assert.equal(check.state, 'BLOCKED_UNKNOWN');
+  assert.match(check.reasons.join(';'), /Segment.*未检查/);
+  assert.match(preservationBlockMessage('multi-segment.mkv', check), /阻断/);
+  // Even non-EBML trailing bytes must not be silently ignored.
+  const trailing = new Blob([concat(ebml(), first, Uint8Array.of(0xde, 0xad))]);
+  const trailingCheck = await inspectMatroskaPreservation({
+    size: trailing.size, slice: trailing.slice.bind(trailing),
+  });
+  assert.equal(trailingCheck.state, 'BLOCKED_UNKNOWN');
+});
