@@ -5816,6 +5816,8 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el => el.open),false);
     await page.locator('.composition-select[data-composition-id="source:audio:2"]').click();
     assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
+    assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),false,
+      'source track selection must not expand a second editor beneath its contextual inspector');
     assert.equal(await page.locator('#sf14CompositionEmpty').isVisible(),false);
     await page.screenshot({path:path.join(outDir,'softmux-1014-desktop-1440.png'),fullPage:false});
     await page.locator('[data-sf-view="batch"]').click();
