@@ -1,5 +1,7 @@
 import './style.css';
 import './workbench.css';
+import './softmux-10.14.css';
+import { mountSoftmux1014Workbench } from './softmux-10.14-workbench.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
@@ -6911,3 +6913,9 @@ batchStartBtn?.addEventListener('click', async () => {
 
 resetTrackState();
 updateUI();
+
+// 软封10.14版本. Review on ?ui=10.14 without partially replacing main.
+// Accept a complete, evidence-tested cutover before enabling this by default.
+if (new URLSearchParams(window.location.search).get('ui') === '10.14') {
+  mountSoftmux1014Workbench(document);
+}
