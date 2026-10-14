@@ -70,8 +70,14 @@ async function openApp(browser) {
   const page = await context.newPage();
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
-  await page.goto(baseUrl, { waitUntil: 'networkidle' });
+  const url = new URL(baseUrl);
+  // Legacy-specific functional regression scenarios retain their original
+  // controls. New public default is covered in the whole-workbench scenario.
+  url.searchParams.set('ui','legacy');
+  await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
+  assert.equal(await page.locator('#sf14Root').count(),0,
+    'explicit ?ui=legacy must keep diagnostic fallback available');
   return { context, page };
 }
 
@@ -3389,7 +3395,9 @@ async function scenarioTabletDesktopUi(browser) {
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   try {
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    const legacyUrl = new URL(baseUrl);
+    legacyUrl.searchParams.set('ui', 'legacy');
+    await page.goto(legacyUrl.toString(), { waitUntil: 'networkidle' });
     await page.locator('#muxBtn').waitFor();
 
     const media = await page.evaluate(() => ({
@@ -5786,11 +5794,106 @@ async function scenarioStreamedSourceDigestBrowser(browser) {
   }
 }
 
+
+async function scenarioSoftmux1014WholeWorkbench(browser) {
+  console.log('软封10.14版本: cohesive production DOM UI candidate');
+  const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
+  const page = await context.newPage();
+  page.on('pageerror', error => { throw error; });
+  try {
+    const target = new URL(baseUrl);
+    // Public root URL must mount the new 10.14 workbench by default.
+    target.searchParams.delete('ui');
+    await page.goto(target.toString(), {waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'single');
+    assert.equal(await page.locator('#sf14Single .sf14-pane').count(),3);
+    for (const section of ['tracks','attachments','chapters','tags']) {
+      const tab = page.locator('[data-sf-section="'+section+'"]');
+      assert.equal(await tab.count(),1,'planned output entry must remain present: '+section);
+      await tab.click();
+      assert.equal(await tab.getAttribute('aria-selected'),'true');
+      if (section === 'tracks') assert.equal(await page.locator('#sf14SectionNotice').isVisible(),false);
+      else {
+        assert.equal(await page.locator('#sf14SectionNotice').isVisible(),true);
+        assert.match(await page.locator('#sf14SectionNotice').textContent(),/后端|未|能力|验证/);
+      }
+    }
+    await page.locator('[data-sf-section="tracks"]').click();
+    assert.equal(await page.locator('#outputCompositionPanel').count(),1);
+    assert.equal(await page.locator('#assetInspectorHost').count(),1);
+    assert.equal(await page.locator('#muxBtn').count(),1);
+    assert.equal(await page.locator('#batchPlan').count(),1);
+    const uniqueIds = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll('[id]')].map(n => n.id);
+      return ids.length === new Set(ids).size;
+    });
+    assert.equal(uniqueIds,true,'rehost may not clone legacy IDs/controls');
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page, '轨道扫描完成：');
+    assert.equal(await page.locator('#sourceFilesDetails').evaluate(el => el.open),true);
+    assert.match(await page.locator('#assetInventory').textContent(),/source-multitrack\.mkv/);
+    assert.equal(await page.locator('#sf14Recovery').evaluate(el => el.open),false);
+    assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el => el.open),false);
+    await page.locator('.composition-select[data-composition-id="source:audio:2"]').click();
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
+    assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),false,
+      'source track selection must not expand a second editor beneath its contextual inspector');
+    assert.equal(await page.locator('#sf14CompositionEmpty').isVisible(),false);
+    await page.screenshot({path:path.join(outDir,'softmux-1014-desktop-1440.png'),fullPage:false});
+    await page.locator('[data-sf-view="batch"]').click();
+    assert.equal(await page.locator('#sf14Batch').isVisible(),true);
+    await page.setInputFiles('#batchUnifiedInput',[
+      path.join(root,'Batch S01E01.mp4'),path.join(root,'Batch S01E01.zh-Hans.ass'),
+      path.join(root,'Batch S01E02.mp4'),path.join(root,'Batch S01E02.en.srt')]);
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#batchAssetInventory .asset-entry').length===4 &&
+      (document.querySelector('#batchPlan')?.textContent||'').includes('Batch S01E01.mp4') &&
+      (document.querySelector('#batchPlan')?.textContent||'').includes('Batch S01E02.mp4'),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#batchPlan').isVisible(),true);
+    await page.screenshot({path:path.join(outDir,'softmux-1014-batch-1440.png'),fullPage:false});
+    await page.locator('[data-sf-view="tools"]').click();
+    assert.equal(await page.locator('#sf14Tools').isVisible(),true);
+    assert.equal(await page.locator('#existingMkvRoutedEditDetails').count(),1);
+    await page.locator('[data-sf-view="single"]').click();
+    await page.locator('#sf14Settings').click();
+    assert.equal(await page.locator('#sf14SettingsDialog').isVisible(),true);
+    await page.locator('[data-sf-density="comfortable"]').click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-density'),'comfortable');
+    await page.locator('#sf14SettingsDialog form button').click();
+    // A layout change cannot replace input File or recreate independent state.
+    const sameFile = await page.locator('#videoInput').evaluate(input => input.files?.[0]?.name);
+    assert.equal(sameFile,'source-multitrack.mkv');
+    await page.setViewportSize({width:800,height:950});
+    assert.equal(await page.locator('#sf14Source').isVisible(),false);
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),true);
+    assert.equal(await page.locator('#sf14SourceToggle').getAttribute('aria-expanded'),'true');
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),false);
+    await page.screenshot({path:path.join(outDir,'softmux-1014-tablet-800.png'),fullPage:false});
+    await page.setViewportSize({width:390,height:844});
+    await page.locator('[data-sf-focus="source"]').click();
+    assert.equal(await page.locator('#sf14Source').isVisible(),true);
+    await page.locator('[data-sf-focus="composition"]').click();
+    assert.equal(await page.locator('#compositionTracks').isVisible(),true);
+    await page.locator('[data-sf-focus="inspector"]').click();
+    assert.equal(await page.locator('#sf14Inspector').isVisible(),true);
+    assert.equal(await page.locator('#videoInput').evaluate(input => input.files[0]?.name),'source-multitrack.mkv');
+    await page.screenshot({path:path.join(outDir,'softmux-1014-phone-390.png'),fullPage:false});
+    await page.setViewportSize({width:360,height:780});
+    await page.screenshot({path:path.join(outDir,'softmux-1014-phone-360.png'),fullPage:false});
+    console.log('软封10.14候选整体 UI real DOM and responsive contract PASS');
+  } finally { await context.close(); }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
   await scenarioContentFirstSourceAmbiguity(browser);

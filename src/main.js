@@ -1,5 +1,7 @@
 import './style.css';
 import './workbench.css';
+import './softmux-10.14.css';
+import { mountSoftmux1014Workbench } from './softmux-10.14-workbench.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
@@ -6911,3 +6913,10 @@ batchStartBtn?.addEventListener('click', async () => {
 
 resetTrackState();
 updateUI();
+
+// 软封10.14版本 is the default presentation after atomic UI cutover.
+// Keep the original UI explicitly addressable for diagnosis/regression only.
+// This changes presentation identity, never media permission or executor.
+if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
+  mountSoftmux1014Workbench(document);
+}
