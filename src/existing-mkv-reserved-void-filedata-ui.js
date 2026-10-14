@@ -65,8 +65,24 @@ export function setupReservedVoidFileDataUI({
       reasons.push('REPLACEMENT_LENGTH_UNCHANGED');
     if(substitute&&(substitute.size<1||substitute.size>4*1024*1024))
       reasons.push('REPLACEMENT_BUDGET');
-    if(row&&source&&substitute&&!current(source,substitute,epoch,row.fileUid))
-      reasons.push('EXACT_FILE_OR_SELECTION_EPOCH_CHANGED');
+    if(row&&source&&substitute){
+      const flags={
+        selectionEpoch:epoch,
+        inspectionSourceMatches:inspection?.source===source,
+        userReviewed:review.checked,
+        sourcePickerHasOne:sourceInput.files?.length===1,
+        replacementPickerHasOne:replacementInput.files?.length===1,
+        targetUidExact:targetSelect.value===row.fileUid,
+        originalFileCaptured:Boolean(source),
+        replacementFileCaptured:Boolean(substitute),
+        sourceByteLength:source?.size,
+        replacementByteLength:substitute?.size,
+        currentRowLength:row?.byteLength,
+      };
+      prepareButton.dataset.guardDiagnostic=JSON.stringify(flags);
+      if(!current(source,substitute,epoch,row.fileUid))
+        reasons.push('EXACT_FILE_OR_SELECTION_EPOCH_CHANGED');
+    }
     prepareButton.dataset.blockReason=reasons.join(',')||'READY_FOR_STRICT_WRITER_CHECK';
     prepareButton.disabled=reasons.length>0;
   }
