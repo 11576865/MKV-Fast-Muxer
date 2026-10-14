@@ -4395,7 +4395,20 @@ async function executeCurrentMuxTask(explicit = null) {
   const video = independent ? explicit.source : videoInput.files[0];
   const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
-  if (!independent) syncNewTrackState();
+  if (!independent) {
+    try {
+      if (!liveExternalAssetSession) refreshExternalAssetAuthority();
+      inspectLiveExternalAssets(liveExternalAssetSession,{
+        audioRows:externalAudioState,subtitleRows:newSubtitleState,
+        fonts:selectedFonts(),mode:fontMode.value,
+      });
+    } catch(error) {
+      status.textContent='外部音频、字幕或字体来源已变化，请重新选择并确认后封装（'+
+        (error?.message||String(error))+'）。';
+      return;
+    }
+    syncNewTrackState();
+  }
   const fontRecognition = independent ? explicit.fontRecognition : selectedFontRecognition();
   if (!independent && fontIdentityPending()) return;
   if ((independent ? explicit.fonts.length : selectedFonts().length) && fontRecognition.ignored.length) {
