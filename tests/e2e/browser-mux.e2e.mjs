@@ -4588,6 +4588,12 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
       'prepared',await page.locator('#existingMkvReservedVoidStatus').textContent());
     assert.match(await page.locator('#existingMkvReservedVoidEvidence').textContent(),
       /SHA-256/);
+    await page.setViewportSize({width:768,height:1024});
+    await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
+    await page.locator('#existingMkvReservedVoidDetails').screenshot({
+      path:path.join(outDir,'mkv-container-tree-reserved-void-tablet-768.png'),
+      animations:'disabled',
+    });
     const [download]=await Promise.all([
       page.waitForEvent('download'),page.locator('#existingMkvReservedVoidSave').click(),
     ]);
