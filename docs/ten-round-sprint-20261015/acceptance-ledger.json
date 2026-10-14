@@ -1,0 +1,752 @@
+{
+  "schema": "mkv-ten-round-acceptance-ledger-v1",
+  "decision_source": "软封工程_未来规划总决议_2026-10-12(1).txt",
+  "baseline": {
+    "repository": "11576865/MKV-Fast-Muxer",
+    "branch": "main",
+    "sha": "fefd97e0c1386d8b4f30328c167561f6690bf628",
+    "date": "2026-10-15",
+    "note": "仅为核查起点，不可自动把历史PR提升为完整需求已验收"
+  },
+  "goal": {
+    "rounds": 10,
+    "high_priority_target_percent": 75,
+    "scoring_rule": "只统计verified且具有精确提交、run、完整场景独立成品证据的critical/high"
+  },
+  "decisions": [
+    {
+      "id": "D-01",
+      "statement": "Matroska是唯一领域中心，视频非必需根节点"
+    },
+    {
+      "id": "D-02",
+      "statement": "保留旧快速软封与批次用户能力"
+    },
+    {
+      "id": "D-03",
+      "statement": "字幕/容器/验证/检查共用领域事实"
+    },
+    {
+      "id": "D-04",
+      "statement": "轨道附件章节标签为正式对象"
+    },
+    {
+      "id": "D-05",
+      "statement": "配方/输出矩阵/检查器/独立队列"
+    },
+    {
+      "id": "D-06",
+      "statement": "浏览器为主，桌面平板优先，运行时与状态分离"
+    },
+    {
+      "id": "D-07",
+      "statement": "不扩为字幕创作/剪辑/转码/通用归档"
+    },
+    {
+      "id": "D-08",
+      "statement": "输出/流复制/结构保留/渲染/播放器兼容声明相互独立"
+    },
+    {
+      "id": "D-09",
+      "statement": "高密度对象中心与有限知识披露"
+    },
+    {
+      "id": "D-10",
+      "statement": "大改版先保证旧能力、真实样本与独立反证"
+    }
+  ],
+  "phases": [
+    {
+      "id": "P0",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P1",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P2",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P3",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P3-B",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P4",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P5",
+      "exit": "not-audited"
+    },
+    {
+      "id": "P6",
+      "exit": "not-audited"
+    }
+  ],
+  "safety": {
+    "historical_issue": "https://github.com/11576865/MKV-Fast-Muxer/issues/77",
+    "legacy_remux_complete_preservation": "not-proven",
+    "no_silent_source_overwrite": true,
+    "unknown_layout": "fail-closed-or-read-only",
+    "require_independent_output_audit": true,
+    "do_not_promote_single_observation_to_canonical": true
+  },
+  "requirements": [
+    {
+      "id": "R-01",
+      "title": "零修改复杂MKV及旧重封装丢失反证",
+      "phase": "P0",
+      "priority": "critical",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/issues/77",
+          "scope": "已发现旧重封装嵌套章节和Tag丢失；拒绝不等于修复"
+        }
+      ],
+      "caveat": "已发现旧重封装嵌套章节和Tag丢失；拒绝不等于修复"
+    },
+    {
+      "id": "R-02",
+      "title": "无视频附件-only规范与实际writer",
+      "phase": "P2",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/120",
+          "scope": "无视频工程能描述，但并非通用writer"
+        }
+      ],
+      "caveat": "无视频工程能描述，但并非通用writer"
+    },
+    {
+      "id": "R-03",
+      "title": "成品内封ASS与字体隔离渲染",
+      "phase": "P3",
+      "priority": "critical",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/119",
+          "scope": "独立特定字体与动态帧验证不代表任意播放器"
+        }
+      ],
+      "caveat": "独立特定字体与动态帧验证不代表任意播放器"
+    },
+    {
+      "id": "R-04",
+      "title": "长时浏览器负载/权限/内存",
+      "phase": "P5",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "R-05",
+      "title": "真实UI任务与20集可用性",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-001",
+      "title": "MP4+ASS+两字体+码流复制",
+      "phase": "P0",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/119",
+          "scope": "有界实际字体字幕成品，不覆盖两字体所有边界"
+        }
+      ],
+      "caveat": "有界实际字体字幕成品，不覆盖两字体所有边界"
+    },
+    {
+      "id": "T-002",
+      "title": "原MKV全轨+新字幕输出回读",
+      "phase": "P0",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-003",
+      "title": "来源轨道选择性排除与保留",
+      "phase": "P1",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-004",
+      "title": "多音轨字幕Default/Forced/语言/标题",
+      "phase": "P1",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-005",
+      "title": "WebVTT显式转换与时间语义",
+      "phase": "P3",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-006",
+      "title": "PGS/SUP/VobSub二进制路径",
+      "phase": "P3",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-007",
+      "title": "TTC/OTC多face及无子集化",
+      "phase": "P3",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-008",
+      "title": "原MKV内封ASS和字体隔离渲染",
+      "phase": "P3",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/118",
+          "scope": "已交付ASS字体隔离渲染的特定场景"
+        }
+      ],
+      "caveat": "已交付ASS字体隔离渲染的特定场景"
+    },
+    {
+      "id": "T-009",
+      "title": "Chapter/Tag/附件/数据轨零修改往返",
+      "phase": "P0",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-010",
+      "title": "未知EBML/复杂章节的安全阻断",
+      "phase": "P2",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-011",
+      "title": "音频-only来源的领域计划",
+      "phase": "P1",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-012",
+      "title": "附件-only writer或明确拒绝",
+      "phase": "P2",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-013",
+      "title": "后缀与内容冲突的识别",
+      "phase": "P0",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "T-014",
+      "title": "附件替换重命名MIME及UID/字节验证",
+      "phase": "P2",
+      "priority": "critical",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/141",
+          "scope": "有界未引用附件内容修改；不是任意UID或名称重写"
+        }
+      ],
+      "caveat": "有界未引用附件内容修改；不是任意UID或名称重写"
+    },
+    {
+      "id": "T-015",
+      "title": "重复轨名附件名/语言歧义",
+      "phase": "P1",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-001",
+      "title": "20集配对与旧版等价",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-002",
+      "title": "并列最优字幕匹配拒绝自动猜测",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-003",
+      "title": "无字幕集和孤立字幕仍列出",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-004",
+      "title": "18/20可执行范围确认",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-005",
+      "title": "Unicode及大小写输出冲突",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-006",
+      "title": "已有MKV/JSON输出的防覆盖",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-007",
+      "title": "Group字体与单集子集/回退",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-008",
+      "title": "任务覆盖和冻结计划",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/134",
+          "scope": "Batch Recipe v2两成品任务与冻结计划；完整配方迁移待审"
+        }
+      ],
+      "caveat": "Batch Recipe v2两成品任务与冻结计划；完整配方迁移待审"
+    },
+    {
+      "id": "B-009",
+      "title": "批次与单工程草稿隔离",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-010",
+      "title": "第三任务取消并保留旧成品",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-011",
+      "title": "封装/审计/保存三状态分离",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/114",
+          "scope": "已区分成品和报告保存，但完整失败组合待核"
+        }
+      ],
+      "caveat": "已区分成品和报告保存，但完整失败组合待核"
+    },
+    {
+      "id": "B-012",
+      "title": "准备阶段字体失败不能虚报成功",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-013",
+      "title": "只重新保存已有成品",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-014",
+      "title": "连续批次Blob释放与保存",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-015",
+      "title": "刷新后的配方和权限重授",
+      "phase": "P3-B",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-016",
+      "title": "长时批次内存与Wasm挂载",
+      "phase": "P5",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "B-017",
+      "title": "批量纯容器审查与报告",
+      "phase": "P2",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-001",
+      "title": "附件路径遍历及名称冲突",
+      "phase": "P0",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-002",
+      "title": "MIME伪造内容与高风险解析",
+      "phase": "P0",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-003",
+      "title": "大量恶意附件内存及取消",
+      "phase": "P5",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-004",
+      "title": "存储/内存耗尽不损坏源与成果",
+      "phase": "P5",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-005",
+      "title": "目录授权中途撤销",
+      "phase": "P5",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-006",
+      "title": "预检后同名输出竞态",
+      "phase": "P0",
+      "priority": "critical",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-007",
+      "title": "私人附件交付前展示",
+      "phase": "P2",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "S-008",
+      "title": "未知来源只读不被writer限制",
+      "phase": "P2",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-001",
+      "title": "1440桌面对象/验证/执行入口",
+      "phase": "P4",
+      "priority": "high",
+      "state": "partial",
+      "evidence": [
+        {
+          "url": "https://github.com/11576865/MKV-Fast-Muxer/issues/75",
+          "scope": "已有UI，但最终对象中心工作台尚未验收"
+        }
+      ],
+      "caveat": "已有UI，但最终对象中心工作台尚未验收"
+    },
+    {
+      "id": "U-002",
+      "title": "1280桌面密度与溢出",
+      "phase": "P4",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-003",
+      "title": "1024及768平板对象上下文",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-004",
+      "title": "390窄屏聚焦与返回",
+      "phase": "P4",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-005",
+      "title": "窗口/缩放/字体变更保留草稿焦点",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-006",
+      "title": "鼠标键盘触摸及撤销",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-007",
+      "title": "图标名称和警告/帮助分离",
+      "phase": "P4",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-008",
+      "title": "阻断定位而非总红标",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-009",
+      "title": "大量资源局部滚动与密度",
+      "phase": "P4",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-010",
+      "title": "已有素材后缩小导入区",
+      "phase": "P4",
+      "priority": "normal",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-011",
+      "title": "单工程批次无重复可写对象",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    },
+    {
+      "id": "U-012",
+      "title": "任务步骤时间误操作的对照",
+      "phase": "P4",
+      "priority": "high",
+      "state": "unassessed",
+      "evidence": [],
+      "caveat": "未按完整原始验收场景重新核对；不意味着代码缺失"
+    }
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "focus": "P0事实基线与反证",
+      "state": "in-progress",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 2,
+      "focus": "P1统一领域权威",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 3,
+      "focus": "P1持久化与权限",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 4,
+      "focus": "P2结构安全操作",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 5,
+      "focus": "P2章节标签与非视频容器",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 6,
+      "focus": "P3字幕和字体",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 7,
+      "focus": "P3-B批量队列",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 8,
+      "focus": "P4专业UI",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 9,
+      "focus": "P5性能与平台",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    },
+    {
+      "round": 10,
+      "focus": "P6正式发布验收",
+      "state": "planned",
+      "head_sha": null,
+      "pr": null,
+      "ci": "not-run",
+      "scope_warning": "不得混淆分支提交、CI和现实验收"
+    }
+  ]
+}
