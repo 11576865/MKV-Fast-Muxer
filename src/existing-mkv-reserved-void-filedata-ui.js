@@ -1,0 +1,153 @@
+import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
+import {
+  prepareReservedVoidFileDataReplacement,
+  executeReservedVoidFileDataReplacement,
+} from './existing-mkv-reserved-void-filedata-replace.js';
+
+/**
+ * Separate opt-in proof boundary for variable-sized FileData where the source
+ * already owns adjacent padding. Never fallback to FFmpeg or overwrite input.
+ */
+export function setupReservedVoidFileDataUI({
+  sourceInput,targetSelect,replacementInput,review,prepareButton,saveButton,
+  inventory,status,evidence,
+}={}) {
+  if(![sourceInput,targetSelect,replacementInput,review,prepareButton,
+    saveButton,inventory,status,evidence].every(Boolean)) return;
+  let epoch=0,busy=false,source=null,sourceList=null,substitute=null,substituteList=null,
+    inspection=null,prepared=null,url=null;
+  function invalidate(){
+    epoch++;prepared=null;saveButton.disabled=true;evidence.textContent='';
+    if(url){URL.revokeObjectURL(url);url=null;}
+  }
+  function announce(message,state='idle'){
+    status.textContent=message;status.dataset.state=state;
+  }
+  function current(sourceFile,newFile,target,token) {
+    return token===epoch&&inspection?.source===sourceFile&&review.checked&&
+      sourceList===sourceInput.files&&sourceInput.files?.[0]===sourceFile&&
+      substituteList===replacementInput.files&&replacementInput.files?.[0]===newFile&&
+      targetSelect.value===target;
+  }
+  function selected(){
+    return inspection?.items.find(x=>x.fileUid===targetSelect.value);
+  }
+  function refresh(){
+    const row=selected();
+    prepareButton.disabled=busy||!review.checked||!source||!substitute||!row||
+      inspection.references.has(row.fileUid)||
+      substitute.size===row.byteLength||substitute.size<1||
+      substitute.size>4*1024*1024||
+      !current(source,substitute,epoch,row.fileUid);
+  }
+  sourceInput.addEventListener('change',async()=>{
+    invalidate();review.checked=false;
+    sourceList=sourceInput.files;source=sourceList?.[0]||null;
+    inspection=null;targetSelect.replaceChildren();
+    inventory.textContent='';refresh();
+    if(!source){announce('请选择包含已有附件的 Matroska。');return;}
+    if(source.size>60*1024*1024){
+      announce('本实验只允许 60 MiB 以内的来源。','blocked');return;
+    }
+    const value=source,token=epoch;
+    announce('正在核对来源附件 FileUID 与 TagAttachmentUID 指向……','checking');
+    try{
+      const reader=createMatroskaAttachmentReader(value);
+      const inventoryData=await reader.inspect();
+      if(inventoryData.state!=='inspected')
+        throw Error(inventoryData.diagnostic?.code||'INVENTORY_NOT_VERIFIED');
+      const graph=await reader.inspectRelations(inventoryData);
+      if(graph.state!=='inspected'||
+          graph.coverage.tagTargets!=='known-targets-enumerated')
+        throw Error('TAG_UID_REFERENCE_GRAPH_INCOMPLETE');
+      if(token!==epoch||sourceList!==sourceInput.files||sourceInput.files?.[0]!==value)
+        return;
+      const references=new Set(graph.edges.filter(x=>x.targetKind==='attachment')
+        .map(x=>x.targetUid));
+      inspection={source:value,items:inventoryData.attachments,references};
+      for(const item of inventoryData.attachments){
+        const o=document.createElement('option');o.value=item.fileUid;
+        o.disabled=references.has(item.fileUid);
+        o.textContent=item.filename+' · FileUID '+item.fileUid+
+          ' · 当前 '+item.byteLength+' 字节'+
+          (o.disabled?' · 被 Tag 引用，不能替换':'');
+        targetSelect.append(o);
+      }
+      const first=inventoryData.attachments.find(x=>!references.has(x.fileUid));
+      if(first)targetSelect.value=first.fileUid;
+      else targetSelect.selectedIndex=-1;
+      inventory.textContent='扫描到 '+inventoryData.attachments.length+
+        ' 个附件；其中 '+references.size+
+        ' 个 UID 存在标签引用。变长修改还必须拥有紧邻 FileData 的原始 Void。';
+      announce(first?'请选择目标和不同长度的新文件；如无相邻 Void 将拒绝写入。':
+        '所有附件均被标签引用或没有附件，拒绝变长写入。',
+        first?'ready':'blocked');
+    }catch(error){
+      if(token===epoch)announce('源文件未获得写入资格：'+(error?.message||String(error)),'blocked');
+    }finally{if(token===epoch)refresh();}
+  });
+  replacementInput.addEventListener('change',()=>{
+    invalidate();review.checked=false;
+    substituteList=replacementInput.files;
+    substitute=substituteList?.[0]||null;
+    announce('候选数据已变化。大小不同还需要原始 Void 空间；请重新审核。');
+    refresh();
+  });
+  targetSelect.addEventListener('change',()=>{
+    invalidate();review.checked=false;
+    announce('原始 FileUID 已更换；旧权限和候选副本失效。');
+    refresh();
+  });
+  review.addEventListener('change',()=>{
+    invalidate();
+    announce(review.checked?'已明确确认变长 FileData 与预留 Void 使用范围。':
+      '尚未授权生成新的实验性 MKV。');
+    refresh();
+  });
+  prepareButton.addEventListener('click',async()=>{
+    const old=source,newFile=substitute,target=targetSelect.value;
+    if(prepareButton.disabled||busy||!current(old,newFile,target,epoch))return;
+    invalidate();const token=epoch;
+    busy=true;refresh();
+    announce('检查紧邻 Void、全部 EBML 原始对象、UID 引用以及 SHA-256……','checking');
+    try{
+      const plan=await prepareReservedVoidFileDataReplacement({
+        source:old,replacement:newFile,targetFileUid:target,approveVariableLength:true,
+      });
+      if(!current(old,newFile,target,token))return;
+      const result=await executeReservedVoidFileDataReplacement(plan);
+      if(!current(old,newFile,target,token))return;
+      prepared={result,source:old,substitute:newFile,target,token};
+      saveButton.disabled=false;
+      evidence.textContent='原始数据 '+result.evidence.oldDataLength+
+        ' 字节 → 新数据 '+result.evidence.newDataLength+' 字节。来源 SHA-256：'+
+        result.evidence.sourceSha256+'；新副本 SHA-256：'+
+        result.evidence.outputSha256+'；FileData SHA-256：'+
+        result.evidence.newFileDataSha256+
+        '。原容器总长度、非附件对象字节及偏移、其他附件 FileData 均通过本地验证。外部播放器兼容需要单独检测。';
+      announce('预留 Void 内变长替换本地字节验证通过，可下载独立实验副本。','prepared');
+    }catch(error){
+      if(token===epoch)announce('拒绝：'+(error?.message||String(error))+
+        '。未使用 FFmpeg 回退，也没有修改原文件。','blocked');
+    }finally{busy=false;refresh();}
+  });
+  saveButton.addEventListener('click',()=>{
+    const p=prepared;
+    if(!p||!current(p.source,p.substitute,p.target,p.token)||
+        status.dataset.state!=='prepared'){
+      invalidate();refresh();
+      announce('来源、FileUID 或确认过期。请重新进行保护审计。','blocked');return;
+    }
+    if(url)URL.revokeObjectURL(url);
+    url=URL.createObjectURL(p.result.output);
+    const link=document.createElement('a');
+    link.href=url;link.download=p.result.filename;link.rel='noopener';link.hidden=true;
+    document.body.append(link);
+    try{
+      link.click();announce('已请求浏览器下载新的实验性副本；来源原始 MKV 未覆盖。','prepared');
+    }finally{link.remove();}
+  });
+  window.addEventListener('pagehide',invalidate);
+  announce('仅支持既有附件 FileData 紧邻预留 Void 的严格变长场景。');
+  refresh();
+}
