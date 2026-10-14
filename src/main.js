@@ -72,6 +72,7 @@ import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui
 import { setupExistingMkvLimitedAppendUI } from './existing-mkv-limited-append-ui.js';
 import { setupExistingMkvSameSizeAttachmentReplaceUI } from './existing-mkv-same-size-attachment-replace-ui.js';
 import { setupReservedVoidFileDataUI } from './existing-mkv-reserved-void-filedata-ui.js';
+import { setupTailAttachmentResizeUI } from './existing-mkv-tail-attachment-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -127,6 +128,17 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupTailAttachmentResizeUI({
+  sourceInput: $('existingMkvTailSource'),
+  replacementInput: $('existingMkvTailReplacement'),
+  targetSelect: $('existingMkvTailTarget'),
+  review: $('existingMkvTailReview'),
+  prepareButton: $('existingMkvTailPrepare'),
+  saveButton: $('existingMkvTailSave'),
+  status: $('existingMkvTailStatus'),
+  evidence: $('existingMkvTailEvidence'),
+  inventory: $('existingMkvTailInventory'),
 });
 setupReservedVoidFileDataUI({
   sourceInput: $('existingMkvReservedVoidSource'),
