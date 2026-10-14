@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createLiveExternalAssetSession,commitLiveExternalAssetChanges,
   commitExternalFontMode,inspectLiveExternalAssets,
+  rebindLiveExternalFontInventory,
 } from '../src/live-external-asset-authority.js';
 
 function fixture() {
@@ -121,6 +122,54 @@ test('font selection stays exact File inventory and font policy is domain-owned'
   f.fonts[0]={...f.files.fontFile};
   assert.throws(()=>f.commit([edit('audio',0,'title','Refused')],'force'),
     /EXTERNAL_DOMAIN_INVENTORY_CHANGED/);
+});
+
+test('a replaced same-looking font File permits only a verified inventory rebind, keeping authored subtitles',()=>{
+  const f=fixture();
+  f.commit([edit('subtitle',0,'title','Authored second title')]);
+  const authored=f.session.project;
+  f.fonts[0]={...f.files.fontFile};
+  assert.throws(()=>f.commit([edit('subtitle',0,'language','eng')]),
+    /EXTERNAL_DOMAIN_INVENTORY_CHANGED/);
+  const restored=rebindLiveExternalFontInventory(f.session,f.base());
+  assert.notEqual(restored,f.session);
+  assert.notEqual(restored.project,authored);
+  assert.equal(restored.fonts[0],f.fonts[0]);
+  assert.equal(restored.rows[1].file,f.files.subtitleFile);
+  assert.equal(restored.rows[1].sidecarFile,f.files.sidecarFile);
+  assert.equal(restored.project.objects.find(x=>x.kind==='subtitle').attributes.title,
+    'Authored second title');
+  const receipt=commitLiveExternalAssetChanges(restored,{
+    ...f.base(),changes:[edit('subtitle',0,'language','eng')],
+  });
+  assert.equal(receipt.changedFields,1);
+  assert.equal(f.subtitle[0].title,'Authored second title');
+  assert.equal(f.subtitle[0].language,'eng');
+  assert.equal(authored.objects.find(x=>x.kind==='subtitle').attributes.language,'zho');
+  assert.equal(inspectLiveExternalAssets(restored,f.base()).fontInventoryCount,1);
+});
+
+test('font-only recovery rejects stale subtitle source, sidecar, editor and policy mode',()=>{
+  const testChange=(mutate,pattern)=>{
+    const f=fixture();
+    f.fonts[0]={...f.files.fontFile};
+    mutate(f);
+    assert.throws(()=>rebindLiveExternalFontInventory(f.session,f.base()),pattern);
+  };
+  testChange(f=>{f.subtitle[0].title='Uncommitted';},
+    /EXTERNAL_DOMAIN_FONT_REBIND_EDITOR_DRIFT/);
+  testChange(f=>{f.subtitle[0].file={...f.files.subtitleFile};},
+    /EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SOURCE_CHANGED/);
+  testChange(f=>{f.subtitle[0].sidecarFile={...f.files.sidecarFile};},
+    /EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SOURCE_CHANGED/);
+  testChange(f=>{f.audio[0]={...f.audio[0]};},
+    /EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SOURCE_CHANGED/);
+  const f=fixture();
+  assert.throws(()=>rebindLiveExternalFontInventory(f.session,f.base()),
+    /EXTERNAL_DOMAIN_FONT_REBIND_NOT_REQUIRED/);
+  f.fonts[0]={...f.files.fontFile};
+  assert.throws(()=>rebindLiveExternalFontInventory(f.session,f.base('force')),
+    /EXTERNAL_DOMAIN_FONT_REBIND_MODE_INVALID/);
 });
 
 test('no-op does not create revision, and 150 typed title characters are bounded',()=>{
