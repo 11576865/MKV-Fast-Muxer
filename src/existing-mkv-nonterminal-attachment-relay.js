@@ -128,6 +128,7 @@ async function sourceGeometry(source,raw,target){
  const crcDescriptor=(parent,element)=>{
    if(!element)return null;
    if(element.size!==4)throw Error('RELAY_CRC_PAYLOAD_NOT_FOUR_BYTES');
+   if(element.start!==parent.dataStart)throw Error('RELAY_CRC_MUST_BE_FIRST_CHILD');
    return {masterDataStart:parent.dataStart,masterEnd:parent.end,
      crcStart:element.start,crcEnd:element.end,crcDataStart:element.dataStart};
  };
