@@ -434,6 +434,7 @@ const batchResultUrls = createBatchResultUrlRegistry();
 let batchPlanGeneration = 0;
 let batchPlanPromise = Promise.resolve(null);
 let latestBatchPairing = null;
+let latestBatchPairingGeneration = -1;
 let activeBatchJobLedger = null;
 const batchManualAssignments = new Map();
 // Exact in-memory File references. Portable v2 proposals are untrusted and
@@ -5867,6 +5868,7 @@ async function syncBatchPlan() {
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
+  latestBatchPairingGeneration = generation;
   if(pendingBatchRecipeV2) {
     const review=reviewBatchRecipeV2(pendingBatchRecipeV2,pairing);
     const proposed=pendingBatchRecipeV2.tasks.length;
@@ -6087,6 +6089,8 @@ batchSubsetScope?.addEventListener('change', () => {
 batchRecipeExportBtn?.addEventListener('click', () => {
   if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
   try {
+    if(latestBatchPairingGeneration!==batchPlanGeneration)
+      throw Error('BATCH_RECIPE_PAIRING_STILL_INSPECTING');
     const recipe = buildBatchRecipeV2FromPairing(latestBatchPairing,{
       preserveAttachments: Boolean(batchPreserveAttachments.checked),
       subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
@@ -6147,6 +6151,8 @@ batchRecipeApplyBtn?.addEventListener('click',async()=>{
   try{
     // Re-evaluate against the latest actually scanned pairing immediately
     // before approval; no File metadata string may impersonate File permission.
+    if(latestBatchPairingGeneration!==batchPlanGeneration)
+      throw Error('RECIPE_V2_PAIRING_STILL_INSPECTING');
     const review=reviewBatchRecipeV2(pendingBatchRecipeV2,latestBatchPairing);
     if(!review.ready)throw Error(review.issues.join('；')||'RECIPE_V2_REVIEW_NOT_READY');
     batchTaskOverrides=approveBatchRecipeV2(review,latestBatchPairing);
