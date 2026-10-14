@@ -127,6 +127,13 @@ export async function inspectMatroskaPreservation(file) {
       at = item.end;
     }
     if (!segment) throw Error('未找到 Segment');
+    // A finite first Segment is not the whole file if extra bytes follow it.
+    // A later Segment, Void or unparsed tail could contain structures that
+    // the FFmpeg remux silently drops. Do not report NO_KNOWN_HAZARD for it.
+    // Unknown-sized Segments retain their existing bounded scan behavior.
+    if (segment.end !== null && segment.end < file.size) {
+      throw Error('首个 Segment 后存在未检查的数据或额外 Segment');
+    }
     const issues = new Set();
     const warnings = new Set();
     const segmentEnd = segment.end ?? file.size;
