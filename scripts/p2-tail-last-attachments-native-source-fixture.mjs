@@ -61,9 +61,41 @@ function exactVoid(length){
   }
   throw Error('TEST_TAIL_VOID_REPLACEMENT_UNENCODABLE');
 }
-exactVoid(oldSize).copy(bytes,old.at);
-// Repair all SeekHead SeekPosition fields which actually point to Attachments.
-let touched=0,voidedUnrepresentableSeek=0;
+// A chained SeekHead is valid Matroska, and is required for native tools
+// that discover Attachments through SeekHead rather than scanning tail bytes.
+// The old SeekHead points to the SAME original absolute slot, now occupied
+// by a relay SeekHead. The relay points to relocated tail Attachments. Unlike
+// the earlier attempt, no invalid/broken Seek entry or truncated position
+// remains, even if MKVToolNix originally encoded the index in one byte.
+function uintBytes(n,width){
+ let b=BigInt(n);
+ if(b<0n||b>=(1n<<BigInt(width*8)))throw Error('TEST_TAIL_SEEK_UINTEGER_OVERFLOW');
+ const out=Buffer.alloc(width);
+ for(let i=width-1;i>=0;i--){out[i]=Number(b&255n);b>>=8n;}
+ return out;
+}
+function element(idHex,payload){
+ const idBytes=Buffer.from(idHex,'hex');
+ let width=1;
+ while(BigInt(payload.length)>=(1n<<BigInt(width*7))-1n)width++;
+ return Buffer.concat([idBytes,sizeVint(payload.length,width),payload]);
+}
+function relaySeekHead(span,offset){
+ const newEntry=element('4DBB',Buffer.concat([
+   element('53AB',Buffer.from([0x19,0x41,0xa4,0x69])),
+   element('53AC',uintBytes(offset,8)),
+ ]));
+ for(let w=1;w<=8;w++){
+   const contentSize=span-4-w;
+   const filler=contentSize-newEntry.length;
+   if(filler<2||BigInt(contentSize)>=(1n<<BigInt(w*7))-1n)continue;
+   const constructed=Buffer.concat([Buffer.from('114D9B74','hex'),
+     sizeVint(contentSize,w),newEntry,exactVoid(filler)]);
+   if(constructed.length===span)return constructed;
+ }
+ throw Error('TEST_TAIL_ORIGINAL_ATTACHMENTS_SLOT_TOO_SMALL_FOR_RELAY_SEEKHEAD');
+}
+let redirectedSeekheadEntries=0;
 for(const head of nodes.filter(x=>x.id===ids.seekhead)){
  const seekChildren=children(head.dataStart,head.end);
  if(seekChildren.some(x=>x.id===0xbf))throw Error('TEST_TAIL_SEEKHEAD_CRC_UNSUPPORTED');
@@ -74,22 +106,21 @@ for(const head of nodes.filter(x=>x.id===ids.seekhead)){
   if(!identity||!pos)continue;
   const rawId=bytes.subarray(identity.dataStart,identity.end);
   if(rawId.length!==4||!rawId.equals(Buffer.from([0x19,0x41,0xa4,0x69])))continue;
-  const capacity=pos.end-pos.dataStart;
-  let v=BigInt(appendRelative);
-  if(v>=(1n<<BigInt(capacity*8))){
-    // SeekHead entries are optional indexes; never write an unrepresentable
-    // offset or leave a stale pointer to the old (now Void) slot. Replacing
-    // ONLY this whole invalid Seek child with a same-length universal Void
-    // preserves SeekHead size and all other original element offsets.
-    // This is test-fixture preparation, not a product writer capability.
-    exactVoid(entry.end-entry.at).copy(bytes,entry.at);
-    voidedUnrepresentableSeek++;
-    continue;
-  }
-  for(let i=pos.end-1;i>=pos.dataStart;i--){bytes[i]=Number(v&255n);v>>=8n;}
-  touched++;
+  const oldRelative=old.at-segment.dataStart;
+  let recordedPosition=0n;
+  for(const b of bytes.subarray(pos.dataStart,pos.end))
+    recordedPosition=(recordedPosition<<8n)|BigInt(b);
+  if(recordedPosition!==BigInt(oldRelative))
+    throw Error('TEST_TAIL_ORIGINAL_ATTACHMENTS_SEEK_TARGET_MISMATCH');
+  // Keep original narrow SeekPosition, since the relay occupies precisely
+  // its old target position; change only its SeekID to SeekHead.
+  Buffer.from([0x11,0x4d,0x9b,0x74]).copy(bytes,identity.dataStart);
+  redirectedSeekheadEntries++;
  }
 }
+if(redirectedSeekheadEntries===0)
+ throw Error('TEST_TAIL_ORIGINAL_ATTACHMENTS_SEEKHEAD_ENTRY_REQUIRED');
+relaySeekHead(oldSize,appendRelative).copy(bytes,old.at);
 sizeVint(segment.size+oldSize,segment.width).copy(bytes,segment.sizeStart);
 const output=Buffer.concat([bytes,tailBytes]);
 if(output.length!==src.length+oldSize)
@@ -109,7 +140,7 @@ await fs.writeFile(destinationPath,output);
 console.log(JSON.stringify({
  verdict:'TEST_ONLY_MKVTOOLNIX_SOURCE_TAIL_PREPARED_NATIVE_VALIDATION_PENDING',
  oldAttachmentsBytes:oldSize,finalAttachmentsOffset:bytes.length,
- seekEntriesRetargeted:touched,unrepresentableAttachmentSeekEntriesReplacedWithSameLengthVoid:voidedUnrepresentableSeek,attachments:inventory.attachments.map(x=>({
+ oldSeekheadEntriesRedirectedToSameOffsetRelay:redirectedSeekheadEntries,relaySeeksFinalAttachments:true,attachments:inventory.attachments.map(x=>({
    uid:x.fileUid,name:x.filename,length:x.byteLength,
  })),
  originalProtectedTopLevelOffsetsPreserved:true,
