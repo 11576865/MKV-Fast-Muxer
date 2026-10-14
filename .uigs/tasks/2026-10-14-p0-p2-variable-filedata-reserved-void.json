@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "2026-10-14-p0-p2-variable-filedata-reserved-void",
-  "status": "submitted-pending-exact-head-full-node-vite-chromium-and-native-audit",
+  "status": "merged-and-exact-head-independently-audited",
   "base": "main@1f8dcefa7c05b4752399d7160b65392612e78b05",
   "branch": "feat/p0-p2-variable-filedata-reserved-void-20261014",
   "goal": "Ship a functional reviewed browser operator that resizes the FileData of an existing unreferenced Matroska attachment strictly inside an adjacent EBML Void, retaining all original non-target bytes and offsets.",
@@ -23,11 +23,13 @@
     "Only after exact-head green merge one complete block, not a sequence of partial PRs"
   ],
   "validation": {
-    "node": "pending",
-    "vite": "pending",
-    "chromium": "pending",
-    "native_mkvtoolnix": "pending",
-    "general_ebml_writer": "not_proven_keep_blocked"
+    "node": "passed_542_of_542_full_suite_at_head_bfa1be0",
+    "vite": "passed_at_head_bfa1be0",
+    "chromium": "passed_full_E2E_run_38551049217",
+    "native_mkvtoolnix": "passed_independently_native_chapters_tags_attachment_UID_FileData_ffprobe_packet_sha256",
+    "general_ebml_writer": "not_proven_keep_blocked",
+    "source_protection": "passed_source_hash_and_unchanged_structures",
+    "head_sha": "bfa1be00b670c92bd572b73957c4a1191a06c53c"
   },
   "limitations": [
     "<=60MiB source <=4MiB payload",
@@ -37,9 +39,13 @@
     "no general arbitrary resize, no no-Void writer and no player compatibility claim"
   ],
   "next": [
-    "Inspect exact-head CI failures and correct first confirmed cause without weakened tests.",
-    "Merge only after actual Chromium downloaded MKV and independent XML/UID/media packet proof.",
-    "Then address truly variable parent/Segment size, UID target rewrite and CRC/SeekHead/Cues refactoring as another whole product block."
+    "Next cohesive P0/P2 block: truly resize EBML parent masters and Segment and repair seek/cue indices, CRC coverage, linked UID semantics using independently audited output writer, without FFmpeg remux shortcuts.",
+    "Expand source corpus to multiple independently authored MKV layouts, CRC and unknown-element fail-closed tests, >60 MiB bounded streaming design and cross-device player acceptance.",
+    "Do not market adjacent Void path as ordinary no-Void variable-length existing-container editing; current writer uses existing local capacity and preserves all external offsets by construction."
   ],
-  "date": "2026-10-14"
+  "date": "2026-10-14",
+  "pull_request": 137,
+  "merge_commit": "2e56a856f2dc2f58c291e532cb251833b3f54b91",
+  "root_cause_closed": "Chromium UI refresh incorrectly called current(source, substitute, epoch, row.fileUid) despite its targetUid-before-epoch signature; fixed to current(source, substitute, row.fileUid, epoch), while keeping sha256 and fail-closed selection gates. Full CI #38551049217 proven after fix.",
+  "updated_at": "2026-10-14"
 }
