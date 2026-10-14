@@ -110,14 +110,15 @@ def prepare(src, dst):
         raw_fields.append(old_header+encode_size(len(old_payload)-12,
            field['size_width'])+old_payload[:-12])
     new_body=b''.join(raw_fields)
-    new_child_data=new_body+crc_element(new_body)
+    # RFC 8794: CRC-32 MUST be the FIRST ordered child in a Master.
+    new_child_data=crc_element(new_body)+new_body
     new_child=(data[target['start']:target['size_pos']]+
         encode_size(len(new_child_data),target['size_width'])+new_child_data)
     if len(new_child)!=target['end']-target['start']-6:
         raise ValueError("ORACLE_CHILD_SIZE_DELTA_WRONG")
     prefix=data[master['data_start']:target['start']]
-    new_master_data=prefix+new_child
-    new_master_data+=crc_element(new_master_data)
+    master_without_crc=prefix+new_child
+    new_master_data=crc_element(master_without_crc)+master_without_crc
     if len(new_master_data)!=master['end']-master['data_start']:
         raise ValueError("ORACLE_PARENT_BYTE_SPAN_CHANGED")
     output=(data[:master['data_start']]+new_master_data+data[master['end']:])
@@ -133,6 +134,8 @@ def verify_master_crc(data, master, label):
     if len(crcs)!=1 or crcs[0]['size']!=4:
         raise ValueError("ORACLE_EXPECTS_ONE_"+label+"_CRC32")
     crc=crcs[0]
+    if crc['start']!=master['data_start']:
+        raise ValueError("ORACLE_"+label+"_CRC_MUST_BE_FIRST_CHILD")
     expected=zlib.crc32(
         data[master['data_start']:crc['start']]+data[crc['end']:master['end']]
     ) & 0xffffffff
