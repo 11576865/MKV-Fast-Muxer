@@ -4592,6 +4592,7 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
           reviewed:document.querySelector('#existingMkvReservedVoidReview')?.checked,
           controlsDisabled:document.querySelector('#existingMkvReservedVoidPrepare')?.disabled,
           blockedReason:document.querySelector('#existingMkvReservedVoidPrepare')?.dataset.blockReason,
+          guardDiagnostic:document.querySelector('#existingMkvReservedVoidPrepare')?.dataset.guardDiagnostic,
           status:document.querySelector('#existingMkvReservedVoidStatus')?.textContent,
           inventory:document.querySelector('#existingMkvReservedVoidInventory')?.textContent,
           options:[...target.options].map(x=>({uid:x.value,disabled:x.disabled}))};
