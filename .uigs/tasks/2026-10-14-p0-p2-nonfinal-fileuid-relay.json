@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-14-p0-p2-nonfinal-fileuid-relay",
+  "status": "full-block-submitted-CI-pending",
+  "branch": "feat/p0-p2-nonfinal-attachment-target-20261014",
+  "goal": "Enable non-last original AttachedFile FileData resize within verified nonterminal Attachments relay writer, without compromising any later UID-linked attachment, protected original top-level byte, or source-bound file permissions.",
+  "scope": [
+    "Match any original candidate AttachedFile by exact inspected FileData byte offset and old length",
+    "Only one original nonterminal Attachments with accurate direct SeekHead, enough relay source span and fixed SIZE VINT width",
+    "Audit each relocated FileData byte offset accounting for requested delta if after selected payload; validate all original UID/metadata and untouched FileData SHA",
+    "Refuse target TagAttachmentUID relationship, CRC inside affected parent/selected child, unknown direct fields, malformed FileData, stale File selection",
+    "Original native three-attachment test with Tag targeting first, middle free target and last free downstream; assert independent native FileData/chapter/tag/UID/packet parity"
+  ],
+  "validation": {
+    "node": "pending",
+    "vite": "pending",
+    "fullChromium": "pending",
+    "nativeOriginalThreeAttachment": "pending",
+    "generalWriter": "not_implemented"
+  },
+  "next": [
+    "Run exact-head Node + full browser, inspect failing conditions and repair without weakening protected source constraints.",
+    "After fully independently proven artifact, merge one complete P0/P2-N2 block.",
+    "Do not claim UID retarget, general SeekHead repair, arbitrary EBML CRC rewrite or large-file streaming."
+  ],
+  "date": "2026-10-14"
+}

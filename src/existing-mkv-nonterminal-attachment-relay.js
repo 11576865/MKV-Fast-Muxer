@@ -124,16 +124,25 @@ async function sourceGeometry(source,raw,target){
  if(rows.some(x=>x.id!==ID.attached&&x.id!==ID.void))
    throw Error('RELAY_UNKNOWN_ATTACHMENTS_CHILD');
  const attached=rows.filter(x=>x.id===ID.attached);
- const last=attached.at(-1);
- if(!last||rows.at(-1)!==last)throw Error('RELAY_FINAL_ATTACHEDFILE_REQUIRED');
- const fields=await children(source,last.dataStart,last.end);
- if(fields.some(x=>x.id===ID.crc))throw Error('RELAY_ATTACHEDFILE_CRC_BLOCKED');
- if(fields.some(x=>!ATTACHED_FIELDS.has(x.id)))
-   throw Error('RELAY_UNKNOWN_ATTACHEDFILE_CHILD');
- const data=fields.filter(x=>x.id===ID.data);
- if(data.length!==1||data[0].dataStart!==target.dataRange.offset||
-    data[0].size!==target.byteLength)
-   throw Error('RELAY_TARGET_NOT_FINAL_FILEDATA');
+ if(!attached.length)throw Error('RELAY_ATTACHEDFILE_REQUIRED');
+ // Select by the REAL FileData byte span, not by ordinal position or name.
+ // Resizing an earlier AttachedFile moves later attachment bytes only WITHIN
+ // the newly appended master. No original source top-level offsets move.
+ const matches=[];
+ for(const member of attached){
+   const fields=await children(source,member.dataStart,member.end);
+   const candidates=fields.filter(x=>x.id===ID.data);
+   if(candidates.length!==1)throw Error('RELAY_AMBIGUOUS_ATTACHED_FILEDATA');
+   if(candidates[0].dataStart===target.dataRange.offset &&
+      candidates[0].size===target.byteLength){
+     if(fields.some(x=>x.id===ID.crc))throw Error('RELAY_ATTACHEDFILE_CRC_BLOCKED');
+     if(fields.some(x=>!ATTACHED_FIELDS.has(x.id)))
+       throw Error('RELAY_UNKNOWN_ATTACHEDFILE_CHILD');
+     matches.push({member,data:candidates[0],ordinal:attached.indexOf(member)});
+   }
+ }
+ if(matches.length!==1)throw Error('RELAY_TARGET_FILEDATA_NOT_UNIQUE');
+ const selected=matches[0];
  const seekPatches=[];
  let recognized=0;
  for(const seekhead of nodes.filter(x=>x.id===ID.seekHead)){
@@ -166,7 +175,7 @@ async function sourceGeometry(source,raw,target){
   }
  }
  if(!recognized)throw Error('RELAY_ATTACHMENTS_SEEK_ENTRY_REQUIRED');
- return {seg,nodes,master,attached:last,data:data[0],seekPatches,recognized};
+ return {seg,nodes,master,attached:selected.member,data:selected.data,seekPatches,recognized,selectedOrdinal:selected.ordinal,totalAttached:attached.length};
 }
 export async function prepareNonterminalAttachmentRelay({
  source,replacement,targetFileUid,approveRelocation=false,
@@ -224,6 +233,9 @@ export async function prepareNonterminalAttachmentRelay({
     originalAttachmentsBytes:geometry.master.end-geometry.master.start,
     appendedAttachmentsOffset:source.size,appendedAttachmentsBytes:appendedBytes,
     seekEntriesRedirected:geometry.recognized,
+    selectedAttachmentIndex:geometry.selectedOrdinal,
+    originalAttachmentCount:geometry.totalAttached,
+    laterAttachmentDataOffsetsRelocatedByDelta:geometry.selectedOrdinal<geometry.totalAttached-1,
     originalProtectedOffsetsStayFixed:true,seekheadRelayAtOriginalMaster:true},
   evidence:{sourceSha256:sourceSha,oldFileDataSha256:oldSha,newFileDataSha256:nextSha,
     sourceGraph:'observed-and-unreferenced',generalWriter:false},
@@ -292,6 +304,11 @@ export async function executeNonterminalAttachmentRelay(plan){
   if(!old||row.filename!==old.filename||row.mimeType!==old.mimeType||
       row.description!==old.description||row.id!==old.id)
    throw Error('RELAY_UNEXPECTED_ATTACHMENT_METADATA_DELTA');
+  const originalAttachmentOffset=source.size-g.master.start;
+  const expectedOffset=old.dataRange.offset+originalAttachmentOffset+
+    (old.dataRange.offset>target.dataRange.offset?delta:0);
+  if(row.dataRange.offset!==expectedOffset)
+    throw Error('RELAY_ATTACHMENT_RELOCATED_OFFSET_NOT_ACCOUNTED');
   if(row.fileUid===target.fileUid){
    if(row.byteLength!==replacement.size)throw Error('RELAY_TARGET_LENGTH_INVALID');
   }else if(row.byteLength!==old.byteLength)
@@ -321,6 +338,8 @@ export async function executeNonterminalAttachmentRelay(plan){
    sourceUnmodified:true,originalProtectedTopLevelOffsetsUnchanged:true,
    originalProtectedMediaTagsChaptersCuesUnchanged:true,
    originalAttachedUIDsAndOtherDataVerified:true,
+   laterAttachmentOffsetsAccountedForDelta:true,
+   selectedAttachmentIndex:plan.geometry.selectedAttachmentIndex,
    chainedSeekHeadAtOldAttachmentOffset:true,
    originalAttachmentIndexRedirected:plan.geometry.seekEntriesRedirected,
    generalWriter:false,externalNativeAudit:false,
