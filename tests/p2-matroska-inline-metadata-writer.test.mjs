@@ -24,7 +24,7 @@ function fixture({crc=false,segmentCrc=false,unknownTop=false,invalid=false,unkn
  ))));
  const tags=e('1254C367',e('7373',concat(
   e('63C0',e('63C4',Buffer.from([2]))),
-  e('67C8',concat(e('45A3',v('TITLE')),e('4487',v(invalid?'bad\u0000data':'Before ABC')))),
+  e('67C8',concat(e('45A3',v('TITLE')),e('4487',invalid?Buffer.from([0xff]):v('Before ABC')))),
   ...(crc?[e('BF',Buffer.alloc(4))]:[]),
  )));
  const info=e('1549A966',e('2AD7B1',Buffer.from([15,66,64])));
@@ -86,7 +86,7 @@ test('CRC in the touched metadata ancestor, CRC in Segment, unknown top-level an
  await assert.rejects(inspectEditableMatroskaMetadataText(fixture({unknownSize:true})),
   /RAW_SOURCE_UNVERIFIED/);
  await assert.rejects(inspectEditableMatroskaMetadataText(fixture({invalid:true})),
-  /TEXT_FIELD_COUNT|INVALID_UTF8_SOURCE|RAW_SOURCE_UNVERIFIED/).catch(()=>{});
+  /INVALID_UTF8_SOURCE/);
 });
 test('no unauthorized second execution, forged JSON plan or mutation of original source',async()=>{
  const src=fixture(),field=(await inspectEditableMatroskaMetadataText(src)).fields[0];
