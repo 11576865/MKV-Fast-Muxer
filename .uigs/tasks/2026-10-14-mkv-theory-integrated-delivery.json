@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1 verified scanned source audio/subtitle track-order permutations: exported kind-local slot deltas, full source SHA/old-value/inventory checks and atomic sparse-order replay/undo together with attachments",
+  "current_work_unit": "P1 bounded source-neutral external resource ContainerProject owner: real external audio/subtitle metadata, font mode/inventory, exact File binding and legacy mux projection",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -52,37 +52,50 @@
     "Updated real UI export status and restore consent for conditional SHA-verified full-kind order recovery, missing-hash refusal and excluded-peer guard.",
     "Added Node tests for audio index1+6 sparse-order restoration with attachment index4, mixed property and attachment atomicity, malicious slots, exclude and stale order/stream conflicts.",
     "Added Chromium actual MKV scenario for reorder+title export/reset/inert JSON import/whole-file SHA verify/explicit apply/undo/reapply/output and independent ffprobe track-title order.",
-    "Ran isolated real source project/restore modules through strict JSON parse, mixed 2-track+1-attachment sparse reorder, commit and undo; static JS syntax checks passed. Full exact-head CI Pending."
+    "Ran isolated real source project/restore modules through strict JSON parse, mixed 2-track+1-attachment sparse reorder, commit and undo; static JS syntax checks passed. Full exact-head CI Pending.",
+    "PR #132 repaired exact head 513a0535cf51f7cf231a50f06f9f743d3011786a completed both Browser E2E mux tests and Deploy GitHub Actions SUCCESS; merged to main@bf75e797700a2f0e14a90a63898e096a94c2ffe8.",
+    "Implemented a source-neutral, immutable ContainerProject domain session for external audio title/language/default/original/commentary/hearingImpaired and new subtitle title/language/default/forced/original/commentary/hearingImpaired; actual File and sidecar objects stay in verified session executor bindings.",
+    "Represented selected font File identities as read-only source-bound attachment objects and the existing preserve/force font handling mode as a domain metadata policy; no font byte editor, output authorization or UID mutation added.",
+    "Migrated old external audio/subtitle form input/change and asynchronous DOM capture onto one typed domain mutation command; bulk clear-Default and font-mode toggle use the same domain authority.",
+    "Fixed same-name/same-size/mtime File re-selection metadata inheritance by requiring identical File and subtitle sidecar reference; introduced UI selection-authority epoch to prevent stale prior selection forms writing values into a new File.",
+    "Added strict external domain/executor/File coherence check to single-task mux before the original FFmpeg writer handoff; independent frozen batch JobPlan remains unaffected.",
+    "Added extensive Node regressions for two-resource atomic commits, invalid field no-op rollback, old authoring bypass, File/sidecar/format identity drift, font mode, 150 input revisions, no-resource candidate and rebind.",
+    "Added real Chromium MKV scenario with external FLAC, ASS, TTF, metadata/flags, exact-same-metadata File replacement and independent final-MKV ffprobe audit.",
+    "Ran actual module smoke with audio/subtitle domain writes, font-mode transition, bad batch rejection, 125 title revisions and exact File identity refusal; changed JS syntax checks PASS."
   ],
   "next_units": [
-    "Submit one integrated PR for P1 source order recovery and inspect exact-head Node/build/Chromium in a follow-up; fix only concrete failures in bounded batches and merge when actually green.",
-    "Extend ContainerProject single domain ownership to external audio/subtitle/font and source-neutral resource-only plans, each with explicit writer capability and independent output evidence.",
-    "Implement full batch recipe v2 independent JobPlan, recoverable queue and per-output inspect/audit with background-safe source rebind.",
-    "Address Matroska P0 #77 nested Chapter/targeted Tag and AttachmentUID relation preservation using independent raw EBML oracle, not extending FFmpeg writer blindly.",
-    "Complete actual tablet/desktop device acceptance, sustained large-media and large-batch performance evidence."
+    "Submit external resource domain PR direct-to-main; observe one exact-head Node/Vite/real Chromium cycle later and fix only documented failures in a bounded revision.",
+    "Join source-bound and external domain object graphs into a single overall ContainerProject transaction only after explicit cross-surface identity, delivery and undo contract is established.",
+    "Implement and verify Batch Recipe v2 per-output frozen JobPlan with distinct source rebind and copy-safe queue evidence.",
+    "Continue source-neutral resource-only Matroska capability analysis with independent writer output oracle; do not imply video-rooted browser writer handles resource-only files.",
+    "Investigate and resolve Matroska P0 #77 Chapter/targeted Tag/AttachmentUID graph preservation before extending general write permission.",
+    "Complete actual desktop/tablet acceptance and sustained workload/performance evidence."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
-  "branch": "feat/p1-verified-source-track-order-replay-20261014",
+  "branch": "feat/p1-external-assets-live-domain-20261014",
   "pull_request": null,
-  "last_durable_commit": "115ac331eb66608dd65a9ab574ca82e122bbc2b6",
+  "last_durable_commit": "daa81ebdea555d4b56527678d61b4316637d5b86",
   "external_validation": {
     "pr130-browser-build": "passed",
-    "pr130-main-merge": "passed",
+    "pr130-merged-main": "passed",
     "pr131-browser-build": "passed",
-    "pr131-main-merge": "passed",
-    "p1-order-replay-real-module-smoke": "passed",
-    "p1-order-replay-js-syntax": "passed",
-    "p1-order-replay-node": "pending",
-    "p1-order-replay-build": "pending",
-    "p1-order-replay-chromium": "pending",
-    "cross-player-complex-ebml": "unknown",
-    "actual-device": "unknown"
+    "pr131-merged-main": "passed",
+    "pr132-fixed-exact-head-browser-build": "passed",
+    "pr132-merged-main": "passed",
+    "p1-external-domain-isolated-module-smoke": "passed",
+    "p1-external-domain-static-js": "passed",
+    "p1-external-domain-exact-head-node": "pending",
+    "p1-external-domain-exact-head-build": "pending",
+    "p1-external-domain-exact-head-browser": "pending",
+    "actual-device": "unknown",
+    "resource-only-writer": "not-supported"
   },
   "blockers": [
-    "New PR exact-head Node/build/Chromium for source-order replay not yet run at current HEAD.",
-    "Source ordering recovery deliberately refuses any excluded source track within reordered kind; user UI explicitly warns.",
-    "Complex nested Chapter/targeted Tag remux and AttachmentUID/EBML structure graph #77 still unresolved; no generic writer certification.",
-    "External asset state/batch recipes/source-neutral output, OPFS recovery and real device/performance evidence are future scope."
+    "Full Node/build/Chromium exact-head validation of the new live external resource owner not yet observed.",
+    "External assets are a separate bounded source-neutral domain session, not an all-in-one atomic transaction with scanned source MKV objects; browser File permissions cannot be serialized.",
+    "Resource-only plans are still non-executable in current video-rooted browser writer; independent audio/subtitle/font content delivery audits unchanged.",
+    "Matroska #77 complex Chapters/targeted Tags/AttachmentUID and unknown EBML preservation unresolved.",
+    "Batch recipe v2, OPFS and real desktop/tablet acceptance remain separate tasks."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
@@ -93,7 +106,8 @@
     "This branch is stacked on PR128 head, avoiding parallel modifications to stale main and preventing repeating PR128's full CI while developing future functionality.",
     "Preserve the existing validated mux/writer path. Do not imply domain-level attachment edits are standalone safe media writes; independent final ffprobe and raw EBML/UID gates remain separate.",
     "Restoration uses the existing untrusted JSON boundary; File SHA match is comparison evidence, not authorship. Full track+attachment mutation is protected by exact old-state validation immediately before synchronous commit.",
-    "No separate writer or file permission: restored domain permutation only changes existing FFmpeg-facing trackState.order after all verified source and old-state gates pass. Current numeric multiset of same-kind order values is retained."
+    "No separate writer or file permission: restored domain permutation only changes existing FFmpeg-facing trackState.order after all verified source and old-state gates pass. Current numeric multiset of same-kind order values is retained.",
+    "Precise promise: external audio/subtitle metadata and preserve/force font policy author via immutable project revisions, with exact File grants in session only. Font inventory objects are not a new font-edit capability. Independent frozen batch processing is not modified by this UI migration."
   ],
   "updated_at": "2026-10-14"
 }
