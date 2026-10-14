@@ -52,7 +52,7 @@ export function mountSoftmux1014Workbench(doc = document) {
           '<p class="sf14-empty" id="sf14CompositionEmpty">添加资源后，在此检查将要生成的 Matroska 容器。来源列表不会成为第二个编辑器。</p>',
         '</div></section>',
       '<section class="sf14-pane sf14-inspector" aria-label="选中对象检查器">',
-        '<header class="sf14-pane-head"><strong>当前对象</strong><span>检查与编辑</span><button id="sf14BackToComposition" type="button">返回拟输出</button></header>',
+        '<header class="sf14-pane-head"><strong>对象检查器</strong><span>检查与编辑</span><button id="sf14BackToComposition" type="button">返回拟输出</button></header>',
         '<div id="sf14Inspector" class="sf14-pane-body"></div></section>',
     '</div>',
     '<section class="sf14-output" aria-label="执行、检查与成品">',
@@ -167,8 +167,9 @@ export function mountSoftmux1014Workbench(doc = document) {
   get(doc,'sf14BackToComposition')?.addEventListener('click', () => setFocus('composition'));
   get(doc,'assetInventory')?.addEventListener('click', event => {
     if (!doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) return;
-    if (event.target.closest('[data-tree-select], [data-asset-focus-key]')) {
-      if (optionsDrawer) optionsDrawer.open = true;
+    const external = event.target.closest('[data-asset-focus-key]');
+    if (external && optionsDrawer) optionsDrawer.open = true;
+    if (external || event.target.closest('[data-tree-select]')) {
       setFocus('inspector');
     }
   });
@@ -179,8 +180,13 @@ export function mountSoftmux1014Workbench(doc = document) {
     sourceToggle.setAttribute('aria-expanded', String(show));
   });
   composition.addEventListener('click', event => {
-    if (!event.target.closest('button[data-composition-id]')) return;
-    if (optionsDrawer) optionsDrawer.open = true;
+    const target = event.target.closest('button[data-composition-id]');
+    if (!target) return;
+    // Source tracks already have a contextual inspector. The legacy bulk
+    // editor is supplementary, and must not duplicate that object by default.
+    if (optionsDrawer && !String(target.dataset.compositionId||'').startsWith('source:')) {
+      optionsDrawer.open = true;
+    }
     if (doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) setFocus('inspector');
   });
 
