@@ -1794,3 +1794,35 @@ body { background: var(--bg); }
   overflow-wrap: anywhere;
 }
 #containerProjectHashCancelBtn { flex: 0 0 auto; }
+
+
+/* Batch Recipe v2 is a review surface, never a second editable task list. */
+#batchRecipeV2Review {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+#batchRecipeV2Review > summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+#batchRecipeV2ReviewItems {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.batch-recipe-v2-review-job {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.batch-recipe-v2-review-job strong { font-size: .8rem; }
+.batch-recipe-v2-review-job .track-meta { white-space: normal; }
