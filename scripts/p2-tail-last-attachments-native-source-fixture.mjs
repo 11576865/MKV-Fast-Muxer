@@ -51,21 +51,19 @@ if(originals.length!==1)throw Error('TEST_TAIL_ONE_ATTACHMENTS_MASTER_REQUIRED')
 const old=originals[0],appendRelative=bytes.length-segment.dataStart;
 const tailBytes=Buffer.from(bytes.subarray(old.at,old.end));
 const oldSize=old.end-old.at;
-// Write a valid same-total-byte-length Segment-level Void in the old slot.
-let voidReplacement=null;
-for(let width=1;width<=8;width++){
- const payloadBytes=oldSize-1-width;
- if(payloadBytes>=0&&BigInt(payloadBytes)<(1n<<BigInt(width*7))-1n){
-  voidReplacement=Buffer.concat([Buffer.from([0xec]),
-    sizeVint(payloadBytes,width),Buffer.alloc(payloadBytes)]);
-  break;
- }
+// Test-only same-span void never shifts a pre-existing protected sibling.
+function exactVoid(length){
+  for(let width=1;width<=8;width++){
+    const n=length-1-width;
+    if(n>=0&&BigInt(n)<(1n<<BigInt(width*7))-1n){
+      return Buffer.concat([Buffer.from([0xec]),sizeVint(n,width),Buffer.alloc(n)]);
+    }
+  }
+  throw Error('TEST_TAIL_VOID_REPLACEMENT_UNENCODABLE');
 }
-if(!voidReplacement||voidReplacement.length!==oldSize)
- throw Error('TEST_TAIL_VOID_REPLACEMENT_UNENCODABLE');
-voidReplacement.copy(bytes,old.at);
+exactVoid(oldSize).copy(bytes,old.at);
 // Repair all SeekHead SeekPosition fields which actually point to Attachments.
-let touched=0;
+let touched=0,voidedUnrepresentableSeek=0;
 for(const head of nodes.filter(x=>x.id===ids.seekhead)){
  const seekChildren=children(head.dataStart,head.end);
  if(seekChildren.some(x=>x.id===0xbf))throw Error('TEST_TAIL_SEEKHEAD_CRC_UNSUPPORTED');
@@ -78,7 +76,16 @@ for(const head of nodes.filter(x=>x.id===ids.seekhead)){
   if(rawId.length!==4||!rawId.equals(Buffer.from([0x19,0x41,0xa4,0x69])))continue;
   const capacity=pos.end-pos.dataStart;
   let v=BigInt(appendRelative);
-  if(v>=(1n<<BigInt(capacity*8)))throw Error('TEST_TAIL_SEEKPOSITION_OVERFLOW');
+  if(v>=(1n<<BigInt(capacity*8))){
+    // SeekHead entries are optional indexes; never write an unrepresentable
+    // offset or leave a stale pointer to the old (now Void) slot. Replacing
+    // ONLY this whole invalid Seek child with a same-length universal Void
+    // preserves SeekHead size and all other original element offsets.
+    // This is test-fixture preparation, not a product writer capability.
+    exactVoid(entry.end-entry.at).copy(bytes,entry.at);
+    voidedUnrepresentableSeek++;
+    continue;
+  }
   for(let i=pos.end-1;i>=pos.dataStart;i--){bytes[i]=Number(v&255n);v>>=8n;}
   touched++;
  }
@@ -102,7 +109,7 @@ await fs.writeFile(destinationPath,output);
 console.log(JSON.stringify({
  verdict:'TEST_ONLY_MKVTOOLNIX_SOURCE_TAIL_PREPARED_NATIVE_VALIDATION_PENDING',
  oldAttachmentsBytes:oldSize,finalAttachmentsOffset:bytes.length,
- seekEntriesRetargeted:touched,attachments:inventory.attachments.map(x=>({
+ seekEntriesRetargeted:touched,unrepresentableAttachmentSeekEntriesReplacedWithSameLengthVoid:voidedUnrepresentableSeek,attachments:inventory.attachments.map(x=>({
    uid:x.fileUid,name:x.filename,length:x.byteLength,
  })),
  originalProtectedTopLevelOffsetsPreserved:true,
