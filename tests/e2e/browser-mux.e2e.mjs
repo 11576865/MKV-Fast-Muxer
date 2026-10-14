@@ -4552,8 +4552,17 @@ async function scenarioNonfinalAttachedFileRelayNative(browser) {
   let before=native(original);
   assert.deepEqual(before.attachments.map(a=>a.file_name),[
     'p0-attachment-evidence.bin','p0-attachment-decoy.txt','p0-following-fixed.bin']);
-  const referenceUid=before.attachments[0]?.properties?.uid;
-  assert.ok(referenceUid);
+  // FileUID is uint64, frequently beyond Number.MAX_SAFE_INTEGER.
+  // JSON.parse(mkvmerge -J) would silently round the real UID and author an
+  // orphan AttachmentUID Tag that LOOKS correct but targets no real file.
+  // Obtain exact decimal digits with Python's arbitrary-precision JSON int.
+  const referenceUid=execFileSync('python3',[
+    '-c',
+    'import json,subprocess,sys; data=json.loads(subprocess.check_output(["mkvmerge","-J",sys.argv[1]],text=True)); print(data["attachments"][0]["properties"]["uid"])',
+    original,
+  ],{encoding:'utf8',timeout:60000}).trim();
+  assert.match(referenceUid,/^[1-9][0-9]*$/,
+    'native source first attachment UID must retain exact uint64 digits');
   const tagXml=`<?xml version="1.0" encoding="UTF-8"?>
 <Tags>
   <Tag><Targets><TargetTypeValue>20</TargetTypeValue><AttachmentUID>${referenceUid}</AttachmentUID></Targets>
