@@ -1396,6 +1396,95 @@ async function scenarioExternalAssetDomainAuthority(browser) {
   }
 }
 
+async function scenarioExternalCheckpointRecoveryRealMux(browser) {
+  console.log('E2E P1 ROUND3: external JSON checkpoint -> SHA rebind -> consent -> undo -> apply -> actual MKV');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'base.mp4'));
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    const title=page.locator('#newAudioList input[data-new-audio-field="title"]').first();
+    await title.fill('R3 Restored FLAC');
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#externalCheckpointExportBtn').click(),
+    ]);
+    const exported=await download.path();
+    assert.ok(exported);
+    const draftText=await fs.readFile(exported,'utf8');
+    assert.match(draftText,/"mkv-external-metadata-checkpoint-v1"/);
+    assert.doesNotMatch(draftText,/"authorization":\s*"session"/);
+    await title.fill('R3 Current Before Restore');
+    await page.setInputFiles('#externalCheckpointImportInput',{
+      name:'checkpoint.json',mimeType:'application/json',buffer:Buffer.from(draftText),
+    });
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+    await page.locator('#externalCheckpointPrepareBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointConfirm')?.disabled===false);
+    assert.equal(await title.inputValue(),'R3 Current Before Restore');
+    await page.locator('#externalCheckpointConfirm').check();
+    await page.locator('#externalCheckpointApplyBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointStatus')?.textContent.includes('已明确应用'));
+    assert.equal(await title.inputValue(),'R3 Restored FLAC');
+    await page.locator('#externalCheckpointUndoBtn').click();
+    assert.equal(await title.inputValue(),'R3 Current Before Restore');
+    await page.locator('#externalCheckpointPrepareBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointConfirm')?.disabled===false);
+    await page.locator('#externalCheckpointConfirm').check();
+    await page.locator('#externalCheckpointApplyBtn').click();
+    assert.equal(await title.inputValue(),'R3 Restored FLAC');
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-round3-external-checkpoint-recovered.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const final=probe(output);
+    assert.equal(streams(final,'audio').at(-1).tags?.title,'R3 Restored FLAC');
+    console.log('P1 ROUND3 external checkpoint complete UI/real output/ffprobe PASS');
+  } finally { await context.close(); }
+}
+
+async function scenarioSharedContainerProjectRealMux(browser) {
+  console.log('E2E P1 ROUND2: source + external + font share ONE live ContainerProject -> real MKV');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    await page.setInputFiles('#subInput',path.join(root,'zh.ass'));
+    await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
+    await page.locator('.track-row.track-audio input[data-track-field="title"]').first()
+      .fill('R2 Original Source');
+    await page.locator('#newAudioList input[data-new-audio-field="title"]').first()
+      .fill('R2 Added Audio');
+    await page.locator('#newSubtitleList input[data-new-sub-field="title"]').first()
+      .fill('R2 Added ASS');
+    await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').first()
+      .check();
+    await page.locator('#fontMode').selectOption('force');
+    const plan=await page.locator('#muxPlan').textContent();
+    assert.match(plan,/R2 Original Source/);
+    assert.match(plan,/R2 Added Audio/);
+    assert.match(plan,/R2 Added ASS/);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-round2-shared-source-external.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const final=probe(output);
+    const audios=streams(final,'audio'), subs=streams(final,'subtitle');
+    assert.equal(audios[0].tags?.title,'R2 Original Source');
+    assert.equal(audios.at(-1).tags?.title,'R2 Added Audio');
+    // Preserve-all original subtitle order is not an identity guarantee.
+    const addedAss=subs.filter(s=>s.tags?.title==='R2 Added ASS');
+    assert.equal(addedAss.length,1,'one actual R2 authored ASS output stream');
+    assert.equal(Boolean(addedAss[0].disposition?.forced),true);
+    assert.ok(streams(final,'attachment').some(s=>
+      s.tags?.filename==='DejaVuSans.ttf'));
+    console.log('P1 ROUND2 shared-domain source + external + font actual MKV/ffprobe PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioWorkbenchEfficiency(browser) {
   console.log('E2E scenario 22: bulk include/reset controls + grouped mux plan');
   const { context, page } = await openApp(browser);
@@ -1759,11 +1848,13 @@ async function scenarioAdditionalSubtitleFormats(browser) {
   const { context, page } = await openApp(browser);
 
   try {
+    const r6Vtt = path.join(outDir, 'r6-plain-millisecond.vtt');
+    await fs.writeFile(r6Vtt, 'WEBVTT\n\ncue-one\n00:00.123 --> 00:01.456\n第一行\nsecond line\n\n00:01.000 --> 00:01.789\nOverlapping cue\n');
     await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
     await page.setInputFiles('#subInput', [
       path.join(root, 'sample.ssa'),
       path.join(root, 'sample.srt'),
-      path.join(root, 'sample.vtt'),
+      r6Vtt,
     ]);
 
     await page.waitForFunction(() => {
@@ -1802,6 +1893,33 @@ async function scenarioAdditionalSubtitleFormats(browser) {
     assert.equal(report.compatibility?.execution?.muxSucceeded, true);
     assert.equal(report.fonts.selectedCount, 0);
     assert.equal(report.audit?.ok, true, JSON.stringify(report.audit?.issues || []));
+    assert.equal(report.audit?.subripCueAudit?.status, 'pass');
+    assert.equal(report.audit.subripCueAudit.verified, 2);
+    assert.equal(report.audit.subripCueAudit.presentationVerified, false);
+    assert.equal(report.audit.subripCueAudit.playerVerified, false);
+    assert.ok((await page.locator('#outputEvidenceFacts').textContent()).includes('SRT/WebVTT 成品回读'));
+    // Independent native demux, with an explicit expected string rather than
+    // the browser audit/parser as its oracle. Preserve subsecond overlap/text.
+    const actualVttSrt = execFileSync('ffmpeg', ['-v', 'error', '-copyts', '-i', output,
+      '-map', '0:s:2', '-c:s', 'srt', '-f', 'srt', 'pipe:1'], { encoding: 'utf8' });
+    assert.equal(actualVttSrt.replace(/\r\n?/g, '\n').trimEnd(),
+      '1\n00:00:00,123 --> 00:00:01,456\n第一行\nsecond line\n\n2\n00:00:01,000 --> 00:00:01,789\nOverlapping cue');
+    // A valid WebVTT layout cue still muxes, but must never claim presentation
+    // or plain-text equivalence from the successful ffprobe track audit.
+    // This scenario uses the legacy hidden inputs. Their completed-task
+    // cleanup clears the primary media too; stage a complete second task.
+    await page.waitForFunction(() => !document.querySelector('#videoInput').disabled);
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    await page.setInputFiles('#subInput', { name: 'r6-layout.vtt', mimeType: 'text/vtt',
+      buffer: Buffer.from('WEBVTT\n\n00:00.123 --> 00:01.456 align:start\nlayout cue\n') });
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const layoutReportPath = path.join(outDir, 'r6-layout.mux-report.json');
+    await saveDownload(page, '#reportLink', layoutReportPath);
+    const layoutReport = JSON.parse(await fs.readFile(layoutReportPath, 'utf8'));
+    assert.equal(layoutReport.audit?.subripCueAudit?.status, 'unavailable');
+    assert.equal(layoutReport.audit.subripCueAudit.presentationVerified, false);
+    assert.ok((await page.locator('#outputEvidenceFacts').textContent()).includes('SRT/WebVTT 成品回读：未验证'));
     console.log('Scenario 26 PASS');
   } finally {
     await context.close();
@@ -5107,6 +5225,156 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
   }finally{await context.close();}
 }
 
+async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
+  console.log('P2 R5 native AUDIO-ONLY Matroska: UI TagString + nested ChapString byte-preserving edit');
+  const input=path.join(outDir,'p2-r5-audio-only-source.mka');
+  execFileSync('mkvmerge',['--quiet','-o',input,
+    '--chapters',path.join(root,'p0-independent-chapters.xml'),
+    path.join(root,'external.flac')],{timeout:60000});
+  execFileSync('mkvpropedit',[input,'--tags',
+    'all:'+path.join(root,'p0-independent-tags.xml')],{timeout:60000});
+  const tracks=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
+    encoding:'utf8',timeout:60000,
+  })).tracks;
+  const probePackets=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  const xml=(file,kind,prefix)=>{
+    const output=path.join(outDir,'p2-r5-'+prefix+'-'+kind+'.xml');
+    execFileSync('mkvextract',[file,kind,output],{timeout:60000});
+    return fs.readFile(output,'utf8');
+  };
+  const origChap=await xml(input,'chapters','before');
+  const origTag=await xml(input,'tags','before');
+  assert.match(origChap,/P0 nested chapter/);
+  assert.match(origTag,/linked-chapter-metadata/);
+  assert.match(origTag,/<ChapterUID>510011<\/ChapterUID>/);
+  assert.equal(tracks(input).some(x=>x.type==='video'),false);
+  const originalHash=createHash('sha256').update(await fs.readFile(input)).digest('hex');
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#p2MetadataInlineDetails > summary').click();
+    const load=async(file,marker)=>{
+      await page.setInputFiles('#p2MetadataSource',file);
+      await page.waitForFunction(value=>
+        [...document.querySelectorAll('#p2MetadataField option')]
+          .some(x=>x.textContent.includes(value)),marker,{timeout:60000});
+      const selected=await page.locator('#p2MetadataField option').evaluateAll(
+        (els,m)=>els.find(x=>x.textContent.includes(m))?.value,marker);
+      assert.ok(selected);
+      await page.locator('#p2MetadataField').selectOption(selected);
+    };
+    const save=async(expected,pathTo)=>{
+      await page.locator('#p2MetadataNewText').fill(expected);
+      assert.equal(await page.locator('#p2MetadataPrepare').isDisabled(),true);
+      await page.locator('#p2MetadataReview').check();
+      await page.locator('#p2MetadataPrepare').click();
+      await page.waitForFunction(()=>['ready','blocked'].includes(
+        document.querySelector('#p2MetadataStatus')?.dataset.state),
+        null,{timeout:120000});
+      assert.equal(await page.locator('#p2MetadataStatus').getAttribute('data-state'),
+        'ready',await page.locator('#p2MetadataStatus').textContent());
+      const [download]=await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#p2MetadataSave').click(),
+      ]);
+      await download.saveAs(pathTo);
+    };
+    await load(input,'linked-chapter-metadata');
+    const changedTag='R'.repeat('linked-chapter-metadata'.length);
+    const intermediate=path.join(outDir,'p2-r5-tag-changed.mkv');
+    await save(changedTag,intermediate);
+    await load(intermediate,'P0 nested chapter');
+    const final=path.join(outDir,'p2-r5-audio-only-chapter-tag-final.mkv');
+    await save('R5 nested chapter',final);
+    assert.equal(tracks(final).some(x=>x.type==='video'),false);
+    assert.deepEqual(tracks(final).map(x=>[x.id,x.type,x.codec,x.properties?.uid]),
+      tracks(input).map(x=>[x.id,x.type,x.codec,x.properties?.uid]));
+    assert.deepEqual(probePackets(final),probePackets(input));
+    const finalChap=await xml(final,'chapters','after');
+    const finalTag=await xml(final,'tags','after');
+    assert.equal(finalChap,origChap.replace('P0 nested chapter','R5 nested chapter'));
+    assert.equal(finalTag,origTag.replace('linked-chapter-metadata',changedTag));
+    assert.match(finalTag,/<ChapterUID>510011<\/ChapterUID>/);
+    assert.equal(createHash('sha256').update(await fs.readFile(input))
+      .digest('hex'),originalHash);
+    console.log('P2 R5 native audio-only chapters/tag output and UID/packet oracle PASS');
+  }finally{await context.close();}
+}
+
+async function scenarioRoutedExistingMkvNativeOutput(browser) {
+  console.log('P2 Round4 unified writer router: native MKV + UID risk -> one path -> independent output');
+  const source=path.join(outDir,'p2-r4-router-native-source.mkv');
+  await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),source);
+  execFileSync('mkvpropedit',[source,'--chapters',
+    path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
+  const inspect=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
+    encoding:'utf8',timeout:60000,
+  }));
+  const sourceInfo=inspect(source);
+  const tagged=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-evidence.bin');
+  const target=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-decoy.txt');
+  assert.ok(tagged&&target);
+  const original=await fs.readFile(source);
+  const originalDigest=createHash('sha256').update(original).digest('hex');
+  const originalData=await fs.readFile(path.join(root,'zh.ass'));
+  const replacement=Buffer.alloc(originalData.length,0x61);
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#existingMkvRoutedEditDetails > summary').click();
+    await page.setInputFiles('#existingMkvRoutedSource',source);
+    await page.waitForFunction(()=>
+      document.querySelector('#existingMkvRoutedTarget')?.options.length===2,
+      null,{timeout:60000});
+    const opts=await page.locator('#existingMkvRoutedTarget option').evaluateAll(
+      options=>options.map(x=>({value:x.value,text:x.textContent})));
+    const selected=opts.find(x=>x.text.includes('p0-attachment-decoy.txt'));
+    assert.ok(selected);
+    await page.locator('#existingMkvRoutedTarget').selectOption(selected.value);
+    await page.setInputFiles('#existingMkvRoutedReplacement',{
+      name:'replacement.bin',mimeType:'application/octet-stream',buffer:replacement,
+    });
+    assert.equal(await page.locator('#existingMkvRoutedPrepare').isDisabled(),true);
+    await page.locator('#existingMkvRoutedReview').check();
+    await page.locator('#existingMkvRoutedPrepare').click();
+    await page.waitForFunction(()=>['ready','blocked'].includes(
+      document.querySelector('#existingMkvRoutedStatus')?.dataset.state),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#existingMkvRoutedStatus').getAttribute('data-state'),
+      'ready',await page.locator('#existingMkvRoutedStatus').textContent());
+    assert.match(await page.locator('#existingMkvRoutedEvidence').textContent(),
+      /same-size/);
+    const output=path.join(outDir,'p2-r4-router-native-output.mkv');
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#existingMkvRoutedSave').click(),
+    ]);
+    await download.saveAs(output);
+    assert.equal(createHash('sha256').update(await fs.readFile(source))
+      .digest('hex'),originalDigest);
+    const final=inspect(output);
+    assert.deepEqual((final.tracks||[]).map(x=>[x.id,x.type,x.codec,x.properties?.uid]),
+      (sourceInfo.tracks||[]).map(x=>[x.id,x.type,x.codec,x.properties?.uid]));
+    for(const kind of ['chapters','tags']){
+      const a=path.join(outDir,'p2-r4-before-'+kind+'.xml');
+      const b=path.join(outDir,'p2-r4-after-'+kind+'.xml');
+      execFileSync('mkvextract',[source,kind,a],{timeout:60000});
+      execFileSync('mkvextract',[output,kind,b],{timeout:60000});
+      assert.deepEqual(await fs.readFile(b),await fs.readFile(a));
+    }
+    const newTarget=final.attachments.find(x=>x.file_name===target.file_name);
+    const newTagged=final.attachments.find(x=>x.file_name===tagged.file_name);
+    assert.equal(newTarget?.properties?.uid,target.properties.uid);
+    assert.equal(newTagged?.properties?.uid,tagged.properties.uid);
+    const extracted=path.join(outDir,'p2-r4-replaced-content.bin');
+    execFileSync('mkvextract',[output,'attachments',
+      String(newTarget.id)+':'+extracted],{timeout:60000});
+    assert.deepEqual(await fs.readFile(extracted),replacement);
+    console.log('P2 Round4 routed operator actual native MKV/UID/Chapter/Tag SHA PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioExistingMkvSameSizeAttachmentReplace(browser) {
   console.log('P0/P2 real browser: replace one existing unreferenced FileData, preserve tagged UID and nested Chapters');
   // This source was authored independently by MKVToolNix and already has
@@ -5563,6 +5831,8 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
+  await scenarioSharedContainerProjectRealMux(browser);
+  await scenarioExternalCheckpointRecoveryRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
@@ -5589,6 +5859,8 @@ try {
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioExistingMkvLimitedAppendReviewed(browser);
   await scenarioExistingMkvSameSizeAttachmentReplace(browser);
+  await scenarioRoutedExistingMkvNativeOutput(browser);
+  await scenarioTracklessMkaRealChapterTagTextEdit(browser);
   await scenarioReservedVoidExistingFileDataVariableReplace(browser);
   await scenarioTailNoVoidExistingAttachmentResize(browser);
   await scenarioNonterminalIndexedAttachmentRelay(browser);

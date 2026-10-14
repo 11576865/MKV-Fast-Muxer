@@ -1,0 +1,65 @@
+{
+  "goal": "继续实现 2026-10-12 软封理论模型，保留57场景与完整证据门槛",
+  "status": "work-unit-repair-complete-pending-external-validation",
+  "current_bounded_work_unit": "Round6 P3 finished-MKV SRT/WebVTT plain cue readback and original-model gap assessment",
+  "completed_units": [
+    "R1-R5 integration dd709601 exact-head Browser/Pages success; product PRs remain open",
+    "R6 product demux audit/report/UI and adversarial Node tests",
+    "R6 full Chromium scenario and independent native expected-text oracle authored",
+    "Published implementation commit debd158 and Draft PR149 with exact local/remote Git tree equality",
+    "Bounded repair of run718 E2E fixture setup; production safety and audit assertions not weakened"
+  ],
+  "next_units": [
+    "R6 exact-head full Chromium/native external acceptance",
+    "P3 broader original embedded subtitle/font resource closure and SSA/bitmap acceptance",
+    "Round7 20-job failure/save retry/recovery acceptance",
+    "Round8 UI real-task measurements",
+    "Round9 platform/performance",
+    "Round10 release/model ledger proof closure"
+  ],
+  "branch": "feat/ten-round-p3-output-font-evidence-20261015",
+  "pr": 149,
+  "latest_durable_commit": "3c88759088724882a6bba6cbd8a8767b058e5515",
+  "external_validation_states": {
+    "ancestor_r1_r5_browser": {
+      "run_id": 38608413912,
+      "conclusion": "success"
+    },
+    "round6_chromium_native": {
+      "commit": "3c88759088724882a6bba6cbd8a8767b058e5515",
+      "run_id": 38614716399,
+      "run_number": 718,
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38614716399"
+    },
+    "round6_pages_build": {
+      "run_id": 38614716379,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "round6_repair_chromium_native": "pending-after-publishing-repair; do not poll next generation this turn"
+  },
+  "local_validation": {
+    "node": "586/586",
+    "build": "passed",
+    "native_fixture": "actual buildMuxCommand AAC+WebVTT native pass; old +21ms timing regression reproduced, corrected; 3 negative controls",
+    "ledger": "57 total / 51 high / target39 / 0 evidence-complete verified"
+  },
+  "blockers": [
+    "Product PR142-145/147 still unmerged",
+    "General EBML preservation and full P3/P5/P6 not claimed"
+  ],
+  "updated_timestamp": "2026-10-14T18:30:41.647171+00:00",
+  "publication_authorization": "2026-10-15 user explicitly approved branch push and Draft PR through GitHub plugin",
+  "publication": {
+    "remote_tree": "416f3914ac5633eff6bb2fb472b2a5be6018a3cc",
+    "local_checked_commit": "6abd742",
+    "tree_identity": "exact",
+    "method": "authorized GitHub plugin"
+  },
+  "next_bounded_work_unit": "Inspect repaired exact-head verdict on next continuation; if successful advance B-013 save-only retry; do not poll repaired CI within this turn",
+  "repair_generation": 1,
+  "repair_root_cause": "R6 legacy hidden-input E2E completed first mux, which clears videoInput; second layout cue task selected only subtitle, correctly keeping mux button disabled. Plain cue audit and independent exact native time assertions completed before failure.",
+  "repair_change": "Await actual source input unlock and reselect base.mp4 before the second layout-cue task; keep all native time/text, unavailable and UI assertions unchanged."
+}

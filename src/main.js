@@ -9,6 +9,7 @@ import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { auditProducedFontAttachments } from './output-font-payload-audit.js';
 import { auditProducedAssEvents } from './ass-event-output-audit.js';
 import { auditProducedAssStyles } from './ass-style-output-audit.js';
+import { auditProducedSubripCues } from './subrip-output-audit.js';
 import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
@@ -56,15 +57,20 @@ import { parseContainerProjectDraft, compareContainerProjectDraft, PROJECT_IMPOR
 import { auditDetachedContainerProjectIntentChain } from './container-project-intent-audit.js';
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
+import { createLiveSourceTrackSession } from './live-source-track-authority.js';
 import {
-  createLiveSourceTrackSession, commitLiveSourceTrackChanges,
-  commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
-} from './live-source-track-authority.js';
-import {
-  createLiveExternalAssetSession,commitLiveExternalAssetChanges,
-  commitExternalFontMode,inspectLiveExternalAssets,
-  rebindLiveExternalFontInventory,
+  createLiveExternalAssetSession, commitLiveExternalAssetChanges,
+  inspectLiveExternalAssets, rebindLiveExternalFontInventory,
 } from './live-external-asset-authority.js';
+import {
+  createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
+  inspectLiveWorkspaceAuthority,
+} from './live-container-workspace-authority.js';
+import {
+  exportExternalMetadataCheckpoint, parseExternalMetadataCheckpoint,
+  prepareExternalMetadataRecovery, applyPreparedExternalRecovery,
+  undoAppliedExternalRecovery,
+} from './portable-external-project-recovery.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -74,6 +80,8 @@ import { setupExistingMkvSameSizeAttachmentReplaceUI } from './existing-mkv-same
 import { setupReservedVoidFileDataUI } from './existing-mkv-reserved-void-filedata-ui.js';
 import { setupTailAttachmentResizeUI } from './existing-mkv-tail-attachment-ui.js';
 import { setupNonterminalAttachmentRelayUI } from './existing-mkv-nonterminal-attachment-ui.js';
+import { setupExistingMkvRoutedEditorUI } from './p2-existing-mkv-writer-router-ui.js';
+import { setupMatroskaInlineMetadataUI } from './p2-matroska-inline-metadata-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -129,6 +137,27 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupMatroskaInlineMetadataUI({
+  sourceInput: $('p2MetadataSource'),
+  fieldSelect: $('p2MetadataField'),
+  newText: $('p2MetadataNewText'),
+  review: $('p2MetadataReview'),
+  inspectStatus: $('p2MetadataStatus'),
+  prepare: $('p2MetadataPrepare'),
+  save: $('p2MetadataSave'),
+  evidence: $('p2MetadataEvidence'),
+});
+setupExistingMkvRoutedEditorUI({
+  sourceInput: $('existingMkvRoutedSource'),
+  replacementInput: $('existingMkvRoutedReplacement'),
+  targetSelect: $('existingMkvRoutedTarget'),
+  review: $('existingMkvRoutedReview'),
+  prepareButton: $('existingMkvRoutedPrepare'),
+  saveButton: $('existingMkvRoutedSave'),
+  inventory: $('existingMkvRoutedInventory'),
+  status: $('existingMkvRoutedStatus'),
+  evidence: $('existingMkvRoutedEvidence'),
 });
 setupNonterminalAttachmentRelayUI({
   sourceInput: $('existingMkvRelaySource'),
@@ -471,6 +500,7 @@ let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
 let liveExternalAssetSession = null;
+let liveWorkspaceAuthority = null;
 let externalAssetAuthorityEpoch = 0;
 let externalAssetPendingTaskRebind = false;
 let previewImageURL = null;
@@ -813,6 +843,21 @@ function syncNewTrackState() {
   refreshExternalAssetAuthority();
 }
 
+function reconcileLiveWorkspaceAuthority() {
+  liveWorkspaceAuthority = createLiveWorkspaceAuthority({
+    sourceSession: liveSourceTrackSession,
+    externalSession: liveExternalAssetSession,
+  });
+  return liveWorkspaceAuthority;
+}
+function liveWorkspaceContext(mode = fontMode.value) {
+  return {
+    source: videoInput.files?.[0] || null,
+    trackState,
+    audioRows: externalAudioState, subtitleRows: newSubtitleState,
+    fonts: selectedFonts(), mode,
+  };
+}
 function refreshExternalAssetAuthority() {
   liveExternalAssetSession = createLiveExternalAssetSession({
     audioRows:externalAudioState,
@@ -821,6 +866,7 @@ function refreshExternalAssetAuthority() {
     fontMode:fontMode.value,
   });
   externalAssetAuthorityEpoch++;
+  reconcileLiveWorkspaceAuthority();
   return liveExternalAssetSession;
 }
 function changeExternalAssetFields(changes) {
@@ -832,7 +878,9 @@ function changeExternalAssetFields(changes) {
     };
     let owner=liveExternalAssetSession;
     try{
-      commitLiveExternalAssetChanges(owner,{...context,changes});
+      commitLiveWorkspaceChange(liveWorkspaceAuthority,{
+        ...liveWorkspaceContext(),kind:'external-tracks',changes,
+      });
     }catch(error){
       if(error?.message!=='EXTERNAL_DOMAIN_INVENTORY_CHANGED')throw error;
       // A browser font picker may replace a same-looking File object without
@@ -844,6 +892,8 @@ function changeExternalAssetFields(changes) {
       owner=rebound;
     }
     liveExternalAssetSession=owner;
+    if(liveWorkspaceAuthority?.externalSession!==owner)
+      reconcileLiveWorkspaceAuthority();
     // The immutable owner changed only its font inventory, not its editor
     // rows. Keep the current DOM selection epoch for in-flight field input.
     return true;
@@ -1209,6 +1259,7 @@ function refreshLiveSourceTrackAuthority() {
     trackState?.fileKey === fileKey(source) ? trackState : null;
   if (!scanned) {
     liveSourceTrackSession = null;
+    reconcileLiveWorkspaceAuthority();
     return null;
   }
   const projection = buildContainerDocument({
@@ -1217,6 +1268,7 @@ function refreshLiveSourceTrackAuthority() {
   liveSourceTrackSession = createLiveSourceTrackSession({
     source, trackState: scanned, projection,
   });
+  reconcileLiveWorkspaceAuthority();
   return liveSourceTrackSession;
 }
 
@@ -1232,7 +1284,8 @@ function changeSourceTracks(changes) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    commitLiveSourceTrackChanges(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-tracks',
       source, trackState, changes,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -1256,7 +1309,8 @@ function changeSourceAttachments(changes) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    commitLiveSourceAttachmentChanges(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-attachments',
       source, trackState, changes,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -1272,6 +1326,7 @@ function resetTrackState() {
   trackState = null;
   scannedSourceFile = null;
   liveSourceTrackSession = null;
+  reconcileLiveWorkspaceAuthority();
   trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
   attachmentList.innerHTML = '';
   trackBulkTools?.classList.add('hidden');
@@ -1639,6 +1694,13 @@ function renderActualOutputEvidence() {
     counts ? `实际轨道：${['video','audio','subtitle','attachment','chapter']
       .map(kind => `${kind} ${Number(counts[kind] || 0)}`).join(' · ')}` : '轨道统计：未提供',
     `SHA-256：${model.sha256}`,
+    model.subripCue?.status === 'pass'
+      ? `新增 SRT/WebVTT 成品回读：${model.subripCue.verified}/${model.subripCue.total} 条轨的纯文本与毫秒时间一致（不含排版/播放器）`
+      : model.subripCue?.status === 'warning'
+        ? '新增 SRT/WebVTT 成品回读：存在差异'
+        : model.subripCue?.status === 'unavailable'
+          ? '新增 SRT/WebVTT 成品回读：未验证（带标记格式、解析或资源限制）'
+          : '新增 SRT/WebVTT 成品回读：未请求此范围',
     model.assEvent?.status === 'pass'
       ? `新增 ASS 事件成品回读：${model.assEvent.verified}/${model.assEvent.total} 条轨一致（不含 Style/字体渲染）`
       : model.assEvent?.status === 'warning'
@@ -2150,6 +2212,127 @@ containerProjectVerifySourceBtn?.addEventListener('click', async () => {
     renderOutputComposition();
   }
 });
+// External checkpoint recovery is a separate, user-reviewed authorization
+// boundary. Imported JSON is inert and does not retain File/sidecar grants.
+const externalCheckpointControls = {
+  export: $('externalCheckpointExportBtn'),
+  input: $('externalCheckpointImportInput'),
+  prepare: $('externalCheckpointPrepareBtn'),
+  confirm: $('externalCheckpointConfirm'),
+  apply: $('externalCheckpointApplyBtn'),
+  undo: $('externalCheckpointUndoBtn'),
+  status: $('externalCheckpointStatus'),
+};
+let pendingExternalCheckpoint = null;
+let preparedExternalCheckpoint = null;
+let externalCheckpointUndo = null;
+let externalCheckpointBusy = false;
+function resetExternalCheckpointApproval() {
+  preparedExternalCheckpoint = null;
+  externalCheckpointControls.confirm.checked = false;
+  externalCheckpointControls.confirm.disabled = true;
+  externalCheckpointControls.apply.disabled = true;
+}
+externalCheckpointControls.export?.addEventListener('click', async () => {
+  if(externalCheckpointBusy || isBusy() || batchRunning) return;
+  externalCheckpointBusy = true;
+  try {
+    if(!liveWorkspaceAuthority) throw Error('EXTERNAL_CHECKPOINT_NO_ACTIVE_PROJECT');
+    const json = await exportExternalMetadataCheckpoint(
+      liveWorkspaceAuthority,liveWorkspaceContext());
+    const url = URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
+    const a=document.createElement('a');
+    a.href=url;a.download='mkv-external-metadata-checkpoint-v1.json';
+    document.body.appendChild(a);a.click();a.remove();
+    // Give the browser download handler ownership of the URL first.
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    externalCheckpointControls.status.textContent =
+      '已导出不含文件权限的外部元数据草稿；恢复时必须重新选择文件并逐字节验证 SHA-256。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='外部草稿导出失败：'+(e.message||String(e));
+  } finally { externalCheckpointBusy = false; }
+});
+externalCheckpointControls.input?.addEventListener('change',async()=>{
+  const file=externalCheckpointControls.input.files?.[0];
+  externalCheckpointControls.input.value='';
+  pendingExternalCheckpoint=null;
+  resetExternalCheckpointApproval();
+  externalCheckpointControls.prepare.disabled=true;
+  if(!file)return;
+  try {
+    if(file.size>1024*1024)throw Error('EXTERNAL_CHECKPOINT_TOO_LARGE');
+    pendingExternalCheckpoint=parseExternalMetadataCheckpoint(await file.text());
+    externalCheckpointControls.prepare.disabled=false;
+    externalCheckpointControls.status.textContent =
+      '草稿已作为未授权数据读取。请确认当前外部文件与 sidecar 选择，再点击 SHA-256 验证。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='外部草稿无效：'+(e.message||String(e));
+  }
+});
+externalCheckpointControls.prepare?.addEventListener('click',async()=>{
+  if(externalCheckpointBusy||isBusy()||batchRunning||!pendingExternalCheckpoint)return;
+  resetExternalCheckpointApproval();
+  externalCheckpointBusy=true;
+  externalCheckpointControls.status.textContent='正在核验当前音频、字幕和 sidecar 全部内容 SHA-256…';
+  try {
+    if(!liveWorkspaceAuthority)throw Error('EXTERNAL_CHECKPOINT_NO_ACTIVE_PROJECT');
+    const workspace=liveWorkspaceAuthority,context=liveWorkspaceContext();
+    const prepared=await prepareExternalMetadataRecovery(
+      workspace,context,pendingExternalCheckpoint);
+    if(workspace!==liveWorkspaceAuthority)
+      throw Error('EXTERNAL_CHECKPOINT_WORKSPACE_CHANGED');
+    preparedExternalCheckpoint=prepared;
+    externalCheckpointControls.confirm.disabled=false;
+    externalCheckpointControls.status.textContent=
+      '所有外部文件内容已与草稿摘要匹配；待恢复 '+prepared.changes.length+
+      ' 项字段。摘要匹配不证明草稿作者或写入权限。请检查当前字段后单独确认。';
+  } catch(e) {
+    externalCheckpointControls.status.textContent='来源重新绑定未通过：'+(e.message||String(e));
+  } finally {externalCheckpointBusy=false;}
+});
+externalCheckpointControls.confirm?.addEventListener('change',()=>{
+  externalCheckpointControls.apply.disabled=
+    !externalCheckpointControls.confirm.checked||!preparedExternalCheckpoint;
+});
+externalCheckpointControls.apply?.addEventListener('click',()=>{
+  if(!preparedExternalCheckpoint||!externalCheckpointControls.confirm.checked||
+      isBusy()||batchRunning)return;
+  try {
+    if(!liveWorkspaceAuthority)throw Error('EXTERNAL_CHECKPOINT_WORKSPACE_MISSING');
+    const result=applyPreparedExternalRecovery(
+      liveWorkspaceAuthority,liveWorkspaceContext(),preparedExternalCheckpoint,
+      {confirmed:true});
+    externalCheckpointUndo=result.undo;
+    externalCheckpointControls.undo.disabled=!externalCheckpointUndo;
+    resetExternalCheckpointApproval();
+    externalCheckpointControls.status.textContent=
+      '已明确应用 '+(result.applied||0)+' 项外部元数据；没有恢复文件权限或自动执行封装。';
+    // Domain commit precedes UI: redraw from authoritative rows BEFORE
+    // updateUI snapshots editor controls, or stale DOM can reapply old values.
+    renderNewTrackLists();
+    updateUI();renderMuxPlan();
+  } catch(e) {
+    resetExternalCheckpointApproval();
+    externalCheckpointControls.status.textContent='恢复拒绝：'+(e.message||String(e));
+  }
+});
+externalCheckpointControls.undo?.addEventListener('click',()=>{
+  if(!externalCheckpointUndo||isBusy()||batchRunning)return;
+  try {
+    undoAppliedExternalRecovery(
+      liveWorkspaceAuthority,liveWorkspaceContext(),externalCheckpointUndo);
+    externalCheckpointUndo=null;
+    externalCheckpointControls.undo.disabled=true;
+    externalCheckpointControls.status.textContent='已撤销本次外部元数据恢复。';
+    renderNewTrackLists();
+    updateUI();renderMuxPlan();
+  } catch(e) {
+    externalCheckpointControls.status.textContent='撤销拒绝：'+(e.message||String(e));
+    externalCheckpointUndo=null;
+    externalCheckpointControls.undo.disabled=true;
+  }
+});
+
 containerProjectExportBtn?.addEventListener('click', async () => {
   // Detached domain export is an explicit READ, never a writer authorization.
   // It can run during track scanning, but must not retain stale source bytes.
@@ -2585,6 +2768,7 @@ videoInput.addEventListener('change', () => {
   // generation. In particular, cancelled/restarted tasks must not retain
   // an external-domain inventory snapshot from the previous source.
   liveExternalAssetSession = null;
+  reconcileLiveWorkspaceAuthority();
   externalAssetPendingTaskRebind = true;
   externalAssetAuthorityEpoch++;
   containerScanGeneration += 1;
@@ -2648,9 +2832,9 @@ fontMode.addEventListener('change', () => {
   try {
     if(!liveExternalAssetSession)refreshExternalAssetAuthority();
     const previousMode=liveExternalAssetSession.mode;
-    commitExternalFontMode(liveExternalAssetSession,{
-      audioRows:externalAudioState,subtitleRows:newSubtitleState,
-      fonts:selectedFonts(),previousMode,nextMode:fontMode.value,
+    commitLiveWorkspaceChange(liveWorkspaceAuthority,{
+      ...liveWorkspaceContext(previousMode),
+      kind:'font-mode',previousMode,nextMode:fontMode.value,
     });
   } catch(error) {
     if(liveExternalAssetSession)fontMode.value=liveExternalAssetSession.mode;
@@ -3706,7 +3890,8 @@ function moveTrack(track, delta) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    moveLiveSourceTrack(liveSourceTrackSession, {
+    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+      ...liveWorkspaceContext(), kind:'source-order',
       source, trackState, index: track.index, delta,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
@@ -4586,6 +4771,11 @@ async function executeCurrentMuxTask(explicit = null) {
         externalAssetPendingTaskRebind=false;
       }
       verifyCurrent();
+      // The source/attachment/external adapters must still own the SAME
+      // immutable ContainerProject. Detect legacy mutation of either half
+      // before any real single-task FFmpeg handoff.
+      if(liveWorkspaceAuthority)
+        inspectLiveWorkspaceAuthority(liveWorkspaceAuthority,liveWorkspaceContext());
       // No second syncNewTrackState here. A successful authoritative
       // domain check commits the exact editor values to the legacy executor;
       // re-inference from a filename can erase a user's second-task title.
@@ -5383,6 +5573,45 @@ async function executeCurrentMuxTask(explicit = null) {
         assStyleAudit.issues.join('；') + '\n';
     }
     finalAudit.assStyleAudit = assStyleAudit;
+    const subripCueAudit = await auditProducedSubripCues({
+      claims: assOutputClaims, outputProbe: actualOutputProbe,
+      outputBytes: data.byteLength,
+      readFinalSrt: async (ordinal) => {
+        const extractedPath = prefix + '-final-subrip-check-' + ordinal + '.srt';
+        try {
+          const extraction = await execWithCapturedLogs([
+            '-hide_banner', '-loglevel', 'error', '-copyts', '-i', outputPath,
+            '-map', '0:s:' + ordinal, '-c:s', 'srt', '-f', 'srt', '-y', extractedPath,
+          ]);
+          if (extraction.code !== 0) throw new Error('成品 SubRip 回读失败');
+          const recovered = await ffmpeg.readFile(extractedPath);
+          if (!(recovered instanceof Uint8Array) || recovered.byteLength > 2 * 1024 * 1024) {
+            throw new Error('成品 SubRip 回读超过 2 MiB 预算');
+          }
+          return new TextDecoder('utf-8', { fatal: true }).decode(recovered);
+        } finally {
+          await removeQuietly(extractedPath);
+        }
+      },
+    });
+    finalAudit.subripCueAudit = subripCueAudit;
+    if (subripCueAudit.status === 'pass') {
+      logEl.textContent += `AUDIT: 最终 MKV 的 ${subripCueAudit.verified}/${subripCueAudit.total} 条新增 SRT/WebVTT 轨，纯文本、毫秒时间、数量与顺序一致；排版和播放器未验证。\n`;
+    } else if (subripCueAudit.status === 'warning') {
+      const detail = subripCueAudit.issues.join('；');
+      finalAudit.status = 'warning';
+      finalAudit.ok = false;
+      finalAudit.issues = [...(finalAudit.issues || []), ...subripCueAudit.issues];
+      completionNote += '；新增 SRT/WebVTT 成品条目存在差异';
+      logEl.textContent += 'AUDIT WARNING: ' + detail + '\n';
+      if (!independent) {
+        auditResult.className = 'audit-result warn';
+        auditResult.textContent = '成品 SRT/WebVTT 条目待复核：' + detail;
+      }
+    } else if (subripCueAudit.status === 'unavailable') {
+      completionNote += '；新增 SRT/WebVTT 成品条目未验证';
+      logEl.textContent += 'AUDIT UNAVAILABLE: ' + subripCueAudit.issues.join('；') + '\n';
+    }
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({

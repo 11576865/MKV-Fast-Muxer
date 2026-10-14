@@ -53,10 +53,10 @@ test('builds deterministic multi-audio multi-subtitle mux command', () => {
   assert.equal(args.at(-1), 'out.mkv');
 });
 
-test('ASS delivery requests timestamp copy without changing non-ASS behavior', () => {
+test('timed text delivery requests timestamp copy while tasks without added timed text stay unchanged', () => {
   const base = { mainInputPath: 'source.mp4', outputPath: 'out.mkv' };
   const plain = buildMuxCommand({ ...base,
-    newSubtitleTracks: [{ path: 'a.srt', inputIndex: 1 }] });
+    newSubtitleTracks: [] });
   const ass = buildMuxCommand({ ...base,
     newSubtitleTracks: [{ path: 'a.ass', inputIndex: 1 }] });
   assert.equal(plain.includes('-copyts'), false);
@@ -251,4 +251,20 @@ test('append-only mode maps the complete source before appended streams', () => 
   assert.ok(args.includes('-metadata:s:a:2'));
   assert.ok(args.includes('-metadata:s:s:1'));
   assert.ok(args.includes('-metadata:s:t:2'));
+});
+
+test('SRT and WebVTT preserve input timestamps before AAC priming can shift cues', () => {
+  for (const track of [
+    { path: 'subtitle.srt' }, { path: 'subtitle.vtt' }, { path: 'subtitle.webvtt' },
+    { path: 'staged.data', format: { id: 'srt' } },
+    { path: 'staged.data', format: { id: 'webvtt' } },
+  ]) {
+    const args = buildMuxCommand({ mainInputPath: 'aac-priming.mp4', outputPath: 'out.mkv',
+      newSubtitleTracks: [{ ...track, inputIndex: 1 }] });
+    assert.equal(args[0], '-copyts');
+    assert.equal(args[1], '-i');
+    assert.equal(args[2], 'aac-priming.mp4');
+    assert.equal(args[args.indexOf('-avoid_negative_ts') + 1], 'disabled');
+    assert.equal(args[args.indexOf('-c') + 1], 'copy');
+  }
 });

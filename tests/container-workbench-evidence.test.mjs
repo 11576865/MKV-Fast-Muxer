@@ -25,6 +25,12 @@ const report = {
   plan: { audio: 'copy', subtitles: ['new.ass'] },
 };
 
+test('actual output projects SubRip cue evidence separately from presentation and player claims', () => {
+  const proof = { status: 'unavailable', presentationVerified: false, playerVerified: false };
+  assert.deepEqual(projectActualOutputEvidence({ ...report,
+    audit: { ...report.audit, subripCueAudit: proof } }).subripCue, proof);
+});
+
 test('source inspector exposes actual ffprobe chapter/tag/data evidence without claiming writer preservation', () => {
   const source = file();
   const observed = projectSourceStructureEvidence({ source, trackState: scan(source) });

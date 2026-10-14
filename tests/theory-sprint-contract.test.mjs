@@ -46,9 +46,12 @@ test('P0 complex Chapter/Tag loss stays visible and unsafe remux cannot be certi
 test('PR submission, exact-head CI and accepted release are different statuses', () => {
   assert.throws(() => auditTheoryLedger(changed(x => {
     x.rounds[0].state = 'submitted';
+    x.rounds[0].head_sha = null;
+    x.rounds[0].pr = null;
   })), /ROUND_SUBMITTED_WITHOUT/);
   assert.throws(() => auditTheoryLedger(changed(x => {
     x.rounds[0].state = 'accepted';
     x.rounds[0].head_sha = 'a'.repeat(40); x.rounds[0].pr = 142;
-  })), /ROUND_ACCEPTED_WITHOUT/);
+    x.rounds[0].ci = 'pending';
+  })), /ROUND_ACCEPTED_WITHOUT_CI/);
 });
