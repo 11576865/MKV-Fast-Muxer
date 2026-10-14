@@ -903,6 +903,17 @@ async function scenarioSequentialTasks(browser) {
     await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
     await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('eng');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Second Task');
+    // The editable DOM and the actual planned output must agree BEFORE
+    // execution. Catch a stale external-domain epoch or silently rejected
+    // input before an independently probed MKV appears with a wrong title.
+    assert.equal(
+      await page.locator('input[data-new-sub-field="title"][data-index="0"]').inputValue(),
+      'Second Task',
+      'second-task editable title must survive selection and input dispatch',
+    );
+    await page.waitForFunction(() =>
+      (document.querySelector('#muxPlan')?.textContent || '').includes('Second Task'),
+    null, { timeout: 15_000 });
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     const second = path.join(outDir, 'sequential-second.mkv');
