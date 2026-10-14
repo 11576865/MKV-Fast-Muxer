@@ -4528,6 +4528,116 @@ async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   }
 }
 
+async function scenarioNonfinalAttachedFileRelayNative(browser) {
+  console.log('P0/P2-N2 original native 3-attachment nonterminal: resize MIDDLE FileData, preserve LATER attachment UID, SHA and tags');
+  const original=path.join(outDir,'p2-relay-original-native-three-attached.mkv');
+  const resultPath=path.join(outDir,'p2-relay-nonfinal-uid-browser-output.mkv');
+  const tagPath=path.join(outDir,'p2-relay-native-three-tags.xml');
+  execFileSync('mkvmerge',[
+    '--quiet','--output',original,
+    '--chapters',path.join(root,'p0-independent-chapters.xml'),
+    '--attachment-name','p0-attachment-evidence.bin',
+    '--attachment-mime-type','application/octet-stream',
+    '--attach-file',path.join(root,'notes.txt'),
+    '--attachment-name','p0-attachment-decoy.txt',
+    '--attachment-mime-type','text/plain',
+    '--attach-file',path.join(root,'zh.ass'),
+    '--attachment-name','p0-following-fixed.bin',
+    '--attachment-mime-type','application/octet-stream',
+    '--attach-file',path.join(root,'notes.txt'),
+    path.join(root,'base.mp4'),
+  ],{timeout:60000});
+  const native=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],
+    {encoding:'utf8',timeout:60000}));
+  let before=native(original);
+  assert.deepEqual(before.attachments.map(a=>a.file_name),[
+    'p0-attachment-evidence.bin','p0-attachment-decoy.txt','p0-following-fixed.bin']);
+  const referenceUid=before.attachments[0]?.properties?.uid;
+  assert.ok(referenceUid);
+  const tagXml=`<?xml version="1.0" encoding="UTF-8"?>
+<Tags>
+  <Tag><Targets><TargetTypeValue>50</TargetTypeValue><AttachmentUID>${referenceUid}</AttachmentUID></Targets>
+    <Simple><Name>P0_ORIGINAL_ATTACHMENT_KEEP</Name><String>tagged-first</String></Simple></Tag>
+  <Tag><Targets><TargetTypeValue>30</TargetTypeValue><ChapterUID>510011</ChapterUID></Targets>
+    <Simple><Name>P0_NESTED_CHAPTER_KEEP</Name><String>untouched-nested</String></Simple></Tag>
+</Tags>`;
+  await fs.writeFile(tagPath,tagXml);
+  execFileSync('mkvpropedit',[original,'--tags','all:'+tagPath],{timeout:60000});
+  before=native(original);
+  assert.equal(before.attachments.length,3);
+  const editable=before.attachments[1],following=before.attachments[2];
+  assert.ok(editable.properties?.uid&&following.properties?.uid);
+  const replacement=Buffer.alloc(700,0x39);
+  assert.notEqual(replacement.length,editable.size);
+  const originalSha=createHash('sha256').update(await fs.readFile(original)).digest('hex');
+  const packets=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',maxBuffer:24*1024*1024,timeout:60000})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  const originalPackets=packets(original);
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('#existingMkvRelayDetails > summary').click();
+    await page.setInputFiles('#existingMkvRelaySource',original);
+    await page.waitForFunction(()=>document.querySelector(
+      '#existingMkvRelayTarget')?.options.length===3,null,{timeout:60000});
+    const options=await page.locator('#existingMkvRelayTarget option')
+      .evaluateAll(rows=>rows.map(x=>({id:x.value,label:x.textContent,disabled:x.disabled})));
+    assert.equal(options.find(x=>x.label.includes('p0-attachment-evidence.bin'))?.disabled,true);
+    assert.ok(options.find(x=>x.label.includes('p0-following-fixed.bin'))?.disabled===false);
+    const target=options.find(x=>x.label.includes('p0-attachment-decoy.txt'));
+    assert.ok(target&&!target.disabled);
+    await page.locator('#existingMkvRelayTarget').selectOption(target.id);
+    await page.setInputFiles('#existingMkvRelayReplacement',{
+      name:'resized-middle.bin',mimeType:'application/octet-stream',buffer:replacement,
+    });
+    assert.equal(await page.locator('#existingMkvRelayPrepare').isDisabled(),true);
+    await page.locator('#existingMkvRelayReview').check();
+    await page.locator('#existingMkvRelayPrepare').click();
+    await page.waitForFunction(()=>['prepared','blocked'].includes(
+      document.querySelector('#existingMkvRelayStatus')?.dataset.state),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#existingMkvRelayStatus').getAttribute('data-state'),
+      'prepared',await page.locator('#existingMkvRelayStatus').textContent());
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),page.locator('#existingMkvRelaySave').click(),
+    ]);
+    await download.saveAs(resultPath);
+    assert.equal(createHash('sha256').update(await fs.readFile(original)).digest('hex'),
+      originalSha,'original Matroska source cannot change');
+    const after=native(resultPath);
+    assert.equal(after.attachments.length,3,
+      'native MKVToolNix must discover all three existing FileUIDs through relayed SeekHead');
+    for(let i=0;i<3;i++){
+      assert.equal(after.attachments[i].file_name,before.attachments[i].file_name);
+      assert.equal(after.attachments[i].properties.uid,before.attachments[i].properties.uid);
+      assert.equal(after.attachments[i].content_type,before.attachments[i].content_type);
+    }
+    assert.deepEqual(after.tracks.map(x=>[x.id,x.type,x.codec,x.properties?.uid]),
+      before.tracks.map(x=>[x.id,x.type,x.codec,x.properties?.uid]));
+    for(const kind of ['chapters','tags']){
+      const a=path.join(outDir,'p2-nonfinal-before-'+kind+'.xml'),
+        b=path.join(outDir,'p2-nonfinal-after-'+kind+'.xml');
+      execFileSync('mkvextract',[original,kind,a],{timeout:60000});
+      execFileSync('mkvextract',[resultPath,kind,b],{timeout:60000});
+      assert.deepEqual(await fs.readFile(b),await fs.readFile(a),
+        'native nested '+kind+' exact XML retained');
+    }
+    for(let i=0;i<3;i++){
+      const file=path.join(outDir,'p2-nonfinal-extract-'+i+'.bin');
+      execFileSync('mkvextract',[resultPath,'attachments',
+        String(after.attachments[i].id)+':'+file],{timeout:60000});
+      const expected=i===1?replacement:await fs.readFile(
+        i===0?path.join(root,'notes.txt'):path.join(root,'notes.txt'));
+      assert.deepEqual(await fs.readFile(file),expected,
+        'native mkvextract output for attachment position '+i+' must be exact');
+    }
+    assert.deepEqual(packets(resultPath),originalPackets,
+      'all original codec packets, hashes and PTS/DTS unchanged');
+    console.log('P0/P2-N2 NONFINAL FileUID original 3 attachments → relayed SeekHead with later FileData moved internally + native Chapters/Tags/UID/FileData/ffprobe full PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioNonterminalIndexedAttachmentRelay(browser) {
   console.log('P0/P2-N real Chromium: original nonterminal indexed Attachments, no test-only relocation; relay new copy with independent native MKVToolNix proof');
   const original=path.join(outDir,'p2-relay-original-native-source.mkv');
@@ -5354,6 +5464,7 @@ try {
   await scenarioReservedVoidExistingFileDataVariableReplace(browser);
   await scenarioTailNoVoidExistingAttachmentResize(browser);
   await scenarioNonterminalIndexedAttachmentRelay(browser);
+  await scenarioNonfinalAttachedFileRelayNative(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
