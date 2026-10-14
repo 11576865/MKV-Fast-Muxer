@@ -104,6 +104,18 @@
                   </label>
                 </div>
               </header>
+              <section class="container-project-intent-review" aria-label="外部轨道跨会话恢复">
+                <strong>外部音频／字幕元数据检查点</strong>
+                <button id="externalCheckpointExportBtn" type="button" class="button button-secondary">导出外部元数据草稿</button>
+                <label class="button button-secondary">导入外部元数据草稿（只读）
+                  <input id="externalCheckpointImportInput" type="file" accept=".json,application/json" aria-label="选择外部元数据草稿；不会自动应用" />
+                </label>
+                <button id="externalCheckpointPrepareBtn" type="button" class="button button-secondary" disabled>验证当前文件 SHA-256 并预览恢复</button>
+                <label><input id="externalCheckpointConfirm" type="checkbox" disabled /> 我已核对外部轨道修改并明确同意恢复</label>
+                <button id="externalCheckpointApplyBtn" type="button" class="button button-secondary" disabled>应用已验证的外部元数据</button>
+                <button id="externalCheckpointUndoBtn" type="button" class="button button-secondary" disabled>撤销本次外部恢复</button>
+                <p id="externalCheckpointStatus" role="status" aria-live="polite">导入草稿不包含文件权限；必须重新选择当前音频、字幕及 sidecar。</p>
+              </section>
               <p id="containerProjectImportReview" class="container-project-import-review" role="status" aria-live="polite" hidden></p>
               <details id="containerProjectIntentReview" class="container-project-intent-review" hidden>
                 <summary id="containerProjectIntentSummary">草稿修改记录（只读）</summary>
