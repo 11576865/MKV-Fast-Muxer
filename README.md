@@ -22,6 +22,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 - **P0/P2-V 已合并的受限变长编辑**：如果原有 MKV 的某个**未被 TagAttachmentUID 引用**的 `AttachedFile/FileData` 后方紧邻有效 `Void` 预留区，现在可让该附件数据增长或缩短，并在同一个旧区间内相应减小或增大 `Void`。父元素大小、SeekHead/Cues/Chapters/Tags、媒体数据、原其他附件与所有后续字节偏移均不移动；输出是经本地 SHA-256 核验的独立新副本。**这不支持没有预留 Void 的普通变长替换，不提供 CRC 修复和 UID 重关联。**真实 MKVToolNix／`ffprobe` 独立验收见 [#137](https://github.com/11576865/MKV-Fast-Muxer/pull/137) 与 [P0/P2-V 说明](docs/P0-P2-VARIABLE-FILEDATA-RESERVED-VOID-20261014.md)；完整 CI 542/542 Node 及浏览器通过。
 
+- **P0/P2-T 已合并的第三类已有 MKV 结构编辑（无需预留 `Void`）**：对于原 MKV 的**最后一个 Segment 子元素为 Attachments**、且目标是其最后一个未被标签引用的 AttachedFile，用户现在可审查后对 FileData 进行真正的增长/缩短。本地非重封装写入器仅修改 Segment／Attachments／AttachedFile／FileData 的四处已有 EBML 尺寸字段和选中 FileData 字节；原先的 SeekHead/Cues、轨道/媒体包、Chapters/Tags 与之前其他附件不移位、不改写。对非末尾附件、原编码尺寸容量不足、CRC、未知 EBML 或被定向标签引用的目标继续拒绝。来源不超过 60 MiB，单个新 FileData 不超过 4 MiB；并非任意 EBML Writer。真实 Chromium 545/545 Node + 原生 MKVToolNix／`mkvextract`／`ffprobe` 完整验收见 [#138](https://github.com/11576865/MKV-Fast-Muxer/pull/138)、[工程安全边界](docs/P0-P2-TAIL-ATTACHMENTS-NO-VOID-RESIZE-20261014.md)。
+
 **重要：**历史问题 [#77](https://github.com/11576865/MKV-Fast-Muxer/issues/77) 所揭示的 FFmpeg 重封装嵌套章节与定向标签丢失风险未被通用修复。新的等长附件数据替换采取不重封装媒体、原位置保留的独立路径，不能据此推论任意 EBML 编辑安全。
 
 ## 理论初版五步集成预览（2026-10-13）
