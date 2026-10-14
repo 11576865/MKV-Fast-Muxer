@@ -3395,7 +3395,9 @@ async function scenarioTabletDesktopUi(browser) {
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   try {
-    await page.goto(baseUrl, { waitUntil: 'networkidle' });
+    const legacyUrl = new URL(baseUrl);
+    legacyUrl.searchParams.set('ui', 'legacy');
+    await page.goto(legacyUrl.toString(), { waitUntil: 'networkidle' });
     await page.locator('#muxBtn').waitFor();
 
     const media = await page.evaluate(() => ({
