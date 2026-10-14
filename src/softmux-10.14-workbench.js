@@ -36,6 +36,11 @@ export function mountSoftmux1014Workbench(doc = document) {
         '<button type="button" id="sf14Settings">设置</button>',
       '</div>',
     '</header>',
+    '<div class="sf14-mobile-focus" id="sf14MobileFocus" aria-label="窄屏工作区焦点">',
+      '<button type="button" data-sf-focus="source">来源</button>',
+      '<button type="button" data-sf-focus="composition">拟输出</button>',
+      '<button type="button" data-sf-focus="inspector">对象</button>',
+    '</div>',
     '<div class="sf14-single" id="sf14Single">',
       '<section class="sf14-pane sf14-source" aria-label="来源资源">',
         '<header class="sf14-pane-head"><strong>来源资源</strong><span>只读身份 / 来源操作</span></header>',
@@ -88,11 +93,28 @@ export function mountSoftmux1014Workbench(doc = document) {
   const nav = doc.querySelector('.workbench-jump-nav');
   if (nav) nav.hidden = true;
   workspace.classList.add('sf14-mounted');
+  doc.body.classList.add('sf14-app');
+  const single = get(doc,'sf14Single');
+  const setFocus = (focus) => {
+    if (!['source','composition','inspector'].includes(focus)) return;
+    single.dataset.focus = focus;
+    for (const button of root.querySelectorAll('[data-sf-focus]')) {
+      if (button.dataset.sfFocus === focus) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    }
+  };
+  for (const button of root.querySelectorAll('[data-sf-focus]'))
+    button.addEventListener('click', () => setFocus(button.dataset.sfFocus));
+  setFocus('source');
+  composition.addEventListener('click', () => {
+    if (doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) setFocus('inspector');
+  });
 
   const changeView = (view) => {
     if (!['single','batch','tools'].includes(view)) return;
     root.dataset.view = view;
-    get(doc,'sf14Single').hidden = view !== 'single';
+    single.hidden = view !== 'single';
+    get(doc,'sf14MobileFocus').hidden = view !== 'single';
     root.querySelector('.sf14-output').hidden = view !== 'single';
     get(doc,'sf14Batch').hidden = view !== 'batch';
     get(doc,'sf14Tools').hidden = view !== 'tools';
