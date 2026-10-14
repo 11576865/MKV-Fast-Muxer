@@ -126,6 +126,10 @@ export function setupNonterminalAttachmentRelayUI({
         ' bytes。将修改后的 Attachments 追加到 Segment 末尾；旧位置换成等长 SeekHead 中继。若修改中间附件，后续附件在新主元素内的偏移按变长差异重算并以 SHA-256 验证。来源 SHA-256：'+
         value.evidence.sourceSha256+'，成品 SHA-256：'+
         value.evidence.outputSha256+
+        '。CRC-32：原始校验值已经严格验证；目标 AttachedFile '+
+        (value.evidence.originalAttachedFileCrc32Recomputed?'已重算并复验':'无覆盖 CRC')+
+        '，Attachments '+(value.evidence.originalAttachmentsCrc32Recomputed?
+        '已重算并复验':'无覆盖 CRC')+
         '。原有章节、标签、媒体轨与 Cues 原始字节及偏移不变；SeekHead 仅做有依据的重定向；播放器兼容仍需单独验收。';
       report('本地源、UID、结构和字节保真验证通过，可手动下载实验性独立副本。','prepared');
     }catch(error){
