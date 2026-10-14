@@ -4528,6 +4528,112 @@ async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   }
 }
 
+async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
+  console.log('P0/P2-V real Chromium: grow existing unreferenced FileData into adjacent Void, verify native chapter/tag/UID/packet invariance');
+  const original=path.join(outDir,'p2-variable-native-mkvtoolnix-original.mkv');
+  const reserved=path.join(outDir,'p2-variable-native-reserved-void-source.mkv');
+  await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),original);
+  execFileSync('mkvpropedit',[original,'--chapters',
+    path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
+  const native=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],
+    {encoding:'utf8',timeout:60000}));
+  const originalInfo=native(original);
+  assert.equal((originalInfo.attachments||[]).length,2);
+  execFileSync(process.execPath,[
+    path.join(process.cwd(),'scripts/p2-reserved-void-independent-layout-fixture.mjs'),
+    original,reserved,'p0-attachment-decoy.txt','64',
+  ],{timeout:60000});
+  const sourceInfo=native(reserved);
+  assert.equal((sourceInfo.attachments||[]).length,2,
+    'independent native MKVToolNix must actually read the reserved-void fixture');
+  const tagged=sourceInfo.attachments.find(a=>a.file_name==='p0-attachment-evidence.bin');
+  const free=sourceInfo.attachments.find(a=>a.file_name==='p0-attachment-decoy.txt');
+  assert.ok(tagged&&free);
+  const oldBytes=await fs.readFile(path.join(root,'zh.ass'));
+  const grown=Buffer.alloc(oldBytes.length-32,0x53);
+  assert.ok(grown.length>0&&grown.length!==oldBytes.length-64);
+  const nativePacket=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',maxBuffer:24*1024*1024,timeout:60000})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  assert.deepEqual(nativePacket(reserved),nativePacket(original),
+    'test-only reserved Void fixture must retain independent native packets');
+  const originalOutput=path.join(outDir,'p2-variable-native-browser-result.mkv');
+  const oldSourceHash=createHash('sha256').update(await fs.readFile(reserved)).digest('hex');
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#existingMkvReservedVoidDetails > summary').click();
+    await page.setInputFiles('#existingMkvReservedVoidSource',reserved);
+    await page.waitForFunction(()=>
+      document.querySelector('#existingMkvReservedVoidTarget')?.options.length===2,
+      null,{timeout:60000});
+    const options=await page.locator('#existingMkvReservedVoidTarget option').evaluateAll(
+      nodes=>nodes.map(x=>({value:x.value,text:x.textContent,disabled:x.disabled})));
+    assert.equal(options.find(x=>x.text.includes('p0-attachment-evidence.bin'))?.disabled,true);
+    const available=options.find(x=>x.text.includes('p0-attachment-decoy.txt'));
+    assert.ok(available&&!available.disabled);
+    assert.equal(await page.locator('#existingMkvReservedVoidTarget').inputValue(),
+      available.value);
+    await page.setInputFiles('#existingMkvReservedVoidReplacement',{
+      name:'bigger.bin',mimeType:'application/octet-stream',buffer:grown,
+    });
+    assert.equal(await page.locator('#existingMkvReservedVoidPrepare').isDisabled(),true);
+    await page.locator('#existingMkvReservedVoidReview').check();
+    await page.locator('#existingMkvReservedVoidPrepare').click();
+    await page.waitForFunction(()=>
+      ['prepared','blocked'].includes(
+        document.querySelector('#existingMkvReservedVoidStatus')?.dataset.state),
+      null,{timeout:120000});
+    assert.equal(await page.locator('#existingMkvReservedVoidStatus').getAttribute('data-state'),
+      'prepared',await page.locator('#existingMkvReservedVoidStatus').textContent());
+    assert.match(await page.locator('#existingMkvReservedVoidEvidence').textContent(),
+      /SHA-256/);
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),page.locator('#existingMkvReservedVoidSave').click(),
+    ]);
+    assert.match(download.suggestedFilename(),/\.void-filedata-replaced\.experimental\.mkv$/);
+    await download.saveAs(originalOutput);
+    assert.equal((await fs.stat(originalOutput)).size,(await fs.stat(reserved)).size,
+      'all original top-level offsets and total file size remain exact');
+    assert.equal(createHash('sha256').update(await fs.readFile(reserved)).digest('hex'),
+      oldSourceHash,'source cannot be overwritten');
+    const result=native(originalOutput);
+    assert.equal((result.attachments||[]).length,2);
+    for(const key of ['p0-attachment-evidence.bin','p0-attachment-decoy.txt']){
+      const before=sourceInfo.attachments.find(x=>x.file_name===key);
+      const after=result.attachments.find(x=>x.file_name===key);
+      assert.ok(after);
+      assert.equal(after.properties.uid,before.properties.uid);
+      assert.equal(after.content_type,before.content_type);
+    }
+    assert.deepEqual(result.tracks.map(t=>[t.id,t.type,t.codec,t.properties?.uid]),
+      sourceInfo.tracks.map(t=>[t.id,t.type,t.codec,t.properties?.uid]));
+    for(const kind of ['chapters','tags']){
+      const beforeXml=path.join(outDir,'p2-variable-source-'+kind+'.xml');
+      const afterXml=path.join(outDir,'p2-variable-output-'+kind+'.xml');
+      execFileSync('mkvextract',[reserved,kind,beforeXml],{timeout:60000});
+      execFileSync('mkvextract',[originalOutput,kind,afterXml],{timeout:60000});
+      assert.deepEqual(await fs.readFile(afterXml),await fs.readFile(beforeXml),
+        kind+' nested chapter hierarchy and target Tag identities must remain intact');
+    }
+    const taggedBefore=path.join(outDir,'p2-variable-tagged-before.bin');
+    const taggedAfter=path.join(outDir,'p2-variable-tagged-after.bin');
+    const replacedAfter=path.join(outDir,'p2-variable-untagged-after.bin');
+    const afterTag=result.attachments.find(x=>x.file_name===tagged.file_name);
+    const afterFree=result.attachments.find(x=>x.file_name===free.file_name);
+    execFileSync('mkvextract',[reserved,'attachments',
+      String(tagged.id)+':'+taggedBefore],{timeout:60000});
+    execFileSync('mkvextract',[originalOutput,'attachments',
+      String(afterTag.id)+':'+taggedAfter,
+      String(afterFree.id)+':'+replacedAfter],{timeout:60000});
+    assert.deepEqual(await fs.readFile(taggedAfter),await fs.readFile(taggedBefore));
+    assert.deepEqual(await fs.readFile(replacedAfter),grown);
+    assert.deepEqual(nativePacket(originalOutput),nativePacket(reserved),
+      'all original packets, PTS/DTS and hashes must match');
+    console.log('P0/P2-V reserved Void variable-length browser output + independent MKVToolNix/ffprobe chapters, tags, UID, FileData and packet audit PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioExistingMkvSameSizeAttachmentReplace(browser) {
   console.log('P0/P2 real browser: replace one existing unreferenced FileData, preserve tagged UID and nested Chapters');
   // This source was authored independently by MKVToolNix and already has
@@ -5010,6 +5116,7 @@ try {
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioExistingMkvLimitedAppendReviewed(browser);
   await scenarioExistingMkvSameSizeAttachmentReplace(browser);
+  await scenarioReservedVoidExistingFileDataVariableReplace(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
