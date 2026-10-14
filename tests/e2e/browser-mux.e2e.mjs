@@ -1308,6 +1308,70 @@ async function scenarioBulkTrackMetadata(browser) {
   }
 }
 
+async function scenarioExternalAssetDomainAuthority(browser) {
+  console.log('E2E P1: external audio/subtitle/domain font policy -> real mux and same-metadata File replacement');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'base.mp4'));
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    await page.setInputFiles('#subInput',path.join(root,'zh.ass'));
+    await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
+    const audio=page.locator('#newAudioList input[data-new-audio-field="title"][data-index="0"]');
+    const subtitle=page.locator('#newSubtitleList input[data-new-sub-field="title"][data-index="0"]');
+    await audio.fill('Old-selection private title');
+    assert.equal(await audio.inputValue(),'Old-selection private title');
+
+    // Browser File grants are object identity, not just name|size|mtime.
+    // Re-select a different File object containing the exact same bytes and
+    // identical display metadata. The stale form and title MUST NOT leak.
+    await page.evaluate(async ()=>{
+      const input=document.querySelector('#audioInput');
+      const old=input.files[0];
+      const clone=new File([await old.arrayBuffer()],old.name,{
+        lastModified:old.lastModified,type:old.type,
+      });
+      const transfer=new DataTransfer();
+      transfer.items.add(clone);
+      input.files=transfer.files;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    await page.waitForFunction(()=>{
+      const text=document.querySelector('#newAudioList input[data-new-audio-field="title"][data-index="0"]');
+      return text && text.value==='external';
+    },null,{timeout:30000});
+    assert.equal(await audio.inputValue(),'external');
+    await audio.fill('Domain external audio');
+    await page.locator('#newAudioList select[data-new-audio-field="language"]').selectOption('eng');
+    await page.locator('#newAudioList details.track-advanced summary').click();
+    await page.locator('#newAudioList input[data-new-audio-field="commentary"]').check();
+    await subtitle.fill('Domain Chinese subtitles');
+    await page.locator('#newSubtitleList select[data-new-sub-field="language"]').selectOption('zho');
+    await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').check();
+    await page.locator('#fontMode').selectOption('force');
+    assert.equal(await page.locator('#fontMode').inputValue(),'force');
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-external-domain-authored.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const checked=probe(output);
+    const audios=streams(checked,'audio');
+    const subtitles=streams(checked,'subtitle');
+    const fonts=streams(checked,'attachment');
+    assert.equal(audios.at(-1).tags?.title,'Domain external audio');
+    assert.equal(audios.at(-1).tags?.language,'eng');
+    assert.equal(Boolean(audios.at(-1).disposition?.comment),true);
+    assert.equal(subtitles.at(-1).tags?.title,'Domain Chinese subtitles');
+    assert.equal(subtitles.at(-1).tags?.language,'zho');
+    assert.equal(Boolean(subtitles.at(-1).disposition?.forced),true);
+    assert.ok(fonts.some(font=>font.tags?.filename==='DejaVuSans.ttf'),
+      'font inventory and mode must be compatible with actual executor output');
+    console.log('External asset domain and independent finished-MKV oracle PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioWorkbenchEfficiency(browser) {
   console.log('E2E scenario 22: bulk include/reset controls + grouped mux plan');
   const { context, page } = await openApp(browser);
@@ -4704,6 +4768,7 @@ try {
   await scenarioTenSequential(browser);
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
+  await scenarioExternalAssetDomainAuthority(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
