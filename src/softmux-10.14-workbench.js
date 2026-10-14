@@ -44,11 +44,27 @@ export function mountSoftmux1014Workbench(doc = document) {
     '</div>',
     '<div class="sf14-single" id="sf14Single">',
       '<section class="sf14-pane sf14-source" aria-label="来源资源">',
-        '<header class="sf14-pane-head"><strong>来源资源</strong><span>只读身份 / 来源操作</span></header>',
+        '<header class="sf14-pane-head"><strong>来源资源</strong><span>来源身份与内容</span></header>',
         '<div id="sf14Source" class="sf14-pane-body"></div></section>',
       '<section class="sf14-pane sf14-composition" aria-label="拟输出 Matroska">',
-        '<header class="sf14-pane-head"><strong>拟输出 MKV</strong><span>轨道 · 附件 · 章节 · 标签</span></header>',
+        '<header class="sf14-pane-head"><strong>拟输出 MKV</strong><span>输出结构与变更计划</span></header>',
         '<div id="sf14Composition" class="sf14-pane-body">',
+          '<nav id="sf14ObjectTabs" class="sf14-object-tabs" aria-label="拟输出对象分类" role="tablist">',
+            '<button type="button" role="tab" data-sf-section="tracks" aria-selected="true">轨道</button>',
+            '<button type="button" role="tab" data-sf-section="attachments" aria-selected="false">附件</button>',
+            '<button type="button" role="tab" data-sf-section="chapters" aria-selected="false">章节</button>',
+            '<button type="button" role="tab" data-sf-section="tags" aria-selected="false">标签</button>',
+          '</nav>',
+          '<section class="sf14-section-notice" id="sf14SectionNotice" role="tabpanel" hidden>',
+            '<div class="sf14-section-icon" aria-hidden="true">↗</div>',
+            '<h3 id="sf14SectionTitle"></h3>',
+            '<p id="sf14SectionText"></p>',
+            '<div class="sf14-section-actions">',
+              '<button id="sf14SectionEvidence" type="button">查看现有来源证据</button>',
+              '<button id="sf14SectionTracks" type="button">返回轨道工作区</button>',
+            '</div>',
+            '<small>此入口已保留。当前真实读写能力由原有工作台与执行前验证决定，不会伪造容器修改。</small>',
+          '</section>',
           '<p class="sf14-empty" id="sf14CompositionEmpty">添加资源后，在此检查将要生成的 Matroska 容器。来源列表不会成为第二个编辑器。</p>',
         '</div></section>',
       '<section class="sf14-pane sf14-inspector" aria-label="选中对象检查器">',
@@ -56,7 +72,7 @@ export function mountSoftmux1014Workbench(doc = document) {
         '<div id="sf14Inspector" class="sf14-pane-body"></div></section>',
     '</div>',
     '<section class="sf14-output" aria-label="执行、检查与成品">',
-      '<div class="sf14-output-head"><strong>交付与验证</strong><span>实际封装、独立回读与保存分别记录</span></div>',
+      '<div class="sf14-output-head"><strong>交付与验证</strong><span>计划 → 封装 → 审计 → 保存</span></div>',
       '<div id="sf14Output"></div></section>',
     '<section class="sf14-batch sf14-page" id="sf14Batch" aria-label="批量输出任务矩阵" hidden>',
       '<p class="sf14-batch-note">每行对应一个独立拟输出 MKV；配对歧义和保存失败应由真实任务状态决定。</p></section>',
@@ -78,7 +94,7 @@ export function mountSoftmux1014Workbench(doc = document) {
 
   root.querySelector('.sf14-identity strong').textContent = SOFTMUX_1014_UI_VERSION;
   root.querySelector('.sf14-version-note').textContent =
-    SOFTMUX_1014_UI_VERSION + ' · 候选 UI / 真实功能以当前执行后端和审计为准 · 原始来源不会被此布局操作修改';
+    SOFTMUX_1014_UI_VERSION + ' · 本地处理 · 功能可用性以执行与审计结果为准 · 未实现入口均有明确状态说明';
 
   // Rehost actual production DOM nodes, preserving listeners, File grants,
   // track editing state, stable IDs, preview and audit/queue lifecycle.
@@ -113,6 +129,7 @@ export function mountSoftmux1014Workbench(doc = document) {
   recoverySummary.textContent = '工程草稿 · 核验与恢复';
   recovery.appendChild(recoverySummary);
   const recoveryNodes = [
+    '.composition-header-tools',
     '.container-project-intent-review:not([id])',
     '#containerProjectImportReview', '#containerProjectIntentReview',
     '#containerProjectConflictReview', '#containerProjectVerifySourceBtn',
@@ -129,8 +146,7 @@ export function mountSoftmux1014Workbench(doc = document) {
 
   const preview = inspector.querySelector('.subtitle-preview-card');
   const editor = inspector.querySelector('.editor-grid');
-  const inspectorColumn = inspector;
-  const createDrawer = (id, title, child) => {
+   const createDrawer = (id, title, child) => {
     if (!child) return null;
     const detail = doc.createElement('details');
     detail.id = id;
@@ -165,6 +181,63 @@ export function mountSoftmux1014Workbench(doc = document) {
     button.addEventListener('click', () => setFocus(button.dataset.sfFocus));
   setFocus('source');
   get(doc,'sf14BackToComposition')?.addEventListener('click', () => setFocus('composition'));
+
+  // Permanent product entry points: preserve identity even where a dedicated
+  // output editor has not yet passed the production capability gate.
+  const sectionContent = {
+    attachments: {
+      title: '输出附件',
+      body: '当前来源附件的检查、保留、名称与 MIME 编辑由真实来源对象检查器负责；独立的输出附件编排界面尚未接入。字体附件可通过现有资源导入工作流处理。'
+    },
+    chapters: {
+      title: '章节结构',
+      body: '保留章节树、时间点与目标编辑入口。目前对一般来源章节仅提供受限的来源结构观察；只有经能力验证的专门工具允许写入，不承诺任意章节无损重排。'
+    },
+    tags: {
+      title: '标签与引用',
+      body: '保留全局标签与目标 UID 引用入口。TrackUID、AttachmentUID 等关联必须经过独立证据审核；这里不会把来源标签自动当成已验证的最终输出标签。'
+    }
+  };
+  const setSection = (section) => {
+    if (!['tracks','attachments','chapters','tags'].includes(section)) return;
+    root.dataset.section = section;
+    for (const button of root.querySelectorAll('[data-sf-section]')) {
+      const selected = button.dataset.sfSection === section;
+      button.setAttribute('aria-selected',String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    const notice = get(doc,'sf14SectionNotice');
+    notice.hidden = section === 'tracks';
+    if (sectionContent[section]) {
+      get(doc,'sf14SectionTitle').textContent = sectionContent[section].title;
+      get(doc,'sf14SectionText').textContent = sectionContent[section].body;
+    }
+  };
+  for (const button of root.querySelectorAll('[data-sf-section]')) {
+    button.addEventListener('click', () => setSection(button.dataset.sfSection));
+    button.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft','ArrowRight'].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = [...root.querySelectorAll('[data-sf-section]')];
+      const index = tabs.indexOf(button);
+      const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      setSection(next.dataset.sfSection);
+      next.focus();
+    });
+  }
+  get(doc,'sf14SectionTracks').addEventListener('click',() => setSection('tracks'));
+  get(doc,'sf14SectionEvidence').addEventListener('click', () => {
+    setSection('tracks');
+    const evidence = get(doc,'compositionSourceEvidence');
+    if (evidence && !evidence.hidden) {
+      evidence.open = true;
+      evidence.scrollIntoView({block:'nearest',behavior:'smooth'});
+    } else {
+      get(doc,'sf14Recovery').open = true;
+      get(doc,'sf14Recovery').scrollIntoView({block:'nearest',behavior:'smooth'});
+    }
+  });
+  setSection('tracks');
   get(doc,'assetInventory')?.addEventListener('click', event => {
     if (!doc.defaultView?.matchMedia?.('(max-width: 680px)').matches) return;
     const external = event.target.closest('[data-asset-focus-key]');
@@ -214,7 +287,11 @@ export function mountSoftmux1014Workbench(doc = document) {
   };
   for (const button of root.querySelectorAll('[data-sf-view]'))
     button.addEventListener('click', () => changeView(button.dataset.sfView));
-  get(doc,'sf14Add').addEventListener('click', () => get(doc,'unifiedAssetInput')?.click());
+  get(doc,'sf14Add').addEventListener('click', () => {
+    changeView('single');
+    setFocus('source');
+    get(doc,'unifiedAssetInput')?.click();
+  });
   get(doc,'sf14Help').addEventListener('click', () => get(doc,'sf14HelpDialog')?.showModal());
   get(doc,'sf14Settings').addEventListener('click', () => get(doc,'sf14SettingsDialog')?.showModal());
   for (const button of root.querySelectorAll('[data-sf-density]')) {
