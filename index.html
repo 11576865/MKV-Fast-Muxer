@@ -123,7 +123,7 @@
 
               <section id="containerProjectRestorePanel" class="container-project-intent-review" aria-label="经核验的来源轨道及附件编辑恢复" hidden>
                 <strong>确认恢复到当前待封装编辑方案</strong>
-                <p>仅允许已扫描来源的音频/字幕轨道保留状态、标题、语言与各项 disposition 标记，以及来源附件的保留、文件名、MIME 修改；需要完整来源 SHA-256、对象身份和原字段值无冲突、明确确认，并关闭“保留全部”模式。附件 UID、章节、标签及轨道排序不能通过此入口恢复。不会写入源文件或自动封装。</p>
+                <p>仅允许已扫描来源的音频/字幕轨道保留状态、标题、语言与各项 disposition 标记，以及来源附件的保留、文件名、MIME 修改；需要完整来源 SHA-256、对象身份和原字段值无冲突、明确确认，并关闭“保留全部”模式。附件 UID、章节和标签不能通过此入口恢复。音频/字幕的同类型轨道排序仅支持完整且全部保留的扫描轨道集合；排列缺失、存在已排除同类轨道或来源旧值冲突时会阻断恢复。不会写入源文件或自动封装。</p>
                 <label><input id="containerProjectRestoreConfirm" type="checkbox" /> 我已检查全部修改，将其一次应用到当前待封装方案</label>
                 <button id="containerProjectRestoreBtn" class="button button-secondary" type="button" disabled>应用经验证的轨道及附件修改</button>
                 <button id="containerProjectRestoreUndoBtn" class="button button-secondary" type="button" hidden disabled>撤销本次恢复</button>

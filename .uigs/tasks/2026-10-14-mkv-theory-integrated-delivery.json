@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1 source attachment portable recovery: scan-based name/MIME/include edit intents, strict SHA+identity+old-value preview, explicit mixed track+attachment atomic apply and conflict-protected undo",
+  "current_work_unit": "P1 verified scanned source audio/subtitle track-order permutations: exported kind-local slot deltas, full source SHA/old-value/inventory checks and atomic sparse-order replay/undo together with attachments",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -44,35 +44,45 @@
     "Made mixed track+attachment apply and guarded undo all-or-nothing across both object types; no source mutation, media mux, authority tokens or EBML writer changes.",
     "Updated real workbench labels, confirmation feedback, export capability messages and historical documentation to distinguish SHA-verified attachment replay from session-only source track reordering.",
     "Added Node source-attachment export/strict import/prepare/mixed apply/undo/drift/security regressions and real browser export→reset→inert import→SHA verify→explicit apply→undo→reapply→actual MKV and independent ffprobe.",
-    "Cross-module real function execution passed one track and two attachment deltas through strict import, conflict preview, atomic apply, inverse and stale attachment rejection; changed JS files pass static parsing."
+    "Cross-module real function execution passed one track and two attachment deltas through strict import, conflict preview, atomic apply, inverse and stale attachment rejection; changed JS files pass static parsing.",
+    "PR #131 exact-head Browser E2E workflow 38486732486 and Pages 38486732775 both SUCCESS; merged to main@d1499ed3bb6eb59d05ded614587b3e0df3f0cdf0.",
+    "Implemented portable scan-index-derived source audio/subtitle reorder editIntents in the existing ContainerProject v1 exporter, using kind-local project slots and no fabricated historical edit sequence.",
+    "Extended verified source-track/attachment replay to require full within-kind bijective order permutation, complete all-included source cohort, live FFprobe stream reference and numeric execution-order uniqueness; reject cross-kind/partial/duplicate/excluded operations.",
+    "Converted verified project slot order into the exact existing sparse FFmpeg track order numeric slot set; atomically commits order plus field and attachment edits in one prepared transaction, with guarded inverse.",
+    "Updated real UI export status and restore consent for conditional SHA-verified full-kind order recovery, missing-hash refusal and excluded-peer guard.",
+    "Added Node tests for audio index1+6 sparse-order restoration with attachment index4, mixed property and attachment atomicity, malicious slots, exclude and stale order/stream conflicts.",
+    "Added Chromium actual MKV scenario for reorder+title export/reset/inert JSON import/whole-file SHA verify/explicit apply/undo/reapply/output and independent ffprobe track-title order.",
+    "Ran isolated real source project/restore modules through strict JSON parse, mixed 2-track+1-attachment sparse reorder, commit and undo; static JS syntax checks passed. Full exact-head CI Pending."
   ],
   "next_units": [
-    "Observe the new exact-head PR Node/build/real Chromium workflow and repair only concrete failures in a bounded subsequent turn, then merge when green.",
-    "Design and implement conflict-checked portable source-track permutation/order restoration separately, with stable scanned identity and reversible all-or-nothing output projection.",
-    "Extend durable, source-neutral batch recipe v2 independent JobPlan and verified attachment delivery capabilities where UID/Tag/EBML structure can be independently proven.",
-    "Close remaining external audio/subtitle/font domain authority, tablet/desktop acceptance and resource-only source-neutral Matroska support without relaxing #77."
+    "Submit one integrated PR for P1 source order recovery and inspect exact-head Node/build/Chromium in a follow-up; fix only concrete failures in bounded batches and merge when actually green.",
+    "Extend ContainerProject single domain ownership to external audio/subtitle/font and source-neutral resource-only plans, each with explicit writer capability and independent output evidence.",
+    "Implement full batch recipe v2 independent JobPlan, recoverable queue and per-output inspect/audit with background-safe source rebind.",
+    "Address Matroska P0 #77 nested Chapter/targeted Tag and AttachmentUID relation preservation using independent raw EBML oracle, not extending FFmpeg writer blindly.",
+    "Complete actual tablet/desktop device acceptance, sustained large-media and large-batch performance evidence."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
-  "branch": "feat/p1-verified-source-attachment-replay-20261014",
+  "branch": "feat/p1-verified-source-track-order-replay-20261014",
   "pull_request": null,
-  "last_durable_commit": "37e8d507a71b6fccb438bd4134c12d0e7f9fce92",
+  "last_durable_commit": "115ac331eb66608dd65a9ab574ca82e122bbc2b6",
   "external_validation": {
-    "pr128-node-build-browser": "passed",
-    "pr128-merged-main": "passed",
-    "pr130-node-build-browser": "passed",
-    "pr130-merged-main": "passed",
-    "p1-attachment-replay-cross-module-isolated": "passed",
-    "p1-attachment-replay-static-syntax": "passed",
-    "p1-attachment-replay-exact-head-node": "pending",
-    "p1-attachment-replay-exact-head-build": "pending",
-    "p1-attachment-replay-exact-head-browser": "pending",
-    "device-and-cross-player": "unknown"
+    "pr130-browser-build": "passed",
+    "pr130-main-merge": "passed",
+    "pr131-browser-build": "passed",
+    "pr131-main-merge": "passed",
+    "p1-order-replay-real-module-smoke": "passed",
+    "p1-order-replay-js-syntax": "passed",
+    "p1-order-replay-node": "pending",
+    "p1-order-replay-build": "pending",
+    "p1-order-replay-chromium": "pending",
+    "cross-player-complex-ebml": "unknown",
+    "actual-device": "unknown"
   },
   "blockers": [
-    "Exact-head Node/Vite/real Chromium tests for this new attachment verified replay PR are Pending.",
-    "Validated detached attachment recovery is an EDIT-PLAN operation, not media write authorization; source AttachmentUID/targeted Tag and #77 complex Chapter/Tag loss remain unsolved.",
-    "Source track ordering is still session-only: no verified detached permutation replay.",
-    "Full independent browser/tablet/device tests, large-scale sustained mux and batch recipe v2 remain open."
+    "New PR exact-head Node/build/Chromium for source-order replay not yet run at current HEAD.",
+    "Source ordering recovery deliberately refuses any excluded source track within reordered kind; user UI explicitly warns.",
+    "Complex nested Chapter/targeted Tag remux and AttachmentUID/EBML structure graph #77 still unresolved; no generic writer certification.",
+    "External asset state/batch recipes/source-neutral output, OPFS recovery and real device/performance evidence are future scope."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
@@ -82,7 +92,8 @@
     "No force-push or unsafe overwrite of PR #127 after divergent main. Preserve PR #127 as provenance until combined replacement PR is open; close superseded PR only after replacement is durable.",
     "This branch is stacked on PR128 head, avoiding parallel modifications to stale main and preventing repeating PR128's full CI while developing future functionality.",
     "Preserve the existing validated mux/writer path. Do not imply domain-level attachment edits are standalone safe media writes; independent final ffprobe and raw EBML/UID gates remain separate.",
-    "Restoration uses the existing untrusted JSON boundary; File SHA match is comparison evidence, not authorship. Full track+attachment mutation is protected by exact old-state validation immediately before synchronous commit."
+    "Restoration uses the existing untrusted JSON boundary; File SHA match is comparison evidence, not authorship. Full track+attachment mutation is protected by exact old-state validation immediately before synchronous commit.",
+    "No separate writer or file permission: restored domain permutation only changes existing FFmpeg-facing trackState.order after all verified source and old-state gates pass. Current numeric multiset of same-kind order values is retained."
   ],
   "updated_at": "2026-10-14"
 }

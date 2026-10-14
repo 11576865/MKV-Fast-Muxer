@@ -208,7 +208,8 @@ export function createContainerProjectFromProjection(snapshot) {
  * Export the effective legacy editor as a portable source-baseline delta.
  * EditIntents here are derived differences (scanned vs current), NOT a claim
  * that these operations happened chronologically or that the JSON is signed.
- * Only source audio/subtitle rows have verified scan-time editable baselines.
+ * Source audio/subtitle fields/order and source attachment name/MIME/include
+ * are derived against scanned baselines; detached JSON is never execution authority.
  */
 export function createEditedContainerProjectFromProjection(snapshot) {
   if (snapshot?.identityDiagnostics?.length)
@@ -216,6 +217,28 @@ export function createEditedContainerProjectFromProjection(snapshot) {
   const current = createContainerProjectFromProjection(snapshot);
   const observed = new Map((snapshot.objects || [])
     .map(item => [stableKey('object', item.id), item]));
+  // Reconstruct baseline source order using ffprobe stream indices. The
+  // flattened project's positions are kind-local slots, not necessarily
+  // equal to sparse FFmpeg trackState.order values.
+  const originalSlots = new Map();
+  if (snapshot.source?.inspection === 'ffprobe-projected' &&
+      snapshot.sourceScanKey) {
+    for (const kind of ['audio', 'subtitle']) {
+      const rows = current.objects.map((object,position) => {
+        const item=observed.get(object.id);
+        const matched=/^(audio|subtitle):(\d+)$/.exec(item?.target?.key || '');
+        return item?.target?.type === 'source' && matched &&
+          matched[1]===kind && object.kind===kind
+          ? {id:object.id,position,index:Number(matched[2])} : null;
+      }).filter(Boolean);
+      if (rows.some(row => !Number.isSafeInteger(row.index) || row.index<0) ||
+          new Set(rows.map(row=>row.index)).size!==rows.length)
+        throw Error('PROJECT_SOURCE_ORDER_AMBIGUOUS');
+      const originals=[...rows].sort((a,b)=>a.index-b.index);
+      const slots=rows.map(row=>row.position).sort((a,b)=>a-b);
+      originals.forEach((row,i)=>originalSlots.set(row.id,slots[i]));
+    }
+  }
   const originals = current.objects.map(object => {
     const item = observed.get(object.id);
     if (item?.target?.type !== 'source' ||
@@ -225,6 +248,7 @@ export function createEditedContainerProjectFromProjection(snapshot) {
       ...object,
       included: item.originalIncluded !== false,
       attributes: { ...item.originalAttributes },
+      order: originalSlots.get(object.id) ?? object.order,
     };
   });
   let result = createContainerProject({
@@ -260,6 +284,13 @@ export function createEditedContainerProjectFromProjection(snapshot) {
       result = applyContainerProjectEdit(result, {
         type: 'include', objectId: target.id, value: target.included,
       });
+    }
+    if (originalSlots.has(target.id)) {
+      const oldOrder=result.objects.find(object=>object.id===target.id).order;
+      if (oldOrder!==target.order)
+        result=applyContainerProjectEdit(result,{
+          type:'reorder',objectId:target.id,value:target.order,
+        });
     }
   }
   return result;

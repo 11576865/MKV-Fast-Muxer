@@ -30,3 +30,7 @@ No generic Chapter/Tag update, no UID-preserving attachment writer, no OPFS File
 ## CI discipline
 
 Stacked branch is based on PR #128 head, not stale main. Preserve #128's independently running validation; only run the combined advanced-domain end-to-end gate once this change is ready for main, rather than invalidating #128 or triggering repeated CI for each changed source file.
+
+## Subsequent verified reorder recovery (2026-10-14)
+
+The statement above that ordering was session-local describes the original P1 advanced-domain feature (#130) **as delivered at that stage**. Follow-on [verified track-order recovery](p1-verified-source-track-order-replay-20261014.md) adds scan-index-derived complete kind-local `reorder` intents, complete-source SHA/old-value verification, sparse FFmpeg numeric slot mapping and atomic mixed track/attachment apply/undo. Only complete, all-included source audio or subtitle cohorts are supported; excluded peers and cross-kind arbitrary permutations fail closed. Its full PR exact-head CI is Pending until observed. No generic Matroska Chapter/Tag/UID writer safety is inferred.

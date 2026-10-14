@@ -1982,8 +1982,12 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     link.remove();
     const sourceEditorBound = scannedSourceFile === source &&
       trackState?.fileKey === fileKey(source);
-    const orderNotPortable = sourceEditorBound &&
-      trackState.tracks.some(track => track.order !== track.index);
+    const movedKinds = new Set(sourceEditorBound
+      ? trackState.tracks.filter(track => track.order !== track.index)
+        .map(track => track.type) : []);
+    const orderChanges = movedKinds.size > 0;
+    const orderHasExcludedPeer = sourceEditorBound && trackState.tracks.some(track =>
+      movedKinds.has(track.type) && !track.include);
     const attachmentEdits = sourceEditorBound &&
       trackState.attachments.some(item => !item.include ||
         item.filename !== item.originalFilename ||
@@ -1991,8 +1995,12 @@ containerProjectExportBtn?.addEventListener('click', async () => {
     status.textContent = (digest
       ? '已导出含完整来源 SHA-256 的解绑草稿；它不能自动恢复写入权限。'
       : '已导出解绑草稿；来源超过 16 GiB，未证明字节一致，恢复编辑仍被阻断。') +
-      (orderNotPortable
-        ? ' 注意：当前轨道上下排序只在本次会话有效，草稿重新导入不会恢复轨道顺序。'
+      (orderChanges
+        ? !digest
+          ? ' 注意：轨道排序虽已记录，但缺少完整来源 SHA-256，无法执行安全恢复。'
+          : orderHasExcludedPeer
+            ? ' 注意：排序涉及的同类轨道包含已排除项；此类排序恢复仍被保守阻断。'
+            : ' 轨道排序修改已记录为可核验的草稿意图；同类轨道全部保留时可在来源与排列核对、明确确认后恢复。'
         : '') +
       (attachmentEdits
         ? digest

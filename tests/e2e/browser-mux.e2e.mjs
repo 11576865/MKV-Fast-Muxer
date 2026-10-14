@@ -1453,6 +1453,91 @@ async function scenarioLiveSourceAttachmentDomainMux(browser) {
   }
 }
 
+
+async function scenarioVerifiedDetachedSourceTrackOrder(browser) {
+  console.log('E2E P1: actual source order -> detached permutation -> SHA rebind -> explicit atomic restore -> real MKV');
+  const {context,page}=await openApp(browser);
+  try {
+    const input=path.join(root,'source-multitrack.mkv');
+    const sourceBefore=await fs.readFile(input);
+    await page.setInputFiles('#unifiedAssetInput',input);
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#sourceFilesDetails > summary').click();
+    const tree=page.locator('.asset-container-tree');
+    await tree.waitFor({state:'visible'});
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const audio=tree.locator('[data-tree-group="audio"] .asset-tree-row');
+    const inspector=page.locator('#assetInspectorHost .asset-tree-inspector');
+    assert.equal(await audio.count(),2);
+    const originals=[];
+    for(let i=0;i<2;i++) {
+      await audio.nth(i).locator('[data-tree-select]').click();
+      const input=inspector.locator('[data-tree-track-field="title"]');
+      originals.push(await input.inputValue());
+      await input.fill('Portable source audio '+(i===0?'A':'B'));
+    }
+    await audio.nth(1).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-move="-1"]').click();
+    assert.deepEqual(await audio.locator('.asset-tree-index-name').allTextContents(),
+      ['Portable source audio B','Portable source audio A']);
+    const draftPath=path.join(outDir,'p1-verified-source-track-order.json');
+    await saveDownload(page,'#containerProjectExportBtn',draftPath);
+    const draft=JSON.parse(await fs.readFile(draftPath,'utf8'));
+    const swaps=draft.editIntents.filter(change=>change.type==='reorder');
+    assert.equal(swaps.length,2,'both peers require explicit slot edits');
+    assert.equal(new Set(swaps.map(change=>change.from)).size,2);
+    assert.deepEqual(new Set(swaps.map(change=>change.from)),
+      new Set(swaps.map(change=>change.to)));
+    assert.match(await page.locator('#status').textContent(),
+      /轨道排序修改已记录为可核验的草稿意图/);
+
+    // Restore the current editor to its scanned source baseline BEFORE import.
+    // Import is completely inert; only a verified and explicitly confirmed
+    // replay may change source track order or metadata.
+    await audio.nth(0).locator('[data-tree-select]').click();
+    await inspector.locator('[data-tree-track-move="1"]').click();
+    for(let i=0;i<2;i++) {
+      await audio.nth(i).locator('[data-tree-select]').click();
+      await inspector.locator('[data-tree-track-field="title"]').fill(originals[i]);
+    }
+    await page.setInputFiles('#containerProjectImportInput',draftPath);
+    await page.waitForFunction(()=>
+      (document.querySelector('#containerProjectImportReview')?.textContent || '')
+        .includes('已读取工程草稿'));
+    assert.notDeepEqual(await audio.locator('.asset-tree-index-name').allTextContents(),
+      ['Portable source audio B','Portable source audio A'],
+      'parsing untrusted JSON must not silently reorder source tracks');
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#containerProjectImportReview')?.dataset.state===
+      'digest-matches-draft',null,{timeout:120_000});
+    await page.locator('#containerProjectRestoreConfirm').check();
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),false);
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.deepEqual(await audio.locator('.asset-tree-index-name').allTextContents(),
+      ['Portable source audio B','Portable source audio A']);
+    await page.locator('#containerProjectRestoreUndoBtn').click();
+    assert.notDeepEqual(await audio.locator('.asset-tree-index-name').allTextContents(),
+      ['Portable source audio B','Portable source audio A']);
+    await page.locator('#containerProjectRestoreConfirm').check();
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.deepEqual(await audio.locator('.asset-tree-index-name').allTextContents(),
+      ['Portable source audio B','Portable source audio A']);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-verified-source-track-order-final.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    assert.deepEqual(streams(probe(output),'audio').map(stream=>stream.tags?.title),
+      ['Portable source audio B','Portable source audio A'],
+      'independent native ffprobe must inspect delivered track order');
+    assert.deepEqual(await fs.readFile(input),sourceBefore);
+    console.log('Verified detached track order, inverse and final output PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioAv1(browser) {
   const av1Path = path.join(root, 'av1.mp4');
   try {
@@ -2681,15 +2766,15 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     await subAdvanced.locator('[data-tree-track-flag="hearingImpaired"]').check();
     assert.equal(await subAdvanced.getAttribute('open'), '');
 
-    // Source flags are now domain-owned and persisted as coherent *derived*
-    // detached edit intents. Order movement stays live-session-only until a
-    // separately verified order replay command is implemented.
+    // Source flags and the complete within-kind track permutation are
+    // projected into typed, scan-baseline detached edit intents. Real replay
+    // requires proof and never executes from JSON without explicit consent.
     const advancedDraftPath = path.join(outDir, 'p1-advanced-dispositions-draft.json');
     await saveDownload(page, '#containerProjectExportBtn', advancedDraftPath);
     const advancedDraft = JSON.parse(await fs.readFile(advancedDraftPath, 'utf8'));
     assert.match(await page.locator('#status').textContent(),
-      /轨道上下排序只在本次会话有效/,
-      'a project export after reordering must disclose non-portable ordering');
+      /轨道排序修改已记录为可核验的草稿意图/,
+      'a project export after reordering must describe proof-bound, consent-gated restoration');
     assert.equal(advancedDraft.schema, 'container-project-v1');
     assert.ok(advancedDraft.editIntents.some(intent =>
       intent.field === 'commentary' && intent.to === true),
@@ -2697,8 +2782,8 @@ async function scenarioUnifiedContainerOrderingAndAdvancedFlags(browser) {
     assert.ok(advancedDraft.editIntents.some(intent =>
       intent.field === 'hearingImpaired' && intent.to === true),
       'advanced hearing-impaired disposition must survive portable project export');
-    assert.ok(advancedDraft.editIntents.every(intent => intent.type !== 'reorder'),
-      'domain move is not advertised as a verified executable detached order replay');
+    assert.equal(advancedDraft.editIntents.filter(intent=>intent.type==='reorder').length,2,
+      'a two-audio-track swap must export a complete two-object permutation, never one arbitrary order assignment');
 
     // Visual acceptance captures the normal workbench, not the deliberately
     // expanded advanced track tools used to test reverse synchronization.
@@ -4588,6 +4673,7 @@ try {
   await scenarioLiveSourceTrackDomainToRealMux(browser);
   await scenarioUnifiedContainerAttachmentEditing(browser);
   await scenarioUnifiedContainerOrderingAndAdvancedFlags(browser);
+  await scenarioVerifiedDetachedSourceTrackOrder(browser);
   await scenarioResponsiveObjectEditor(browser);
   await scenarioMultiTrack(browser);
   await scenarioFiveStepRecipeAndCapabilityWorkbench(browser);

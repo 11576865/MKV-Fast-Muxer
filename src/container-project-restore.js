@@ -73,10 +73,22 @@ export function prepareVerifiedTrackReplay({
     [object.id, liveProjection.objects[index]]));
   const patches = new Map();
   const attachmentPatches = new Map();
+  const reorderChanges = new Map();
   for (const change of preview.changes) {
     const object = objects.get(change.objectId);
     const [kind, indexText] = String(object?.target?.key || '').split(':');
     const index = Number(indexText);
+    if (change.type === 'reorder') {
+      if (object?.target?.type !== 'source' ||
+          !['audio','subtitle'].includes(kind) || kind !== object.kind ||
+          !/^\d+$/.test(indexText || '') || !Number.isSafeInteger(index))
+        throw Error('TRACK_REPLAY_UNSUPPORTED_REORDER');
+      const group=reorderChanges.get(kind) || new Map();
+      if (group.has(index)) throw Error('TRACK_REPLAY_REORDER_DUPLICATE');
+      group.set(index,change);
+      reorderChanges.set(kind,group);
+      continue;
+    }
     if (object?.target?.type === 'source' && kind === 'attachment' &&
         object.kind === 'attachment' && /^\d+$/.test(indexText || '') &&
         Number.isSafeInteger(index)) {
@@ -131,6 +143,72 @@ export function prepareVerifiedTrackReplay({
     patch.after[field] = change.to;
   }
 
+
+  // A reorder is a permutation of ALL scanned slots in one kind, not a
+  // standalone scalar edit. The domain stores compact positions, while the
+  // existing FFmpeg executor can have sparse numbers such as 1, 4, 9.
+  // Validate a bijection of the whole source cohort before changing ANY row.
+  for (const [kind, changes] of reorderChanges) {
+    const sourceGroup=currentProject.objects.map((obj,position)=>({
+      obj,projection:liveProjection.objects[position],
+    })).filter(({obj,projection})=>obj.kind===kind &&
+      projection?.target?.type==='source' &&
+      /^\d+$/.test((projection.target.key || '').split(':')[1] || '') &&
+      (projection.target.key || '').startsWith(kind+':'));
+    const executor=trackState.tracks.filter(row=>row.type===kind);
+    if (sourceGroup.length!==executor.length || sourceGroup.length<2 ||
+        executor.some(row=>!row.include || !Number.isSafeInteger(row.order) ||
+          row.order<0 || row.stream!==trackState.streams?.find(stream=>stream.index===row.index)) ||
+        new Set(executor.map(row=>row.index)).size!==executor.length ||
+        new Set(executor.map(row=>row.order)).size!==executor.length)
+      throw Error('TRACK_REPLAY_ORDER_INVENTORY_UNSAFE');
+    const sourceByIndex=new Map();
+    for (const entry of sourceGroup) {
+      const index=Number(entry.projection.target.key.split(':')[1]);
+      if (sourceByIndex.has(index)) throw Error('TRACK_REPLAY_ORDER_INVENTORY_UNSAFE');
+      sourceByIndex.set(index,entry.obj);
+    }
+    if (sourceByIndex.size!==executor.length ||
+        executor.some(row=>!sourceByIndex.has(row.index)))
+      throw Error('TRACK_REPLAY_ORDER_INVENTORY_UNSAFE');
+    const byProject=[...executor].sort((a,b)=>
+      sourceByIndex.get(a.index).order-sourceByIndex.get(b.index).order);
+    const byExecutor=[...executor].sort((a,b)=>a.order-b.order);
+    if (byProject.some((row,i)=>row!==byExecutor[i]))
+      throw Error('TRACK_REPLAY_ORDER_PROJECTION_DRIFT');
+    const slotSet=byProject.map(row=>sourceByIndex.get(row.index).order);
+    if (new Set(slotSet).size!==slotSet.length)
+      throw Error('TRACK_REPLAY_ORDER_INVENTORY_UNSAFE');
+    const desired=new Map();
+    for (const row of executor) {
+      const change=changes.get(row.index);
+      const currentSlot=sourceByIndex.get(row.index).order;
+      if (change && change.current!==currentSlot)
+        throw Error('TRACK_REPLAY_ORDER_BASELINE_CONFLICT');
+      desired.set(row.index,change ? change.to : currentSlot);
+      const nextIncluded=patches.get(row.index)?.after.include ?? row.include;
+      if (!nextIncluded) throw Error('TRACK_REPLAY_ORDER_INCLUSION_CONFLICT');
+    }
+    if (new Set(desired.values()).size!==desired.size ||
+        [...desired.values()].some(slot=>!slotSet.includes(slot)))
+      throw Error('TRACK_REPLAY_ORDER_NOT_PERMUTATION');
+    const numericSlots=byExecutor.map(row=>row.order);
+    const desiredRows=[...executor].sort((a,b)=>desired.get(a.index)-desired.get(b.index));
+    desiredRows.forEach((row,position)=>{
+      const existing=patches.get(row.index);
+      const patch=existing || {
+        index:row.index,kind,before:capture(row),after:capture(row),
+      };
+      if (patch.kind!==kind || patch.before.order!==row.order)
+        throw Error('TRACK_REPLAY_ORDER_LIVE_STATE_CHANGED');
+      patch.after.order=numericSlots[position];
+      // Only the exact stream from the freshly inspected source may receive
+      // a recovered order; a copied same-index row is not a source identity.
+      patch.stream=row.stream;
+      patches.set(row.index,patch);
+    });
+  }
+
   for (const patch of patches.values()) {
     if (!patch.after.include) {
       if (preview.changes.some(change => {
@@ -171,6 +249,7 @@ export function prepareVerifiedTrackReplay({
     tracks: freeze([...patches.values()].map(patch => freeze({
       index: patch.index, kind: patch.kind,
       before: freeze(patch.before), after: freeze(patch.after),
+      ...(patch.stream ? { stream:patch.stream } : {}),
     }))),
     attachments: freeze([...attachmentPatches.values()].map(patch => freeze({
       index: patch.index, kind: patch.kind, stream: patch.stream,
@@ -202,7 +281,11 @@ export function applyPreparedTrackReplay(plan, trackState) {
     seen.add(patch.index);
     const track = trackState.tracks.find(row =>
       row.index === patch.index && row.type === patch.kind);
-    if (!track || !equal(capture(track), patch.before))
+    if (!track || patch.stream && (
+        track.stream!==patch.stream ||
+        !trackState.streams?.some(stream=>stream===patch.stream &&
+          stream.index===patch.index)) ||
+        !equal(capture(track), patch.before))
       throw Error('TRACK_REPLAY_LIVE_STATE_CHANGED');
     targets.push([track, patch.after]);
   }
@@ -247,7 +330,11 @@ export function revertPreparedTrackReplay(plan, trackState) {
   for (const patch of plan.tracks) {
     const track = trackState.tracks.find(row =>
       row.index === patch.index && row.type === patch.kind);
-    if (!track || !equal(capture(track), patch.after))
+    if (!track || patch.stream && (
+        track.stream!==patch.stream ||
+        !trackState.streams?.some(stream=>stream===patch.stream &&
+          stream.index===patch.index)) ||
+        !equal(capture(track), patch.after))
       throw Error('TRACK_REPLAY_UNDO_CONFLICT');
     targets.push([track, patch.before]);
   }
