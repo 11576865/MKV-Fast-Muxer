@@ -2299,7 +2299,7 @@ externalCheckpointControls.apply?.addEventListener('click',()=>{
     resetExternalCheckpointApproval();
     externalCheckpointControls.status.textContent=
       '已明确应用 '+(result.applied||0)+' 项外部元数据；没有恢复文件权限或自动执行封装。';
-    updateUI();renderMuxPlan();
+    // Domain commit precedes UI: redraw from authoritative rows BEFORE\n    // updateUI snapshots editor controls, or stale DOM can reapply old values.\n    renderNewTrackLists();\n    updateUI();renderMuxPlan();
   } catch(e) {
     resetExternalCheckpointApproval();
     externalCheckpointControls.status.textContent='恢复拒绝：'+(e.message||String(e));
@@ -2313,7 +2313,7 @@ externalCheckpointControls.undo?.addEventListener('click',()=>{
     externalCheckpointUndo=null;
     externalCheckpointControls.undo.disabled=true;
     externalCheckpointControls.status.textContent='已撤销本次外部元数据恢复。';
-    updateUI();renderMuxPlan();
+    renderNewTrackLists();\n    updateUI();renderMuxPlan();
   } catch(e) {
     externalCheckpointControls.status.textContent='撤销拒绝：'+(e.message||String(e));
     externalCheckpointUndo=null;
