@@ -5194,6 +5194,84 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
   }finally{await context.close();}
 }
 
+async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
+  console.log('P2 R5 native AUDIO-ONLY Matroska: UI TagString + nested ChapString byte-preserving edit');
+  const input=path.join(outDir,'p2-r5-audio-only-source.mka');
+  execFileSync('mkvmerge',['--quiet','-o',input,
+    '--chapters',path.join(root,'p0-independent-chapters.xml'),
+    path.join(root,'external.flac')],{timeout:60000});
+  execFileSync('mkvpropedit',[input,'--tags',
+    'all:'+path.join(root,'p0-independent-tags.xml')],{timeout:60000});
+  const tracks=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
+    encoding:'utf8',timeout:60000,
+  })).tracks;
+  const probePackets=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  const xml=(file,kind,prefix)=>{
+    const output=path.join(outDir,'p2-r5-'+prefix+'-'+kind+'.xml');
+    execFileSync('mkvextract',[file,kind,output],{timeout:60000});
+    return fs.readFile(output,'utf8');
+  };
+  const origChap=await xml(input,'chapters','before');
+  const origTag=await xml(input,'tags','before');
+  assert.match(origChap,/P0 nested chapter/);
+  assert.match(origTag,/linked-chapter-metadata/);
+  assert.match(origTag,/<ChapterUID>510011<\/ChapterUID>/);
+  assert.equal(tracks(input).some(x=>x.type==='video'),false);
+  const originalHash=createHash('sha256').update(await fs.readFile(input)).digest('hex');
+  const {context,page}=await openApp(browser);
+  try{
+    await page.locator('#p2MetadataInlineDetails > summary').click();
+    const load=async(file,marker)=>{
+      await page.setInputFiles('#p2MetadataSource',file);
+      await page.waitForFunction(value=>
+        [...document.querySelectorAll('#p2MetadataField option')]
+          .some(x=>x.textContent.includes(value)),marker,{timeout:60000});
+      const selected=await page.locator('#p2MetadataField option').evaluateAll(
+        (els,m)=>els.find(x=>x.textContent.includes(m))?.value,marker);
+      assert.ok(selected);
+      await page.locator('#p2MetadataField').selectOption(selected);
+    };
+    const save=async(expected,pathTo)=>{
+      await page.locator('#p2MetadataNewText').fill(expected);
+      assert.equal(await page.locator('#p2MetadataPrepare').isDisabled(),true);
+      await page.locator('#p2MetadataReview').check();
+      await page.locator('#p2MetadataPrepare').click();
+      await page.waitForFunction(()=>['ready','blocked'].includes(
+        document.querySelector('#p2MetadataStatus')?.dataset.state),
+        null,{timeout:120000});
+      assert.equal(await page.locator('#p2MetadataStatus').getAttribute('data-state'),
+        'ready',await page.locator('#p2MetadataStatus').textContent());
+      const [download]=await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#p2MetadataSave').click(),
+      ]);
+      await download.saveAs(pathTo);
+    };
+    await load(input,'linked-chapter-metadata');
+    const changedTag='R'.repeat('linked-chapter-metadata'.length);
+    const intermediate=path.join(outDir,'p2-r5-tag-changed.mkv');
+    await save(changedTag,intermediate);
+    await load(intermediate,'P0 nested chapter');
+    const final=path.join(outDir,'p2-r5-audio-only-chapter-tag-final.mkv');
+    await save('R5 nested chapter',final);
+    assert.equal(tracks(final).some(x=>x.type==='video'),false);
+    assert.deepEqual(tracks(final).map(x=>[x.id,x.type,x.codec,x.properties?.uid]),
+      tracks(input).map(x=>[x.id,x.type,x.codec,x.properties?.uid]));
+    assert.deepEqual(probePackets(final),probePackets(input));
+    const finalChap=await xml(final,'chapters','after');
+    const finalTag=await xml(final,'tags','after');
+    assert.equal(finalChap,origChap.replace('P0 nested chapter','R5 nested chapter'));
+    assert.equal(finalTag,origTag.replace('linked-chapter-metadata',changedTag));
+    assert.match(finalTag,/<ChapterUID>510011<\/ChapterUID>/);
+    assert.equal(createHash('sha256').update(await fs.readFile(input))
+      .digest('hex'),originalHash);
+    console.log('P2 R5 native audio-only chapters/tag output and UID/packet oracle PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioRoutedExistingMkvNativeOutput(browser) {
   console.log('P2 Round4 unified writer router: native MKV + UID risk -> one path -> independent output');
   const source=path.join(outDir,'p2-r4-router-native-source.mkv');
@@ -5751,6 +5829,7 @@ try {
   await scenarioExistingMkvLimitedAppendReviewed(browser);
   await scenarioExistingMkvSameSizeAttachmentReplace(browser);
   await scenarioRoutedExistingMkvNativeOutput(browser);
+  await scenarioTracklessMkaRealChapterTagTextEdit(browser);
   await scenarioReservedVoidExistingFileDataVariableReplace(browser);
   await scenarioTailNoVoidExistingAttachmentResize(browser);
   await scenarioNonterminalIndexedAttachmentRelay(browser);
