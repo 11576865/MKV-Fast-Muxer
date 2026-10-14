@@ -3,10 +3,10 @@
   "task_id": "2026-10-14-p0-p2-same-size-existing-attachment-replace",
   "level": "product-block-P0-P2",
   "project_id": "MKV-Fast-Muxer",
-  "status": "submitted-pending-exact-head-node-build-chromium",
+  "status": "merged-and-exact-head-independent-browser-accepted",
   "goal": "Implement a genuinely useful existing-MKV non-remuxing attachment FileData replacement with byte-exact preservation for the original segment graph and independently audited output; never presume general EBML write authority.",
   "branch": "feat/p0-p2-same-size-attachment-replace-block-20261014",
-  "pull_request": null,
+  "pull_request": 136,
   "scope": {
     "writer": "same-byte-length replacement of exactly one unreferenced existing AttachedFile FileData; protected original offsets and metadata remain unchanged",
     "source": "small genuine Matroska with existing Attachments + Tracks/Cluster",
@@ -33,19 +33,22 @@
     "synthetic adversarial Node tests and real Chromium MKVToolNix-authored complex fixture independent xml/packet/attachment oracle"
   ],
   "validation": {
-    "node": "pending",
-    "vite_build": "pending",
-    "browser_full": "pending",
-    "real_2_original_attachments_and_tagged_uid": "pending",
-    "source_unchanged": "pending",
+    "node": "passed_539_of_539_in_actions_38535796837",
+    "vite_build": "passed_actions_38535796837",
+    "browser_full": "passed_full_chromium_actions_38535796837",
+    "real_2_original_attachments_and_tagged_uid": "passed_P0_P2_same_size_existing_attachment_replacement_independent_external_chapter_tag_UID_packet_FileData_audit",
+    "source_unchanged": "passed_same_byte_length_sha256_and_original_extracted_data_source",
     "cross_device": "unknown",
-    "general_p0_issue77": "not_proven"
+    "general_p0_issue77": "not_proven_keep_fail_closed",
+    "head_sha": "a4100a146f79929bf8e49b18fcc4dd9eabc48c12",
+    "merge_sha": "17ff592ae33e6dc70d3696ea0724577eae649d56"
   },
   "next_units": [
-    "Open one direct-main integrated PR for entire P0/P2 same-size working block; run Node+build+full Chromium.",
-    "Correct exact-head failure if any, without suppressing negative tests or weakening targeted UID/CRC/unknown gates.",
-    "On passing independent real output and no regressions, merge user-visible bounded existing-container edit as one deliverable.",
-    "Separate future variable-size/reference-aware writer with independent seek/CRC/UID graph repair tests."
+    "P0/P2 next distinct executable structural writer: reference-aware variable-length existing attachment edit / targeted UID relationship edit with structural size, seek/cue and CRC regeneration, under separately authored MKVToolNix oracle; do not treat this narrow same-size output as universal writer authority.",
+    "Broaden source layout matrix: multiple attachments masters vs single, CRC and unknown EBML refusal controls, legitimate packet and player conformance, including large >60MiB sources once bounded streaming SHA and raw verification are engineered.",
+    "Surface typed writer capability matrix in workbench and independently verify edit intent against current exact File permissions; maintain no source overwrite and user approval.",
+    "Future P2/P4 integration: existing Chapters and Tags edit draft from same ContainerProject authority with transactional output and independently extracted semantics. Design complexity warrants its own cohesive product block."
   ],
-  "updated_at": "2026-10-14"
+  "updated_at": "2026-10-14",
+  "merge_commit": "17ff592ae33e6dc70d3696ea0724577eae649d56"
 }
