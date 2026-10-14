@@ -422,6 +422,7 @@ let externalAudioState = [];
 let newSubtitleState = [];
 let liveExternalAssetSession = null;
 let externalAssetAuthorityEpoch = 0;
+let externalAssetPendingTaskRebind = false;
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
@@ -2451,6 +2452,7 @@ videoInput.addEventListener('change', () => {
   // generation. In particular, cancelled/restarted tasks must not retain
   // an external-domain inventory snapshot from the previous source.
   liveExternalAssetSession = null;
+  externalAssetPendingTaskRebind = true;
   externalAssetAuthorityEpoch++;
   containerScanGeneration += 1;
   containerAutoScanSuppressedKey = '';
@@ -4416,10 +4418,16 @@ async function executeCurrentMuxTask(explicit = null) {
 
   if (!independent) {
     try {
-      // A new primary File selection explicitly invalidates the old
-      // session. Reconcile current File/sidecar references and restore an
-      // authority before *checking* readiness; never patch a stale project.
-      if (!liveExternalAssetSession) syncNewTrackState();
+      // Only a new primary media selection authorizes rebinding a *new
+      // task*. A cancelled task can leave a previous font FileList wrapper
+      // in the session even after the user reselects the same-named font.
+      // Rebuild from the real File inputs once, preserving edits only for
+      // identical File/sidecar object references. Ordinary same-task drift
+      // still fails closed; do not silently self-heal arbitrary changes.
+      if (externalAssetPendingTaskRebind || !liveExternalAssetSession) {
+        syncNewTrackState();
+        externalAssetPendingTaskRebind = false;
+      }
       inspectLiveExternalAssets(liveExternalAssetSession,{
         audioRows:externalAudioState,subtitleRows:newSubtitleState,
         fonts:selectedFonts(),mode:fontMode.value,
