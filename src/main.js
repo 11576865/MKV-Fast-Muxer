@@ -53,6 +53,10 @@ import {
   createLiveSourceTrackSession, commitLiveSourceTrackChanges,
   commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
 } from './live-source-track-authority.js';
+import {
+  createLiveExternalAssetSession,commitLiveExternalAssetChanges,
+  commitExternalFontMode,inspectLiveExternalAssets,
+} from './live-external-asset-authority.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
@@ -404,6 +408,7 @@ let scannedSourceFile = null;
 let liveSourceTrackSession = null;
 let externalAudioState = [];
 let newSubtitleState = [];
+let liveExternalAssetSession = null;
 let previewImageURL = null;
 let previewGeneration = 0;
 let previewing = false;
@@ -670,7 +675,7 @@ function syncNewTrackState() {
   const oldAudio = new Map(externalAudioState.map((item) => [fileKey(item.file), item]));
   externalAudioState = selectedExternalAudioFiles().map((file) => {
     const old = oldAudio.get(fileKey(file));
-    return old || {
+    return old?.file === file ? old : {
       file,
       language: 'und',
       title: stripExtension(file.name),
@@ -686,7 +691,8 @@ function syncNewTrackState() {
   newSubtitleState = collected.tracks.map((trackInput, index) => {
     const key = subtitleTrackKey(trackInput);
     const old = oldSubs.get(key);
-    if (old) {
+    if (old && old.file === trackInput.file &&
+        old.sidecarFile === (trackInput.sidecarFile || null)) {
       old.file = trackInput.file;
       old.sidecarFile = trackInput.sidecarFile || null;
       old.format = trackInput.format;
@@ -713,6 +719,33 @@ function syncNewTrackState() {
       hearingImpaired: false,
     };
   });
+  // Selection changes are a new authority generation. Keep the already
+  // inspected File objects in legacy executor rows; never serialize grants.
+  refreshExternalAssetAuthority();
+}
+
+function refreshExternalAssetAuthority() {
+  liveExternalAssetSession = createLiveExternalAssetSession({
+    audioRows:externalAudioState,
+    subtitleRows:newSubtitleState,
+    fonts:selectedFonts(),
+    fontMode:fontMode.value,
+  });
+  return liveExternalAssetSession;
+}
+function changeExternalAssetFields(changes) {
+  try {
+    if(!liveExternalAssetSession)refreshExternalAssetAuthority();
+    commitLiveExternalAssetChanges(liveExternalAssetSession,{
+      audioRows:externalAudioState,subtitleRows:newSubtitleState,
+      fonts:selectedFonts(),mode:fontMode.value,changes,
+    });
+    return true;
+  } catch(error) {
+    status.textContent='外部轨道领域修改未执行：'+
+      (error?.message||String(error))+'。未提交部分变更。';
+    return false;
+  }
 }
 
 function renderNewTrackLists() {
@@ -1093,17 +1126,28 @@ function resetTrackState() {
   if (!batchRunning) syncBatchPlan?.();
 }
 function captureNewTrackEditorState() {
-  for (const control of newAudioList.querySelectorAll('[data-new-audio-field]')) {
-    const item = externalAudioState[Number(control.dataset.index)];
-    if (!item) continue;
-    const field = control.dataset.newAudioField;
-    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  // Background inspector/probe refresh may replace form markup while the
+  // user is typing. Reconcile from the controls through the domain, never
+  // secretly bypass it by writing straight into the executor arrays.
+  const changes=[];
+  for(const [list,kind,attribute] of [
+    [newAudioList,'audio','newAudioField'],
+    [newSubtitleList,'subtitle','newSubField'],
+  ]) {
+    for(const control of list.querySelectorAll('[data-'+
+      (kind==='audio'?'new-audio':'new-sub')+'-field]')) {
+      const index=Number(control.dataset.index);
+      const item=(kind==='audio'?externalAudioState:newSubtitleState)[index];
+      if(!item)continue;
+      const field=control.dataset[attribute];
+      const value=control.type==='checkbox'?control.checked:control.value;
+      if(item[field]!==value)changes.push({kind,index,field,value});
+    }
   }
-  for (const control of newSubtitleList.querySelectorAll('[data-new-sub-field]')) {
-    const item = newSubtitleState[Number(control.dataset.index)];
-    if (!item) continue;
-    const field = control.dataset.newSubField;
-    item[field] = control.type === 'checkbox' ? control.checked : control.value;
+  if(changes.length && !changeExternalAssetFields(changes)) {
+    // No silently displayed but unapplied field: restore the last
+    // authoritative executor projection if validation was rejected.
+    renderNewTrackLists();
   }
 }
 
@@ -1228,18 +1272,25 @@ function updateUI() {
   if (!batchRunning) requestBatchPlanSync();
 }
 
-function bindNewTrackEditor(container, selector, getState) {
-  const update = (event) => {
-    const input = event.target.closest(selector);
-    if (!input) return;
-    const item = getState()[Number(input.dataset.index)];
-    if (!item) return;
-    const field = input.dataset.newAudioField || input.dataset.newSubField;
-    item[field] = input.type === 'checkbox' ? input.checked : input.value;
+function bindNewTrackEditor(container, selector, getState, kind) {
+  const update = event => {
+    const input=event.target.closest(selector);
+    if(!input)return;
+    const index=Number(input.dataset.index);
+    const row=getState()[index];
+    if(!row)return;
+    const field=input.dataset.newAudioField||input.dataset.newSubField;
+    const value=input.type==='checkbox'?input.checked:input.value;
+    if(!changeExternalAssetFields([{kind,index,field,value}])) {
+      // Restore only this control; do not remount an actively edited form.
+      if(input.type==='checkbox')input.checked=row[field];
+      else input.value=row[field];
+      return;
+    }
     renderMuxPlan();
   };
-  container.addEventListener('input', update);
-  container.addEventListener('change', update);
+  container.addEventListener('input',update);
+  container.addEventListener('change',update);
 }
 
 // Content-first intake adapter. This module keeps the existing audited
@@ -2410,6 +2461,7 @@ subInput.addEventListener('change', () => {
   previewStatus.textContent = '字幕已更换；正在识别实际字幕格式。';
 });
 fontInput.addEventListener('change', () => {
+  refreshExternalAssetAuthority();
   fontInspectGeneration += 1;
   fontInspectState = {
     status: 'idle',
@@ -2425,6 +2477,18 @@ fontSubsetEnabled?.addEventListener('change', () => {
   renderMuxPlan();
 });
 fontMode.addEventListener('change', () => {
+  try {
+    if(!liveExternalAssetSession)refreshExternalAssetAuthority();
+    const previousMode=liveExternalAssetSession.mode;
+    commitExternalFontMode(liveExternalAssetSession,{
+      audioRows:externalAudioState,subtitleRows:newSubtitleState,
+      fonts:selectedFonts(),previousMode,nextMode:fontMode.value,
+    });
+  } catch(error) {
+    if(liveExternalAssetSession)fontMode.value=liveExternalAssetSession.mode;
+    status.textContent='字体模式未提交：'+(error?.message||String(error));
+    return;
+  }
   destroySubtitlePreview();
   updateUI();
   previewStatus.textContent = '字体模式已更换；点击“生成预览帧”重新检查。';
@@ -2476,8 +2540,8 @@ preserveAttachments.addEventListener('change', () => {
   renderMuxPlan();
 });
 refreshPlanBtn.addEventListener('click', renderMuxPlan);
-bindNewTrackEditor(newAudioList, '[data-new-audio-field]', () => externalAudioState);
-bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleState);
+bindNewTrackEditor(newAudioList, '[data-new-audio-field]', () => externalAudioState,'audio');
+bindNewTrackEditor(newSubtitleList, '[data-new-sub-field]', () => newSubtitleState,'subtitle');
 
 function applyLanguageToSelectedTracks(type) {
   if (!trackState) return;
@@ -2509,8 +2573,11 @@ clearAllDefaults?.addEventListener('click', () => {
   const chosen = [...selectedTracks('audio'), ...selectedTracks('subtitle')];
   if (chosen.length && !changeSourceTracks(chosen.map(track =>
     ({ index: track.index, field: 'default', value: false })))) return;
-  externalAudioState.forEach((track) => { track.default = false; });
-  newSubtitleState.forEach((track) => { track.default = false; });
+  const clearExternal=[
+    ...externalAudioState.map((track,index)=>({kind:'audio',index,field:'default',value:false})),
+    ...newSubtitleState.map((track,index)=>({kind:'subtitle',index,field:'default',value:false})),
+  ];
+  if(clearExternal.length && !changeExternalAssetFields(clearExternal))return;
   renderTrackList();
   renderImportedAssetInventory();
   renderNewTrackLists();
@@ -5252,6 +5319,7 @@ async function executeCurrentMuxTask(explicit = null) {
       subInput.value = '';
       externalAudioState = [];
       newSubtitleState = [];
+      refreshExternalAssetAuthority();
       renderNewTrackLists();
       resetTrackState();
     }
