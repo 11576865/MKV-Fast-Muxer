@@ -2433,6 +2433,11 @@ assetInventory?.addEventListener('click', (event) => {
 });
 
 videoInput.addEventListener('change', () => {
+  // Selecting another primary media begins a different task authorization
+  // generation. In particular, cancelled/restarted tasks must not retain
+  // an external-domain inventory snapshot from the previous source.
+  liveExternalAssetSession = null;
+  externalAssetAuthorityEpoch++;
   containerScanGeneration += 1;
   containerAutoScanSuppressedKey = '';
   resetTrackState();
@@ -4397,7 +4402,10 @@ async function executeCurrentMuxTask(explicit = null) {
 
   if (!independent) {
     try {
-      if (!liveExternalAssetSession) refreshExternalAssetAuthority();
+      // A new primary File selection explicitly invalidates the old
+      // session. Reconcile current File/sidecar references and restore an
+      // authority before *checking* readiness; never patch a stale project.
+      if (!liveExternalAssetSession) syncNewTrackState();
       inspectLiveExternalAssets(liveExternalAssetSession,{
         audioRows:externalAudioState,subtitleRows:newSubtitleState,
         fonts:selectedFonts(),mode:fontMode.value,
