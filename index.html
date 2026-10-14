@@ -579,6 +579,16 @@
                   <label class="button button-small batch-recipe-picker">导入规则
                     <input id="batchRecipeImportInput" type="file" accept=".json,application/json" aria-label="导入批量配方规则 JSON" />
                   </label>
+                  <button id="batchRecipeV2ExportBtn" class="button button-small" type="button">导出逐输出 v2</button>
+                  <label class="button button-small batch-recipe-picker">导入逐输出 v2
+                    <input id="batchRecipeV2ImportInput" type="file" accept=".json,application/json" aria-label="导入逐输出批量字幕轨道规则 JSON" />
+                  </label>
+                  <button id="batchRecipeV2ConfirmBtn" class="button button-small" type="button" hidden disabled>确认应用逐输出规则</button>
+                  <small id="batchRecipeV2Notice" role="status" aria-live="polite">v2 可保存每个输出的字幕标题、语言和轨道标记。重新选择素材、核对匹配并确认后才会用于新 JobPlan。</small>
+                  <details id="batchRecipeV2Review" hidden>
+                    <summary>逐输出任务及字幕规则预览</summary>
+                    <div id="batchRecipeV2ReviewItems" class="track-meta"></div>
+                  </details>
                   <small id="batchRecipeNotice" role="status" aria-live="polite">只保存规则；素材与目录权限不会保存。</small>
                 </div>
                 <div class="batch-output-tool">
