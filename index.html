@@ -177,6 +177,32 @@
               <div id="existingImpactInventory" class="existing-impact-inventory" aria-label="附件 UID 与模拟影响清单"></div>
               <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
             </details>
+            <details id="existingMkvTailResizeDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-tail-title">
+              <summary id="existing-mkv-tail-title">已有 MKV 附件真正变长：Segment 末尾 Attachments（无需预留 Void）</summary>
+              <p class="attachment-extraction-help">只针对来源 MKV 的<strong>最后一个 Segment 元素为 Attachments</strong>，且被替换的附件是其中<strong>最后一个 AttachedFile</strong>的布局。可增加或减少 FileData 长度，严格更新 Segment、Attachments、AttachedFile 和 FileData 的<strong>四个原尺寸字段</strong>，使原媒体包、SeekHead/Cues、章节、Tags 与所有其他顶层字节及偏移不变。被 TagAttachmentUID 指向的附件、CRC 覆盖、未知 EBML、原有 VINT 容量不足、非末尾布局均拒绝。本功能不是通用 Matroska 编辑器，不使用 FFmpeg 回退，绝不覆盖原文件。来源 ≤60 MiB，新数据 ≤4 MiB。</p>
+              <div class="existing-mkv-limited-fields">
+                <label>现有 Matroska 来源
+                  <input id="existingMkvTailSource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择附件作为最后一个 Segment 元素的 Matroska" />
+                </label>
+                <label>现有附件 FileUID
+                  <select id="existingMkvTailTarget" aria-label="选择末尾未被 Tag 引用的原附件 FileUID"></select>
+                </label>
+                <label>变长的新附件 FileData
+                  <input id="existingMkvTailReplacement" type="file" aria-label="选择不同字节长度的新附件内容" />
+                </label>
+              </div>
+              <div id="existingMkvTailInventory" class="existing-mkv-limited-evidence" aria-live="polite"></div>
+              <label class="multi-attachment-review">
+                <input id="existingMkvTailReview" type="checkbox" />
+                我已核对目标原始 FileUID，并同意在独立副本中仅替换此附件数据和必要的四个 EBML 尺寸字段；理解无末尾附件布局、Tag UID 指向、CRC 或无法维持其他数据原始偏移时将被拒绝。
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="existingMkvTailPrepare" class="button button-small" type="button" disabled>审核结构并生成独立 MKV</button>
+                <button id="existingMkvTailSave" class="button button-small" type="button" disabled>下载本地验证的实验副本</button>
+              </div>
+              <div id="existingMkvTailStatus" role="status" aria-live="polite" data-state="idle"></div>
+              <div id="existingMkvTailEvidence" class="existing-mkv-limited-evidence" aria-label="变长后的源和成品 SHA、四处尺寸重写及受保护字节审计证据"></div>
+            </details>
             <details id="existingMkvReservedVoidDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-void-title">
               <summary id="existing-mkv-void-title">已有 MKV 附件的变长替换（仅限 FileData 后紧邻预留 Void）</summary>
               <p class="attachment-extraction-help">仅针对原本已有的未被 TagAttachmentUID 引用的附件，在<strong>同一 AttachedFile 中</strong>使用紧邻 FileData 后方的 <code>Void</code> 预留空间，允许新数据增长或缩短。原 AttachedFile、Attachments 和 Segment 的整体大小不变；原有媒体包、Chapters、Tags、UID 及其他附件不重封装、不移动。不支持无 Void、CRC 影响范围不明、未知 EBML、原附件已被定向标签关联或超出原 FileData 编码容量的来源。来源不超过 60 MiB，新 FileData 不超过 4 MiB；输出为需要单独兼容性验收的实验性新副本。</p>
