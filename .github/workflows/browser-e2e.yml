@@ -408,6 +408,7 @@ jobs:
           path: |
             .e2e/output/mkv-container-tree-*.png
             .e2e/output/mkv-round5-*.png
+            .e2e/output/softmux-1014-*.png
           if-no-files-found: ignore
           retention-days: 14
 
