@@ -15,6 +15,13 @@
 
 MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a visual-first soft-mux workflow. It previews ASS/SSA with FFmpeg/libass, supports text and bitmap subtitle tracks, keeps media on Stream Copy where possible, manages source-MKV tracks/attachments, batches folder-based jobs, and audits the generated container with ffprobe. Media stays on the user device.
 
+## 已交付的结构保真编辑边界（2026-10-14）
+
+- **P1 + P3-B 已合并**：外部音频/字幕/字体资源的不可变领域编辑与来源授权校验、按集单独编辑字幕属性、Batch Recipe v2 的显式审核和来源重新选择、冻结计划后真实两 MKV 批量封装及独立结果验证。见 [#134](https://github.com/11576865/MKV-Fast-Muxer/pull/134)。
+- **P0 + P2 已合并的第一类已有容器写入**：对于原 MKV 已存在的附件，可以明确选择一个**未被 TagAttachmentUID 引用**的 FileUID，将 FileData 替换为**完全相同字节长度**的新内容。工具独立生成并本地 SHA-256/原始 EBML 字节审计新 MKV；原文件、章节、标签、UID、其他附件以及媒体包不重封装。仅限 <=60 MiB 来源、<=4 MiB 单个替换文件且满足 CRC/来源布局门槛，不支持附件重命名、任意增删、变长、被引用对象变更及通用 MKV 编辑。完整真实 Chromium + MKVToolNix/ffprobe 证据见 [#136](https://github.com/11576865/MKV-Fast-Muxer/pull/136) 与 [工程保真说明](docs/P0-P2-SAME-SIZE-EXISTING-MKV-ATTACHMENT-REPLACEMENT-20261014.md)。
+
+**重要：**历史问题 [#77](https://github.com/11576865/MKV-Fast-Muxer/issues/77) 所揭示的 FFmpeg 重封装嵌套章节与定向标签丢失风险未被通用修复。新的等长附件数据替换采取不重封装媒体、原位置保留的独立路径，不能据此推论任意 EBML 编辑安全。
+
 ## 理论初版五步集成预览（2026-10-13）
 
 在既有快速字幕封装、原 MKV 轨道/附件、冻结批量执行、真实成品审计之外，新增**工程草稿导出**（版本化、不可执行、来源须重新授权）、**当前来源与后端能力边界**以及可在批量区域**导入/导出规则 JSON**。配方导入不会恢复媒体 File 权限、输出文件夹授权、旧成品或自动执行任务。领域 `ContainerProject` 的修改与撤销目前为独立纯逻辑迁移切片；用户已使用的单工程编辑器暂未被它全面替换。
