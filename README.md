@@ -28,6 +28,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 - **P0/P2-N2 已合并：非末尾附件列表中的任意未引用 FileUID 可变长替换**。此前链式 SeekHead 路径要求选中最后一个 AttachedFile；现在支持选择前面或中间的原始附件，只要来源拥有已验证的非末尾 Attachments／正确 SeekHead 索引、UID 不被 Tag 引用且其余结构门槛满足。修改前面附件时，后续其他附件在新追加的 Attachments 主元素内部会发生**可计算的偏移变化**，工具逐一验证 UID、名称、MIME、文件数据 SHA-256 和偏移；外部 Cluster/Cues/Chapters/Tags/Tracks 原始字节与偏移不移动。真实 Chromium 基于独立 MKVToolNix 制作的**三附件**来源，验证了修改第二个附件、保留被 Tag 指向的第一个和位于其后的第三个，并由独立 `mkvmerge`／`mkvextract`／`ffprobe` 检查真实成品；完整 CI 549/549 Node，详见 [#140](https://github.com/11576865/MKV-Fast-Muxer/pull/140) 与 [P0/P2-N2 工程边界](docs/P0-P2-NONFINAL-FILEUID-RELAY-20261014.md)。这仍不是无 SeekHead／CRC／任意 EBML 编辑器。
 
+- **P0/P2-C：已验收的两层 EBML CRC-32 附件变长编辑**：在原 MKV 符合既有非末尾 Attachments／正确 SeekHead 索引和 UID 引用保护时，若原 `AttachedFile` 与 `Attachments` 包含**原值正确且处于各自 Master 第一个子元素位置**的 CRC-32，现在可以审核后变长替换未被标签引用的附件数据。生成新 MKV 时先重算内层 CRC-32、再重算外层 CRC-32；来源、目标 UID、其他附件、Chapters、Tags、Cues 和媒体包保真仍受保护。完整 552/552 Node、Chromium 与**独立 Python `zlib` + MKVToolNix／`mkvextract`／`ffprobe`** 双层来源／输出校验见 [PR #141](https://github.com/11576865/MKV-Fast-Muxer/pull/141)、[安全边界与 RFC 首子元素修正](docs/P0-P2-NESTED-ATTACHMENT-CRC32-20261014.md)。**不代表已支持 CRC 受保护的 SeekHead、Chapters、Tags、Cues 或通用 EBML 结构编辑**。
+
 **重要：**历史问题 [#77](https://github.com/11576865/MKV-Fast-Muxer/issues/77) 所揭示的 FFmpeg 重封装嵌套章节与定向标签丢失风险未被通用修复。新的等长附件数据替换采取不重封装媒体、原位置保留的独立路径，不能据此推论任意 EBML 编辑安全。
 
 ## 理论初版五步集成预览（2026-10-13）
