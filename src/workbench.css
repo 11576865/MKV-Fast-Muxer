@@ -1510,6 +1510,44 @@ body { background: var(--bg); }
   overflow-wrap: anywhere;
   font-size: .75rem;
 }
+/* Recipe v2: compact actual task editor; don't turn the inspection pane
+   into a second full track workbench on tablets and phones. */
+.batch-task-meta-editor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 9px;
+  align-items: end;
+}
+.batch-task-meta-editor > strong { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.batch-task-meta-editor label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: .69rem;
+}
+.batch-task-meta-editor label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+}
+.batch-task-meta-editor input[type="text"],
+.batch-task-meta-editor input:not([type]) {
+  min-width: 0;
+  width: 100%;
+  min-height: 33px;
+  box-sizing: border-box;
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  color: var(--text-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.batch-task-meta-editor input:focus-visible { outline: 2px solid var(--focus, currentColor); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .batch-task-meta-editor { grid-template-columns: minmax(0, 1fr); }
+}
 .batch-reviewed-choice { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: .72rem; }
 .batch-reviewed-choice button { min-height: 32px; background: var(--surface-0); color: var(--text-strong); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
 .batch-review-warnings { color: var(--warning); font-size: .74rem; }
