@@ -2186,8 +2186,9 @@ async function scenarioBatchRecipeV2RealDelivery(browser) {
     await inspector.locator('[data-batch-task-field="forced"]').check();
     await page.waitForFunction(()=>{
       const input=document.querySelector('#batchJobInspector [data-batch-task-field="title"]');
-      return input?.value==='Episode 02 Verified';
-    });
+      return input?.value==='Episode 02 Verified' &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    },null,{timeout:120_000});
     const wire=path.join(outDir,'p3-batch-recipe-v2-episodes.json');
     await saveDownload(page,'#batchRecipeExportBtn',wire);
     const exported=JSON.parse(await fs.readFile(wire,'utf8'));
