@@ -664,22 +664,22 @@
       "state": "submitted",
       "head_sha": "85cc5c143e1e56ac77c7b848ba9ee02158199739",
       "pr": 142,
-      "ci": "pending",
+      "ci": "exact-head-passed",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
       "round": 2,
       "focus": "P1统一领域权威",
-      "state": "in-progress",
-      "head_sha": null,
-      "pr": null,
-      "ci": "not-run",
+      "state": "submitted",
+      "head_sha": "b9cf928f5fd044c0a3f4d34d8cd70fe8f44bcaa1",
+      "pr": 143,
+      "ci": "pending",
       "scope_warning": "不得混淆分支提交、CI和现实验收"
     },
     {
       "round": 3,
       "focus": "P1持久化与权限",
-      "state": "planned",
+      "state": "in-progress",
       "head_sha": null,
       "pr": null,
       "ci": "not-run",
