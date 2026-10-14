@@ -1,6 +1,6 @@
 # P0/P2-N — Non-terminal indexed Attachments relocation via chained SeekHead
 
-**Status: implemented as a cohesive reviewed writer/real-browser candidate; exact-head CI and independent native MKV evidence pending.** This is not universal Matroska structural editing, and does not waive historical #77 loss-of-chapters-and-tags remux protections.
+**Status: verified and merged into `main`** via [PR #139](https://github.com/11576865/MKV-Fast-Muxer/pull/139), [merge 4db7eee](https://github.com/11576865/MKV-Fast-Muxer/commit/4db7eee026aff7fabed0b566bc38715c3fb45f9c). Exact-head [Actions 38566327194](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38566327194) **SUCCESS**: 547/547 Node, Vite, full Chromium, original native nonterminal MKV-to-new-MKV independent MKVToolNix, mkvextract and ffprobe acceptance. This is not universal Matroska structural editing, and does not waive historical #77 loss-of-chapters-and-tags remux protections.
 
 ## Why this qualifies a new source class
 
@@ -29,7 +29,7 @@ Node tests use nested ChapterAtom, a targeted Tag pointing at a *different* orig
 
 The full Chromium test uses the **unchanged independent MKVToolNix** native original `p0-independent-attachmenttag.mkv` with nested Chapters added by `mkvpropedit`: it is NOT converted to tail layout by any fixture helper. Native `mkvmerge -J` first must discover the original two attachments. Chrome UI must disable the originally tagged FileUID and allow only a current explicitly reviewed UID, generate a new downloaded MKV and show SHA evidence. Native separate `mkvmerge -J`, `mkvextract` chapters/tags/attachments, and `ffprobe -show_packets -show_data_hash sha256` must discover the **appended** attachments through the newly inserted chained SeekHead and independently prove identical nested Chapter/Tag XML, FileUID/codec TrackUID, linked original FileData bytes, intended new FileData and exact compressed packet hashes/timestamps. The real 768px tablet workbench is captured.
 
-**No release/merge until exact-head Node/build/full browser/native audit green.** If native MKVToolNix cannot discover the appended master, that is a product failure even if our exhaustive custom reader can inspect it.
+**Exact-head native output proof succeeded:** Chromium log includes `P0/P2-N real ORIGINAL NONTERMINAL Attachments → CHAINED SEEKHEAD → Segment tail variable FileData browser output + independent native Chapter/Tag/UID/Cues-packet audit PASS`, followed by `All browser E2E scenarios PASS`. This is a bounded source-specific capability, not support for arbitrary Cues/CRC rewriting or unknown EBML. If native MKVToolNix cannot discover the appended master, that is a product failure even if our exhaustive custom reader can inspect it.
 
 ## Not implemented or inferred
 
