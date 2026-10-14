@@ -4528,6 +4528,111 @@ async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   }
 }
 
+async function scenarioExistingMkvSameSizeAttachmentReplace(browser) {
+  console.log('P0/P2 real browser: replace one existing unreferenced FileData, preserve tagged UID and nested Chapters');
+  // This source was authored independently by MKVToolNix and already has
+  // TWO AttachedFiles and a TagAttachmentUID targeting the first file.
+  const source=path.join(outDir,'p2-same-size-complex-source.mkv');
+  const original=path.join(root,'p0-independent-attachmenttag.mkv');
+  await fs.copyFile(original,source);
+  execFileSync('mkvpropedit',[source,'--chapters',
+    path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
+  const info=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],
+    {encoding:'utf8',timeout:60000}));
+  const before=info(source);
+  assert.equal((before.attachments||[]).length,2);
+  const tagged=before.attachments.find(a=>a.file_name==='p0-attachment-evidence.bin');
+  const target=before.attachments.find(a=>a.file_name==='p0-attachment-decoy.txt');
+  assert.ok(tagged&&target);
+  const replacementOriginal=await fs.readFile(path.join(root,'zh.ass'));
+  assert.ok(replacementOriginal.length>0);
+  const replacement=Buffer.alloc(replacementOriginal.length,0x58);
+  const readPacketData=file=>JSON.parse(execFileSync('ffprobe',[
+    '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
+  ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
+    .map(x=>[x.stream_index,x.pts,x.dts,x.duration,x.size,x.data_hash]);
+  const srcStat=await fs.stat(source);
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('#existingMkvSameSizeReplaceDetails > summary').click();
+    await page.setInputFiles('#existingMkvSameSizeSource',source);
+    await page.waitForFunction(()=>
+      document.querySelector('#existingMkvSameSizeTarget')?.options.length===2,
+      null,{timeout:60000});
+    const items=page.locator('#existingMkvSameSizeTarget option');
+    const options=await items.evaluateAll(nodes=>nodes.map(el=>({
+      value:el.value,text:el.textContent,disabled:el.disabled,
+    })));
+    assert.equal(options.length,2);
+    assert.equal(options.find(x=>x.text.includes('p0-attachment-evidence.bin'))?.disabled,true);
+    const decoy=options.find(x=>x.text.includes('p0-attachment-decoy.txt'));
+    assert.ok(decoy&&!decoy.disabled);
+    assert.equal(await page.locator('#existingMkvSameSizeTarget').inputValue(),decoy.value);
+    // Wrong size, then corrected same-size bytes; stale review may never execute.
+    await page.setInputFiles('#existingMkvSameSizeReplacement',{
+      name:'replacement.bin',mimeType:'application/octet-stream',
+      buffer:Buffer.from('short'),
+    });
+    await page.locator('#existingMkvSameSizeReview').check();
+    assert.equal(await page.locator('#existingMkvSameSizePrepare').isDisabled(),true);
+    await page.setInputFiles('#existingMkvSameSizeReplacement',{
+      name:'replacement.bin',mimeType:'application/octet-stream',buffer:replacement,
+    });
+    assert.equal(await page.locator('#existingMkvSameSizeReview').isChecked(),false);
+    assert.equal(await page.locator('#existingMkvSameSizeSave').isDisabled(),true);
+    await page.locator('#existingMkvSameSizeReview').check();
+    await page.locator('#existingMkvSameSizePrepare').click();
+    await page.waitForFunction(()=>
+      ['prepared','blocked'].includes(
+        document.querySelector('#existingMkvSameSizeStatus')?.dataset.state),
+      null,{timeout:120000});
+    const state=await page.locator('#existingMkvSameSizeStatus').getAttribute('data-state');
+    assert.equal(state,'prepared',
+      await page.locator('#existingMkvSameSizeStatus').textContent());
+    assert.match(await page.locator('#existingMkvSameSizeEvidence').textContent(),
+      /SHA-256/);
+    const output=path.join(outDir,'p2-same-size-complex-browser-result.mkv');
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#existingMkvSameSizeSave').click(),
+    ]);
+    assert.match(download.suggestedFilename(),/\.one-filedata-replaced\.experimental\.mkv$/);
+    await download.saveAs(output);
+    assert.equal((await fs.stat(output)).size,srcStat.size);
+    const after=info(output);
+    assert.equal((after.attachments||[]).length,2);
+    const tagAfter=after.attachments.find(a=>a.file_name===tagged.file_name);
+    const targetAfter=after.attachments.find(a=>a.file_name===target.file_name);
+    assert.equal(tagAfter?.properties?.uid,tagged.properties.uid);
+    assert.equal(targetAfter?.properties?.uid,target.properties.uid);
+    assert.deepEqual((after.tracks||[]).map(t=>[t.id,t.type,t.codec,t.properties?.uid]),
+      (before.tracks||[]).map(t=>[t.id,t.type,t.codec,t.properties?.uid]));
+    for(const kind of ['chapters','tags']){
+      const a=path.join(outDir,'p2-same-size-original-'+kind+'.xml');
+      const b=path.join(outDir,'p2-same-size-output-'+kind+'.xml');
+      execFileSync('mkvextract',[source,kind,a],{timeout:60000});
+      execFileSync('mkvextract',[output,kind,b],{timeout:60000});
+      assert.deepEqual(await fs.readFile(b),await fs.readFile(a),
+        'complex original '+kind+' preserved in output');
+    }
+    const origTag=path.join(outDir,'p2-same-size-tagged-original.bin');
+    const finalTag=path.join(outDir,'p2-same-size-tagged-output.bin');
+    const finalReplace=path.join(outDir,'p2-same-size-replaced-output.bin');
+    execFileSync('mkvextract',[source,'attachments',
+      String(tagged.id)+':'+origTag],{timeout:60000});
+    execFileSync('mkvextract',[output,'attachments',
+      String(tagAfter.id)+':'+finalTag,
+      String(targetAfter.id)+':'+finalReplace],{timeout:60000});
+    assert.deepEqual(await fs.readFile(finalTag),await fs.readFile(origTag),
+      'tag-targeted original FileData cannot change');
+    assert.deepEqual(await fs.readFile(finalReplace),replacement);
+    assert.deepEqual(readPacketData(output),readPacketData(source),
+      'original compressed stream packets and timestamps unchanged');
+    assert.equal((await fs.stat(source)).size,srcStat.size);
+    console.log('P0/P2 same-size existing attachment replacement + independent external chapter/tag/UID/packet/FileData audit PASS');
+  } finally { await context.close(); }
+}
+
 async function scenarioExistingMkvLimitedAppendReviewed(browser) {
   console.log('P2-A product opt-in: real MKVToolNix source with nested ChapterUID tags, independently audited limited attachment copy');
   const source = path.join(outDir, 'limited-existing-source.mkv');
@@ -4904,6 +5009,7 @@ try {
   await scenarioP2MultiAttachmentBrowserCreate(browser);
   await scenarioP2ExistingAttachmentImpactReadonlyUI(browser);
   await scenarioExistingMkvLimitedAppendReviewed(browser);
+  await scenarioExistingMkvSameSizeAttachmentReplace(browser);
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
