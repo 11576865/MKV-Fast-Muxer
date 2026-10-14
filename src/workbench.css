@@ -1699,6 +1699,14 @@ body { background: var(--bg); }
   padding: 8px 9px; color: var(--text-strong);
   background: var(--surface-0); border: 1px solid var(--line); border-radius: 6px;
 }
+#existingMkvSameSizeTarget {
+  box-sizing: border-box; width: 100%; min-width: 0;
+  font: inherit; font-weight: 400;
+  padding: 8px 9px; color: var(--text-strong);
+  background: var(--surface-0); border: 1px solid var(--line);
+  border-radius: 6px;
+}
+#existingMkvSameSizeTarget option[disabled] { color: var(--muted); }
 .existing-mkv-limited [data-state="blocked"] { color: var(--danger); }
 .existing-mkv-limited [data-state="checking"] { color: var(--muted); }
 .existing-mkv-limited [data-state="prepared"] { color: var(--success, var(--accent)); }

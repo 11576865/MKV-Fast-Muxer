@@ -177,6 +177,32 @@
               <div id="existingImpactInventory" class="existing-impact-inventory" aria-label="附件 UID 与模拟影响清单"></div>
               <div id="existingImpactSummary" class="existing-impact-summary" aria-label="结构引用与模拟影响结论"></div>
             </details>
+            <details id="existingMkvSameSizeReplaceDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-replace-title">
+              <summary id="existing-mkv-replace-title">已有 MKV 的附件数据等长替换（实验性独立副本）</summary>
+              <p class="attachment-extraction-help">可对包含已有附件、章节和关联标签的 Matroska，选择一个<strong>未被 TagAttachmentUID 指向</strong>的附件，使用字节长度<strong>完全相同</strong>的新文件替换其 FileData。保留原附件 UID、名称、MIME、其他附件、所有非附件顶层元素和字节偏移。仅适用于来源不超过 60 MiB、替换数据不超过 4 MiB、来源结构已完整检验且没有影响范围内 CRC 的受限布局；不提供附件增删、重命名、文件长度变化或通用 MKV 编辑。不会覆盖原文件，不调用 FFmpeg。独立本地字节验证不能代替外部播放器与标准兼容性证明。</p>
+              <div class="existing-mkv-limited-fields">
+                <label>来源 Matroska（已有附件）
+                  <input id="existingMkvSameSizeSource" type="file" accept=".mkv,.mka,.mks,.mk3d" aria-label="选择包含现有附件的 Matroska 来源" />
+                </label>
+                <label>拟替换的现有附件 FileUID
+                  <select id="existingMkvSameSizeTarget" aria-label="选择未被 Tag 引用的现有附件 FileUID"></select>
+                </label>
+                <label>新的同长度附件 FileData
+                  <input id="existingMkvSameSizeReplacement" type="file" aria-label="选择大小与原附件完全相同的替换文件" />
+                </label>
+              </div>
+              <div id="existingMkvSameSizeInventory" class="existing-mkv-limited-evidence" aria-live="polite"></div>
+              <label class="multi-attachment-review">
+                <input id="existingMkvSameSizeReview" type="checkbox" />
+                我已核对现有附件 FileUID 与新文件字节长度，明确同意仅替换选定未被 Tag 引用的附件数据；理解原章节、轨道和其余附件必须保持字节不变，外部兼容尚不保证。
+              </label>
+              <div class="png-only-experiment-actions">
+                <button id="existingMkvSameSizePrepare" class="button button-small" type="button" disabled>验证来源并生成新副本</button>
+                <button id="existingMkvSameSizeSave" class="button button-small" type="button" disabled>下载经本地验证的副本</button>
+              </div>
+              <div id="existingMkvSameSizeStatus" role="status" aria-live="polite" data-state="idle"></div>
+              <div id="existingMkvSameSizeEvidence" class="existing-mkv-limited-evidence" aria-label="原附件 UID、来源与目标字节哈希及原结构保留证据"></div>
+            </details>
             <details id="existingMkvLimitedDetails" class="attachment-extraction existing-mkv-limited" aria-labelledby="existing-mkv-limited-title">
               <summary id="existing-mkv-limited-title">受限写入实验：为符合资格的已有 MKV 新增 1–8 个附件</summary>
               <p class="attachment-extraction-help">独立生成新副本，不覆盖原文件，不经 FFmpeg 重封装。仅限来源小于 60 MiB、无原附件、存在足够预留 Void 的布局；可一次新增 1–8 个附件，总计最多 4 MiB。多个附件可逐项检查和修改写入名称及 MIME 声明；重复或不安全名称必须手动更正，修改后重新确认并重新验证。无法删除或修改原附件，不适用于一般大型 MKV。来源中的私密内容仍会完整保留在副本中。</p>

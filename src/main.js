@@ -70,6 +70,7 @@ import { projectSourceStructureEvidence, projectActualOutputEvidence } from './c
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
 import { setupExistingMkvLimitedAppendUI } from './existing-mkv-limited-append-ui.js';
+import { setupExistingMkvSameSizeAttachmentReplaceUI } from './existing-mkv-same-size-attachment-replace-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
@@ -125,6 +126,17 @@ setupExistingAttachmentImpactUI({
   inventory: $('existingImpactInventory'),
   status: $('existingImpactStatus'),
   summary: $('existingImpactSummary'),
+});
+setupExistingMkvSameSizeAttachmentReplaceUI({
+  sourceInput: $('existingMkvSameSizeSource'),
+  replacementInput: $('existingMkvSameSizeReplacement'),
+  targetSelect: $('existingMkvSameSizeTarget'),
+  review: $('existingMkvSameSizeReview'),
+  prepareButton: $('existingMkvSameSizePrepare'),
+  saveButton: $('existingMkvSameSizeSave'),
+  status: $('existingMkvSameSizeStatus'),
+  evidence: $('existingMkvSameSizeEvidence'),
+  inventory: $('existingMkvSameSizeInventory'),
 });
 setupExistingMkvLimitedAppendUI({
   sourceInput: $('existingMkvLimitedSource'),
