@@ -70,8 +70,14 @@ async function openApp(browser) {
   const page = await context.newPage();
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
-  await page.goto(baseUrl, { waitUntil: 'networkidle' });
+  const url = new URL(baseUrl);
+  // Legacy-specific functional regression scenarios retain their original
+  // controls. New public default is covered in the whole-workbench scenario.
+  url.searchParams.set('ui','legacy');
+  await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
+  assert.equal(await page.locator('#sf14Root').count(),0,
+    'explicit ?ui=legacy must keep diagnostic fallback available');
   return { context, page };
 }
 
@@ -5794,11 +5800,24 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
   page.on('pageerror', error => { throw error; });
   try {
     const target = new URL(baseUrl);
-    target.searchParams.set('ui','10.14');
+    // Public root URL must mount the new 10.14 workbench by default.
+    target.searchParams.delete('ui');
     await page.goto(target.toString(), {waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'single');
     assert.equal(await page.locator('#sf14Single .sf14-pane').count(),3);
+    for (const section of ['tracks','attachments','chapters','tags']) {
+      const tab = page.locator('[data-sf-section="'+section+'"]');
+      assert.equal(await tab.count(),1,'planned output entry must remain present: '+section);
+      await tab.click();
+      assert.equal(await tab.getAttribute('aria-selected'),'true');
+      if (section === 'tracks') assert.equal(await page.locator('#sf14SectionNotice').isVisible(),false);
+      else {
+        assert.equal(await page.locator('#sf14SectionNotice').isVisible(),true);
+        assert.match(await page.locator('#sf14SectionNotice').textContent(),/后端|未|能力|验证/);
+      }
+    }
+    await page.locator('[data-sf-section="tracks"]').click();
     assert.equal(await page.locator('#outputCompositionPanel').count(),1);
     assert.equal(await page.locator('#assetInspectorHost').count(),1);
     assert.equal(await page.locator('#muxBtn').count(),1);
