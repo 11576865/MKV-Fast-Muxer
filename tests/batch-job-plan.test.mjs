@@ -108,7 +108,9 @@ test('directory-save failure stays separate from mux failure', () => {
 test('running batch UI reads frozen ledger and uses the direct single-task mux result', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../src/workbench.css', import.meta.url), 'utf8');
-  assert.match(main, /freezeBatchJobPlan\(pairing,/);
+  assert.match(main, /const approvedPairing=currentRecipeV2Approval/);
+  assert.match(main, /applyBatchRecipeV2ToPairing\(currentRecipeV2Approval\.recipe,pairing\)/);
+  assert.match(main, /freezeBatchJobPlan\(approvedPairing,/);
   assert.match(main, /const \{ pairing, frozenPlan, selectedOutputDirectory \} = preparation/);
   assert.match(main, /createBatchJobLedger\(frozenPlan, refreshBatchExecutionViews\)/);
   assert.match(main, /function indexBatchExecutionBySource\(\)/);
