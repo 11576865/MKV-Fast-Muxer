@@ -53,7 +53,7 @@ test('wrong file bytes, same-name replacement and stale row after await deny rec
  const cp=parseExternalMetadataCheckpoint(data);
  const wrong=fresh();
  wrong.context.audioRows[0].file=file('original.flac','different payload');
- assert.rejects(prepareExternalMetadataRecovery(wrong.ws,wrong.context,cp),/EXTERNAL_DOMAIN_SOURCE_CHANGED/);
+ await assert.rejects(prepareExternalMetadataRecovery(wrong.ws,wrong.context,cp),/EXTERNAL_DOMAIN_SOURCE_CHANGED/);
  const after=fresh();
  after.context.audioRows[0].file=file('original.flac','different payload');
  after.ws=createLiveWorkspaceAuthority({externalSession:createLiveExternalAssetSession({
