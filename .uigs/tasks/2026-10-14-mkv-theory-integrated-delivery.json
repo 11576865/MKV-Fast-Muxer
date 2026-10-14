@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "P1/P3-B integrated #134: exact-head Node/build 534/534 green, Chromium Scenario 11 red BEFORE mux because second-task editor title remounts to inferred default. Apply bounded DOM-authority refresh preservation and revalidate without weakening output audit.",
+  "current_work_unit": "P1/P3-B unified PR #134: Chromium Scenario 11's rejected subtitle edit diagnosed as EXTERNAL_DOMAIN_INVENTORY_CHANGED (not output FFmpeg). Added exact-track/sidecar/editor-verified font-inventory-only rebind with negative tests; validate production current head with full CI.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -84,18 +84,20 @@
     "Inspected exact-head PR #134 GitHub CI runs 38518974530/38518974537. Both failed at npm test, before Vite/Chromium: 532/534 Node tests pass, the two failures assert exact whitespace-dependent text for buildBatchJobsFromCollected, even though actual source still uses verified subtitleRecognition/manualAssignments. No evidence yet that Chromium output is correct.",
     "Repaired two Node contract regressions without weakening the pairing gate: tests/batch-review-matrix.test.mjs and tests/subtitle-content-identity-integration.test.mjs now use whitespace-tolerant checks for content-derived manual-tie pairing and require projectCurrentBatchTaskMetadata(inferredPairing,currentBatchTaskMetadata) afterward. Commits 115ec796 and 4f9c530. Independently checked exact production source matches both assertions; full npm test/Chromium pending.",
     "Inspected run 38519457650: 534/534 Node green, build green, Scenario 10 pass, Scenario 11 fails before mux at edited input title ('English · ASS' instead of 'Second Task'); earlier run 38518974530 had two stale Node test contracts since corrected.",
-    "Committed 0772c75 production stabilization: background UI refresh retains current external track controls when actual File/sidecar identities, immutable-domain editor epoch, track field count and all displayed field values still match; source changes and rejected changes still remount. Existing Scenario 11 now acts as exact-head browser regression."
+    "Committed 0772c75 production stabilization: background UI refresh retains current external track controls when actual File/sidecar identities, immutable-domain editor epoch, track field count and all displayed field values still match; source changes and rejected changes still remount. Existing Scenario 11 now acts as exact-head browser regression.",
+    "Real Chromium run 38523268340 reproduced pre-mux subtitle title fallback and logged EXTERNAL_DOMAIN_INVENTORY_CHANGED. No changes in actual media output are required to reproduce: the external domain refused typed subtitle title before freeze.",
+    "Scoped production repair in 7af94eec+ac4e52bc: exported rebindLiveExternalFontInventory rebinds only changed selected font File objects; requires identical audio/subtitle row objects, exact File/sidecar/format/identity references, unchanged all authoritative editor fields and same font mode. The first refused edit retries only against a fresh, verified immutable session; no writer permission or file metadata is imported.",
+    "2 regression unit tests committed in 105dce34: preserved authored title and a new font File ref accepted only after explicit safe rebind; rejects metadata bypass, audio/subtitle row drift, File/sidecar change, policy mismatch and unnecessary rebind. Current exact-head full CI awaiting outcome."
   ],
   "next_units": [
-    "Read exactly one newly submitted #134 CI generation at 0772c75 or later. Require Node, build, Chromium Scenario 10/11, actual two-job Recipe v2 mux with independent native ffprobe and output audit before merge.",
-    "If next CI reports a concrete new failure, inspect its first failing step and repair in the next bounded work turn. Never suppress actual regression or infer green from Node alone.",
-    "After complete green, reconcile unique #135 semantics without schema substitution and merge the coherent P1+P3-B PR to main; update superseded PRs and durable release acceptance.",
-    "Preserve P0 #77 nested Chapter/targeted Tag/AttachmentUID/unknown EBML fail-closed limits; full container writer stays separate later product block."
+    "Evaluate exact-head PR #134 run 38523818220: Node including two new negative tests, build and Chromium Scenario 11, then real two-output Recipe v2 independent ffprobe and output audit.",
+    "On green only, reconcile #135 unique semantics and merge #134 to main, close redundant PRs; on fail, repair first real failing cause while preserving strict source authority.",
+    "Do not expand P0 #77 nested Chapters, targeted Tags, AttachmentUID or unknown EBML writer permissions. Ship first P1/P3-B user-visible block independently of unproved P2 native writer."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "0772c75796ad3b498ac598ca23ee1c22e134b39f",
+  "last_durable_commit": "105dce34a0434680daf71223b6e1438baa2e7961",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -121,7 +123,9 @@
     "pr134-prior-ci": "failed-before-browser: 2 whitespace-sensitive source-integration assertions",
     "pr134-node-build-at-8fa0c74": "passed_534_of_534_build_passed",
     "pr134-chromium-scenario11-at-8fa0c74": "failed_pre_mux_editor_value_default_instead_of_second_task",
-    "pr134-next-chromium-after-dom-stability": "pending_external_validation"
+    "pr134-next-chromium-after-dom-stability": "pending_external_validation",
+    "pr134-font-inventory-guarded-rebind-node-chromium": "pending_exact_head_105dce34_run_38523818220",
+    "pr134-chromium-pre-mux-title-diagnostic": "failed_38523268340_EXTERNAL_DOMAIN_INVENTORY_CHANGED"
   },
   "blockers": [
     "Exact-head #134 full Node/build/Chromium CI result unverified following two test repairs; previous build and Chromium jobs stopped at npm test.",
