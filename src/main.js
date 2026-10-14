@@ -6914,8 +6914,9 @@ batchStartBtn?.addEventListener('click', async () => {
 resetTrackState();
 updateUI();
 
-// 软封10.14版本. Review on ?ui=10.14 without partially replacing main.
-// Accept a complete, evidence-tested cutover before enabling this by default.
-if (new URLSearchParams(window.location.search).get('ui') === '10.14') {
+// 软封10.14版本 is the default presentation after atomic UI cutover.
+// Keep the original UI explicitly addressable for diagnosis/regression only.
+// This changes presentation identity, never media permission or executor.
+if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
   mountSoftmux1014Workbench(document);
 }
