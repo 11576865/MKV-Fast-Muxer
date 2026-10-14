@@ -155,3 +155,131 @@
   .sf14-page {padding:8px;}
   .sf14-tool-list {grid-template-columns:minmax(0,1fr);}
 }
+
+
+/* Full-workbench visual review corrections, grounded in actual Chromium
+ * 1440 / 800 / 390 / 360 captures. Real controls are rehosted, not copied. */
+.sf14-pane-head {align-items:center;}
+.sf14-pane-head > button {
+  display:none;background:var(--surface-2);color:var(--text);
+  border:1px solid var(--line-strong);border-radius:7px;
+  min-height:32px;padding:6px 10px;font-size:.72rem;
+}
+.sf14-source .unified-intake-buttons {display:flex;gap:6px;flex-wrap:wrap;}
+.sf14-source .asset-dropzone {max-height:88px;}
+.sf14-source #sourceFilesDetails[open] > summary {border-bottom:1px solid var(--line);}
+.sf14-source #sourceFilesDetails[open] .asset-inventory {padding:5px 0 12px;}
+.sf14-source #assetInventory .asset-entry {border-left-width:2px;}
+.sf14-composition #outputCompositionPanel {
+  display:flex;flex-direction:column;gap:10px;
+}
+.sf14-composition #outputCompositionPanel[hidden] {display:none!important;}
+.sf14-composition .composition-head {
+  align-items:center;justify-content:space-between;gap:6px;
+  padding:0 0 9px;border-bottom:1px solid var(--line);
+}
+.sf14-composition .composition-head h3 {font-size:.8rem;white-space:nowrap;}
+.sf14-composition .composition-header-tools {min-width:0;flex-wrap:wrap;gap:5px;}
+.sf14-composition .composition-header-tools button,
+.sf14-composition .composition-header-tools label {
+  font-size:.68rem;min-height:30px;padding:6px 8px;
+}
+.sf14-composition #compositionTracks {order:1;}
+.sf14-composition #compositionChanges {order:2;}
+.sf14-composition #compositionIssues {order:3;}
+.sf14-composition #preservationReadiness {order:4;}
+.sf14-composition #containerCapabilitySummary {order:5;}
+.sf14-composition #containerCapabilityDetails {order:6;}
+.sf14-composition #compositionSourceEvidence {order:7;}
+.sf14-composition #sf14Recovery {order:8;}
+.sf14-composition .composition-actions {order:9;}
+.sf14-composition #compositionTracks:empty::after {
+  content:"等待真实来源探测或字幕、音频与字体导入";display:block;
+  color:var(--muted);font-size:.76rem;padding:32px 20px;
+  border:1px dashed var(--line);border-radius:8px;
+}
+.sf14-recovery,.sf14-inspector-drawer {
+  border:1px solid var(--line);
+  background:var(--surface-1);
+  border-radius:8px;
+  min-width:0;
+  margin-top:4px;
+}
+.sf14-recovery > summary,.sf14-inspector-drawer > summary {
+  display:flex;align-items:center;justify-content:space-between;
+  list-style:none;cursor:pointer;
+  color:var(--text);font-weight:650;font-size:.77rem;
+  min-height:40px;padding:10px 12px;gap:7px;
+}
+.sf14-recovery > summary::-webkit-details-marker,
+.sf14-inspector-drawer > summary::-webkit-details-marker {display:none;}
+.sf14-recovery > summary::after,.sf14-inspector-drawer > summary::after {
+  content:"▾";color:var(--muted);font-size:.77rem;transition:transform .15s;
+}
+.sf14-recovery[open] > summary::after,
+.sf14-inspector-drawer[open] > summary::after {transform:rotate(180deg);}
+.sf14-recovery[open],.sf14-inspector-drawer[open] {border-color:var(--line-strong);}
+.sf14-recovery > :not(summary) {margin:7px 10px 11px;}
+.sf14-recovery > .container-project-intent-review:not([hidden]) {
+  padding:10px;border:0;background:var(--surface-0);
+}
+.sf14-inspector-drawer > .subtitle-preview-card,
+.sf14-inspector-drawer > .editor-grid {margin:0 9px 10px;width:calc(100% - 18px);max-width:none;}
+.sf14-inspector-drawer > .subtitle-preview-card {background:var(--surface-0);border:0;padding:7px;}
+.sf14-inspector-drawer > .subtitle-preview-card .preview-head {display:none;}
+.sf14-inspector-drawer > .editor-grid .object-editor-nav {margin-bottom:10px;}
+.sf14-inspector .object-selection-hint {padding:15px 13px;border:1px dashed var(--line);border-radius:8px;font-size:.76rem;}
+.sf14-inspector #assetInspectorHost:not([hidden]) {
+  border:1px solid var(--line);border-radius:8px;
+  background:var(--surface-1);padding:10px;
+}
+.sf14-inspector #outputEvidencePanel:not([hidden]) {
+  display:block;border:1px solid var(--line);border-radius:8px;margin-top:9px;
+}
+.sf14-output .execution-panel .actions button {min-height:40px;}
+.sf14-output .output-hub .output-summary {background:transparent;border:0;}
+.sf14-mobile-focus {gap:5px;padding:6px;background:var(--surface-1)!important;border-bottom:1px solid var(--line);}
+.sf14-mobile-focus button {
+  appearance:none;min-height:37px;cursor:pointer;
+  background:transparent;color:var(--muted);border:1px solid transparent;
+  border-radius:7px;font-weight:700;font-size:.77rem;padding:8px;
+}
+.sf14-mobile-focus button[aria-current="page"] {
+  color:var(--text-strong);border-color:var(--line-strong);
+  background:var(--surface-3);
+}
+.sf14-batch .batch-drawer[open] > summary {display:none;}
+.sf14-batch .batch-layout {
+  grid-template-columns:minmax(245px,.29fr) minmax(0,.71fr);
+  gap:14px;align-items:start;
+}
+.sf14-batch .batch-inputs {min-width:0;display:flex;flex-direction:column;gap:9px;}
+.sf14-batch .batch-detail {min-width:0;display:flex;flex-direction:column;gap:10px;}
+.sf14-batch .batch-queue {order:0;min-width:0;}
+.sf14-batch .batch-settings {order:1;min-width:0;}
+.sf14-batch .batch-queue #batchPlan {max-height:460px;}
+.sf14-batch .batch-queue-head {background:var(--surface-2);}
+.sf14-batch .batch-review-layout {grid-template-columns:minmax(0,1.5fr) minmax(200px,1fr);}
+.sf14-batch .batch-settings {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+}
+.sf14-batch .batch-settings .batch-recipe-tool,
+.sf14-batch .batch-settings .batch-output-tool {min-width:0;}
+@media (max-width:1180px) {
+  .sf14-batch .batch-layout {grid-template-columns:minmax(0,1fr);}
+  .sf14-batch .batch-review-layout {grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:930px) {
+  .sf14-batch .batch-settings {grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:680px) {
+  .sf14-pane-head > button {display:inline-flex;align-items:center;}
+  .sf14-pane-head span {display:none;}
+  .sf14-pane-head {min-height:48px;}
+  .sf14-composition .composition-head {flex-wrap:wrap;}
+  .sf14-composition .composition-header-tools {width:100%;}
+  .sf14-source .asset-entry {padding:9px;}
+  .sf14-inspector .editor-column {gap:8px;}
+  .sf14-output .execution-panel .actions button {min-height:41px;}
+  .sf14-batch .batch-settings {grid-template-columns:minmax(0,1fr);}
+}
