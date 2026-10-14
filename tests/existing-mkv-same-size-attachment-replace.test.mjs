@@ -27,7 +27,7 @@ const file = (bytes,name) => {
 };
 const oldA = Buffer.from('TAGGED-attached-old-A');
 const oldB = Buffer.from('DECOY-attached-old-B');
-const newB = Buffer.from('REPLACED-decoy-data-B');
+const newB = Buffer.from('UPDATED-decoy-data-B');
 assert.equal(oldB.length,newB.length);
 const attached = (uid,name,data,{crc = false}={}) => el('61A7',concat(
   el('466E',Buffer.from(name)),
