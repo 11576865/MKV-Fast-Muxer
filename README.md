@@ -26,6 +26,8 @@ MKV Fast Muxer v3 is a browser-local Matroska muxing workbench built around a vi
 
 - **P0/P2-N 已合并的第四类已有 MKV 附件编辑（原附件不在末尾）**：对原有单个 Attachments **位于 Segment 中途**，并且原 SeekHead **确实正确索引该附件**的来源，允许显式审核后变长替换其**最后一个、未被 TagAttachmentUID 指向的 AttachedFile**。不移动原有媒体包、Chapters、Tags、Cues、Tracks 等顶层对象；在旧附件所在同一原始字节空间新建链式 SeekHead 中继，把原索引 SeekID 由附件改指中继，原 SeekPosition 保持不变，再把修改后的完整附件主元素追加到 Segment 最末尾并更新必要尺寸。来源和新文件 SHA 及 UID 引用关系、受保护字节通过本地审计，原生 MKVToolNix/`mkvextract`/`ffprobe` 独立验收和完整 Chromium 547/547 Node 证据见 [#139](https://github.com/11576865/MKV-Fast-Muxer/pull/139)、[工程说明](docs/P0-P2-NONTERMINAL-ATTACHMENTS-SEEKHEAD-RELAY-20261014.md)。无正确原始 SeekHead、受影响 CRC、不能容纳中继、非最后 AttachedFile 或被定向标签引用的来源**拒绝**；不是任意 EBML Writer，不修复一般 SeekHead/Cues、不覆盖来源文件。
 
+- **P0/P2-N2 已合并：非末尾附件列表中的任意未引用 FileUID 可变长替换**。此前链式 SeekHead 路径要求选中最后一个 AttachedFile；现在支持选择前面或中间的原始附件，只要来源拥有已验证的非末尾 Attachments／正确 SeekHead 索引、UID 不被 Tag 引用且其余结构门槛满足。修改前面附件时，后续其他附件在新追加的 Attachments 主元素内部会发生**可计算的偏移变化**，工具逐一验证 UID、名称、MIME、文件数据 SHA-256 和偏移；外部 Cluster/Cues/Chapters/Tags/Tracks 原始字节与偏移不移动。真实 Chromium 基于独立 MKVToolNix 制作的**三附件**来源，验证了修改第二个附件、保留被 Tag 指向的第一个和位于其后的第三个，并由独立 `mkvmerge`／`mkvextract`／`ffprobe` 检查真实成品；完整 CI 549/549 Node，详见 [#140](https://github.com/11576865/MKV-Fast-Muxer/pull/140) 与 [P0/P2-N2 工程边界](docs/P0-P2-NONFINAL-FILEUID-RELAY-20261014.md)。这仍不是无 SeekHead／CRC／任意 EBML 编辑器。
+
 **重要：**历史问题 [#77](https://github.com/11576865/MKV-Fast-Muxer/issues/77) 所揭示的 FFmpeg 重封装嵌套章节与定向标签丢失风险未被通用修复。新的等长附件数据替换采取不重封装媒体、原位置保留的独立路径，不能据此推论任意 EBML 编辑安全。
 
 ## 理论初版五步集成预览（2026-10-13）
