@@ -1396,6 +1396,52 @@ async function scenarioExternalAssetDomainAuthority(browser) {
   }
 }
 
+async function scenarioExternalCheckpointRecoveryRealMux(browser) {
+  console.log('E2E P1 ROUND3: external JSON checkpoint -> SHA rebind -> consent -> undo -> apply -> actual MKV');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'base.mp4'));
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    const title=page.locator('#newAudioList input[data-new-audio-field="title"]').first();
+    await title.fill('R3 Restored FLAC');
+    const [download]=await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('#externalCheckpointExportBtn').click(),
+    ]);
+    const exported=await download.path();
+    assert.ok(exported);
+    const draftText=await fs.readFile(exported,'utf8');
+    assert.match(draftText,/"mkv-external-metadata-checkpoint-v1"/);
+    assert.doesNotMatch(draftText,/"authorization":\s*"session"/);
+    await title.fill('R3 Current Before Restore');
+    await page.setInputFiles('#externalCheckpointImportInput',{
+      name:'checkpoint.json',mimeType:'application/json',buffer:Buffer.from(draftText),
+    });
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+    await page.locator('#externalCheckpointPrepareBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointConfirm')?.disabled===false);
+    assert.equal(await title.inputValue(),'R3 Current Before Restore');
+    await page.locator('#externalCheckpointConfirm').check();
+    await page.locator('#externalCheckpointApplyBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointStatus')?.textContent.includes('已明确应用'));
+    assert.equal(await title.inputValue(),'R3 Restored FLAC');
+    await page.locator('#externalCheckpointUndoBtn').click();
+    assert.equal(await title.inputValue(),'R3 Current Before Restore');
+    await page.locator('#externalCheckpointPrepareBtn').click();
+    await page.waitForFunction(()=>document.querySelector('#externalCheckpointConfirm')?.disabled===false);
+    await page.locator('#externalCheckpointConfirm').check();
+    await page.locator('#externalCheckpointApplyBtn').click();
+    assert.equal(await title.inputValue(),'R3 Restored FLAC');
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-round3-external-checkpoint-recovered.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const final=probe(output);
+    assert.equal(streams(final,'audio').at(-1).tags?.title,'R3 Restored FLAC');
+    console.log('P1 ROUND3 external checkpoint complete UI/real output/ffprobe PASS');
+  } finally { await context.close(); }
+}
+
 async function scenarioSharedContainerProjectRealMux(browser) {
   console.log('E2E P1 ROUND2: source + external + font share ONE live ContainerProject -> real MKV');
   const {context,page}=await openApp(browser);
@@ -5605,6 +5651,7 @@ try {
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
   await scenarioSharedContainerProjectRealMux(browser);
+  await scenarioExternalCheckpointRecoveryRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
