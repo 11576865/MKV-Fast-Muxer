@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "2026-10-14-p0-p2-verified-nested-attachment-crc32",
-  "status": "submitted-pending-exact-head-CI-and-independent-native-output",
+  "status": "merged-verified-standard-conformant-independent-native-output",
   "baseline_main": "00bf9982cbf83e8236f4ddf68e5fbe90a484a60f",
   "branch": "feat/p0-p2-verified-attachment-crc-20261014",
   "goal": "Safely grow/shrink genuine original FileData when a source-indexed nonterminal Attachments and/or selected AttachedFile contains a valid CRC-32, proving original CRC first, then recomputing nested->outer and independently auditing native output.",
@@ -14,12 +14,12 @@
     "Real chromium edited output plus native mkvmerge/mkvextract/ffprobe Chapter/Tags/UID/FileData/packet validation and 768px tablet screenshot"
   ],
   "acceptance": {
-    "node": "pending",
-    "build": "pending",
-    "browser": "pending",
-    "independentPythonZlib": "pending",
-    "nativeOutput": "pending",
-    "generalCRCWriter": "not_supported"
+    "node": "PASS_552_of_552_exact_head_38583859923",
+    "build": "PASS_Vite_exact_head_38583859923",
+    "browser": "PASS_full_Chromium_exact_head_38583859923",
+    "independentPythonZlib": "PASS_source_and_output_original_AttachedFile_and_Attachments_CRC32_scope_correct_and_child_first",
+    "nativeOutput": "PASS_original_native_mkvmerge_mkvextract_ffprobe_original_Chapter_Tag_UID_FileData_packets",
+    "generalCRCWriter": "not_implemented_or_proven"
   },
   "limits": [
     "<=60 MiB source <=4 MiB selected FileData",
@@ -29,8 +29,19 @@
     "no general SeekHead/Cues/Chapter/Tag CRC repair or streaming >60MiB"
   ],
   "next": [
-    "Read full CI and fix any original-source/native/byte-audit failure without dropping safety guards",
-    "Merge only upon real native-chromium-Python zlib independent double CRC proof green",
-    "Then progress remaining missing-index/CRC-scope/large-file limits as whole blocks"
-  ]
+    "Investigate absent, stale or semantically incomplete existing SeekHead discovery without inheriting generic remux/offset rewrite authority; require independently verifiable source/output native proof",
+    "Extend CRC scopes only with accurately traversed and externally checked original parent hierarchy, including CRC-covered SeekHead/Cues/Chapters/Tags; do not drop failure guards",
+    "Develop large-source streaming data/hashes and reader/writer capability preview with explicit currently proven layouts, player/device acceptance and no automatic overwrite"
+  ],
+  "pr_number": 141,
+  "exact_head_sha": "3f18a7341a26afe0b01e1a5076d0254024c65c32",
+  "merge_sha": "b8097016185f82430fc9e518545992764d7e3f0a",
+  "completed": [
+    "Actual source-bound original CRC32 values and required first-child positions for selected AttachedFile and parent Attachments are checked before writing; invalid/double/misplaced CRC remains refused",
+    "Changed FileData appended in source-indexed nonterminal master with selected AttachedFile CRC rewritten before parent Attachments CRC and emitted source/output separately validated",
+    "Exact-head compliant original native MKVToolNix source, independently Python zlib authored CRC, separate Python zlib audit of real Chromium output, mkvmerge/mkvextract/ffprobe Chapters/Tags/UID/FileData/packet hashes",
+    "552/552 Node, Vite and whole Chromium passed on final head 3f18a73 Actions 38583859923; reviewed UI displays verified/recomputed two CRC scopes; PR #141 merged b809701",
+    "Initial green candidate on nonconforming end-of-master CRC test source rejected as insufficient proof; followed RFC 8794 §11.3.1 first-child normative correction and second exact-head green CI"
+  ],
+  "updated_at": "2026-10-14"
 }
