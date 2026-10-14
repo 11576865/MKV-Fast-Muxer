@@ -1396,6 +1396,47 @@ async function scenarioExternalAssetDomainAuthority(browser) {
   }
 }
 
+async function scenarioSharedContainerProjectRealMux(browser) {
+  console.log('E2E P1 ROUND2: source + external + font share ONE live ContainerProject -> real MKV');
+  const {context,page}=await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput',path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    await page.setInputFiles('#audioInput',path.join(root,'external.flac'));
+    await page.setInputFiles('#subInput',path.join(root,'zh.ass'));
+    await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
+    await page.locator('.track-row.track-audio input[data-track-field="title"]').first()
+      .fill('R2 Original Source');
+    await page.locator('#newAudioList input[data-new-audio-field="title"]').first()
+      .fill('R2 Added Audio');
+    await page.locator('#newSubtitleList input[data-new-sub-field="title"]').first()
+      .fill('R2 Added ASS');
+    await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').first()
+      .check();
+    await page.locator('#fontMode').selectOption('force');
+    const plan=await page.locator('#muxPlan').textContent();
+    assert.match(plan,/R2 Original Source/);
+    assert.match(plan,/R2 Added Audio/);
+    assert.match(plan,/R2 Added ASS/);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const output=path.join(outDir,'p1-round2-shared-source-external.mkv');
+    await saveDownload(page,'#downloadLink',output);
+    const final=probe(output);
+    const audios=streams(final,'audio'), subs=streams(final,'subtitle');
+    assert.equal(audios[0].tags?.title,'R2 Original Source');
+    assert.equal(audios.at(-1).tags?.title,'R2 Added Audio');
+    assert.equal(subs.at(-1).tags?.title,'R2 Added ASS');
+    assert.equal(Boolean(subs.at(-1).disposition?.forced),true);
+    assert.ok(streams(final,'attachment').some(s=>
+      s.tags?.filename==='DejaVuSans.ttf'));
+    console.log('P1 ROUND2 shared-domain source + external + font actual MKV/ffprobe PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioWorkbenchEfficiency(browser) {
   console.log('E2E scenario 22: bulk include/reset controls + grouped mux plan');
   const { context, page } = await openApp(browser);
@@ -5563,6 +5604,7 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
+  await scenarioSharedContainerProjectRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
   await scenarioPreviewFrame(browser);
