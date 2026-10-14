@@ -575,11 +575,13 @@
                 </label>
                 <div class="batch-recipe-tool" role="group" aria-label="批量配方">
                   <span class="control-label">配方</span>
-                  <button id="batchRecipeExportBtn" class="button button-small" type="button">导出规则</button>
-                  <label class="button button-small batch-recipe-picker">导入规则
-                    <input id="batchRecipeImportInput" type="file" accept=".json,application/json" aria-label="导入批量配方规则 JSON" />
+                  <button id="batchRecipeExportBtn" class="button button-small" type="button">导出 v2 配方</button>
+                  <label class="button button-small batch-recipe-picker">导入配方
+                    <input id="batchRecipeImportInput" type="file" accept=".json,application/json" aria-label="导入批量配方 JSON" />
                   </label>
-                  <small id="batchRecipeNotice" role="status" aria-live="polite">只保存规则；素材与目录权限不会保存。</small>
+                  <button id="batchRecipeApplyBtn" class="button button-small" type="button" hidden disabled>审核并应用逐任务属性</button>
+                  <button id="batchRecipeDiscardBtn" class="button button-small" type="button" hidden>放弃导入建议</button>
+                  <small id="batchRecipeNotice" role="status" aria-live="polite">v2 可保存每集字幕标题、语言与标记；必须重新选择真实素材并明确确认。不保存 File 句柄、目录权限及成品。</small>
                 </div>
                 <div class="batch-output-tool">
                   <span class="control-label">输出目录</span>
