@@ -5,7 +5,7 @@
   "project_id": "MKV-Fast-Muxer",
   "goal": "Advance approved 2026-10-12 Matroska P0-P6 product model in coherent feature batches, maximizing actual working functionality and minimizing repeated full CI waits, while retaining P0 safety and legacy delivery.",
   "status": "in_progress",
-  "current_work_unit": "Integrated P1+P3-B single PR #134 directly targeting main: external-authority + per-output Recipe v2 + frozen 2-MKV delivery. Pre-output title trace and exact-File rebind repaired; exact-head full CI must decide pass/fail.",
+  "current_work_unit": "P1/P3-B integrated acceptance: repair two real Node regression test contracts broken by Recipe v2's explicitly typed pairing+metadata projection; validate current head Node/build/Chromium before merging.",
   "completed_units": [
     "Established a bounded source-scanned editable attribute and baseline projection with correct source provenance.",
     "Implemented actual scan-to-current revisioned ContainerProject export instead of empty-intent drafts.",
@@ -80,18 +80,19 @@
     "Consolidated product-block PR #134 is the active integrated route: P1 external session, BatchRecipe v2 typed policies and per-output metadata, direct in-app episode inspector edits, inert import/explicit review, exact current File+sidecar identity, frozen JobPlan, two-result real-browser/ffprobe acceptance cases. PR #135 overlaps and must not be silently added or double-merged.",
     "Applied latest PR #133 anti-regression safeguards to integrated PR #134 branch: pending subtitle inspection synchronously invalidates stale row; inventory-only external rebind validates exact File/sidecar references and retains user-authored metadata, rather than running syncNewTrackState() and losing the next task's title. Code commit 3a92e52.",
     "PR #134 retargeted directly to main, rather than stacking repeated full CI onto PR #133. Parent #133 remains an unmerged provenance branch; CI must validate entire combined feature as one coherent block.",
-    "Added real Chromium scenarioSequentialTasks pre-execution planned title assertion (commit 7e008c7): UI field value and #muxPlan must reflect the user's Second Task before starting writer, in addition to existing final ffprobe title check."
+    "Added real Chromium scenarioSequentialTasks pre-execution planned title assertion (commit 7e008c7): UI field value and #muxPlan must reflect the user's Second Task before starting writer, in addition to existing final ffprobe title check.",
+    "Inspected exact-head PR #134 GitHub CI runs 38518974530/38518974537. Both failed at npm test, before Vite/Chromium: 532/534 Node tests pass, the two failures assert exact whitespace-dependent text for buildBatchJobsFromCollected, even though actual source still uses verified subtitleRecognition/manualAssignments. No evidence yet that Chromium output is correct.",
+    "Repaired two Node contract regressions without weakening the pairing gate: tests/batch-review-matrix.test.mjs and tests/subtitle-content-identity-integration.test.mjs now use whitespace-tolerant checks for content-derived manual-tie pairing and require projectCurrentBatchTaskMetadata(inferredPairing,currentBatchTaskMetadata) afterward. Commits 115ec796 and 4f9c530. Independently checked exact production source matches both assertions; full npm test/Chromium pending."
   ],
   "next_units": [
-    "Collect one exact-head full Node/Vite/Chromium run for integrated main-targeting PR #134; inspect meaningful failure once and repair in a bounded separate execution unit.",
-    "If green, reconcile unique PR #135 semantic deltas without sacrificing PR #134 verified binding; supersede redundant #133/#135 and merge one consolidated user-facing PR.",
-    "Do not weaken P0 #77 nested Chapter, targeted Tag, AttachmentUID or unknown EBML fail-closed conditions; continue next whole-block container editing only after first block is published.",
-    "Subsequent product milestones: real 20-output batch workload and recoverable queue, desktop/tablet performance and user outcome acceptance."
+    "Verify exact-head #134 Node+Vite build+real Chromium run (including Scenario 10/11, two actual Recipe v2 MKVs, independent ffprobe); a red run requires diagnosing the newly exposed failure without hiding it.",
+    "If green, reconcile only unique #135 behavior against integrated Recipe v2 and block unsafe schema substitution; merge #134 as one coherent mainline delivery.",
+    "Keep #77 complex Matroska EBML fail-closed while later container-editing block is developed."
   ],
   "repository": "11576865/MKV-Fast-Muxer",
   "branch": "feat/p3b-batch-recipe-v2-integrated-20261014",
   "pull_request": 134,
-  "last_durable_commit": "3a92e52acb439b093d0319b61bd951d68da51249",
+  "last_durable_commit": "4f9c530cb49fdccc9d3e63d651f25bfd455ec731",
   "external_validation": {
     "pr132-browser-build": "passed",
     "pr132-merged-main": "passed",
@@ -111,12 +112,15 @@
     "complex-ebml-preservation": "blocked-by-p0-77",
     "actual-device": "unknown",
     "pr134-sequential-task-planned-title": "pending",
-    "pr133-latest-full-chromium": "failed-scenario11-at-35411ad"
+    "pr133-latest-full-chromium": "failed-scenario11-at-35411ad",
+    "pr134-node-534-repair": "source-assertions-pass; exact-head-CI-pending",
+    "pr134-chromium-real-two-output": "not-yet-run-for-corrected-head",
+    "pr134-prior-ci": "failed-before-browser: 2 whitespace-sensitive source-integration assertions"
   },
   "blockers": [
-    "PR #133's latest exact-head Chromium still failed Scenario 11 with incorrect final subtitle title; PR #134 includes additional safety and pre-execution gate, but full current-head acceptance is unverified.",
-    "PR #135 overlaps Recipe v2 and must be semantically reconciled rather than blindly merged.",
-    "Complex EBML P0 #77 preservation gap remains guarded; independent cross-device/large-batch acceptance is not proven."
+    "Exact-head #134 full Node/build/Chromium CI result unverified following two test repairs; previous build and Chromium jobs stopped at npm test.",
+    "The prior #133 consecutive-task subtitle title rollback regression needs independent finished-MKV acceptance on this combined code.",
+    "Do not mechanically merge overlapping Recipe v2 PR #135 or widen complex EBML P0 #77 writer permissions."
   ],
   "notes": [
     "Workflow discipline: keep branch commits and prepare tests before one PR; do not repeatedly poll full CI.",
