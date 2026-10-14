@@ -242,6 +242,8 @@ const batchRecipeV2ExportBtn=$('batchRecipeV2ExportBtn');
 const batchRecipeV2ImportInput=$('batchRecipeV2ImportInput');
 const batchRecipeV2ConfirmBtn=$('batchRecipeV2ConfirmBtn');
 const batchRecipeV2Notice=$('batchRecipeV2Notice');
+const batchRecipeV2Review=$('batchRecipeV2Review');
+const batchRecipeV2ReviewItems=$('batchRecipeV2ReviewItems');
 const batchOutputDirBtn = $('batchOutputDirBtn');
 const batchOutputDirStatus = $('batchOutputDirStatus');
 const batchStatus = $('batchStatus');
@@ -6051,6 +6053,7 @@ batchRecipeImportInput?.addEventListener('change', async () => {
     // No implicit restoration of manual source pairings or old save paths.
     pendingBatchRecipeV2=null;
     approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
     batchManualAssignments.clear();
     selectedBatchVideoFile = null;
     activeBatchJobLedger = null;
@@ -6063,6 +6066,32 @@ batchRecipeImportInput?.addEventListener('change', async () => {
     batchRecipeNotice.textContent = '配方被拒绝：' + (error?.message || String(error));
   }
 });
+
+function renderBatchRecipeV2Review(recipe) {
+  if(!batchRecipeV2Review || !batchRecipeV2ReviewItems)return;
+  batchRecipeV2Review.hidden=!recipe;
+  if(!recipe){batchRecipeV2ReviewItems.innerHTML='';return;}
+  batchRecipeV2ReviewItems.innerHTML=recipe.jobs.map(job=>`
+    <section class="batch-recipe-v2-review-job">
+      <strong>${escapeHtml(job.sourceName)} → ${escapeHtml(job.outputName)}</strong>
+      ${job.subtitleRules.map(row=>`
+        <div class="track-meta">${escapeHtml(row.fileName)} ${row.sidecarName
+          ? ' + '+escapeHtml(row.sidecarName) : ''} · ${escapeHtml(row.title)}
+          · ${escapeHtml(row.language)} · ${escapeHtml(row.formatId||'未声明格式')}
+          · Default:${row.default?'是':'否'} · Forced:${row.forced?'是':'否'}
+          · Original:${row.original?'是':'否'}
+          · Commentary:${row.commentary?'是':'否'}
+          · Hearing impaired:${row.hearingImpaired?'是':'否'}</div>`).join('')}
+    </section>`).join('');
+}
+function isApprovedBatchRecipeV2SelectionCurrent(binding,pairing) {
+  if(!binding)return true;
+  if(!verifyBatchRecipeV2Binding(binding,pairing))return false;
+  const selectedVideos=batchVideoFiles();
+  const selectedSubtitles=batchSubtitleFiles();
+  return pairing.jobs.every(job=>selectedVideos.includes(job.video) &&
+    (job.subtitleInputFiles||[]).every(file=>selectedSubtitles.includes(file)));
+}
 
 batchRecipeV2ExportBtn?.addEventListener('click',()=>{
   if(batchRunning||batchStartPending||batchImportInProgress||isBusy())return;
@@ -6104,6 +6133,7 @@ batchRecipeV2ImportInput?.addEventListener('change',async()=>{
       throw Error('BATCH_RECIPE_V2_BUSY');
     pendingBatchRecipeV2=parsed;
     approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(parsed);
     activeBatchJobLedger=null;
     const review=previewBatchRecipeV2(parsed,latestBatchPairing);
     batchRecipeV2ConfirmBtn.hidden=false;
@@ -6114,6 +6144,7 @@ batchRecipeV2ImportInput?.addEventListener('change',async()=>{
   }catch(error){
     pendingBatchRecipeV2=null;
     approvedBatchRecipeV2=null;
+    renderBatchRecipeV2Review(null);
     batchRecipeV2ConfirmBtn.hidden=true;
     batchRecipeV2Notice.textContent='逐输出 v2 导入拒绝：'+
       (error?.message||String(error));
@@ -6125,6 +6156,8 @@ batchRecipeV2ConfirmBtn?.addEventListener('click',()=>{
   try {
     const pairing=latestBatchPairing;
     const approval=captureBatchRecipeV2Binding(pendingBatchRecipeV2,pairing);
+    if(!isApprovedBatchRecipeV2SelectionCurrent(approval,pairing))
+      throw Error('BATCH_RECIPE_V2_CURRENT_FILES_CHANGED');
     // Only explicit user confirmation may update current task-level policies.
     const policy=approval.recipe.policy;
     batchPreserveAttachments.checked=policy.preserveAttachments;
@@ -6184,7 +6217,7 @@ async function prepareBatchStart() {
       return null;
     }
     if(currentRecipeV2Approval &&
-        !verifyBatchRecipeV2Binding(currentRecipeV2Approval,pairing)){
+        !isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing)){
       batchStatus.textContent='批量未开始：逐输出字幕规则与当前来源绑定失效。';
       approvedBatchRecipeV2=null;
       return null;
@@ -6202,8 +6235,7 @@ async function prepareBatchStart() {
     const isCurrent = () => !batchStartCancelled &&
       generation === batchPlanGeneration &&
       approvedBatchRecipeV2 === currentRecipeV2Approval &&
-      (!currentRecipeV2Approval ||
-        verifyBatchRecipeV2Binding(currentRecipeV2Approval,pairing)) &&
+      isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing) &&
       selectedOutputDirectory === batchOutputDirectoryHandle &&
       !batchImportInProgress && !batchRunning && !isBusy() &&
       snapshot.source === batchVideoFiles().map(fileIdentity).join('\u0000') &&
