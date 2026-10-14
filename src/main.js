@@ -6089,9 +6089,12 @@ batchSubsetScope?.addEventListener('change', () => {
 batchRecipeExportBtn?.addEventListener('click', () => {
   if (batchRunning || batchStartPending || batchImportInProgress || isBusy()) return;
   try {
-    if(latestBatchPairingGeneration!==batchPlanGeneration)
+    // Policy-only v2 templates do not depend on a media scan. For actual
+    // per-job proposals, however, never export stale pairing generations.
+    const noMedia=!batchVideoFiles().length&&!batchSubtitleFiles().length;
+    if(!noMedia&&latestBatchPairingGeneration!==batchPlanGeneration)
       throw Error('BATCH_RECIPE_PAIRING_STILL_INSPECTING');
-    const recipe = buildBatchRecipeV2FromPairing(latestBatchPairing,{
+    const recipe = buildBatchRecipeV2FromPairing(noMedia?{jobs:[]}:latestBatchPairing,{
       preserveAttachments: Boolean(batchPreserveAttachments.checked),
       subsetEnabled: Boolean(batchFontSubsetEnabled.checked),
       subsetScope: batchSubsetScope.value,
