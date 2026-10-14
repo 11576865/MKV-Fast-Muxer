@@ -4579,6 +4579,25 @@ async function scenarioReservedVoidExistingFileDataVariableReplace(browser) {
     });
     assert.equal(await page.locator('#existingMkvReservedVoidPrepare').isDisabled(),true);
     await page.locator('#existingMkvReservedVoidReview').check();
+    const ready=await page.locator('#existingMkvReservedVoidPrepare').isEnabled();
+    if(!ready){
+      const diagnostic=await page.evaluate(()=>{
+        const src=document.querySelector('#existingMkvReservedVoidSource');
+        const newer=document.querySelector('#existingMkvReservedVoidReplacement');
+        const target=document.querySelector('#existingMkvReservedVoidTarget');
+        return {sourceName:src?.files?.[0]?.name,sourceSize:src?.files?.[0]?.size,
+          replacementName:newer?.files?.[0]?.name,
+          replacementSize:newer?.files?.[0]?.size,
+          selectedUid:target?.value,
+          reviewed:document.querySelector('#existingMkvReservedVoidReview')?.checked,
+          controlsDisabled:document.querySelector('#existingMkvReservedVoidPrepare')?.disabled,
+          status:document.querySelector('#existingMkvReservedVoidStatus')?.textContent,
+          inventory:document.querySelector('#existingMkvReservedVoidInventory')?.textContent,
+          options:[...target.options].map(x=>({uid:x.value,disabled:x.disabled}))};
+      });
+      console.error('P0/P2-V preflight disabled diagnostic:',JSON.stringify(diagnostic));
+    }
+    assert.equal(ready,true,'reviewed variable replacement must enable prepare for source-bound unreferenced UID');
     await page.locator('#existingMkvReservedVoidPrepare').click();
     await page.waitForFunction(()=>
       ['prepared','blocked'].includes(
