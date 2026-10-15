@@ -103,6 +103,41 @@ export function mountSoftmux1014Workbench(doc = document) {
   get(doc,'sf14Composition').appendChild(composition);
   get(doc,'sf14Inspector').appendChild(inspector);
   get(doc,'sf14Output').appendChild(output);
+  // The plan is still the original, live output plan. Its detailed controls
+  // are available from a compact tablet disclosure instead of competing with
+  // the active mux, cancellation and save actions in the permanent bottom bar.
+  const outputPlan = output.querySelector('.plan-panel');
+  const outputHub = output.querySelector('.output-hub');
+  if (outputPlan && outputHub) {
+    outputPlan.id = outputPlan.id || 'sf14OutputPlan';
+    const planButton = doc.createElement('button');
+    planButton.id = 'sf14PlanToggle';
+    planButton.type = 'button';
+    planButton.textContent = '检查与计划';
+    planButton.setAttribute('aria-controls', outputPlan.id);
+    planButton.setAttribute('aria-expanded', 'false');
+    outputHub.insertBefore(planButton, outputPlan);
+    const outputBar = root.querySelector('.sf14-output');
+    const closePlan = () => {
+      outputBar.dataset.planOpen = 'false';
+      planButton.setAttribute('aria-expanded','false');
+    };
+    planButton.addEventListener('click', () => {
+      const opened = outputBar.dataset.planOpen !== 'true';
+      outputBar.dataset.planOpen = String(opened);
+      planButton.setAttribute('aria-expanded', String(opened));
+    });
+    planButton.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { closePlan(); planButton.focus(); }
+    });
+    root.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && outputBar.dataset.planOpen === 'true') {
+        closePlan();
+        planButton.focus();
+      }
+    });
+    outputBar.dataset.planOpen = 'false';
+  }
   // Present the REAL finished-file evidence within object context, not a
   // hidden parallel badge or a fabricated success state.
   const finishedEvidence = get(doc,'outputEvidencePanel');
