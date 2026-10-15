@@ -585,3 +585,70 @@
   background:var(--sf14-raised);
   color:var(--sf14-muted);
 }
+
+
+/* 1.0 R1: actual observed-object selection; only source attachments can
+ * navigate to an existing writable inspector, subject to that inspector's
+ * capability checks. Chapters and tags remain read-only observations.
+ */
+.sf14 .sf14-source-observation {
+  display:block;
+  padding:0;
+  overflow:hidden;
+}
+.sf14 .sf14-source-observation-choice {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  min-width:0;
+  min-height:53px;
+  padding:9px 11px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:var(--sf14-ink);
+  text-align:left;
+  cursor:pointer;
+}
+.sf14 .sf14-source-observation-choice > div {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+.sf14 .sf14-source-observation-choice strong { overflow-wrap:anywhere; font-size:13px; }
+.sf14 .sf14-source-observation-choice small { color:var(--sf14-muted); font-size:11px; overflow-wrap:anywhere; }
+.sf14 .sf14-source-observation-choice:hover { background:var(--sf14-raised); }
+.sf14 .sf14-source-observation-choice[aria-pressed="true"] {
+  background:var(--sf14-raised);
+  box-shadow:inset 3px 0 0 var(--sf14-highlight);
+}
+.sf14 .sf14-source-observation-choice:focus-visible {
+  outline:2px solid var(--sf14-highlight);
+  outline-offset:-2px;
+}
+.sf14 .sf14-section-selection {
+  padding:13px 14px;
+  margin:12px 0;
+  border:1px solid var(--sf14-stroke);
+  border-radius:8px;
+  background:var(--sf14-surface);
+  color:var(--sf14-ink);
+}
+.sf14 .sf14-section-selection[hidden] { display:none!important; }
+.sf14 .sf14-section-selection > strong { display:block; margin-bottom:7px; font-size:15px; }
+.sf14 .sf14-section-selection p { margin:0 0 8px; font-size:13px; color:var(--sf14-ink); }
+.sf14 .sf14-section-selection small { display:block; line-height:1.6; color:var(--sf14-muted); }
+.sf14 .sf14-section-selection button {
+  margin-top:10px;
+  padding:8px 12px;
+  border:1px solid var(--sf14-stroke);
+  border-radius:7px;
+  background:var(--sf14-raised);
+  color:var(--sf14-ink);
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
