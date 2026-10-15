@@ -1,0 +1,330 @@
+/* 软封10.14版本 / Figma tablet presentation phase 1
+ * Reviewed source: Figma RbYeODU3j1y9xFWjcSxxt3, Frame 10:2.
+ * This file changes PRESENTATION ONLY. The real source, composition,
+ * inspector, task and output nodes are still owned by the mounted 10.14
+ * workbench. No cloned inputs, no duplicate handlers or media state.
+ *
+ * Target: 768–1365px landscape/tablet; narrow phone and wide desktop keep
+ * their existing 10.14 contracts until separately reviewed.
+ */
+@media (min-width: 681px) and (max-width: 1365px) {
+  .sf14-app .sf14 {
+    color-scheme: light;
+    --bg: #f3f6fa;
+    --surface-0: #fff;
+    --surface-1: #fff;
+    --surface-2: #f3f6fa;
+    --surface-3: #ecf4ff;
+    --line: #dee5ed;
+    --line-strong: #a9bfcd;
+    --text: #192a3c;
+    --text-strong: #192a3c;
+    --muted: #697b8f;
+    --muted-2: #8293a2;
+    --accent: #277ce5;
+    --warning: #9d6112;
+    --danger: #ae3e39;
+    --success: #0e9277;
+    --sf14-ink: #192a3c;
+    --sf14-muted: #697b8f;
+    --sf14-canvas: #f3f6fa;
+    --sf14-surface: #fff;
+    --sf14-raised: #ecf4ff;
+    --sf14-stroke: #dee5ed;
+    --sf14-highlight: #277ce5;
+    position: relative;
+    padding-left: 72px;
+    background: #f3f6fa;
+    min-height: 100dvh;
+  }
+  .sf14-app .app-shell,
+  .sf14-app .workspace.sf14-mounted { background: #f3f6fa; }
+  .sf14-app .sf14-header {
+    position: relative;
+    min-height: 56px;
+    padding: 8px 16px;
+    gap: 14px;
+    background: #fff;
+    border-bottom: 1px solid #dee5ed;
+  }
+  .sf14-app .sf14-identity {
+    min-width: 0;
+    flex: 0 0 auto;
+    gap: 7px;
+  }
+  .sf14-app .sf14-mark {
+    width: 29px;
+    height: 29px;
+    border-radius: 7px;
+    background: #ecf4ff;
+    border-color: #bdd5f2;
+    color: #277ce5;
+    font-size: 11px;
+  }
+  .sf14-app .sf14-identity strong {
+    font-size: 14px;
+    letter-spacing: 0;
+    color: #192a3c;
+  }
+  .sf14-app .sf14-identity span:not(.sf14-mark) { display: none; }
+
+  /* Reposition the EXISTING mode buttons, not a second nav implementation. */
+  .sf14-app .sf14-nav {
+    position: absolute;
+    z-index: 15;
+    left: -72px;
+    top: 0;
+    width: 72px;
+    height: 100dvh;
+    padding: 14px 7px 20px;
+    background: #172a3e;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 7px;
+    margin: 0;
+    order: initial;
+    border-right: 1px solid #2b4258;
+  }
+  .sf14-app .sf14-nav::before {
+    content: "软封";
+    color: #fff;
+    font-size: 14px;
+    font-weight: 750;
+    text-align: center;
+    letter-spacing: .08em;
+    padding: 6px 0 32px;
+  }
+  .sf14-app .sf14-nav button {
+    width: 58px;
+    min-height: 68px;
+    white-space: normal;
+    word-break: keep-all;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #c3d1df;
+    border-radius: 9px;
+    padding: 12px 5px;
+    line-height: 1.45;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .sf14-app .sf14-nav button[aria-current="page"] {
+    background: #27507a;
+    color: #fff;
+    border-color: #456b91;
+  }
+  .sf14-app .sf14-header-actions {
+    margin-left: auto;
+    gap: 6px;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+  .sf14-app .sf14-header-actions button {
+    background: #fff;
+    color: #192a3c;
+    border: 1px solid #dee5ed;
+    border-radius: 6px;
+    min-height: 35px;
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+  .sf14-app .sf14-header-actions #sf14Add {
+    background: #277ce5;
+    color: #fff;
+    border-color: #277ce5;
+    box-shadow: none;
+  }
+  .sf14-app .sf14-header-actions #sf14SourceToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Two main work areas. Sources are an overlay, never a third squeezed column. */
+  .sf14-app .sf14-single {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.68fr) minmax(330px, 1fr);
+    gap: 12px;
+    height: calc(100dvh - 185px);
+    min-height: 400px;
+    padding: 12px 12px 10px 16px;
+    overflow: hidden;
+    background: #f3f6fa;
+  }
+  .sf14-app .sf14-single .sf14-source {
+    display: none;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    bottom: 8px;
+    z-index: 10;
+    width: min(315px, calc(100% - 30px));
+    min-height: 0;
+    background: #fff;
+    border: 1px solid #dee5ed;
+    border-radius: 9px;
+    box-shadow: 0 16px 46px rgba(24, 42, 63, .18);
+  }
+  .sf14-app .sf14-single[data-show-source="true"] .sf14-source {
+    display: flex;
+  }
+  .sf14-app .sf14-composition,
+  .sf14-app .sf14-inspector {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    border: 1px solid #dee5ed;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .sf14-app .sf14-pane-head {
+    min-height: 56px;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: #fff;
+    border-color: #dee5ed;
+  }
+  .sf14-app .sf14-pane-head strong {
+    font-size: 15px;
+    color: #192a3c;
+  }
+  .sf14-app .sf14-pane-head span {
+    font-size: 11px;
+    color: #697b8f;
+  }
+  .sf14-app .sf14-pane-body { padding: 12px 14px; }
+  .sf14-app .sf14-composition .sf14-pane-body { padding: 13px 16px; }
+  .sf14-app .sf14-object-tabs {
+    border-color: #dee5ed;
+    margin: -2px 0 12px;
+    gap: 5px;
+  }
+  .sf14-app .sf14-object-tabs button {
+    color: #697b8f;
+    background: #fff;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .sf14-app .sf14-object-tabs button[aria-selected="true"] {
+    color: #277ce5;
+    border-bottom-color: #277ce5;
+  }
+  .sf14-app .sf14-composition .composition-tracks { gap: 5px; }
+  .sf14-app .sf14-composition .composition-row {
+    min-height: 62px;
+    padding: 9px 12px;
+    gap: 10px;
+    border: 1px solid #dee5ed;
+    border-radius: 7px;
+    background: #fff;
+    color: #192a3c;
+    grid-template-columns: 44px minmax(0,1fr) auto;
+    box-shadow: none;
+  }
+  .sf14-app .sf14-composition .composition-row:hover {
+    background: #f3f6fa;
+    border-color: #b7cfeb;
+  }
+  .sf14-app .sf14-composition .composition-row[aria-pressed="true"] {
+    background: #ecf4ff;
+    border: 1px solid #b8d8ff;
+    box-shadow: inset 3px 0 0 #277ce5;
+  }
+  .sf14-app .sf14-composition .composition-kind { color: #277ce5; font-size: 11px; }
+  .sf14-app .sf14-composition .composition-track-main strong {
+    color: #192a3c;
+    font-size: 13px;
+  }
+  .sf14-app .sf14-composition .composition-track-main small,
+  .sf14-app .sf14-composition .composition-state { color: #697b8f; font-size: 11px; }
+  .sf14-app .sf14-composition :is(#preservationReadiness,#containerCapabilitySummary) {
+    background: #fff;
+    color: #697b8f;
+    border-color: #dee5ed;
+    padding: 9px;
+    font-size: 12px;
+  }
+  .sf14-app .sf14-composition .composition-issues {
+    background: #fff3df;
+    border-left-color: #9d6112;
+    color: #784e12;
+  }
+  .sf14-app .sf14-section-notice {
+    background: #fff;
+    border-color: #dee5ed;
+    border-radius: 9px;
+    padding: 15px;
+  }
+  .sf14-app .sf14-section-notice h3 { color: #192a3c; font-size: 16px; }
+  .sf14-app .sf14-section-notice p { color: #697b8f; font-size: 12px; }
+  .sf14-app .sf14-section-actions button {
+    background: #ecf4ff;
+    color: #277ce5;
+    border-color: #b8d8ff;
+  }
+  .sf14-app .sf14-inspector .sf14-pane-body { padding: 12px; }
+  .sf14-app .sf14-inspector #assetInspectorHost:not([hidden]),
+  .sf14-app .sf14-inspector #sf14OptionsDrawer,
+  .sf14-app .sf14-inspector #sf14PreviewDrawer,
+  .sf14-app .sf14-inspector .object-selection-hint {
+    background: #fff;
+    border-color: #dee5ed;
+    color: #192a3c;
+    border-radius: 7px;
+  }
+  .sf14-app .sf14-recovery,
+  .sf14-app .sf14-inspector-drawer { background: #fff; border-color: #dee5ed; }
+  .sf14-app .sf14-recovery > summary,
+  .sf14-app .sf14-inspector-drawer > summary { color: #192a3c; }
+  .sf14-app .sf14-inspector .editor-card { background: #fff; }
+  .sf14-app .sf14-inspector #outputEvidencePanel:not([hidden]) {
+    background: #fff;
+    border-color: #dee5ed;
+  }
+
+  /* A stable, reachable output action: no fake 'preflight passed' from CSS. */
+  .sf14-app .sf14-output {
+    min-height: 100px;
+    max-height: 130px;
+    padding: 9px 15px;
+    gap: 15px;
+    background: #fff;
+    border-color: #dee5ed;
+  }
+  .sf14-app .sf14-output-head { display: none; }
+  .sf14-app .sf14-output .output-hub { gap: 10px; }
+  .sf14-app .sf14-output .execution-panel .actions .button-primary,
+  .sf14-app .sf14-output #muxBtn {
+    background: #277ce5;
+    color: #fff;
+    border-color: #277ce5;
+    border-radius: 7px;
+    min-height: 39px;
+    font-weight: 750;
+  }
+  .sf14-app .sf14-version-note {
+    background: #f3f6fa;
+    color: #697b8f;
+    font-size: 10px;
+    padding: 5px 12px;
+  }
+  /* The batch and tool views retain REAL job / extraction DOM and statuses. */
+  .sf14-app .sf14-page { background: #f3f6fa; color: #192a3c; }
+  .sf14-app .sf14-batch .batch-queue,
+  .sf14-app .sf14-batch .batch-settings,
+  .sf14-app .sf14-tool-list > details {
+    background: #fff;
+    border-color: #dee5ed;
+  }
+  .sf14-app .sf14-dialog {
+    color: #192a3c;
+    background: #fff;
+  }
+}
