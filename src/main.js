@@ -7007,7 +7007,7 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
     const source = videoInput.files?.[0] || null;
     const scanned = source && scannedSourceFile === source &&
     trackState?.fileKey === fileKey(source) ? trackState : null;
-    updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
+    updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
     })));
