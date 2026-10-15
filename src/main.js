@@ -6915,7 +6915,7 @@ batchStartBtn?.addEventListener('click', async () => {
 resetTrackState();
 updateUI();
 
-// 软封10.14版本 is the default presentation after atomic UI cutover.
+// 软封0.1014版本 is the current presentation (legacy sf14 internal ids are unchanged).
 // Keep the original UI explicitly addressable for diagnosis/regression only.
 // This changes presentation identity, never media permission or executor.
 if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
