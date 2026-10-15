@@ -31,6 +31,7 @@ test('actual ffprobe source projects attachment, flat chapters and format-only t
   assert.equal(model.scanned,true);
   assert.equal(model.attachments.length,1);
   assert.equal(model.attachments[0].title,'font.otf');
+  assert.equal(model.attachments[0].sourceIndex,3,'attachment selection must retain exact stream identity');
   assert.equal(model.attachments[0].status,'keep');
   assert.equal(model.attachments[0].evidence,'ffprobe-stream');
   assert.deepEqual(model.chapters.map(x=>x.title),['Opening','Episode']);
