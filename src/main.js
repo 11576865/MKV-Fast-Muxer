@@ -7,6 +7,7 @@ import {
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
+import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
@@ -509,6 +510,8 @@ let externalAudioState = [];
 let newSubtitleState = [];
 let liveExternalAssetSession = null;
 let liveWorkspaceAuthority = null;
+// One undo receipt, never another editable trackState / project authority.
+let recentSourceAttachmentUndo = null;
 let externalAssetAuthorityEpoch = 0;
 let externalAssetPendingTaskRebind = false;
 let previewImageURL = null;
@@ -1317,11 +1320,19 @@ function changeSourceAttachments(changes) {
         liveSourceTrackSession.source !== source ||
         liveSourceTrackSession.trackState !== trackState)
       refreshLiveSourceTrackAuthority();
-    commitLiveWorkspaceChange(liveWorkspaceAuthority, {
+    const before = captureSourceAttachmentUndo({source,trackState,changes});
+    const result = commitLiveWorkspaceChange(liveWorkspaceAuthority, {
       ...liveWorkspaceContext(), kind:'source-attachments',
       source, trackState, changes,
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     });
+    if (result.status !== 'no-change') {
+      recentSourceAttachmentUndo = sealSourceAttachmentUndo(
+        before, liveWorkspaceAuthority.project.revision);
+      // Planning evidence belongs to this edited document, not a previously
+      // generated MKV. Existing output audit will label it as an old plan.
+      status.textContent = '附件修改已写入当前工程草稿；未写入原文件，需重新封装及审计。';
+    }
     return true;
   } catch (error) {
     status.textContent = '来源附件领域修改未执行：' +
@@ -1330,7 +1341,34 @@ function changeSourceAttachments(changes) {
   }
 }
 
+function currentSourceAttachmentUndoPlan() {
+  return planSourceAttachmentUndo(recentSourceAttachmentUndo, {
+    source:videoInput.files?.[0] || null,trackState,
+    revision:liveWorkspaceAuthority?.project?.revision,
+    appendMode:Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+  });
+}
+function withSourceAttachmentUndoIndicator(sections) {
+  const plan=currentSourceAttachmentUndoPlan();
+  return { ...sections, undoIndex:plan?.[0]?.index ?? null };
+}
+function undoRecentSourceAttachmentChange() {
+  const changes=currentSourceAttachmentUndoPlan();
+  if (!changes?.length) {
+    status.textContent='无法撤销：来源、工程修订或附件属性已变化。';
+    return false;
+  }
+  if (!changeSourceAttachments(changes)) return false;
+  recentSourceAttachmentUndo=null;
+  renderAttachmentList();
+  renderImportedAssetInventory();
+  renderMuxPlan();
+  status.textContent='最近一次附件修改已通过同一领域事务撤销；未改动原文件。';
+  return true;
+}
+
 function resetTrackState() {
+  recentSourceAttachmentUndo = null;
   trackState = null;
   scannedSourceFile = null;
   liveSourceTrackSession = null;
@@ -1759,10 +1797,10 @@ function renderOutputComposition() {
   });
   // Source attachment/chapter/format-tag objects are rendered from the
   // same exact-File-bound scan; unscanned inputs yield no observed objects.
-  updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
+  updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     sourceFile: scanned ? source : null,
-  }));
+  })));
   // Preserve the exact File reference, not just the name/size/mtime display
   // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
@@ -2042,6 +2080,9 @@ function activateCompositionTrack(item) {
 // R1: route an observed source attachment into the existing authoritative
 // source tree editor. Scan must still bind to this exact File; no second
 // attachment field owner or guessed writer capability is introduced.
+document.addEventListener('softmux:undo-observed-source-attachment',event => {
+  if (undoRecentSourceAttachmentChange()) event.preventDefault();
+});
 document.addEventListener(
   'softmux:open-observed-source-attachment',event => {
     const index = event.detail?.sourceIndex;
@@ -6969,6 +7010,6 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
     updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
-    }));
+    })));
   }
 }
