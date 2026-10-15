@@ -1,7 +1,8 @@
-// 软封10.14版本: one object-centred presentation over existing production DOM.
+// 软封0.1014版本: object-centred presentation over existing production DOM.
+// Historical sf14 DOM ids and module names are retained for compatibility.
 // Rehosting (appendChild), never cloning: all File inputs, data owners and handlers
 // keep their exact identity. This module owns layout only, not media mutations.
-export const SOFTMUX_1014_UI_VERSION = '软封10.14版本';
+export const SOFTMUX_1014_UI_VERSION = '软封0.1014版本';
 const get = (doc, id) => doc.getElementById(id);
 
 export function mountSoftmux1014Workbench(doc = document) {
