@@ -49,9 +49,11 @@ export function planSourceAttachmentUndo(checkpoint, {
     const row = trackState?.attachments?.find(x => x.index === change.index);
     return row && row[change.field] === change.value;
   })) return null;
-  // Reverse order of requested fields avoids excluded-metadata conflicts:
-  // restore include=true before restoring metadata, when applicable.
-  const changes = [...checkpoint.before].sort((a,b) =>
-    Number(b.field === 'include') - Number(a.field === 'include'));
+  // Include must be restored BEFORE metadata if going to included=true,
+  // but AFTER metadata if returning to excluded=false; otherwise the
+  // existing authoring domain intentionally rejects excluded-file edits.
+  const priority = edit => edit.field !== 'include' ? 0 :
+    edit.value === true ? -1 : 1;
+  const changes = [...checkpoint.before].sort((a,b) => priority(a) - priority(b));
   return Object.freeze(changes.map(x => Object.freeze({ ...x })));
 }
