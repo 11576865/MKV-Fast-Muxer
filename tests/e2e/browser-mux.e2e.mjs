@@ -5814,6 +5814,18 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
     assert.match(await page.locator('#sf14SectionSelection').textContent(),/ffprobe/);
     assert.equal(await page.locator('#sf14SectionSelection button').count(),1,
       'source attachment may navigate to the existing editor, not a second writer');
+    const chosenId = await attachments.first().getAttribute('data-observed-id');
+    // Force a real existing presentation/edit-mode refresh on the same File.
+    await page.locator('#appendPreserveAll').evaluate(input => {
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    await page.waitForFunction(id => {
+      const row = [...document.querySelectorAll('#sf14SectionItems button[data-observed-id]')]
+        .find(button => button.dataset.observedId === id);
+      return row?.getAttribute('aria-pressed') === 'true' &&
+        !document.querySelector('#sf14SectionSelection')?.hidden;
+    }, chosenId);
     await page.locator('#sf14SectionSelection button').click();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-section'),'tracks');
     assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
