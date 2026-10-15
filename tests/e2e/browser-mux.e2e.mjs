@@ -5795,6 +5795,34 @@ async function scenarioStreamedSourceDigestBrowser(browser) {
 }
 
 
+async function scenarioR1ObservedAttachmentNavigation(browser) {
+  console.log('1.0 R1: real scanned attachment -> existing source inspector, no parallel editor');
+  const context = await browser.newContext({ acceptDownloads:true, viewport:{width:1280,height:820} });
+  const page = await context.newPage();
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.delete('ui');
+    await page.goto(url.toString(), {waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-with-attachments.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('[data-sf-section="attachments"]').click();
+    const attachments=page.locator('#sf14SectionItems button[data-observed-id]');
+    assert.equal(await attachments.count(),2,'R1 must inspect two genuine source attachments');
+    await attachments.first().click();
+    assert.equal(await page.locator('#sf14SectionSelection').isVisible(),true);
+    assert.match(await page.locator('#sf14SectionSelection').textContent(),/ffprobe/);
+    assert.equal(await page.locator('#sf14SectionSelection button').count(),1,
+      'source attachment may navigate to the existing editor, not a second writer');
+    await page.locator('#sf14SectionSelection button').click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-section'),'tracks');
+    assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
+    assert.equal(await page.locator('#assetInspectorHost').count(),1);
+    assert.equal(await page.locator('#unifiedAssetInput').count(),1);
+    console.log('R1 observed attachment editor navigation PASS');
+  } finally { await context.close(); }
+}
+
 async function scenarioSoftmux1014WholeWorkbench(browser) {
   console.log('软封0.1014版本: cohesive production DOM UI with source observations');
   const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
@@ -6085,6 +6113,7 @@ const browser = await chromium.launch({
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
