@@ -2036,6 +2036,32 @@ function activateCompositionTrack(item) {
   first?.scrollIntoView({ block: 'nearest' });
   renderOutputComposition();
 }
+// R1: route an observed source attachment into the existing authoritative
+// source tree editor. Scan must still bind to this exact File; no second
+// attachment field owner or guessed writer capability is introduced.
+document.addEventListener(
+  'softmux:open-observed-source-attachment',event => {
+    const index = event.detail?.sourceIndex;
+    const source = videoInput.files?.[0] || null;
+    if (!Number.isSafeInteger(index) || index < 0 || !source ||
+        !trackState || scannedSourceFile !== source ||
+        trackState.fileKey !== fileKey(source) ||
+        !trackState.attachments?.some(row => row.index === index)) return;
+    const documentModel = buildContainerDocument({
+      video: source,
+      trackState,
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+      externalAudio: externalAudioState,
+      newSubtitles: newSubtitleState,
+      fonts: selectedFonts(),
+      fontMode: fontMode.value,
+    });
+    const matching = documentModel.composition.items.find(item =>
+      item.target?.type === 'source' &&
+      item.target.key === 'attachment:' + index);
+    if (matching) activateCompositionTrack(matching);
+  }
+);
 compositionTracks?.addEventListener('click', event => {
   const button = event.target.closest('button[data-composition-id]');
   if (!button) return;
