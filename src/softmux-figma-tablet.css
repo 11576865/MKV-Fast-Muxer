@@ -522,3 +522,138 @@
     max-height:420px;
   }
 }
+
+
+/* Figma / 08 container inspection:
+ * User actions are inspection, extraction and safely gated modification.
+ * Internal EBML/writer experiments retain their original DOM and handlers,
+ * but are not independent primary navigation destinations.
+ */
+@media (min-width:681px) and (max-width:1365px) {
+  .sf14-app .sf14-tools {
+    padding:15px 18px 28px;
+    background:#f3f6fa;
+    color:#192a3c;
+  }
+  .sf14-app .sf14-tools > header {
+    padding:5px 2px 13px;
+    background:transparent;
+  }
+  .sf14-app .sf14-tools > header strong {
+    display:block;
+    font-size:19px;
+    color:#192a3c;
+  }
+  .sf14-app .sf14-tools > header p {
+    margin-top:5px;
+    font-size:12px;
+    color:#697b8f;
+  }
+  .sf14-app .sf14-tool-list {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:13px;
+    align-items:start;
+  }
+  .sf14-app .sf14-tool-group,
+  .sf14-app .sf14-tool-advanced {
+    min-width:0;
+    padding:13px;
+    border:1px solid #dee5ed;
+    border-radius:10px;
+    background:#fff;
+  }
+  .sf14-app .sf14-tool-group h3 {
+    margin:1px 3px 12px;
+    font-size:15px;
+    font-weight:750;
+    color:#192a3c;
+  }
+  .sf14-app .sf14-tool-group > details,
+  .sf14-app .sf14-tool-advanced-body > details {
+    margin:7px 0;
+    max-height:none;
+    border:1px solid #dee5ed;
+    border-radius:7px;
+    padding:10px;
+    background:#fff;
+    color:#192a3c;
+    overflow:visible;
+  }
+  .sf14-app .sf14-tool-group > details[open],
+  .sf14-app .sf14-tool-advanced-body > details[open] {
+    border-color:#adcbea;
+    background:#f8fbff;
+  }
+  .sf14-app .sf14-tool-group > details > summary,
+  .sf14-app .sf14-tool-advanced-body > details > summary,
+  .sf14-app #sf14ToolAdvanced > summary {
+    cursor:pointer;
+    color:#192a3c;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.6;
+  }
+  .sf14-app #sf14ToolAdvanced {
+    grid-column:1 / -1;
+    background:#fff;
+    color:#192a3c;
+  }
+  .sf14-app #sf14ToolAdvanced > summary {
+    padding:5px 3px;
+    color:#697b8f;
+  }
+  .sf14-app .sf14-tool-advanced-body {
+    margin-top:13px;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:9px;
+  }
+  .sf14-app .sf14-tool-group :is(input,select,button),
+  .sf14-app .sf14-tool-advanced-body :is(input,select,button) {
+    max-width:100%;
+  }
+  /* Preserve the real output status/execute/save controls. Plan prose and
+   * audit details remain discoverable, never converted into a fake success. */
+  .sf14-app .sf14-output {
+    position:relative;
+    display:flex;
+    align-items:center;
+    min-width:0;
+    min-height:98px;
+    max-height:150px;
+    overflow:auto;
+  }
+  .sf14-app .sf14-output #sf14Output { flex:1; min-width:0; }
+  .sf14-app .sf14-output .output-hub {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+  .sf14-app .sf14-output .execution-panel {
+    flex:1 1 430px;
+    min-width:0;
+    padding:0;
+    gap:10px;
+    background:transparent;
+  }
+  .sf14-app .sf14-output .execution-status {
+    flex:1 1 150px;
+    min-width:130px;
+  }
+  .sf14-app .sf14-output .execution-panel .actions {
+    margin-left:auto;
+    flex-wrap:nowrap;
+  }
+  .sf14-app .sf14-output :is(#downloadLink,#reportLink) {
+    flex:0 0 auto;
+  }
+}
+@media (min-width:681px) and (max-width:880px) {
+  .sf14-app .sf14-tool-list,
+  .sf14-app .sf14-tool-advanced-body {
+    grid-template-columns:minmax(0,1fr);
+  }
+}
