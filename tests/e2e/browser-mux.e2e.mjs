@@ -5972,6 +5972,37 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     assert.ok(tabletFigma.output.left >= tabletFigma.rail.right - 1 &&
       tabletFigma.output.right <= 1281 && tabletFigma.muxDisplay !== 'none',
       'real output controls must remain reachable under the tablet work areas');
+    // Output dock has to remain a compact action bar rather than clipped
+    // status, output metadata and a permanent multi-line planning column.
+    assert.equal(await page.locator('#sf14PlanToggle').isVisible(),true);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'false');
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),false);
+    const bottomControls = await page.evaluate(() => {
+      const rect = q => {
+        const r=document.querySelector(q).getBoundingClientRect();
+        return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+      };
+      return {
+        output:rect('.sf14-output'),
+        execute:rect('#muxBtn'),
+        planToggle:rect('#sf14PlanToggle'),
+        summary:rect('.sf14-output .output-summary'),
+        onScreen:document.documentElement.scrollWidth <= innerWidth,
+      };
+    });
+    assert.ok(bottomControls.output.bottom <= 821 &&
+      bottomControls.execute.right <= bottomControls.planToggle.left+1 &&
+      bottomControls.execute.top >= bottomControls.output.top-1 &&
+      bottomControls.planToggle.bottom <= bottomControls.output.bottom+1 &&
+      bottomControls.onScreen,
+      'tablet output bar must not overlap or leave the viewport: '+JSON.stringify(bottomControls));
+    await page.locator('#sf14PlanToggle').click();
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),true);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'true');
+    assert.equal(await page.locator('#fullMuxPlanDetails').count(),1);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),false);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'false');
     await page.screenshot({path:path.join(outDir,'softmux-figma-tablet-1280.png'),fullPage:false});
     await page.setViewportSize({width:390,height:844});
     await page.locator('[data-sf-focus="source"]').click();
