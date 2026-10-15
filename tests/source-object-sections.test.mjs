@@ -53,6 +53,17 @@ test('excluded source attachment is a proposed edit, not proof of output state',
   assert.equal(source.attachments[0].include,false);
 });
 
+test('exact source File identity travels with the read-only view', () => {
+  const a = { name:'same.mkv', size:100, lastModified:1 };
+  const b = { name:'same.mkv', size:100, lastModified:1 };
+  const observed = buildSourceObjectSections(scanned(), { sourceFile:a });
+  assert.strictEqual(observed.sourceFile,a);
+  assert.notStrictEqual(observed.sourceFile,b,
+    'matching name, size and mtime never grant a second File its scan identity');
+  const none = buildSourceObjectSections(null,{sourceFile:a});
+  assert.equal(none.sourceFile,null);
+});
+
 test('scanned files with no chapter / tag evidence keep the tabs truly empty', () => {
   const source={streams:[{index:0,codec_type:'video'}],attachments:[],chapters:[],format:{}};
   const model=buildSourceObjectSections(source);
