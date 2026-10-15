@@ -317,6 +317,19 @@ export function mountSoftmux1014Workbench(doc = document) {
   for (const button of root.querySelectorAll('[data-sf-view]'))
     button.addEventListener('click', () => changeView(button.dataset.sfView));
   get(doc,'sf14Add').addEventListener('click', () => {
+    // The global Add command belongs to the CURRENT user task.
+    // Never discard the batch context by silently switching to single work.
+    if (root.dataset.view === 'batch') {
+      const isTablet = doc.defaultView?.matchMedia?.('(min-width:681px) and (max-width:1365px)').matches;
+      const sourceButton = batchPanel?.querySelector('[data-sf-batch-controls="sources"]');
+      if (isTablet && sourceButton) {
+        if (batchPanel.dataset.controls !== 'sources') sourceButton.click();
+        get(doc,'batchUnifiedInput')?.focus();
+      } else {
+        get(doc,'batchUnifiedInput')?.click();
+      }
+      return;
+    }
     changeView('single');
     setFocus('source');
     get(doc,'unifiedAssetInput')?.click();
