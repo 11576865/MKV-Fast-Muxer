@@ -19,6 +19,7 @@ export function buildSourceObjectSections(scannedTrackState, { appendMode = fals
   const safe = value => String(value ?? '').slice(0, 1024);
   const attachments = ofKind('attachment').map(row => ({
     id: 'source-attachment:' + row.index,
+    sourceIndex: row.index,
     kind: 'attachment',
     title: safe(row.attachment?.filename || row.stream?.tags?.filename ||
       '附件 #' + (row.index + 1)),
