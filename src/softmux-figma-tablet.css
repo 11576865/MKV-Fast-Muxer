@@ -657,3 +657,143 @@
     grid-template-columns:minmax(0,1fr);
   }
 }
+
+
+/* Final visual acceptance: permanent bottom dock remains an ACTION BAR.
+ * Detailed plan is contextual and expandable; actual execution/plan DOM
+ * and verified evidence are never replaced with Figma placeholder state.
+ */
+.sf14-app #sf14PlanToggle { display:none; }
+@media (min-width:681px) and (max-width:1365px) {
+  .sf14-app .sf14-output {
+    position:relative;
+    z-index:18;
+    box-sizing:border-box;
+    min-height:86px;
+    max-height:110px;
+    padding:10px 15px;
+    background:#fff;
+    border-top:1px solid #dee5ed;
+    box-shadow:0 -2px 9px rgba(25,42,60,.04);
+    overflow:visible;
+  }
+  .sf14-app .sf14-output .output-hub {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(118px,205px) auto;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    min-width:0;
+    margin:0;
+  }
+  .sf14-app .sf14-output .execution-panel {
+    grid-column:1;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+  .sf14-app .sf14-output .execution-status {
+    min-width:145px;
+    flex:1 1 auto;
+    max-width:none;
+    color:#192a3c;
+    background:transparent;
+  }
+  .sf14-app .sf14-output .execution-panel .actions {
+    flex:0 0 auto;
+    margin-left:4px;
+    display:flex;
+    flex-wrap:nowrap;
+    gap:7px;
+  }
+  .sf14-app .sf14-output .execution-panel .actions button {
+    min-height:39px;
+    max-width:100%;
+    padding:8px 12px;
+  }
+  .sf14-app .sf14-output .output-summary {
+    grid-column:2;
+    min-width:0;
+    max-width:205px;
+    width:auto;
+    padding:5px 8px;
+    border:1px solid #dee5ed;
+    border-radius:7px;
+    background:#f8fafc;
+    overflow:hidden;
+  }
+  .sf14-app .sf14-output .output-summary .manifest {
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:0;
+    font-size:11px;
+  }
+  .sf14-app .sf14-output .output-summary .manifest > div {
+    min-width:0;
+    overflow:hidden;
+    padding:0;
+    border:0;
+  }
+  .sf14-app .sf14-output .output-summary strong {
+    display:block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    color:#192a3c;
+  }
+  .sf14-app #sf14PlanToggle {
+    grid-column:3;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:39px;
+    padding:8px 11px;
+    border:1px solid #dee5ed;
+    border-radius:7px;
+    background:#fff;
+    color:#192a3c;
+    font-size:12px;
+    font-weight:700;
+    white-space:nowrap;
+    cursor:pointer;
+  }
+  .sf14-app #sf14PlanToggle[aria-expanded="true"] {
+    color:#277ce5;
+    border-color:#9fc2e7;
+    background:#ecf4ff;
+  }
+  .sf14-app .sf14-output .plan-panel {
+    display:none !important;
+  }
+  .sf14-app .sf14-output[data-plan-open="true"] .plan-panel {
+    display:block !important;
+    position:absolute;
+    z-index:25;
+    right:12px;
+    bottom:calc(100% + 8px);
+    width:min(460px,calc(100% - 24px));
+    max-height:min(480px,65dvh);
+    padding:14px;
+    overflow:auto;
+    border:1px solid #b9cddd;
+    border-radius:9px;
+    box-shadow:0 16px 42px rgba(25,42,60,.18);
+    background:#fff;
+    color:#192a3c;
+  }
+  .sf14-app .sf14-output[data-plan-open="true"] .plan-panel #fullMuxPlanDetails {
+    max-height:340px;
+    overflow:auto;
+  }
+}
+@media (min-width:681px) and (max-width:1000px) {
+  .sf14-app .sf14-output .output-hub {
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:8px;
+  }
+  .sf14-app .sf14-output .output-summary { display:none; }
+  .sf14-app #sf14PlanToggle { grid-column:2; }
+}
