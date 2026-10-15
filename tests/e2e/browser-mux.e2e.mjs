@@ -5853,6 +5853,41 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
       null,{timeout:120000});
     assert.equal(await page.locator('#batchPlan').isVisible(),true);
     await page.screenshot({path:path.join(outDir,'softmux-1014-batch-1440.png'),fullPage:false});
+    // Figma batch architecture: the true JobPlan + selected-job Inspector
+    // must become the main tablet region, not a separate execution dashboard.
+    await page.setViewportSize({width:1280,height:820});
+    await page.locator('#sf14Batch .sf14-batch-controls').waitFor({state:'visible'});
+    const batchGeometry = await page.evaluate(() => {
+      const rect = selector => {
+        const box = document.querySelector(selector).getBoundingClientRect();
+        return {left:box.left,right:box.right,top:box.top,width:box.width};
+      };
+      return {
+        plan:rect('#batchPlan'),
+        inspector:rect('#batchJobInspector'),
+        sourceVisible:getComputedStyle(document.querySelector('#sf14BatchSources')).display,
+        recipeVisible:getComputedStyle(document.querySelector('#sf14BatchRecipe')).display,
+        tasks:document.querySelectorAll('#batchPlan [data-batch-job-id],#batchPlan .batch-review-item').length,
+      };
+    });
+    assert.ok(batchGeometry.plan.right <= batchGeometry.inspector.left+2 &&
+      Math.abs(batchGeometry.plan.top-batchGeometry.inspector.top) < 4,
+      'Figma tablet batch requires matrix beside selected-job inspector: '+JSON.stringify(batchGeometry));
+    assert.ok(batchGeometry.plan.width >= 450 && batchGeometry.inspector.width >= 300,
+      'batch columns must be legible: '+JSON.stringify(batchGeometry));
+    assert.equal(batchGeometry.sourceVisible,'none','sources must initially be drawer-only');
+    assert.equal(batchGeometry.recipeVisible,'none','recipe must initially be drawer-only');
+    await page.locator('[data-sf-batch-controls="sources"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),true);
+    assert.equal(await page.locator('#batchUnifiedInput').count(),1,'rehost must not duplicate real File input');
+    await page.locator('[data-sf-batch-controls="recipe"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),false);
+    assert.equal(await page.locator('#sf14BatchRecipe').isVisible(),true);
+    assert.equal(await page.locator('#batchRecipeV2ExportBtn').count(),1,'reuse actual recipe handler');
+    await page.locator('[data-sf-batch-controls="recipe"]').click();
+    assert.equal(await page.locator('#sf14BatchRecipe').isVisible(),false);
+    await page.screenshot({path:path.join(outDir,'softmux-figma-batch-tablet-1280.png'),fullPage:false});
+    await page.setViewportSize({width:1440,height:900});
     await page.locator('[data-sf-view="tools"]').click();
     assert.equal(await page.locator('#sf14Tools').isVisible(),true);
     assert.equal(await page.locator('#existingMkvRoutedEditDetails').count(),1);
