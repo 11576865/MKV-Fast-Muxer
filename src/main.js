@@ -1,6 +1,7 @@
 import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
+import './softmux-figma-tablet.css';
 import { mountSoftmux1014Workbench } from './softmux-10.14-workbench.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
