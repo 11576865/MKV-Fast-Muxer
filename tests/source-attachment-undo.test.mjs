@@ -38,17 +38,22 @@ test('unrelated project edits and File or scan rebinding invalidate stale undo',
     'external mutation must not be silently erased');
 });
 
-test('multi-field receipt restores inclusion before metadata when appropriate', () => {
+test('compound inverse that would edit excluded metadata is explicitly unavailable', () => {
   const f=fixture();
   f.trackState.attachments[0].include=false;
   const p=checkpoint(f,[
     {index:3,field:'include',value:true},
     {index:3,field:'filename',value:'included.ttf'},
   ]);
-  const reverse=planSourceAttachmentUndo(p,context(f));
-  assert.deepEqual(reverse,[
-    {index:3,field:'filename',value:'old.ttf'},
-    {index:3,field:'include',value:false},
+  assert.equal(planSourceAttachmentUndo(p,context(f)),null,
+    'one-step undo may not bypass existing excluded-metadata transaction constraints');
+});
+
+test('include-only and metadata-only edits remain fully reversible', () => {
+  const f=fixture();
+  const p=checkpoint(f,[{index:3,field:'include',value:false}]);
+  assert.deepEqual(planSourceAttachmentUndo(p,context(f)),[
+    {index:3,field:'include',value:true},
   ]);
 });
 
