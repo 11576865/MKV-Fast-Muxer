@@ -103,15 +103,115 @@ export function mountSoftmux1014Workbench(doc = document) {
   get(doc,'sf14Composition').appendChild(composition);
   get(doc,'sf14Inspector').appendChild(inspector);
   get(doc,'sf14Output').appendChild(output);
+  // The plan is still the original, live output plan. Its detailed controls
+  // are available from a compact tablet disclosure instead of competing with
+  // the active mux, cancellation and save actions in the permanent bottom bar.
+  const outputPlan = output.querySelector('.plan-panel');
+  // 'output' is already the .output-hub element rehosted above.
+  const outputHub = output;
+  if (outputPlan && outputHub) {
+    outputPlan.id = outputPlan.id || 'sf14OutputPlan';
+    const planButton = doc.createElement('button');
+    planButton.id = 'sf14PlanToggle';
+    planButton.type = 'button';
+    planButton.textContent = '检查与计划';
+    planButton.setAttribute('aria-controls', outputPlan.id);
+    planButton.setAttribute('aria-expanded', 'false');
+    outputHub.insertBefore(planButton, outputPlan);
+    const outputBar = root.querySelector('.sf14-output');
+    const closePlan = () => {
+      outputBar.dataset.planOpen = 'false';
+      planButton.setAttribute('aria-expanded','false');
+    };
+    planButton.addEventListener('click', () => {
+      const opened = outputBar.dataset.planOpen !== 'true';
+      outputBar.dataset.planOpen = String(opened);
+      planButton.setAttribute('aria-expanded', String(opened));
+    });
+    planButton.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { closePlan(); planButton.focus(); }
+    });
+    root.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && outputBar.dataset.planOpen === 'true') {
+        closePlan();
+        planButton.focus();
+      }
+    });
+    outputBar.dataset.planOpen = 'false';
+  }
   // Present the REAL finished-file evidence within object context, not a
   // hidden parallel badge or a fabricated success state.
   const finishedEvidence = get(doc,'outputEvidencePanel');
   if (finishedEvidence) get(doc,'sf14Inspector').appendChild(finishedEvidence);
   get(doc,'sf14Batch').appendChild(batch);
+  // Tablet batch view: the EXISTING job matrix is the primary workspace.
+  // Present source intake and recipe as optional drawers, reusing the same
+  // input nodes, recipe controls, queue, inspectors and execution handlers.
+  const batchPanel = get(doc,'sf14Batch');
+  const batchInputs = batch.querySelector('.batch-inputs');
+  const batchSettings = batch.querySelector('.batch-settings');
+  if (batchInputs && batchSettings) {
+    batchInputs.id = 'sf14BatchSources';
+    batchSettings.id = 'sf14BatchRecipe';
+    const controls = doc.createElement('div');
+    controls.className = 'sf14-batch-controls';
+    controls.setAttribute('role', 'group');
+    controls.setAttribute('aria-label', '批量资源与配方');
+    controls.innerHTML =
+      '<button type="button" data-sf-batch-controls="sources" aria-controls="sf14BatchSources" aria-expanded="false">＋ 批量资源</button>' +
+      '<button type="button" data-sf-batch-controls="recipe" aria-controls="sf14BatchRecipe" aria-expanded="false">配方与输出设置</button>';
+    batch.querySelector('.batch-head')?.after(controls);
+    const setBatchControls = (requested) => {
+      const next = batchPanel.dataset.controls === requested ? '' : requested;
+      batchPanel.dataset.controls = next;
+      for (const button of controls.querySelectorAll('button')) {
+        button.setAttribute('aria-expanded', String(button.dataset.sfBatchControls === next));
+      }
+    };
+    for (const button of controls.querySelectorAll('button')) {
+      button.addEventListener('click', () => setBatchControls(button.dataset.sfBatchControls));
+    }
+    batchPanel.dataset.controls = '';
+  }
   const tools = get(doc,'sf14ToolList');
   for (const detail of [...source.querySelectorAll('.unified-intake > details')]) {
     if (detail.id !== 'sourceFilesDetails') tools.appendChild(detail);
   }
+  // The inspection/extraction task is not eleven separate backend destinations.
+  // Rehost each real, already-wired tool exactly once. Technical writers stay
+  // available in a clearly scoped advanced disclosure, never silently enabled.
+  const toolGroups = [
+    { title:'检查与提取', id:'sf14ToolInspect',
+      ids:['attachmentExtractionDetails','existingAttachmentImpactDetails'] },
+    { title:'受限容器修改', id:'sf14ToolModify',
+      ids:['existingMkvRoutedEditDetails','p2MetadataInlineDetails'] },
+  ];
+  for (const spec of toolGroups) {
+    const section = doc.createElement('section');
+    section.id = spec.id;
+    section.className = 'sf14-tool-group';
+    const title = doc.createElement('h3');
+    title.textContent = spec.title;
+    section.appendChild(title);
+    for (const id of spec.ids) {
+      const detail = get(doc,id);
+      if (detail && detail.parentElement === tools) section.appendChild(detail);
+    }
+    tools.appendChild(section);
+  }
+  const advanced = doc.createElement('details');
+  advanced.id = 'sf14ToolAdvanced';
+  advanced.className = 'sf14-tool-advanced';
+  const advancedSummary = doc.createElement('summary');
+  advancedSummary.textContent = '高级结构与实验性修改（需符合当前能力限制）';
+  advanced.appendChild(advancedSummary);
+  const advancedBody = doc.createElement('div');
+  advancedBody.className = 'sf14-tool-advanced-body';
+  for (const detail of [...tools.children]) {
+    if (detail.tagName === 'DETAILS') advancedBody.appendChild(detail);
+  }
+  advanced.appendChild(advancedBody);
+  tools.appendChild(advanced);
   const sourceDetails = get(doc,'sourceFilesDetails');
   if (sourceDetails) {
     // Source identity belongs in the visible source pane, not a silently
@@ -288,6 +388,19 @@ export function mountSoftmux1014Workbench(doc = document) {
   for (const button of root.querySelectorAll('[data-sf-view]'))
     button.addEventListener('click', () => changeView(button.dataset.sfView));
   get(doc,'sf14Add').addEventListener('click', () => {
+    // The global Add command belongs to the CURRENT user task.
+    // Never discard the batch context by silently switching to single work.
+    if (root.dataset.view === 'batch') {
+      const isTablet = doc.defaultView?.matchMedia?.('(min-width:681px) and (max-width:1365px)').matches;
+      const sourceButton = batchPanel?.querySelector('[data-sf-batch-controls="sources"]');
+      if (isTablet && sourceButton) {
+        if (batchPanel.dataset.controls !== 'sources') sourceButton.click();
+        get(doc,'batchUnifiedInput')?.focus();
+      } else {
+        get(doc,'batchUnifiedInput')?.click();
+      }
+      return;
+    }
     changeView('single');
     setFocus('source');
     get(doc,'unifiedAssetInput')?.click();

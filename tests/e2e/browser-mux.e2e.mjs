@@ -5853,10 +5853,78 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
       null,{timeout:120000});
     assert.equal(await page.locator('#batchPlan').isVisible(),true);
     await page.screenshot({path:path.join(outDir,'softmux-1014-batch-1440.png'),fullPage:false});
+    // Figma batch architecture: the true JobPlan + selected-job Inspector
+    // must become the main tablet region, not a separate execution dashboard.
+    await page.setViewportSize({width:1280,height:820});
+    await page.locator('#sf14Batch .sf14-batch-controls').waitFor({state:'visible'});
+    const batchGeometry = await page.evaluate(() => {
+      const rect = selector => {
+        const box = document.querySelector(selector).getBoundingClientRect();
+        return {left:box.left,right:box.right,top:box.top,width:box.width};
+      };
+      return {
+        plan:rect('#batchPlan'),
+        inspector:rect('#batchJobInspector'),
+        sourceVisible:getComputedStyle(document.querySelector('#sf14BatchSources')).display,
+        recipeVisible:getComputedStyle(document.querySelector('#sf14BatchRecipe')).display,
+        tasks:document.querySelectorAll('#batchPlan [data-batch-job-id],#batchPlan .batch-review-item').length,
+      };
+    });
+    assert.ok(batchGeometry.plan.right <= batchGeometry.inspector.left+2 &&
+      Math.abs(batchGeometry.plan.top-batchGeometry.inspector.top) < 4,
+      'Figma tablet batch requires matrix beside selected-job inspector: '+JSON.stringify(batchGeometry));
+    assert.ok(batchGeometry.plan.width >= 450 && batchGeometry.inspector.width >= 300,
+      'batch columns must be legible: '+JSON.stringify(batchGeometry));
+    assert.equal(batchGeometry.sourceVisible,'none','sources must initially be drawer-only');
+    assert.equal(batchGeometry.recipeVisible,'none','recipe must initially be drawer-only');
+    // The same top-level Add button is context-sensitive: it must not
+    // switch a user out of the batch task they are editing.
+    await page.locator('#sf14Add').click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'batch');
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),true,
+      'global Add should expose the real batch input without changing task context');
+    assert.equal(await page.locator('#batchUnifiedInput').count(),1,'rehost must not duplicate real File input');
+    await page.locator('[data-sf-batch-controls="sources"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),false);
+    await page.locator('[data-sf-batch-controls="sources"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),true);
+    await page.locator('[data-sf-batch-controls="recipe"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),false);
+    assert.equal(await page.locator('#sf14BatchRecipe').isVisible(),true);
+    assert.equal(await page.locator('#batchRecipeV2ExportBtn').count(),1,'reuse actual recipe handler');
+    await page.locator('[data-sf-batch-controls="recipe"]').click();
+    assert.equal(await page.locator('#sf14BatchRecipe').isVisible(),false);
+    await page.screenshot({path:path.join(outDir,'softmux-figma-batch-tablet-1280.png'),fullPage:false});
+    await page.setViewportSize({width:1440,height:900});
     await page.locator('[data-sf-view="tools"]').click();
     assert.equal(await page.locator('#sf14Tools').isVisible(),true);
     assert.equal(await page.locator('#existingMkvRoutedEditDetails').count(),1);
+    await page.setViewportSize({width:1280,height:820});
+    const toolGrouping = await page.evaluate(() => {
+      const ancestor = (id,group) =>
+        document.getElementById(id)?.closest('#'+group)?.id === group;
+      return {
+        extraction:ancestor('attachmentExtractionDetails','sf14ToolInspect'),
+        impact:ancestor('existingAttachmentImpactDetails','sf14ToolInspect'),
+        routed:ancestor('existingMkvRoutedEditDetails','sf14ToolModify'),
+        metadata:ancestor('p2MetadataInlineDetails','sf14ToolModify'),
+        advanced:ancestor('existingMkvRelayDetails','sf14ToolAdvanced'),
+        originalToolCount:document.querySelectorAll('#sf14ToolList details[id]').length,
+        advancedOpen:document.getElementById('sf14ToolAdvanced')?.open,
+      };
+    });
+    assert.ok(toolGrouping.extraction && toolGrouping.impact &&
+      toolGrouping.routed && toolGrouping.metadata && toolGrouping.advanced,
+      'real container tools must be grouped by user task without cloning: '+JSON.stringify(toolGrouping));
+    assert.equal(toolGrouping.advancedOpen,false,'experimental writers stay collapsed by default');
+    assert.ok(toolGrouping.originalToolCount >= 11,'existing tool scope must not be lost');
+    await page.locator('#sf14ToolAdvanced > summary').click();
+    assert.equal(await page.locator('#existingMkvRelayDetails').isVisible(),true);
+    await page.locator('#sf14ToolAdvanced > summary').click();
+    await page.screenshot({path:path.join(outDir,'softmux-figma-tools-tablet-1280.png'),fullPage:false});
     await page.locator('[data-sf-view="single"]').click();
+    assert.equal(await page.locator('#muxBtn').count(),1,'existing mux control identity must survive tool navigation');
+    await page.setViewportSize({width:1440,height:900});
     await page.locator('#sf14Settings').click();
     assert.equal(await page.locator('#sf14SettingsDialog').isVisible(),true);
     await page.locator('[data-sf-density="comfortable"]').click();
@@ -5873,6 +5941,69 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     await page.locator('#sf14SourceToggle').click();
     assert.equal(await page.locator('#sf14Source').isVisible(),false);
     await page.screenshot({path:path.join(outDir,'softmux-1014-tablet-800.png'),fullPage:false});
+    // Figma tablet layout gate: one editable output composition, one contextual
+    // inspector, a collapsed source drawer, the EXISTING mode buttons as rail,
+    // and the REAL mux command remain visible together. No mock business state.
+    await page.setViewportSize({width:1280,height:820});
+    const tabletFigma = await page.evaluate(() => {
+      const bounds = selector => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return { left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width };
+      };
+      return {
+        rail: bounds('.sf14-nav'),
+        composition: bounds('.sf14-composition'),
+        inspector: bounds('.sf14-inspector'),
+        output: bounds('.sf14-output'),
+        sourceDisplay: getComputedStyle(document.querySelector('.sf14-source')).display,
+        sourceControl: getComputedStyle(document.querySelector('#sf14SourceToggle')).display,
+        muxDisplay: getComputedStyle(document.querySelector('#muxBtn')).display,
+      };
+    });
+    assert.equal(tabletFigma.sourceDisplay,'none','tablet source must be an optional drawer');
+    assert.notEqual(tabletFigma.sourceControl,'none','tablet source drawer entry must remain accessible');
+    assert.ok(tabletFigma.rail.right <= tabletFigma.composition.left,
+      'single authority mode rail must be to the left of output composition');
+    assert.ok(tabletFigma.composition.right <= tabletFigma.inspector.left + 1 &&
+      Math.abs(tabletFigma.composition.top-tabletFigma.inspector.top) < 3,
+      'tablet requires Figma two-region composition + contextual inspector layout');
+    assert.ok(tabletFigma.composition.width >= 450 && tabletFigma.inspector.width >= 320,
+      'both tablet work areas must be independently usable');
+    assert.ok(tabletFigma.output.left >= tabletFigma.rail.right - 1 &&
+      tabletFigma.output.right <= 1281 && tabletFigma.muxDisplay !== 'none',
+      'real output controls must remain reachable under the tablet work areas');
+    // Output dock has to remain a compact action bar rather than clipped
+    // status, output metadata and a permanent multi-line planning column.
+    assert.equal(await page.locator('#sf14PlanToggle').isVisible(),true);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'false');
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),false);
+    const bottomControls = await page.evaluate(() => {
+      const rect = q => {
+        const r=document.querySelector(q).getBoundingClientRect();
+        return {left:r.left,right:r.right,top:r.top,bottom:r.bottom};
+      };
+      return {
+        output:rect('.sf14-output'),
+        execute:rect('#muxBtn'),
+        planToggle:rect('#sf14PlanToggle'),
+        summary:rect('.sf14-output .output-summary'),
+        onScreen:document.documentElement.scrollWidth <= innerWidth,
+      };
+    });
+    assert.ok(bottomControls.output.bottom <= 821 &&
+      bottomControls.execute.right <= bottomControls.planToggle.left+1 &&
+      bottomControls.execute.top >= bottomControls.output.top-1 &&
+      bottomControls.planToggle.bottom <= bottomControls.output.bottom+1 &&
+      bottomControls.onScreen,
+      'tablet output bar must not overlap or leave the viewport: '+JSON.stringify(bottomControls));
+    await page.locator('#sf14PlanToggle').click();
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),true);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'true');
+    assert.equal(await page.locator('#fullMuxPlanDetails').count(),1);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.sf14-output .plan-panel').isVisible(),false);
+    assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-expanded'),'false');
+    await page.screenshot({path:path.join(outDir,'softmux-figma-tablet-1280.png'),fullPage:false});
     await page.setViewportSize({width:390,height:844});
     await page.locator('[data-sf-focus="source"]').click();
     assert.equal(await page.locator('#sf14Source').isVisible(),true);
