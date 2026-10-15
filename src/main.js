@@ -1328,7 +1328,7 @@ function changeSourceAttachments(changes) {
     });
     if (result.status !== 'no-change') {
       recentSourceAttachmentUndo = sealSourceAttachmentUndo(
-        before, liveWorkspaceAuthority.project.revision);
+        before, liveWorkspaceAuthority.project.revision, liveWorkspaceAuthority.project);
       // Planning evidence belongs to this edited document, not a previously
       // generated MKV. Existing output audit will label it as an old plan.
       status.textContent = '附件修改已写入当前工程草稿；未写入原文件，需重新封装及审计。';
@@ -1345,6 +1345,7 @@ function currentSourceAttachmentUndoPlan() {
   return planSourceAttachmentUndo(recentSourceAttachmentUndo, {
     source:videoInput.files?.[0] || null,trackState,
     revision:liveWorkspaceAuthority?.project?.revision,
+    project:liveWorkspaceAuthority?.project,
     appendMode:Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
   });
 }
