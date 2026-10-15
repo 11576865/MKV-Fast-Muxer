@@ -2,7 +2,11 @@ import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
-import { mountSoftmux1014Workbench } from './softmux-10.14-workbench.js';
+import {
+  mountSoftmux1014Workbench,
+  updateSoftmux1014SourceSections,
+} from './softmux-10.14-workbench.js';
+import { buildSourceObjectSections } from './source-object-sections.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
@@ -1751,6 +1755,11 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
+  // Source attachment/chapter/format-tag objects are rendered from the
+  // same exact-File-bound scan; unscanned inputs yield no observed objects.
+  updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+  }));
   // Preserve the exact File reference, not just the name/size/mtime display
   // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
@@ -6915,9 +6924,15 @@ batchStartBtn?.addEventListener('click', async () => {
 resetTrackState();
 updateUI();
 
-// 软封10.14版本 is the default presentation after atomic UI cutover.
+// 软封0.1014版本 is the current presentation (legacy sf14 internal ids are unchanged).
 // Keep the original UI explicitly addressable for diagnosis/regression only.
 // This changes presentation identity, never media permission or executor.
 if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
-  mountSoftmux1014Workbench(document);
+  if (mountSoftmux1014Workbench(document)) {
+    const source = videoInput.files?.[0] || null;
+    const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+    updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
+      appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    }));
+  }
 }

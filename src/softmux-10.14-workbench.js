@@ -1,7 +1,8 @@
-// 软封10.14版本: one object-centred presentation over existing production DOM.
+// 软封0.1014版本: object-centred presentation over existing production DOM.
+// Historical sf14 DOM ids and module names are retained for compatibility.
 // Rehosting (appendChild), never cloning: all File inputs, data owners and handlers
 // keep their exact identity. This module owns layout only, not media mutations.
-export const SOFTMUX_1014_UI_VERSION = '软封10.14版本';
+export const SOFTMUX_1014_UI_VERSION = '软封0.1014版本';
 const get = (doc, id) => doc.getElementById(id);
 
 export function mountSoftmux1014Workbench(doc = document) {
@@ -59,6 +60,7 @@ export function mountSoftmux1014Workbench(doc = document) {
             '<div class="sf14-section-icon" aria-hidden="true">↗</div>',
             '<h3 id="sf14SectionTitle"></h3>',
             '<p id="sf14SectionText"></p>',
+          '<div id="sf14SectionItems" class="sf14-section-items" role="list" aria-label="实际来源扫描对象"></div>',
             '<div class="sf14-section-actions">',
               '<button id="sf14SectionEvidence" type="button">查看现有来源证据</button>',
               '<button id="sf14SectionTracks" type="button">返回轨道工作区</button>',
@@ -284,18 +286,54 @@ export function mountSoftmux1014Workbench(doc = document) {
 
   // Permanent product entry points: preserve identity even where a dedicated
   // output editor has not yet passed the production capability gate.
+  // Read-only source observation. The writer and legacy owner remain unique.
+  // This snapshot is replaced whenever main renders from the exact scanned File.
+  let observedSections = { scanned:false, attachments:[], chapters:[], tags:[] };
+  const sectionItems = get(doc,'sf14SectionItems');
   const sectionContent = {
     attachments: {
-      title: '输出附件',
-      body: '当前来源附件的检查、保留、名称与 MIME 编辑由真实来源对象检查器负责；独立的输出附件编排界面尚未接入。字体附件可通过现有资源导入工作流处理。'
+      title: '附件 · 来源观察',
+      body: '列表来自当前已核验的来源扫描。来源附件可在原有对象检查器中按后端支持范围编辑；独立的拟输出附件编排尚未完全接入。'
     },
     chapters: {
-      title: '章节结构',
-      body: '保留章节树、时间点与目标编辑入口。目前对一般来源章节仅提供受限的来源结构观察；只有经能力验证的专门工具允许写入，不承诺任意章节无损重排。'
+      title: '章节 · 来源观察',
+      body: '仅展示 ffprobe 返回的扁平章节与时间信息；这不是完整嵌套 EBML 树或安全章节重写的证明。后端未实现的修改保持受限。'
     },
     tags: {
-      title: '标签与引用',
-      body: '保留全局标签与目标 UID 引用入口。TrackUID、AttachmentUID 等关联必须经过独立证据审核；这里不会把来源标签自动当成已验证的最终输出标签。'
+      title: '标签 · 来源观察',
+      body: '仅展示 ffprobe 格式层可观察的全局标签；不等同完整 Matroska TagTargets 或 UID 关联，未验证关联不允许修改。'
+    }
+  };
+  const renderSectionItems = (section) => {
+    sectionItems.replaceChildren();
+    if (section === 'tracks') return;
+    const rows = observedSections[section] || [];
+    if (!observedSections.scanned || !rows.length) {
+      const empty = doc.createElement('p');
+      empty.className = 'sf14-section-observation-empty';
+      empty.textContent = !observedSections.scanned
+        ? '尚无已扫描并绑定当前来源的对象；不能凭文件名生成附件、章节或标签。'
+        : '当前来源扫描未报告此类对象；不代表完整 EBML 内绝对不存在。';
+      sectionItems.appendChild(empty);
+      return;
+    }
+    for (const item of rows) {
+      const row = doc.createElement('div');
+      row.className = 'sf14-source-observation';
+      row.setAttribute('role','listitem');
+      row.dataset.evidence = item.evidence;
+      const content = doc.createElement('div');
+      const title = doc.createElement('strong');
+      title.textContent = item.title;
+      const detail = doc.createElement('small');
+      detail.textContent = item.detail;
+      content.append(title, detail);
+      const state = doc.createElement('span');
+      state.className = 'sf14-source-observation-status';
+      state.textContent = item.status === 'remove' ? '拟排除'
+        : item.status === 'modify' ? '拟修改' : '来源已观察';
+      row.append(content,state);
+      sectionItems.appendChild(row);
     }
   };
   const setSection = (section) => {
@@ -312,7 +350,14 @@ export function mountSoftmux1014Workbench(doc = document) {
       get(doc,'sf14SectionTitle').textContent = sectionContent[section].title;
       get(doc,'sf14SectionText').textContent = sectionContent[section].body;
     }
+    renderSectionItems(section);
   };
+  root.addEventListener('softmux:source-sections-updated', event => {
+    const next = event.detail;
+    if (!next || typeof next !== 'object') return;
+    observedSections = next;
+    renderSectionItems(root.dataset.section || 'tracks');
+  });
   for (const button of root.querySelectorAll('[data-sf-section]')) {
     button.addEventListener('click', () => setSection(button.dataset.sfSection));
     button.addEventListener('keydown', (event) => {
@@ -421,5 +466,18 @@ export function mountSoftmux1014Workbench(doc = document) {
   observer.observe(composition, { attributes:true, attributeFilter:['hidden'] });
   empty.hidden = !composition.hidden;
   changeView('single');
+  return true;
+}
+
+/**
+ * Only projects the latest verified source observation into the current UI.
+ * Does not create a new editable ContainerProject or claim writer capability.
+ */
+export function updateSoftmux1014SourceSections(doc, sections) {
+  const root = doc.getElementById('sf14Root');
+  if (!root) return false;
+  const EventCtor = doc.defaultView?.CustomEvent;
+  if (!EventCtor) return false;
+  root.dispatchEvent(new EventCtor('softmux:source-sections-updated', { detail: sections }));
   return true;
 }
