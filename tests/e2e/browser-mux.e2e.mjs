@@ -5960,6 +5960,38 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
         muxDisplay: getComputedStyle(document.querySelector('#muxBtn')).display,
       };
     });
+    // Regression guard for the user-requested low-glare theme:
+    // white/light overrides must not return while restoring Figma layouts.
+    const tabletTheme = await page.evaluate(() => {
+      const rgb = selector => {
+        const value = getComputedStyle(document.querySelector(selector)).backgroundColor;
+        return (value.match(/[\\d.]+/g) || []).slice(0,3).map(Number);
+      };
+      const contrast = (foreground, background) => {
+        const luminance = channels => channels.map(v => {
+          const x = v / 255;
+          return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
+        }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+        const a = luminance(foreground), b = luminance(background);
+        return (Math.max(a,b) + .05)/(Math.min(a,b) + .05);
+      };
+      const headerText = (getComputedStyle(document.querySelector('.sf14-identity strong'))
+        .color.match(/[\\d.]+/g) || []).slice(0,3).map(Number);
+      const surfaces = ['.sf14-header','.sf14-composition','.sf14-inspector','.sf14-output']
+        .map(selector => ({selector,color:rgb(selector)}));
+      return {
+        scheme:getComputedStyle(document.querySelector('.sf14')).colorScheme,
+        surfaces,
+        headerContrast:contrast(headerText, surfaces[0].color),
+      };
+    });
+    assert.equal(tabletTheme.scheme,'dark','tablet UI must request dark native form controls');
+    for (const surface of tabletTheme.surfaces) {
+      assert.ok(surface.color.length === 3 && Math.max(...surface.color) < 80,
+        'tablet should not display glare-white panels: '+JSON.stringify(tabletTheme));
+    }
+    assert.ok(tabletTheme.headerContrast >= 4.5,
+      'tablet title must remain legible after palette swap: '+JSON.stringify(tabletTheme));
     assert.equal(tabletFigma.sourceDisplay,'none','tablet source must be an optional drawer');
     assert.notEqual(tabletFigma.sourceControl,'none','tablet source drawer entry must remain accessible');
     assert.ok(tabletFigma.rail.right <= tabletFigma.composition.left,
