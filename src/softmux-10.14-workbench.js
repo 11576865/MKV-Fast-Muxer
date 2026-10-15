@@ -404,10 +404,22 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (!item || String(item.sourceIndex) !== button.dataset.openObservedAttachment) return;
     const EventCtor = doc.defaultView?.CustomEvent;
     if (!EventCtor) return;
-    root.dispatchEvent(new EventCtor('softmux:open-observed-source-attachment', {
+    // Only leave this list if the authoritative editor actually accepts
+    // the exact attachment identity. A failed route must not look successful.
+    const navigation = new EventCtor('softmux:open-observed-source-attachment', {
       detail: { sourceIndex: item.sourceIndex },
       bubbles: true,
-    }));
+      cancelable: true,
+    });
+    root.dispatchEvent(navigation);
+    if (!navigation.defaultPrevented) {
+      const unavailable = doc.createElement('small');
+      unavailable.className = 'sf14-source-navigation-error';
+      unavailable.textContent = '当前来源附件未能对应到可检查的编辑器对象；未执行修改。';
+      sectionSelection.querySelector('.sf14-source-navigation-error')?.remove();
+      sectionSelection.appendChild(unavailable);
+      return;
+    }
     setSection('tracks');
     if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('inspector');
   });
