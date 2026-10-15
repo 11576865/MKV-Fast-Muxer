@@ -430,10 +430,13 @@ export function mountSoftmux1014Workbench(doc = document) {
   root.addEventListener('softmux:source-sections-updated', event => {
     const next = event.detail;
     if (!next || typeof next !== 'object') return;
-    // Projection refresh marks a new source snapshot: never silently carry
-    // a selected object identity or editor request across source changes.
+    // Preserve selection across changes to the SAME exact source File, such
+    // as attachment include/rename. Rebinding to another File invalidates it.
+    const sameSource = Boolean(observedSections.scanned && next.scanned &&
+      observedSections.sourceFile && next.sourceFile &&
+      observedSections.sourceFile === next.sourceFile);
     observedSections = next;
-    selectedObservedId = '';
+    if (!sameSource) selectedObservedId = '';
     renderSectionItems(root.dataset.section || 'tracks');
   });
   for (const button of root.querySelectorAll('[data-sf-section]')) {
