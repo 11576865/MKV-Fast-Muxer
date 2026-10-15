@@ -7,8 +7,8 @@ import { buildContainerTreeModel } from './container-tree.js';
  * by the caller. This is a read-only projection of ffprobe data; it never
  * creates writer permission, TagUID coverage, or arbitrary EBML editing.
  */
-export function buildSourceObjectSections(scannedTrackState, { appendMode = false } = {}) {
-  const empty = { scanned: false, attachments: [], chapters: [], tags: [] };
+export function buildSourceObjectSections(scannedTrackState, { appendMode = false, sourceFile = null } = {}) {
+  const empty = { scanned: false, sourceFile: null, attachments: [], chapters: [], tags: [] };
   if (!scannedTrackState) return Object.freeze(empty);
 
   const tree = buildContainerTreeModel(scannedTrackState, {
@@ -57,6 +57,8 @@ export function buildSourceObjectSections(scannedTrackState, { appendMode = fals
   );
   return Object.freeze({
     scanned: true,
+    // Ephemeral exact File identity for selection invalidation only; never serialized.
+    sourceFile,
     attachments: Object.freeze(attachments.map(Object.freeze)),
     chapters: Object.freeze(chapters.map(Object.freeze)),
     tags: Object.freeze(tags.map(Object.freeze)),
