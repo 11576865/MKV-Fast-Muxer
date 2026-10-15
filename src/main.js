@@ -1744,7 +1744,8 @@ function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
   renderPreservationReadiness();
   const source = videoInput.files?.[0] || null;
-  const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+  const scanned = source && scannedSourceFile === source &&
+    trackState?.fileKey === fileKey(source) ? trackState : null;
   const containerDocument = buildContainerDocument({
     video: source,
     trackState: scanned,
@@ -1760,6 +1761,7 @@ function renderOutputComposition() {
   // same exact-File-bound scan; unscanned inputs yield no observed objects.
   updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    sourceFile: scanned ? source : null,
   }));
   // Preserve the exact File reference, not just the name/size/mtime display
   // key. A replacement with identical metadata may NOT inherit the snapshot.
@@ -6957,9 +6959,11 @@ updateUI();
 if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
   if (mountSoftmux1014Workbench(document)) {
     const source = videoInput.files?.[0] || null;
-    const scanned = source && trackState?.fileKey === fileKey(source) ? trackState : null;
+    const scanned = source && scannedSourceFile === source &&
+    trackState?.fileKey === fileKey(source) ? trackState : null;
     updateSoftmux1014SourceSections(document, buildSourceObjectSections(scanned, {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+      sourceFile: scanned ? source : null,
     }));
   }
 }
