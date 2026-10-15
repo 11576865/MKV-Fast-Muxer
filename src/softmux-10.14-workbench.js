@@ -328,12 +328,25 @@ export function mountSoftmux1014Workbench(doc = document) {
       'ffprobe-format-tags': '格式层标签观察；不是 Matroska TagTargets 修改许可',
     }[item.evidence] || '来源证据范围未知；禁止修改';
     sectionSelection.append(heading,detail,evidence);
+    const lifecycle = doc.createElement('small');
+    lifecycle.className = 'sf14-source-draft-evidence';
+    lifecycle.textContent = section === 'attachments'
+      ? '此处显示工程草稿意图；实际 MKV 附件结果须以封装后的独立审计为准。'
+      : '此处仅显示已观察的源数据，不代表具备安全写入能力。';
+    sectionSelection.appendChild(lifecycle);
     if (section === 'attachments' && Number.isSafeInteger(item.sourceIndex)) {
       const open = doc.createElement('button');
       open.type = 'button';
       open.textContent = '定位来源附件编辑器';
       open.dataset.openObservedAttachment = String(item.sourceIndex);
       sectionSelection.appendChild(open);
+      if (observedSections.undoIndex === item.sourceIndex) {
+        const undo = doc.createElement('button');
+        undo.type = 'button';
+        undo.dataset.undoObservedAttachment = String(item.sourceIndex);
+        undo.textContent = '撤销最近一次附件修改';
+        sectionSelection.appendChild(undo);
+      }
     }
   };
   const renderSectionItems = (section) => {
@@ -398,6 +411,23 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('composition');
   });
   sectionSelection.addEventListener('click',event => {
+    const undo = event.target.closest('button[data-undo-observed-attachment]');
+    if (undo && sectionSelection.contains(undo)) {
+      const item = observedSections.attachments?.find(row => row.id === selectedObservedId);
+      if (!item || String(item.sourceIndex) !== undo.dataset.undoObservedAttachment) return;
+      const EventCtor = doc.defaultView?.CustomEvent;
+      if (!EventCtor) return;
+      const cmd = new EventCtor('softmux:undo-observed-source-attachment', {
+        bubbles:true,cancelable:true,
+      });
+      root.dispatchEvent(cmd);
+      if (!cmd.defaultPrevented) {
+        const error = doc.createElement('small');
+        error.textContent = '当前工程状态已变化；请重新确认附件属性，撤销未执行。';
+        sectionSelection.appendChild(error);
+      }
+      return;
+    }
     const button = event.target.closest('button[data-open-observed-attachment]');
     if (!button || !sectionSelection.contains(button)) return;
     const item = observedSections.attachments?.find(row => row.id === selectedObservedId);
