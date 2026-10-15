@@ -530,3 +530,58 @@
   .sf14-output-head {display:none;}
   .sf14-page {padding:12px;}
 }
+
+
+/* 1.0 convergence R1: observed source objects in their own workbench tabs.
+ * Compact, read-only rows: they do not imply a safe Chapter/Tag writer.
+ */
+.sf14 .sf14-section-items {
+  display:grid;
+  gap:7px;
+  min-width:0;
+  max-height:min(44dvh,460px);
+  overflow:auto;
+  margin:12px 0;
+  padding-right:3px;
+}
+.sf14 .sf14-source-observation {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
+  padding:9px 11px;
+  border:1px solid var(--sf14-stroke);
+  border-radius:7px;
+  background:var(--sf14-surface);
+  color:var(--sf14-ink);
+}
+.sf14 .sf14-source-observation > div {
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+.sf14 .sf14-source-observation strong {
+  overflow-wrap:anywhere;
+  font-size:13px;
+  line-height:1.45;
+}
+.sf14 .sf14-source-observation small {
+  color:var(--sf14-muted);
+  font-size:11px;
+  overflow-wrap:anywhere;
+}
+.sf14 .sf14-source-observation-status {
+  flex:0 0 auto;
+  white-space:nowrap;
+  font-size:11px;
+  color:var(--sf14-muted);
+}
+.sf14 .sf14-section-observation-empty {
+  padding:14px;
+  border:1px dashed var(--sf14-stroke);
+  border-radius:7px;
+  background:var(--sf14-raised);
+  color:var(--sf14-muted);
+}
