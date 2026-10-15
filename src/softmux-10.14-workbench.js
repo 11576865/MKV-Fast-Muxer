@@ -108,6 +108,35 @@ export function mountSoftmux1014Workbench(doc = document) {
   const finishedEvidence = get(doc,'outputEvidencePanel');
   if (finishedEvidence) get(doc,'sf14Inspector').appendChild(finishedEvidence);
   get(doc,'sf14Batch').appendChild(batch);
+  // Tablet batch view: the EXISTING job matrix is the primary workspace.
+  // Present source intake and recipe as optional drawers, reusing the same
+  // input nodes, recipe controls, queue, inspectors and execution handlers.
+  const batchPanel = get(doc,'sf14Batch');
+  const batchInputs = batch.querySelector('.batch-inputs');
+  const batchSettings = batch.querySelector('.batch-settings');
+  if (batchInputs && batchSettings) {
+    batchInputs.id = 'sf14BatchSources';
+    batchSettings.id = 'sf14BatchRecipe';
+    const controls = doc.createElement('div');
+    controls.className = 'sf14-batch-controls';
+    controls.setAttribute('role', 'group');
+    controls.setAttribute('aria-label', '批量资源与配方');
+    controls.innerHTML =
+      '<button type="button" data-sf-batch-controls="sources" aria-controls="sf14BatchSources" aria-expanded="false">＋ 批量资源</button>' +
+      '<button type="button" data-sf-batch-controls="recipe" aria-controls="sf14BatchRecipe" aria-expanded="false">配方与输出设置</button>';
+    batch.querySelector('.batch-head')?.after(controls);
+    const setBatchControls = (requested) => {
+      const next = batchPanel.dataset.controls === requested ? '' : requested;
+      batchPanel.dataset.controls = next;
+      for (const button of controls.querySelectorAll('button')) {
+        button.setAttribute('aria-expanded', String(button.dataset.sfBatchControls === next));
+      }
+    };
+    for (const button of controls.querySelectorAll('button')) {
+      button.addEventListener('click', () => setBatchControls(button.dataset.sfBatchControls));
+    }
+    batchPanel.dataset.controls = '';
+  }
   const tools = get(doc,'sf14ToolList');
   for (const detail of [...source.querySelectorAll('.unified-intake > details')]) {
     if (detail.id !== 'sourceFilesDetails') tools.appendChild(detail);
