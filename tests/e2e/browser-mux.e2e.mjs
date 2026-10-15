@@ -5965,7 +5965,7 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     const tabletTheme = await page.evaluate(() => {
       const rgb = selector => {
         const value = getComputedStyle(document.querySelector(selector)).backgroundColor;
-        return (value.match(/[\\d.]+/g) || []).slice(0,3).map(Number);
+        return (value.match(/[0-9.]+/g) || []).slice(0,3).map(Number);
       };
       const contrast = (foreground, background) => {
         const luminance = channels => channels.map(v => {
@@ -5976,7 +5976,7 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
         return (Math.max(a,b) + .05)/(Math.min(a,b) + .05);
       };
       const headerText = (getComputedStyle(document.querySelector('.sf14-identity strong'))
-        .color.match(/[\\d.]+/g) || []).slice(0,3).map(Number);
+        .color.match(/[0-9.]+/g) || []).slice(0,3).map(Number);
       const surfaces = ['.sf14-header','.sf14-composition','.sf14-inspector','.sf14-output']
         .map(selector => ({selector,color:rgb(selector)}));
       return {
