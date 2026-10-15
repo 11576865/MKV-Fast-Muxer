@@ -25,8 +25,9 @@ export function captureSourceAttachmentUndo({ source, trackState, changes } = {}
   return { source, trackState, before: [...originals.values()], after: [...expected.values()] };
 }
 
-export function sealSourceAttachmentUndo(capture, revision) {
-  if (!capture || !Number.isSafeInteger(revision) || revision < 0) return null;
+export function sealSourceAttachmentUndo(capture, revision, project) {
+  if (!capture || !Number.isSafeInteger(revision) || revision < 0 ||
+      !project || project.revision !== revision) return null;
   const before = capture.before.map(x => Object.freeze({ ...x }));
   const after = capture.after.map(x => Object.freeze({ ...x }));
   if (!after.some(x => {
@@ -35,15 +36,17 @@ export function sealSourceAttachmentUndo(capture, revision) {
   })) return null;
   return Object.freeze({
     source: capture.source, trackState: capture.trackState,
-    revision, before: Object.freeze(before), after: Object.freeze(after),
+    // Reference to one immutable ContainerProject; never a second copy.
+    project, revision, before: Object.freeze(before), after: Object.freeze(after),
   });
 }
 
 export function planSourceAttachmentUndo(checkpoint, {
-  source, trackState, revision, appendMode = false,
+  source, trackState, project, revision, appendMode = false,
 } = {}) {
   if (!checkpoint || appendMode || source !== checkpoint.source ||
-      trackState !== checkpoint.trackState || revision !== checkpoint.revision)
+      trackState !== checkpoint.trackState || project !== checkpoint.project ||
+      revision !== checkpoint.revision)
     return null;
   if (!checkpoint.after.every(change => {
     const row = trackState?.attachments?.find(x => x.index === change.index);
