@@ -16,12 +16,13 @@
     "迁移对象分类及全部有效功能测试，精确head截图和独立输出审计"
   ],
   "branch": "feat/softmux-10.14-ui-audit-20261015",
-  "pr": null,
-  "latest_durable_commit": null,
+  "pr": 154,
+  "latest_durable_commit": "44b09fbecabb49d66eb8b8738038cc20ea202cd6",
   "base_commit": "a1f4e0aa3af33c2459d8a66569b9043e75feec21",
   "external_validation_states": {
-    "github_ci": "not-started",
-    "figma": "proxy CONNECT 403; original prototype not inspected"
+    "github_ci": "pending-or-unrequested; not polled",
+    "figma": "proxy CONNECT 403; original prototype not inspected",
+    "figma_plugin": "user referenced Figma plugin; no callable Figma tools or tool-search capability exposed in session"
   },
   "local_validation": {
     "node": "586 passed, 0 failed, 0 skipped",
@@ -34,5 +35,6 @@
     "Figma proxy 403 and missing primary design/report/L migration references",
     "Written architectural design requires user review before UI implementation"
   ],
-  "updated_timestamp": "2026-10-15T22:53:01+08:00"
+  "updated_timestamp": "2026-10-15T22:54:22+08:00",
+  "pr_url": "https://github.com/11576865/MKV-Fast-Muxer/pull/154"
 }
