@@ -7,6 +7,7 @@ import {
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
+import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
 import { setupWorkbenchNavigation } from './workbench-navigation.js';
 import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
@@ -5653,7 +5654,7 @@ async function executeCurrentMuxTask(explicit = null) {
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
-      appVersion: '1.2.2',
+      appVersion: PRODUCT_PACKAGE_VERSION,
       input: {
         name: video.name,
         sizeBytes: video.size,
@@ -6950,7 +6951,7 @@ batchStartBtn?.addEventListener('click', async () => {
 resetTrackState();
 updateUI();
 
-// 软封0.1014版本 is the current presentation (legacy sf14 internal ids are unchanged).
+// Product label is dynamically tied to package version; legacy sf14 internal ids remain compatible.
 // Keep the original UI explicitly addressable for diagnosis/regression only.
 // This changes presentation identity, never media permission or executor.
 if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
