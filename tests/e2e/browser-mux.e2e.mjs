@@ -5899,7 +5899,32 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     await page.locator('[data-sf-view="tools"]').click();
     assert.equal(await page.locator('#sf14Tools').isVisible(),true);
     assert.equal(await page.locator('#existingMkvRoutedEditDetails').count(),1);
+    await page.setViewportSize({width:1280,height:820});
+    const toolGrouping = await page.evaluate(() => {
+      const ancestor = (id,group) =>
+        document.getElementById(id)?.closest('#'+group)?.id === group;
+      return {
+        extraction:ancestor('attachmentExtractionDetails','sf14ToolInspect'),
+        impact:ancestor('existingAttachmentImpactDetails','sf14ToolInspect'),
+        routed:ancestor('existingMkvRoutedEditDetails','sf14ToolModify'),
+        metadata:ancestor('p2MetadataInlineDetails','sf14ToolModify'),
+        advanced:ancestor('existingMkvRelayDetails','sf14ToolAdvanced'),
+        originalToolCount:document.querySelectorAll('#sf14ToolList details[id]').length,
+        advancedOpen:document.getElementById('sf14ToolAdvanced')?.open,
+      };
+    });
+    assert.ok(toolGrouping.extraction && toolGrouping.impact &&
+      toolGrouping.routed && toolGrouping.metadata && toolGrouping.advanced,
+      'real container tools must be grouped by user task without cloning: '+JSON.stringify(toolGrouping));
+    assert.equal(toolGrouping.advancedOpen,false,'experimental writers stay collapsed by default');
+    assert.ok(toolGrouping.originalToolCount >= 11,'existing tool scope must not be lost');
+    await page.locator('#sf14ToolAdvanced > summary').click();
+    assert.equal(await page.locator('#existingMkvRelayDetails').isVisible(),true);
+    await page.locator('#sf14ToolAdvanced > summary').click();
+    await page.screenshot({path:path.join(outDir,'softmux-figma-tools-tablet-1280.png'),fullPage:false});
     await page.locator('[data-sf-view="single"]').click();
+    assert.equal(await page.locator('#muxBtn').count(),1,'existing mux control identity must survive tool navigation');
+    await page.setViewportSize({width:1440,height:900});
     await page.locator('#sf14Settings').click();
     assert.equal(await page.locator('#sf14SettingsDialog').isVisible(),true);
     await page.locator('[data-sf-density="comfortable"]').click();
