@@ -289,7 +289,14 @@ export function mountSoftmux1014Workbench(doc = document) {
   // Read-only source observation. The writer and legacy owner remain unique.
   // This snapshot is replaced whenever main renders from the exact scanned File.
   let observedSections = { scanned:false, attachments:[], chapters:[], tags:[] };
+  let selectedObservedId = '';
   const sectionItems = get(doc,'sf14SectionItems');
+  const sectionSelection = doc.createElement('section');
+  sectionSelection.id = 'sf14SectionSelection';
+  sectionSelection.className = 'sf14-section-selection';
+  sectionSelection.setAttribute('aria-label','当前来源对象详情');
+  sectionSelection.hidden = true;
+  sectionItems.after(sectionSelection);
   const sectionContent = {
     attachments: {
       title: '附件 · 来源观察',
@@ -304,11 +311,40 @@ export function mountSoftmux1014Workbench(doc = document) {
       body: '仅展示 ffprobe 格式层可观察的全局标签；不等同完整 Matroska TagTargets 或 UID 关联，未验证关联不允许修改。'
     }
   };
+  const renderSectionSelection = (section, rows) => {
+    sectionSelection.replaceChildren();
+    const item = rows.find(row => row.id === selectedObservedId);
+    sectionSelection.hidden = !item || section === 'tracks';
+    if (!item) return;
+    const heading = doc.createElement('strong');
+    heading.textContent = item.title;
+    const detail = doc.createElement('p');
+    detail.textContent = item.detail;
+    const evidence = doc.createElement('small');
+    evidence.textContent = {
+      'ffprobe-stream': '来源 ffprobe 轨道证据；仅在后端明确支持时修改',
+      'ffprobe-flat-chapter': '扁平章节观察；不具备嵌套章节/UID 安全写入证据',
+      'ffprobe-format-tags': '格式层标签观察；不是 Matroska TagTargets 修改许可',
+    }[item.evidence] || '来源证据范围未知；禁止修改';
+    sectionSelection.append(heading,detail,evidence);
+    if (section === 'attachments' && Number.isSafeInteger(item.sourceIndex)) {
+      const open = doc.createElement('button');
+      open.type = 'button';
+      open.textContent = '定位来源附件编辑器';
+      open.dataset.openObservedAttachment = String(item.sourceIndex);
+      sectionSelection.appendChild(open);
+    }
+  };
   const renderSectionItems = (section) => {
     sectionItems.replaceChildren();
-    if (section === 'tracks') return;
+    if (section === 'tracks') {
+      sectionSelection.hidden = true;
+      return;
+    }
     const rows = observedSections[section] || [];
     if (!observedSections.scanned || !rows.length) {
+      selectedObservedId = '';
+      sectionSelection.hidden = true;
       const empty = doc.createElement('p');
       empty.className = 'sf14-section-observation-empty';
       empty.textContent = !observedSections.scanned
@@ -317,11 +353,17 @@ export function mountSoftmux1014Workbench(doc = document) {
       sectionItems.appendChild(empty);
       return;
     }
+    if (!rows.some(row => row.id === selectedObservedId)) selectedObservedId = '';
     for (const item of rows) {
       const row = doc.createElement('div');
       row.className = 'sf14-source-observation';
       row.setAttribute('role','listitem');
       row.dataset.evidence = item.evidence;
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'sf14-source-observation-choice';
+      button.dataset.observedId = item.id;
+      button.setAttribute('aria-pressed',String(item.id === selectedObservedId));
       const content = doc.createElement('div');
       const title = doc.createElement('strong');
       title.textContent = item.title;
@@ -332,10 +374,41 @@ export function mountSoftmux1014Workbench(doc = document) {
       state.className = 'sf14-source-observation-status';
       state.textContent = item.status === 'remove' ? '拟排除'
         : item.status === 'modify' ? '拟修改' : '来源已观察';
-      row.append(content,state);
+      button.append(content,state);
+      row.appendChild(button);
       sectionItems.appendChild(row);
     }
+    renderSectionSelection(section,rows);
   };
+  sectionItems.addEventListener('click',event => {
+    const button = event.target.closest('button[data-observed-id]');
+    if (!button || !sectionItems.contains(button)) return;
+    const section = root.dataset.section;
+    const items = observedSections[section] || [];
+    if (!items.some(item => item.id === button.dataset.observedId)) return;
+    selectedObservedId = button.dataset.observedId;
+    renderSectionItems(section);
+    sectionItems.querySelectorAll('button[data-observed-id]').forEach(peer =>
+      peer.setAttribute('aria-pressed',String(peer.dataset.observedId === selectedObservedId)));
+    sectionItems.querySelectorAll('button[data-observed-id]').forEach(peer => {
+      if (peer.dataset.observedId === selectedObservedId)
+        peer.focus({preventScroll:true});
+    });
+    if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('composition');
+  });
+  sectionSelection.addEventListener('click',event => {
+    const button = event.target.closest('button[data-open-observed-attachment]');
+    if (!button || !sectionSelection.contains(button)) return;
+    const item = observedSections.attachments?.find(row => row.id === selectedObservedId);
+    if (!item || String(item.sourceIndex) !== button.dataset.openObservedAttachment) return;
+    const EventCtor = doc.defaultView?.CustomEvent;
+    if (!EventCtor) return;
+    root.dispatchEvent(new EventCtor('softmux:open-observed-source-attachment', {
+      detail: { sourceIndex: item.sourceIndex },
+    }));
+    setSection('tracks');
+    if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('inspector');
+  });
   const setSection = (section) => {
     if (!['tracks','attachments','chapters','tags'].includes(section)) return;
     root.dataset.section = section;
@@ -355,7 +428,10 @@ export function mountSoftmux1014Workbench(doc = document) {
   root.addEventListener('softmux:source-sections-updated', event => {
     const next = event.detail;
     if (!next || typeof next !== 'object') return;
+    // Projection refresh marks a new source snapshot: never silently carry
+    // a selected object identity or editor request across source changes.
     observedSections = next;
+    selectedObservedId = '';
     renderSectionItems(root.dataset.section || 'tracks');
   });
   for (const button of root.querySelectorAll('[data-sf-section]')) {
