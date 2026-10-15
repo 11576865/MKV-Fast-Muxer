@@ -359,18 +359,6 @@ export function mountSoftmux1014Workbench(doc = document) {
     renderSectionItems(root.dataset.section || 'tracks');
   });
   for (const button of root.querySelectorAll('[data-sf-section]')) {
-      const selected = button.dataset.sfSection === section;
-      button.setAttribute('aria-selected',String(selected));
-      button.tabIndex = selected ? 0 : -1;
-    }
-    const notice = get(doc,'sf14SectionNotice');
-    notice.hidden = section === 'tracks';
-    if (sectionContent[section]) {
-      get(doc,'sf14SectionTitle').textContent = sectionContent[section].title;
-      get(doc,'sf14SectionText').textContent = sectionContent[section].body;
-    }
-  };
-  for (const button of root.querySelectorAll('[data-sf-section]')) {
     button.addEventListener('click', () => setSection(button.dataset.sfSection));
     button.addEventListener('keydown', (event) => {
       if (!['ArrowLeft','ArrowRight'].includes(event.key)) return;
