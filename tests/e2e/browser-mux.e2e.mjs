@@ -5839,6 +5839,20 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
       assert.equal(await page.locator('#sf14SectionItems')
         .getByText('尚无已扫描并绑定当前来源的对象').count(),0,
         'a completed source scan must not be shown as unscanned');
+      const objectRows = page.locator('#sf14SectionItems button[data-observed-id]');
+      if (await objectRows.count()) {
+        await objectRows.first().click();
+        assert.equal(await objectRows.first().getAttribute('aria-pressed'),'true',
+          'an actual observed object must have stable selected state');
+        assert.equal(await page.locator('#sf14SectionSelection').isVisible(),true,
+          'the selected source object must provide contextual evidence');
+        assert.match(await page.locator('#sf14SectionSelection').textContent(),
+          /ffprobe|来源|格式层|UID|章节/);
+        if (section !== 'attachments') {
+          assert.equal(await page.locator('#sf14SectionSelection button').count(),0,
+            'flat chapter/tag observation must not offer an unverified writer');
+        }
+      }
       const evidenceTypes = await page.locator('#sf14SectionItems .sf14-source-observation')
         .evaluateAll(rows => rows.map(row => row.dataset.evidence));
       assert.ok(evidenceTypes.every(type =>
