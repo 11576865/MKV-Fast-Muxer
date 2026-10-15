@@ -141,6 +141,41 @@ export function mountSoftmux1014Workbench(doc = document) {
   for (const detail of [...source.querySelectorAll('.unified-intake > details')]) {
     if (detail.id !== 'sourceFilesDetails') tools.appendChild(detail);
   }
+  // The inspection/extraction task is not eleven separate backend destinations.
+  // Rehost each real, already-wired tool exactly once. Technical writers stay
+  // available in a clearly scoped advanced disclosure, never silently enabled.
+  const toolGroups = [
+    { title:'检查与提取', id:'sf14ToolInspect',
+      ids:['attachmentExtractionDetails','existingAttachmentImpactDetails'] },
+    { title:'受限容器修改', id:'sf14ToolModify',
+      ids:['existingMkvRoutedEditDetails','p2MetadataInlineDetails'] },
+  ];
+  for (const spec of toolGroups) {
+    const section = doc.createElement('section');
+    section.id = spec.id;
+    section.className = 'sf14-tool-group';
+    const title = doc.createElement('h3');
+    title.textContent = spec.title;
+    section.appendChild(title);
+    for (const id of spec.ids) {
+      const detail = get(doc,id);
+      if (detail && detail.parentElement === tools) section.appendChild(detail);
+    }
+    tools.appendChild(section);
+  }
+  const advanced = doc.createElement('details');
+  advanced.id = 'sf14ToolAdvanced';
+  advanced.className = 'sf14-tool-advanced';
+  const advancedSummary = doc.createElement('summary');
+  advancedSummary.textContent = '高级结构与实验性修改（需符合当前能力限制）';
+  advanced.appendChild(advancedSummary);
+  const advancedBody = doc.createElement('div');
+  advancedBody.className = 'sf14-tool-advanced-body';
+  for (const detail of [...tools.children]) {
+    if (detail.tagName === 'DETAILS') advancedBody.appendChild(detail);
+  }
+  advanced.appendChild(advancedBody);
+  tools.appendChild(advanced);
   const sourceDetails = get(doc,'sourceFilesDetails');
   if (sourceDetails) {
     // Source identity belongs in the visible source pane, not a silently
