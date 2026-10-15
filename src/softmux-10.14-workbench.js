@@ -405,6 +405,7 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (!EventCtor) return;
     root.dispatchEvent(new EventCtor('softmux:open-observed-source-attachment', {
       detail: { sourceIndex: item.sourceIndex },
+      bubbles: true,
     }));
     setSection('tracks');
     if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('inspector');
