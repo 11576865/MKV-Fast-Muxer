@@ -13,7 +13,8 @@ const fixture = () => {
 const checkpoint = (f, changes, revision=4) => {
   const cap=captureSourceAttachmentUndo({...f,changes});
   for(const c of changes)f.trackState.attachments[0][c.field]=c.value;
-  return sealSourceAttachmentUndo(cap,revision);
+  f.project=Object.freeze({revision});
+  return sealSourceAttachmentUndo(cap,revision,f.project);
 };
 const context = (f,revision=4) => ({...f,revision});
 
@@ -30,6 +31,8 @@ test('undo proposal is an inverse edit for the same immutable domain owner', () 
 test('unrelated project edits and File or scan rebinding invalidate stale undo', () => {
   const f=fixture(),p=checkpoint(f,[{index:3,field:'include',value:false}]);
   assert.equal(planSourceAttachmentUndo(p,context(f,5)),null);
+  assert.equal(planSourceAttachmentUndo(p,{...context(f),project:Object.freeze({revision:4})}),null,
+    'same revision number in another immutable project never inherits this undo');
   assert.equal(planSourceAttachmentUndo(p,{...context(f),source:{...f.source}}),null);
   assert.equal(planSourceAttachmentUndo(p,{...context(f),trackState:{...f.trackState}}),null);
   assert.equal(planSourceAttachmentUndo(p,{...context(f),appendMode:true}),null);
@@ -62,5 +65,5 @@ test('empty and no-op changes do not fabricate undo history', () => {
   assert.equal(captureSourceAttachmentUndo({...f,changes:[]}),null);
   assert.equal(captureSourceAttachmentUndo({...f,changes:[{index:9,field:'include',value:false}]}),null);
   const original=captureSourceAttachmentUndo({...f,changes:[{index:3,field:'include',value:true}]});
-  assert.equal(sealSourceAttachmentUndo(original,1),null);
+  assert.equal(sealSourceAttachmentUndo(original,1,Object.freeze({revision:1})),null);
 });
