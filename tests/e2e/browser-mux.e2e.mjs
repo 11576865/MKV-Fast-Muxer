@@ -5873,6 +5873,38 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     await page.locator('#sf14SourceToggle').click();
     assert.equal(await page.locator('#sf14Source').isVisible(),false);
     await page.screenshot({path:path.join(outDir,'softmux-1014-tablet-800.png'),fullPage:false});
+    // Figma tablet layout gate: one editable output composition, one contextual
+    // inspector, a collapsed source drawer, the EXISTING mode buttons as rail,
+    // and the REAL mux command remain visible together. No mock business state.
+    await page.setViewportSize({width:1280,height:820});
+    const tabletFigma = await page.evaluate(() => {
+      const bounds = selector => {
+        const r = document.querySelector(selector).getBoundingClientRect();
+        return { left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width };
+      };
+      return {
+        rail: bounds('.sf14-nav'),
+        composition: bounds('.sf14-composition'),
+        inspector: bounds('.sf14-inspector'),
+        output: bounds('.sf14-output'),
+        sourceDisplay: getComputedStyle(document.querySelector('.sf14-source')).display,
+        sourceControl: getComputedStyle(document.querySelector('#sf14SourceToggle')).display,
+        muxDisplay: getComputedStyle(document.querySelector('#muxBtn')).display,
+      };
+    });
+    assert.equal(tabletFigma.sourceDisplay,'none','tablet source must be an optional drawer');
+    assert.notEqual(tabletFigma.sourceControl,'none','tablet source drawer entry must remain accessible');
+    assert.ok(tabletFigma.rail.right <= tabletFigma.composition.left,
+      'single authority mode rail must be to the left of output composition');
+    assert.ok(tabletFigma.composition.right <= tabletFigma.inspector.left + 1 &&
+      Math.abs(tabletFigma.composition.top-tabletFigma.inspector.top) < 3,
+      'tablet requires Figma two-region composition + contextual inspector layout');
+    assert.ok(tabletFigma.composition.width >= 450 && tabletFigma.inspector.width >= 320,
+      'both tablet work areas must be independently usable');
+    assert.ok(tabletFigma.output.left >= tabletFigma.rail.right - 1 &&
+      tabletFigma.output.right <= 1281 && tabletFigma.muxDisplay !== 'none',
+      'real output controls must remain reachable under the tablet work areas');
+    await page.screenshot({path:path.join(outDir,'softmux-figma-tablet-1280.png'),fullPage:false});
     await page.setViewportSize({width:390,height:844});
     await page.locator('[data-sf-focus="source"]').click();
     assert.equal(await page.locator('#sf14Source').isVisible(),true);
