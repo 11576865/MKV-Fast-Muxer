@@ -107,7 +107,8 @@ export function mountSoftmux1014Workbench(doc = document) {
   // are available from a compact tablet disclosure instead of competing with
   // the active mux, cancellation and save actions in the permanent bottom bar.
   const outputPlan = output.querySelector('.plan-panel');
-  const outputHub = output.querySelector('.output-hub');
+  // 'output' is already the .output-hub element rehosted above.
+  const outputHub = output;
   if (outputPlan && outputHub) {
     outputPlan.id = outputPlan.id || 'sf14OutputPlan';
     const planButton = doc.createElement('button');
