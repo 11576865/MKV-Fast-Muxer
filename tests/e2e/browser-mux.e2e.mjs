@@ -5877,9 +5877,17 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
       'batch columns must be legible: '+JSON.stringify(batchGeometry));
     assert.equal(batchGeometry.sourceVisible,'none','sources must initially be drawer-only');
     assert.equal(batchGeometry.recipeVisible,'none','recipe must initially be drawer-only');
+    // The same top-level Add button is context-sensitive: it must not
+    // switch a user out of the batch task they are editing.
+    await page.locator('#sf14Add').click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'batch');
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),true,
+      'global Add should expose the real batch input without changing task context');
+    assert.equal(await page.locator('#batchUnifiedInput').count(),1,'rehost must not duplicate real File input');
+    await page.locator('[data-sf-batch-controls="sources"]').click();
+    assert.equal(await page.locator('#sf14BatchSources').isVisible(),false);
     await page.locator('[data-sf-batch-controls="sources"]').click();
     assert.equal(await page.locator('#sf14BatchSources').isVisible(),true);
-    assert.equal(await page.locator('#batchUnifiedInput').count(),1,'rehost must not duplicate real File input');
     await page.locator('[data-sf-batch-controls="recipe"]').click();
     assert.equal(await page.locator('#sf14BatchSources').isVisible(),false);
     assert.equal(await page.locator('#sf14BatchRecipe').isVisible(),true);
