@@ -2062,7 +2062,12 @@ document.addEventListener(
     const matching = documentModel.composition.items.find(item =>
       item.target?.type === 'source' &&
       item.target.key === 'attachment:' + index);
-    if (matching) activateCompositionTrack(matching);
+    if (!matching) return;
+    const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
+    if (!roles.sourceKey) return;
+    activateCompositionTrack(matching);
+    // The caller changes from Attachments to Tracks only on acceptance.
+    event.preventDefault();
   }
 );
 compositionTracks?.addEventListener('click', event => {
