@@ -5796,7 +5796,7 @@ async function scenarioStreamedSourceDigestBrowser(browser) {
 
 
 async function scenarioSoftmux1014WholeWorkbench(browser) {
-  console.log('软封10.14版本: cohesive production DOM UI candidate');
+  console.log('软封0.1014版本: cohesive production DOM UI with source observations');
   const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
   const page = await context.newPage();
   page.on('pageerror', error => { throw error; });
@@ -5831,6 +5831,21 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
     assert.equal(uniqueIds,true,'rehost may not clone legacy IDs/controls');
     await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-multitrack.mkv'));
     await waitForStatus(page, '轨道扫描完成：');
+    // 1.0 R1: attach/chapter/tag tabs display only observed objects from the
+    // exact scanned source, never fabricated editable EBML/UID relationships.
+    for (const section of ['attachments','chapters','tags']) {
+      await page.locator('[data-sf-section="'+section+'"]').click();
+      assert.equal(await page.locator('#sf14SectionItems').count(),1);
+      assert.equal(await page.locator('#sf14SectionItems')
+        .getByText('尚无已扫描并绑定当前来源的对象').count(),0,
+        'a completed source scan must not be shown as unscanned');
+      const evidenceTypes = await page.locator('#sf14SectionItems .sf14-source-observation')
+        .evaluateAll(rows => rows.map(row => row.dataset.evidence));
+      assert.ok(evidenceTypes.every(type =>
+        ['ffprobe-stream','ffprobe-flat-chapter','ffprobe-format-tags'].includes(type)),
+      'source lists must carry honest observational provenance: '+JSON.stringify(evidenceTypes));
+    }
+    await page.locator('[data-sf-section="tracks"]').click();
     assert.equal(await page.locator('#sourceFilesDetails').evaluate(el => el.open),true);
     assert.match(await page.locator('#assetInventory').textContent(),/source-multitrack\.mkv/);
     assert.equal(await page.locator('#sf14Recovery').evaluate(el => el.open),false);
