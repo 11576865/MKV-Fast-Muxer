@@ -1,4 +1,4 @@
-/* 软封10.14版本: complete candidate presentation skin.
+/* 软封0.1014版本: established presentation skin (legacy filename retained).
  * All selectors under .sf14. Never restyle or create canonical business state.
  * Loaded last, after the legacy CSS, only when UI 10.14 candidate is mounted. */
 .sf14-app .app-shell > .topbar,
