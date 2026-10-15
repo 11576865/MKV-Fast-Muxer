@@ -1,4 +1,4 @@
-import manifest from '../package.json';
+import manifest from '../package.json' with { type: 'json' };
 
 // One product-release authority for the UI, generated bundles and mux reports.
 // npm uses three-component semver; product labels omit only a trailing ".0".
