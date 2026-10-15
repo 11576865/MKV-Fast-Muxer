@@ -1,0 +1,34 @@
+{
+  "goal": "继续原软封理论模型，落实B-013不重新封装的成品保存重试",
+  "status": "durable-checkpoint-pending-external-validation",
+  "current_bounded_work_unit": "Round7 B-013 retained finished-artifact save-only retry",
+  "completed_units": [
+    "session-only immutable artifact save registry",
+    "actual batch result retry button and separate save/audit lifecycle",
+    "same-directory SHA proof then missing-only writes; alternate-directory complete pair",
+    "new adversarial Node tests and full Chromium existing partial-save scenario extension"
+  ],
+  "next_units": [
+    "exact-head full Chromium/native output acceptance",
+    "20-job complete batch acceptance and failed-job retry",
+    "confirmed task list cross-session restoration",
+    "P4 real-task UI measurements and P5 platform/performance"
+  ],
+  "branch": "feat/ten-round-p3b-save-only-retry-20261015",
+  "pr": 150,
+  "latest_durable_commit": "bd70554d2e7c97cd9814c8d12ff7de8be6ff2928",
+  "parent_pr": 149,
+  "external_validation_states": {
+    "parent_r6_repair": "pending; no polling this work unit",
+    "r7_chromium_native": "pending-exact-head-ci"
+  },
+  "local_validation": {
+    "node": "593/593",
+    "build": "passed"
+  },
+  "blockers": [
+    "R6 and prior stacked product review/merge pending",
+    "real directory/native-device F4 behavior and complete 20-job theory coverage not claimed"
+  ],
+  "updated_timestamp": "2026-10-14T18:42:24.239525+00:00"
+}

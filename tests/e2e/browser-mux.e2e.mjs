@@ -2187,6 +2187,8 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
     await page.evaluate(() => {
       const files = new Map();
       window.__batchPairDirectoryFiles = files;
+      window.__batchPairWrites = [];
+      window.__batchReportFail = true;
       window.showDirectoryPicker = async () => ({
         name: 'partial-report-failure-dir',
         requestPermission: async () => 'granted',
@@ -2199,11 +2201,13 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
             files.set(name, null);
           }
           return {
+            getFile: async () => files.get(name),
             createWritable: async () => {
               let pending = null;
               return {
                 write: async blob => {
-                  if (name.endsWith('.mux-report.json')) throw new Error('report-specific simulated disk quota');
+                  window.__batchPairWrites.push(name);
+                  if (window.__batchReportFail && name.endsWith('.mux-report.json')) throw new Error('report-specific simulated disk quota');
                   pending = blob;
                 },
                 close: async () => { files.set(name, pending); },
@@ -2247,6 +2251,43 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
     assert.equal(published.mkvIsBlob, true, JSON.stringify(published));
     assert.ok(published.mkvBytes > 0);
     assert.equal(published.reportIsBlob, false);
+    const completedLog = await page.locator('#log').textContent();
+    const originalMkvHash = await page.evaluate(async () => {
+      const blob = window.__batchPairDirectoryFiles.get('Batch S01E01.mkv');
+      window.__batchOriginalMkv = blob;
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()));
+      return Array.from(hash,x=>x.toString(16).padStart(2,'0')).join('');
+    });
+    const retry = page.locator('#batchResults [data-batch-save-retry]');
+    assert.equal(await retry.count(),1);
+    // An aborted report left its directory entry. Retry must refuse rather
+    // than deleting/truncating it or remuxing the already valid MKV.
+    await retry.click();
+    await page.waitForFunction(()=>document.querySelector('#batchStatus').textContent.startsWith('批量完成：'));
+    assert.match(await page.locator('#batchResults').textContent(), /保存目标已存在/);
+    assert.deepEqual(await page.evaluate(()=>window.__batchPairWrites),
+      ['Batch S01E01.mkv','Batch S01E01.mux-report.json']);
+    // TEST-ONLY: emulate the user explicitly removing inspected failure
+    // residue and resolving quota; production never deletes directory entries.
+    await page.evaluate(()=>{
+      window.__batchPairDirectoryFiles.delete('Batch S01E01.mux-report.json');
+      window.__batchReportFail=false;
+    });
+    await retry.click();
+    await page.waitForFunction(()=>!document.querySelector('#batchResults [data-batch-save-retry]'));
+    assert.equal(await page.locator('#log').textContent(),completedLog,'save-only retry must not execute mux again');
+    assert.deepEqual(await page.evaluate(()=>window.__batchPairWrites),
+      ['Batch S01E01.mkv','Batch S01E01.mux-report.json','Batch S01E01.mux-report.json']);
+    assert.equal(await page.evaluate(()=>window.__batchPairDirectoryFiles.get('Batch S01E01.mkv')===window.__batchOriginalMkv),true);
+    assert.match(await page.locator('#batchResults').textContent(), /MKV 与报告均已写入/);
+    assert.doesNotMatch(await page.locator('#batchStatus').textContent(), /尚未写入|未完整写入/);
+    const finished = path.join(outDir,'r7-save-only-retained.mkv');
+    const finalReport = path.join(outDir,'r7-save-only-retained.mux-report.json');
+    await saveDownload(page,'#batchResults a.download',finished);
+    await saveDownload(page,'#batchResults a.report-download',finalReport);
+    assert.equal(createHash('sha256').update(await fs.readFile(finished)).digest('hex'),originalMkvHash);
+    assert.equal(streams(probe(finished),'video').length,1);
+    assert.equal(JSON.parse(await fs.readFile(finalReport,'utf8')).output.sha256,originalMkvHash);
     console.log('Batch report-only write failure honest persistence PASS');
   } finally {
     await context.close();
@@ -2388,6 +2429,70 @@ async function scenarioBatchRecipeV2PerOutputRealMux(browser) {
     assert.equal(firstAudit.plan.outputName,'Batch S01E01.mkv');
     assert.equal(await page.locator('#batchPlan .batch-review-state[data-state="awaitingSave"]').count(),2);
     console.log('Batch Recipe v2 independent output and execution audit PASS');
+  } finally { await context.close(); }
+}
+
+async function scenarioBatchFailedJobRetry(browser) {
+  console.log('R7: actual batch failed-job retry retains other finished artifacts');
+  const { context, page } = await openApp(browser);
+  try {
+    // Fault injection only at the worker boundary. Successful outputs and the
+    // retry still use the real wasm worker; no production test hooks exist.
+    await page.evaluate(() => {
+      const original = Worker.prototype.postMessage;
+      window.__batchMuxAttempts = 0;
+      window.__batchFailSecond = true;
+      Worker.prototype.postMessage = function(message, ...rest) {
+        if (message?.type === 'EXEC' && message.data?.args?.at(-1)?.endsWith('-output.mkv')) {
+          window.__batchMuxAttempts++;
+          if (window.__batchFailSecond && window.__batchMuxAttempts === 2) {
+            window.__batchFailSecond = false;
+            queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', {
+              data: {id: message.id, type: 'EXEC', data: 1},
+            })));
+            return;
+          }
+        }
+        return original.call(this, message, ...rest);
+      };
+    });
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput', [path.join(root,'Batch S01E01.mp4'), path.join(root,'Batch S01E02.mp4')]);
+    await page.setInputFiles('#batchSubtitleInput', [path.join(root,'Batch S01E01.zh-Hans.ass'), path.join(root,'Batch S01E02.en.srt')]);
+    await page.waitForFunction(() => !document.querySelector('#batchStartBtn').disabled);
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(() => /批量完成：成功 1，失败 1/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    const originalUrl = await page.locator('#batchResults a.download').getAttribute('href');
+    const firstPath = path.join(outDir,'r7-retry-retained-first.mkv');
+    await saveDownload(page, '#batchResults a.download', firstPath);
+    const firstHash = createHash('sha256').update(await fs.readFile(firstPath)).digest('hex');
+    assert.equal(await page.evaluate(()=>window.__batchMuxAttempts),2);
+    // Live batch input/policy edits must not replace frozen failed-job choices.
+    await page.setInputFiles('#batchSubtitleInput', path.join(root,'Batch S01E01.zh-Hans.ass'));
+    await page.locator('[data-batch-job-retry]').click();
+    await page.waitForFunction(() => /批量完成：成功 2，失败 0/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    assert.equal(await page.evaluate(()=>window.__batchMuxAttempts),3,'only the failed task is muxed again');
+    assert.equal(await page.locator('#batchResults .new-track-row:first-child a.download').getAttribute('href'), originalUrl);
+    assert.equal(await page.locator('[data-batch-job-retry]').count(),0);
+    const retryPath = path.join(outDir,'r7-retry-second.mkv');
+    const reportPath = path.join(outDir,'r7-retry-second-report.json');
+    await saveDownload(page,'#batchResults .new-track-row:last-child a.download',retryPath);
+    await saveDownload(page,'#batchResults .new-track-row:last-child a.report-download',reportPath);
+    const report = JSON.parse(await fs.readFile(reportPath,'utf8'));
+    assert.equal(report.plan.outputName,'Batch S01E02.mkv');
+    assert.equal(report.output.sha256,createHash('sha256').update(await fs.readFile(retryPath)).digest('hex'));
+    // Matroska/FFmpeg normalizes the frozen `en` request to ISO 639-2 `eng` in the delivered report.
+    assert.equal(report.subtitle.tracks[0].language,'eng');
+    assert.equal(streams(probe(retryPath),'subtitle')[0].codec_name,'subrip');
+    // Independently check actual recovered cue payload, not just report fields.
+    const recovered = execFileSync('ffmpeg',['-v','error','-i',retryPath,'-map','0:s:0','-f','srt','-'],{encoding:'utf8'});
+    const expected = await fs.readFile(path.join(root,'Batch S01E02.en.srt'),'utf8');
+    const text = value => value.replace(/\r/g,'').trim();
+    assert.equal(text(recovered),text(expected));
+    const retainedAgain = path.join(outDir,'r7-retry-retained-first-again.mkv');
+    await saveDownload(page,'#batchResults .new-track-row:first-child a.download',retainedAgain);
+    assert.equal(createHash('sha256').update(await fs.readFile(retainedAgain)).digest('hex'),firstHash);
+    console.log('R7 actual failed-job retry PASS');
   } finally { await context.close(); }
 }
 
@@ -6197,6 +6302,7 @@ try {
   await scenarioBatchReportSavePartialPersistence(browser);
   await scenarioBatchRecipeV2PerOutputRealMux(browser);
   await scenarioBatchQueue(browser);
+  await scenarioBatchFailedJobRetry(browser);
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);

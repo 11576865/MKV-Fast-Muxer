@@ -6,11 +6,11 @@ import { buildBatchJobs } from '../src/batch.js';
 import { runFrozenBatchQueue } from '../src/batch-runner.js';
 
 const file = (name) => ({ name, size: 12, lastModified: 1234 });
-function fixture() {
+function fixture(count = 3) {
   const pairing = buildBatchJobs([
-    file('Batch S01E01.mp4'), file('Batch S01E02.mp4'), file('Batch S01E03.mp4'),
+    ...Array.from({length: count}, (_, i) => file(`Batch S01E${String(i+1).padStart(2,'0')}.mp4`)),
   ], [
-    file('Batch S01E01.zh.ass'), file('Batch S01E02.en.ass'), file('Batch S01E03.zh.ass'),
+    ...Array.from({length: count}, (_, i) => file(`Batch S01E${String(i+1).padStart(2,'0')}.zh.ass`)),
   ]);
   pairing.fonts = [];
   pairing.fontRecognition = { recognized: [], ignored: [] };
@@ -189,4 +189,79 @@ test('production integration has no synthetic mux click or link polling path', (
   assert.doesNotMatch(main, /muxBtn\.click\(\)/);
   assert.doesNotMatch(main, /waitForSingleMuxCompletion/);
   assert.doesNotMatch(runner, /document\.|\.click\(|new Event\(|window\./);
+});
+
+
+test('20-job batch retries only failed IDs and retains the other 18 artifacts and frozen rules', async () => {
+  const { plan, ledger } = fixture(20);
+  const adapters = {
+    ledger, prepare: async () => {},
+    execute: async (job, index) => {
+      if ([2, 16].includes(index)) throw Error('transient worker error');
+      return artifact(job);
+    },
+    publish: async () => ({ savedToDirectory: false, url: 'blob:original' }),
+  };
+  const first = await runFrozenBatchQueue(plan, adapters);
+  assert.equal(first.results.filter(r => r.ok).length, 18);
+  const ids = [plan.jobs[2].jobId, plan.jobs[16].jobId];
+  ledger.requeueFailed(ids);
+  const ran = [];
+  const retry = await runFrozenBatchQueue(plan, {
+    ...adapters, jobIds: ids,
+    execute: async (job, index, current) => {
+      assert.equal(current, plan);
+      assert.equal(job, plan.jobs[index]);
+      ran.push(index);
+      return artifact(job);
+    },
+  });
+  assert.deepEqual(ran, [2, 16]);
+  assert.equal(retry.results.length, 2);
+  assert.equal(ledger.snapshot().filter(e => e.state === 'awaitingSave').length, 20);
+  const final = first.results.map(item => retry.results.find(r => r.job.jobId === item.job.jobId) || item);
+  assert.ok(final.every(r => r.ok));
+  for (const item of first.results.filter(r => r.ok))
+    assert.equal(final.find(r => r.job.jobId === item.job.jobId), item);
+});
+
+test('requeue is atomic and refuses successful, unknown, duplicate, and active IDs', async () => {
+  const { plan, ledger } = fixture();
+  await runFrozenBatchQueue(plan, {
+    ledger, prepare: async () => {},
+    execute: async (job, index) => { if (index === 1) throw Error('failed'); return artifact(job); },
+    publish: async () => ({savedToDirectory: false}),
+  });
+  const before = ledger.snapshot();
+  for (const ids of [[], ['missing'], [plan.jobs[1].jobId, plan.jobs[0].jobId],
+    [plan.jobs[1].jobId, plan.jobs[1].jobId]]) {
+    assert.throws(() => ledger.requeueFailed(ids));
+    assert.deepEqual(ledger.snapshot(), before);
+  }
+  ledger.requeueFailed([plan.jobs[1].jobId]);
+  assert.throws(() => ledger.requeueFailed([plan.jobs[1].jobId]));
+});
+
+test('selected execution refuses unknown or terminal jobs before invoking any adapter', async () => {
+  const {plan, ledger} = fixture();
+  let calls = 0;
+  const adapters = {ledger, prepare: async()=>{calls++;}, execute: async job => artifact(job), publish: async()=>({})};
+  for (const ids of [[], ['unknown'], [plan.jobs[0].jobId, plan.jobs[0].jobId]])
+    await assert.rejects(runFrozenBatchQueue(plan, {...adapters, jobIds: ids}));
+  assert.equal(calls, 0);
+  await runFrozenBatchQueue(plan, adapters);
+  await assert.rejects(runFrozenBatchQueue(plan, {...adapters, jobIds: [plan.jobs[0].jobId]}));
+  assert.equal(calls, 3);
+});
+
+test('failed-job retry cancellation leaves previous successes and unselected failures unchanged', async () => {
+  const {plan, ledger} = fixture();
+  const adapters = {ledger, prepare: async()=>{}, execute: async(job,index)=>{
+    if(index !== 0) throw Error('worker failed'); return artifact(job);
+  }, publish: async()=>({savedToDirectory:true})};
+  await runFrozenBatchQueue(plan, adapters);
+  ledger.requeueFailed([plan.jobs[1].jobId]);
+  const outcome = await runFrozenBatchQueue(plan, {...adapters, jobIds:[plan.jobs[1].jobId], shouldCancel:()=>true});
+  assert.equal(outcome.cancelled,true);
+  assert.deepEqual(ledger.snapshot().map(e=>e.state),['succeeded','cancelled','failed']);
 });
