@@ -5831,7 +5831,21 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
     assert.equal(await page.locator('#assetInspectorHost').isVisible(),true);
     assert.equal(await page.locator('#assetInspectorHost').count(),1);
     assert.equal(await page.locator('#unifiedAssetInput').count(),1);
-    console.log('R1 observed attachment editor navigation PASS');
+    const nameField = page.locator('#assetInspectorHost input[data-tree-attachment-field="filename"]').first();
+    assert.equal(await nameField.count(),1,'single existing source attachment editor must be present');
+    const originalName=await nameField.inputValue();
+    await nameField.fill('softmux-undo-test.ttf');
+    assert.equal(await nameField.inputValue(),'softmux-undo-test.ttf');
+    await page.locator('[data-sf-section="attachments"]').click();
+    await page.locator('#sf14SectionItems button[data-observed-id]').first().click();
+    const undo = page.locator('#sf14SectionSelection button[data-undo-observed-attachment]');
+    assert.equal(await undo.count(),1,'latest attachment edit must be reversible in its original object context');
+    assert.match(await page.locator('#sf14SectionSelection').textContent(),/草稿意图/);
+    await undo.click();
+    await page.locator('[data-sf-section="tracks"]').click();
+    const restoredName = await page.locator('#assetInspectorHost input[data-tree-attachment-field="filename"]').first().inputValue();
+    assert.equal(restoredName,originalName,'undo must restore real executor/domain attribute, not just the display label');
+    console.log('R1 attachment edit and one-step undo through same domain owner PASS');
   } finally { await context.close(); }
 }
 
