@@ -79,11 +79,14 @@ test('MIME mismatch and duplicate output identity are explicit failures even wit
   assert.equal(duplicated.entries[0].reasonCode,'OUTPUT_NAME_AMBIGUOUS');
 });
 
-test('structurally present attachment with no trusted FileData proof stays unverified',()=>{
+test('valid independent FileData audit without a matching source receipt stays unverified',()=>{
   const report=inspect({payloadAudit:payload([])});
   assert.equal(report.entries[0].status,'unavailable');
-  assert.equal(report.entries[0].reasonCode,'FILEDATA_AUDIT_UNTRUSTED');
+  // This audit has valid provenance and counts but zero matching receipts.
+  // Distinguish no matching entry from an untrusted/forged audit (tested below).
+  assert.equal(report.entries[0].reasonCode,'FILEDATA_MATCH_UNAVAILABLE');
   assert.equal(report.entries[0].uidRelationsVerified,false);
+  assert.equal(report.entries[0].savedToDiskVerified,false);
 });
 
 test('per-row source identity and incomplete observations are not invented',()=>{
