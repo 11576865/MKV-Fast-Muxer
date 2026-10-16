@@ -58,6 +58,34 @@ test('identical original names or ambiguous output names fail closed',()=>{
   assert.equal(inspect({sourceRows:collision}).entries[0].status,'unavailable');
 });
 
+test('finished attachment missing from ffprobe inventory is diagnosed before SHA proof',()=>{
+  const out=inspect({outputProbe:probe([])});
+  assert.equal(out.entries[0].status,'unavailable');
+  assert.equal(out.entries[0].reasonCode,'OUTPUT_ATTACHMENT_MISSING');
+  assert.match(out.entries[0].message,/最终 MKV/);
+  assert.equal(out.entries[0].savedToDiskVerified,false);
+});
+
+test('MIME mismatch and duplicate output identity are explicit failures even with a passing byte audit',()=>{
+  const actual=probe();
+  actual.streams[0].tags.mimetype='application/octet-stream';
+  const changed=inspect({outputProbe:actual});
+  assert.equal(changed.entries[0].status,'unavailable');
+  assert.equal(changed.entries[0].reasonCode,'OUTPUT_MIME_MISMATCH');
+  const missingMime=probe();
+  delete missingMime.streams[0].tags.mimetype;
+  assert.equal(inspect({outputProbe:missingMime}).entries[0].reasonCode,'OUTPUT_MIME_MISMATCH');
+  const duplicated=inspect({outputProbe:probe(['renamed.ttf','renamed.ttf'])});
+  assert.equal(duplicated.entries[0].reasonCode,'OUTPUT_NAME_AMBIGUOUS');
+});
+
+test('structurally present attachment with no trusted FileData proof stays unverified',()=>{
+  const report=inspect({payloadAudit:payload([])});
+  assert.equal(report.entries[0].status,'unavailable');
+  assert.equal(report.entries[0].reasonCode,'FILEDATA_AUDIT_UNTRUSTED');
+  assert.equal(report.entries[0].uidRelationsVerified,false);
+});
+
 test('per-row source identity and incomplete observations are not invented',()=>{
   assert.equal(inspect({sourceRows:rows().map((x,i)=>i?x:{...x,index:-1})}).entries[0].status,'unavailable');
   assert.equal(inspect({payloadAudit:payload([{sourceFilename:'original.ttf',outputFilename:'renamed.ttf',sha256:'',byteLength:64}])}).entries[0].status,'unavailable');
