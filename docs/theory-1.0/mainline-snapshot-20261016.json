@@ -1,0 +1,184 @@
+{
+  "schema": "softmux-theory-mainline-snapshot-v1",
+  "repository": "11576865/MKV-Fast-Muxer",
+  "observed_date": "2026-10-16",
+  "main_sha": "f0d6f78bd794844571cb22d089f8075cbd8b27e0",
+  "scope_note": "GitHub PR metadata + default branch observed on 2026-10-16. Dated triage only: not CI evidence, semantic diff, artifact verification or current deployment certification. Re-fetch for any future run.",
+  "pull_requests": [
+    {
+      "number": 142,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-14",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/142"
+    },
+    {
+      "number": 143,
+      "state": "closed",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/143"
+    },
+    {
+      "number": 144,
+      "state": "closed",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/144"
+    },
+    {
+      "number": 145,
+      "state": "closed",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/145"
+    },
+    {
+      "number": 146,
+      "state": "closed",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/146"
+    },
+    {
+      "number": 147,
+      "state": "closed",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/147"
+    },
+    {
+      "number": 148,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-14",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/148"
+    },
+    {
+      "number": 149,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-14",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/149"
+    },
+    {
+      "number": 150,
+      "state": "open",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/150"
+    },
+    {
+      "number": 151,
+      "state": "open",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/151"
+    },
+    {
+      "number": 153,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-14",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/153"
+    },
+    {
+      "number": 154,
+      "state": "open",
+      "merged": false,
+      "merged_date": null,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/154"
+    },
+    {
+      "number": 155,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-15",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/155"
+    },
+    {
+      "number": 156,
+      "state": "closed",
+      "merged": true,
+      "merged_date": "2026-10-15",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/pull/156"
+    }
+  ],
+  "round_links": [
+    {
+      "round": 1,
+      "prs": [
+        142
+      ],
+      "scope": "R1 P0 baseline and theory ledger PR; not proof of all P0 exit criteria"
+    },
+    {
+      "round": 2,
+      "prs": [
+        143,
+        148
+      ],
+      "scope": "R2 live ContainerProject direct PR closed/unmerged; R1-R5 integration gate merged, requires exact semantic main diff"
+    },
+    {
+      "round": 3,
+      "prs": [
+        144,
+        148
+      ],
+      "scope": "R3 portable external metadata PR closed/unmerged; integration gate merged, not full recovery proof"
+    },
+    {
+      "round": 4,
+      "prs": [
+        145,
+        148
+      ],
+      "scope": "R4 attachment writer routing direct PR closed/unmerged; integration gate merged, not arbitrary EBML support"
+    },
+    {
+      "round": 5,
+      "prs": [
+        147,
+        148
+      ],
+      "scope": "R5 bounded Chapter/Tag modification PR closed/unmerged; integration gate merged, not full P2"
+    },
+    {
+      "round": 6,
+      "prs": [
+        149
+      ],
+      "scope": "R6 finished-MKV SRT/WebVTT cue audit PR merged; still not full P3 acceptance"
+    },
+    {
+      "round": 7,
+      "prs": [
+        150,
+        151
+      ],
+      "scope": "R7 save-only retry and failed-job retry are open, neither is accepted"
+    },
+    {
+      "round": 8,
+      "prs": [
+        153,
+        154,
+        155
+      ],
+      "scope": "R8 object-centric UI merged and Figma tablet integration merged; separate UI audit draft open, no field acceptance"
+    },
+    {
+      "round": 9,
+      "prs": [],
+      "scope": "R9 no matching activity in this bounded observation; absence is not proof of missing code"
+    },
+    {
+      "round": 10,
+      "prs": [
+        156
+      ],
+      "scope": "R10 1.0 joint release contract merged, but this is not a release or phase acceptance"
+    }
+  ]
+}
