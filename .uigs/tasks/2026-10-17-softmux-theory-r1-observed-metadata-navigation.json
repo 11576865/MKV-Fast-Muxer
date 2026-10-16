@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-17-softmux-theory-r1-observed-metadata-navigation",
+  "project_id": "MKV-Fast-Muxer",
+  "status": "feature-submitted-pending-exact-head-CI",
+  "theory_authority": "2026-10-12 original D-01—D-10; 2026-10-16 R0-R6 release contract; original 57 scenarios unchanged",
+  "base_main": {
+    "commit": "dc481b9c784e9be69e50544ac0fecafd157c6288",
+    "version": "0.1019.0",
+    "r0_pr": 157,
+    "r0_exact_head": "0caf3a42d584807cab4b671a9be89054700fc738",
+    "r0_node_browser_pages": "success at same head, merged on 2026-10-17"
+  },
+  "branch": "feat/theory-r1-safe-metadata-navigation-main-20261017",
+  "pr": 159,
+  "superseded_pr": 158,
+  "deliveries": [
+    "Visible real source Chapter/Tag observation row action to bounded writer tooling, no forged direct EBML mapping.",
+    "Production handler validates exact File reference, current scan and identity, unified resource role, observed ID and busy state before reuse.",
+    "On accept, existing independent p2MetadataSource change re-probes actual EBML and invalidates old result/review; no source overwrite, no inherited consent.",
+    "New real Chromium scenario exercises unscanned refusal, actual MKV chapter/tag navigation, forged same-display File refusal, re-inspection and review/save disabled.",
+    "R1 safety/acceptance report in docs/theory-1.0/R1-OBSERVED-METADATA-TO-BOUNDED-WRITER.md.",
+    "Replayed from old base onto exact merged R0 mainline; former conflicting PR #158 closed, no R0 test coverage erased."
+  ],
+  "files": [
+    "src/softmux-10.14-workbench.js",
+    "src/main.js",
+    "tests/e2e/browser-mux.e2e.mjs",
+    "docs/theory-1.0/R1-OBSERVED-METADATA-TO-BOUNDED-WRITER.md"
+  ],
+  "evidence": {
+    "source_parser": "V8 syntax PASS for all affected JS (imports only normalized to parse); not runtime behavior",
+    "node_suite": "PENDING full exact-head CI",
+    "production_build": "PENDING exact-head CI",
+    "chromium_real_mkv_and_native": "PENDING new scenario + all inherited native artifact checks",
+    "field_device": "not performed",
+    "mergability": "GitHub PR creation returned false at creation-time; recheck after computation; do not assert conflict or mergeability without fresh PR read",
+    "product_version": "unchanged until actual release"
+  },
+  "safety_gates": [
+    "No inferred UID or equivalence of ffprobe flat Chapter/Tag with Matroska ChapString/TagString",
+    "Only exact current browser File and current import source role enter independent tool",
+    "No carried write permissions, field selection, review or output candidates",
+    "P2 original bounded equal-byte and independent evidence required before actual edit",
+    "Issue #77 complex remux chapter/tag preservation remains fail-closed",
+    "57 original acceptance scenarios neither edited nor promoted"
+  ],
+  "next_steps": [
+    "Check PR #159 accurate head and complete Node/Pages/Chromium/native CI; use actual logs to fix first red and do not relax controls.",
+    "If exact head green and mergeable, mark ready and merge with expected SHA; preserve prior R0 baseline.",
+    "After merge implement a reviewed unified ContainerProject intent for explicitly supported bounded chapter/tag operations, not a second writer.",
+    "Review R4 batch #150/#151 overlapping PRs before any duplicate batch reimplementation."
+  ],
+  "uigs_intake": {
+    "status": "PENDING dedupe/record or existing finding",
+    "canonical_modified": false
+  },
+  "updated_date": "2026-10-17"
+}
