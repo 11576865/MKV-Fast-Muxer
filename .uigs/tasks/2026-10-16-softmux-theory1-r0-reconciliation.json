@@ -4,8 +4,8 @@
   "level": "project",
   "project_id": "MKV-Fast-Muxer",
   "goal": "Execute the approved 2026-10-12 Matroska theoretical 1.0 and 2026-10-16 R0-R6 convergence contract through bounded, independently verifiable vertical slices without changing the 57 original scenarios or silently retiring legacy features.",
-  "status": "second-bounded-repair-submitted-pending-external-validation",
-  "current_bounded_work_unit": "R0 PR #157: E2E runtime/presentation-mode contradiction, legacy fallback and real modern object inspector end-to-end parity",
+  "status": "third-bounded-e2e-repair-submitted-pending-external-validation",
+  "current_bounded_work_unit": "R0 PR #157: same-session modern asset-intake ownership and post-mux object evidence preservation",
   "completed_units": [
     "Frozen current observed main f0d6f78bd794844571cb22d089f8075cbd8b27e0 at product version 0.1019.",
     "Reviewed approved theory and release contract, 57-case acceptance ledger and AGENTS.md instructions.",
@@ -21,10 +21,15 @@
     "Read actual default/legacy workbench code: openApp explicitly routes ?ui=legacy and asserts #sf14Root absent; modern-only Inspector tabs are created only by mountSoftmux1014Workbench. Existing test expectations were contradictory.",
     "Committed explicit dual-runtime scenario: existing legacy selective attachments remains, independent current product UI reruns same real mux, ffprobe and FileData proof with new output artifact identity, opens actual advanced editor drawer, tests modern same-session object delivery badges. Neither production writer nor audit functions were changed.",
     "Static parsing of updated full browser E2E source passed after import-only module normalization; no claim of live E2E result.",
-    "UIGS Intake deduplicated and submitted actual CI failure as Foundry Bug 2026-10-16-mkv-legacy-browser-e2e-asserted-modern-only-output-inspector.md commit 39f9ff192acb73aba58b36443295f761d8c2d4b6."
+    "UIGS Intake deduplicated and submitted actual CI failure as Foundry Bug 2026-10-16-mkv-legacy-browser-e2e-asserted-modern-only-output-inspector.md commit 39f9ff192acb73aba58b36443295f761d8c2d4b6.",
+    "At head a3cec37c, Pages/build success run 38888945156 and Node 618/618 passed in browser workflow run 38888945140; legacy selective MKV output PASS, modern selective MKV output/report assertions reached but UI attachment observation count 0 != 2 after mux.",
+    "Traced root cause to E2E injecting Files into hidden videoInput/subInput/fontInput under modern UI, bypassing unified importedAssetEntries; mux() clears legacy adapter-only inputs on success when importedAssetEntries.length === 0, resets trackState, and modern source observation correctly shows empty.",
+    "Repair: for modern-mode scenario use actual unifiedAssetInput public ingestion of source-with-attachments.mkv + zh.ass + DejaVuSans.ttf; assert two scanned current-source attachment observations before mux; assert imported inventory and source persist after successful real mux, then check matching output FileData evidence. Legacy adapter mode and production conditional cleanup left unchanged.",
+    "Static syntax parsing of entire updated browser E2E and precise checks for dual mode, unified intake, native FFprobe/report audit, before/after source continuity passed. Full CI not yet run for exact new head.",
+    "UIGS intake: deduplicated existing Bug inbox/bugs/2026-10-10-mkv-unified-intake-post-export-lifetime-desync.md; appended exact run and test-side adapter bypass evidence in Foundry commit 08834475e56ca68c972e198dd01ac6e2567beea2. No Canonical modification."
   ],
   "next_units": [
-    "At next explicitly requested continuation inspect latest PR157 exact-head CI for dual-mode real MKV E2E; if passing, consider promoting draft PR to review and merging with expected SHA. If failing, diagnose without weakening real output assertions.",
+    "At next explicit continuation fetch newest PR #157 branch head and exact-head Node/build/Chromium verdict; if green and mergeable, mark ready then merge only with exact expected head, recheck post-merge CI. Otherwise diagnose concrete new red without removing independent assertions.",
     "R0 follow-up: compare closed/unmerged direct R2-R5 feature PR semantic content with merged integration #148 and current main, then record implementation-vs-acceptance separately.",
     "R1/R2 vertical product slice: real source MKV + new ASS + font + existing attachment -> shared ContainerProject -> frozen executable plan -> actual mux -> independent audit -> safe artifact save.",
     "R4/B-013: reconcile overlapping PR #150/#151 before implementing save-only or failed-job retry; test 20 real output tasks, failure and recovery.",
@@ -32,26 +37,26 @@
   ],
   "branch": "feat/theory-1-0-r0-evidence-reconciliation-20261016",
   "pr": 157,
-  "latest_durable_commit": "a729442242851fdd4d61448663f2078e816a86f4",
+  "latest_durable_commit": "22c2bff52410c2810585c551d8ac90d36b2b639b",
   "external_validation_states": {
-    "PR157_103e01b5_Node": "success 618/618 exact-head Browser E2E job preflight",
-    "PR157_103e01b5_Pages": "success run 38885305458",
-    "PR157_103e01b5_Chromium": "failure run 38885305543; timeout at scenarioSelectiveAttachments in legacy route seeking modern-only [data-sf-section=attachments]",
-    "PR157_second_repair_dual_mode_Chromium": "Pending External Validation; no poll new generation",
-    "native_mkv_interoperability": "Previously exercised source artifacts before modern-selector failure; new dual-mode rerun pending",
-    "field_device_tests": "not performed",
-    "production_deployment": "unmodified main"
+    "PR157_a3cec37c_Node": "618/618 pass, run 38888945140",
+    "PR157_a3cec37c_Pages": "success, run 38888945156",
+    "PR157_a3cec37c_Browser_E2E": "failure run 38888945140; scenario2 current UI output/report pass, 0 source-observation rows following adapter-only post-mux cleanup",
+    "PR157_22c2bff5_Browser_E2E": "Pending External Validation; do not poll same turn",
+    "PR157_22c2bff5_Node_and_build": "Pending External Validation; do not infer from parent",
+    "native_source_attachment_oracle": "parent passed ffprobe, independent FileData receipt; new public-ingress case pending",
+    "device_and_persistence": "not tested"
   },
   "blockers": [
-    "PR157 second bounded E2E repair exact-head CI pending; do not merge or label R0 accepted.",
-    "No verified full original theory scenario in 57-case acceptance ledger yet; not a code completion percentage.",
-    "Complex MKV ChapterUID/Target Tag structure preservation remains unproven; old FFmpeg remux may lose content (Issue #77)."
+    "PR157 latest public-ingress E2E exact-head pending; no merge or R0 acceptance without independent run.",
+    "Full 57 original theory cases remain independent of this R0 tool and exact fixture.",
+    "Issue #77 complex Chapter/Tag structure loss remains protected by fail-closed, not solved."
   ],
-  "updated_timestamp": "2026-10-16T18:04:00+08:00",
+  "updated_timestamp": "2026-10-16T19:12:00+08:00",
   "uigs_intake": {
-    "status": "written_bug_no_canonical",
-    "record": "11576865/UIGS-Foundry/inbox/bugs/2026-10-16-mkv-legacy-browser-e2e-asserted-modern-only-output-inspector.md",
-    "commit": "39f9ff192acb73aba58b36443295f761d8c2d4b6",
-    "no_canonical_promotion": true
+    "status": "deduplicated_existing_bug_updated_no_canonical",
+    "record": "11576865/UIGS-Foundry/inbox/bugs/2026-10-10-mkv-unified-intake-post-export-lifetime-desync.md",
+    "commit": "08834475e56ca68c972e198dd01ac6e2567beea2",
+    "canonical_promotion": false
   }
 }
