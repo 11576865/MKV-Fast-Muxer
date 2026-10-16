@@ -664,3 +664,40 @@
   background:var(--sf14-raised);
   color:var(--sf14-ink);
 }
+
+
+/* 0.1018: attachment evidence belongs to the finished artifact, not a draft.
+ * Do not use bright light-mode status pills inside the low-glare workbench. */
+.sf14 .sf14-source-delivery-evidence {
+  display:block;
+  padding:9px 11px;
+  margin-top:9px;
+  border-inline-start:3px solid #8d99a8;
+  border-radius:5px;
+  background:var(--sf14-raised);
+  color:var(--sf14-ink);
+  overflow-wrap:anywhere;
+}
+.sf14 .sf14-source-delivery-evidence[data-status="filedata-verified"] {
+  border-inline-start-color:#5bbfa6;
+}
+.sf14 .sf14-source-delivery-evidence[data-status="absent-in-probe"] {
+  border-inline-start-color:#83aacf;
+}
+.sf14 .sf14-source-delivery-evidence[data-status="unavailable"] {
+  border-inline-start-color:#d2a66d;
+}
+.sf14 .sf14-source-delivery-digest {
+  display:block;
+  margin-top:7px;
+  overflow-wrap:anywhere;
+  color:var(--sf14-muted);
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:11px;
+}
+.sf14 .sf14-source-observation[data-delivery-status="unavailable"] {
+  border-inline-start:2px solid #d2a66d;
+}
+.sf14 .sf14-source-observation[data-delivery-status="filedata-verified"] {
+  border-inline-start:2px solid #5bbfa6;
+}
