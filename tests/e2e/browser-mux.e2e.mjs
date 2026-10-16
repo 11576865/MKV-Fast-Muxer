@@ -623,6 +623,18 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
     }
 
+    if (modern) {
+      // Selecting a source attachment sets object-editor focus to "source",
+      // which hides the whole config-card until the user explicitly chooses
+      // the new subtitle category. Opening the options drawer alone does not
+      // change that domain-specific presentation selection.
+      const subtitleFilter=page.locator('#sf14OptionsDrawer [data-editor-filter="subtitle"]');
+      await subtitleFilter.click();
+      assert.equal(await subtitleFilter.getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('#sf14OptionsDrawer .editor-grid')
+        .getAttribute('data-editor-focus'),'subtitle');
+      assert.equal(await page.locator('#newSubtitleList').isVisible(),true);
+    }
     await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Fixture Subtitle');
 
