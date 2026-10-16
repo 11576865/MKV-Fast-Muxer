@@ -312,6 +312,18 @@ export function mountSoftmux1014Workbench(doc = document) {
       body: '仅展示 ffprobe 格式层可观察的全局标签；不等同完整 Matroska TagTargets 或 UID 关联，未验证关联不允许修改。'
     }
   };
+  const attachmentOutcomeLabel = outcome => {
+    if (outcome.status === 'filedata-verified') return '成品 FileData 已核验';
+    if (outcome.status === 'absent-in-probe') return '成品清单未见原附件';
+    return ({
+      OUTPUT_ATTACHMENT_MISSING:'成品缺失',
+      OUTPUT_MIME_MISMATCH:'MIME 不符',
+      OUTPUT_NAME_AMBIGUOUS:'目标名称冲突',
+      SOURCE_NAME_AMBIGUOUS:'来源名称冲突',
+      FILEDATA_AUDIT_UNTRUSTED:'成品字节未核验',
+      FILEDATA_MATCH_UNAVAILABLE:'附件字节无法对应',
+    })[outcome.reasonCode] || '成品待复核';
+  };
   const renderSectionSelection = (section, rows) => {
     sectionSelection.replaceChildren();
     const item = rows.find(row => row.id === selectedObservedId);
@@ -349,12 +361,16 @@ export function mountSoftmux1014Workbench(doc = document) {
         result.dataset.status = delivered.status;
         result.dataset.reasonCode = delivered.reasonCode || 'EVIDENCE_NOT_ESTABLISHED';
         result.setAttribute('role','status');
-        result.textContent = ({
-          'filedata-verified':'成品已验证 FileData',
-          'absent-in-probe':'成品清单未出现',
-          'unavailable':'成品证据不足',
-        })[delivered.status] + '：' + delivered.message;
+        result.textContent = attachmentOutcomeLabel(delivered) + '：' + delivered.message;
         sectionSelection.appendChild(result);
+        const lineage = doc.createElement('small');
+        lineage.className = 'sf14-attachment-lineage';
+        lineage.textContent = '来源附件 #' + delivered.sourceIndex + '「' +
+          delivered.originalName + '」 → ' +
+          (delivered.intent === 'exclude' ? '拟排除' : '目标「' + delivered.intendedName + '」') +
+          ' · MIME ' + (delivered.intendedMime || '未提供') +
+          ' · ' + ({keep:'保留',modify:'属性修改',exclude:'排除'})[delivered.intent];
+        sectionSelection.appendChild(lineage);
         if (delivered.status === 'filedata-verified' && delivered.sha256) {
           const digest = doc.createElement('small');
           digest.className = 'sf14-source-delivery-digest';
@@ -419,9 +435,7 @@ export function mountSoftmux1014Workbench(doc = document) {
         observedSections.deliveryEvidence?.find(entry =>
           entry.sourceIndex === item.sourceIndex);
       state.textContent = finished
-        ? ({'filedata-verified':'成品 SHA-256 已核验',
-            'absent-in-probe':'成品清单未出现',
-            'unavailable':'成品待复核'})[finished.status]
+        ? attachmentOutcomeLabel(finished)
         : item.status === 'remove' ? '拟排除'
         : item.status === 'modify' ? '拟修改' : '来源已观察';
       if (finished) {
