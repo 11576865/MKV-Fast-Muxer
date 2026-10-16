@@ -53,11 +53,14 @@ export function projectSourceStructureEvidence({ source = null, trackState = nul
  */
 export function projectActualOutputEvidence(report, {
   currentSourceKey = '', currentPlan = null, sourceKeyAtExecution = '',
+  // Only the live application knows exact browser File identity. Defaults to
+  // true for historic callers that project a stored report without a File.
+  sourceReferenceCurrent = true,
 } = {}) {
   if (!report?.output?.name || !report.output.sha256) return null;
   const sourceCurrent = !!sourceKeyAtExecution && currentSourceKey === sourceKeyAtExecution;
   const planCurrent = currentPlan != null && JSON.stringify(currentPlan) === JSON.stringify(report.plan);
-  const sameDraft = sourceCurrent && planCurrent;
+  const sameDraft = sourceReferenceCurrent && sourceCurrent && planCurrent;
   const status = report.audit?.status === 'pass' ? 'pass'
     : report.audit?.status === 'warning' ? 'warning' : 'unavailable';
   const issues = Array.from(report.audit?.issues || [], String);
@@ -78,7 +81,8 @@ export function projectActualOutputEvidence(report, {
     sourceAttachmentDelivery: report.audit?.sourceAttachmentDeliveryAudit || null,
     scopeNotice: '此结论仅覆盖现有 ffprobe 审计项目；未证明完整 EBML、未知结构或所有 UID 关系均被保留。',
     revisionNotice: sameDraft ? '对应当前来源与已显示计划'
-      : '此前执行的成品；当前来源或计划已变化，不能套用此结论',
+      : !sourceReferenceCurrent ? '此前执行的成品；当前浏览器 File 来源已更换，不能沿用旧证据'
+        : '此前执行的成品；当前来源或计划已变化，不能套用此结论',
     publicationNotice: '浏览器已生成成品；是否下载或持久保存不在此审计范围内。',
   };
 }
