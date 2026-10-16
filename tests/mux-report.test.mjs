@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createMuxReport, reportFilename, serializeMuxReport } from '../src/mux-report.js';
+import { PRODUCT_PACKAGE_VERSION } from '../src/product-version.js';
 
 test('mux report is versioned, serializable and derives a stable sidecar name', () => {
   const report = createMuxReport({
@@ -30,7 +31,12 @@ test('production mux-report version matches the package manifest', async () => {
   const base = new URL('../', import.meta.url);
   const manifest = JSON.parse(await readFile(new URL('package.json', base), 'utf8'));
   const application = await readFile(new URL('src/main.js', base), 'utf8');
-  const match = application.match(/appVersion:\s*'([^']+)'/);
-  assert.ok(match, 'the production mux flow must declare the report version');
-  assert.equal(match[1], manifest.version, 'the report must not advertise an obsolete application version');
+  // The production flow must pass the authoritative imported package version,
+  // not a historical literal. Verify both wiring and emitted report behavior.
+  assert.equal(PRODUCT_PACKAGE_VERSION, manifest.version);
+  assert.match(application, /import\s*\{\s*PRODUCT_PACKAGE_VERSION\s*\}\s*from\s*['"]\.\/product-version\.js['"]/);
+  assert.match(application, /createMuxReport\(\{\s*appVersion:\s*PRODUCT_PACKAGE_VERSION\s*,/);
+  assert.equal(createMuxReport({appVersion: PRODUCT_PACKAGE_VERSION})
+    .application.version, manifest.version);
+  assert.doesNotMatch(application, /appVersion:\s*['"]1\.2\.2['"]/);
 });

@@ -65,18 +65,21 @@ async function saveDownload(page, selector, destination) {
   return destination;
 }
 
-async function openApp(browser) {
+async function openApp(browser, {modern=false} = {}) {
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   const url = new URL(baseUrl);
-  // Legacy-specific functional regression scenarios retain their original
-  // controls. New public default is covered in the whole-workbench scenario.
-  url.searchParams.set('ui','legacy');
+  // Preserve the tested legacy diagnostic flow. A separate explicit
+  // modern invocation exercises the real object workspace on the same
+  // independently produced artifacts, not a simulated inspection panel.
+  if (modern) url.searchParams.delete('ui');
+  else url.searchParams.set('ui','legacy');
   await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
-  assert.equal(await page.locator('#sf14Root').count(),0,
+  if (modern) await page.locator('#sf14Root').waitFor();
+  else assert.equal(await page.locator('#sf14Root').count(),0,
     'explicit ?ui=legacy must keep diagnostic fallback available');
   return { context, page };
 }
@@ -528,45 +531,119 @@ async function scenarioMultiTrack(browser) {
   }
 }
 
-async function scenarioSelectiveAttachments(browser) {
-  console.log('E2E scenario 2: scanned MKV + chapters + selective original attachment');
-  const { context, page } = await openApp(browser);
+async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
+  console.log('E2E scenario 2: scanned MKV + chapters + selective original attachment' +
+    (modern ? ' [current object workbench]' : ' [legacy compatibility]'));
+  const { context, page } = await openApp(browser, {modern});
 
   try {
-    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
-    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
-    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    if (modern) await page.setViewportSize({width:1440,height:900});
+    if (modern) {
+      // Public intake is the source identity owner in the current workbench.
+      // Directly setting the legacy hidden File adapters bypasses the visible
+      // inventory. After mux, legacy cleanup intentionally clears such an
+      // adapter-only task, so there can be no current-source Inspector proof.
+      await page.setInputFiles('#unifiedAssetInput', [
+        path.join(root, 'source-with-attachments.mkv'),
+        path.join(root, 'zh.ass'),
+        path.join(root, 'DejaVuSans.ttf'),
+      ]);
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#assetInventory .asset-entry').length === 3 &&
+        document.querySelector('#videoInput')?.files?.[0]?.name ===
+          'source-with-attachments.mkv', null, {timeout:60000});
+    } else {
+      await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+      await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+      await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    }
 
     await waitForStatus(page, '轨道扫描完成：');
+    if (modern) {
+      await page.locator('[data-sf-section="attachments"]').click();
+      assert.equal(await page.locator('#sf14SectionItems .sf14-source-observation').count(), 2,
+        'current-source attachment objects must be present before any output');
+      await page.locator('[data-sf-section="tracks"]').click();
+    }
     // The central output workbench must expose source-only chapter/tag
     // observations, without implying the future writer will preserve them.
     await page.locator('#compositionSourceEvidence > summary').click();
     assert.equal(await page.locator('#compositionSourceEvidenceList [data-evidence-kind="chapter"]').count(), 2);
     assert.ok((await page.locator('#compositionSourceEvidenceList').textContent()).includes('Fixture Container'));
     assert.match(await page.locator('.source-evidence-scope').textContent(), /不是最终成品的保留承诺/);
-    await page.locator('#appendPreserveAll').uncheck();
-    assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
-    assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
+    if (modern) {
+      // On the current UI the legacy #appendPreserveAll / .attachment-item
+      // controls still exist as execution adapters, but are not visible.
+      // Use the public source-container tree -> context Inspector controls.
+      const sourceDetails = page.locator('#sourceFilesDetails');
+      if (!await sourceDetails.evaluate(el => el.open)) {
+        await page.locator('#sourceFilesDetails > summary').click();
+      }
+      const tree = page.locator('.asset-container-tree');
+      if (!await tree.evaluate(el => el.open)) {
+        await tree.locator('summary').first().click();
+      }
+      await tree.locator('[data-tree-preserve-all]').uncheck();
+      assert.equal(await tree.locator('[data-tree-group="chapter"] [data-tree-select]').count(),2);
+      assert.equal(await tree.locator('[data-tree-group="metadata"] [data-tree-select]').count(),1);
+      const sourceRows = tree.locator('[data-tree-group="attachment"] .asset-tree-index-row');
+      assert.equal(await sourceRows.count(),2);
+      const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+      await sourceRows.filter({hasText:'fixture-original.ttf'}).locator('[data-tree-select]').click();
+      await inspector.locator('[data-tree-attachment-include]').uncheck();
+      const notesSourceRow = sourceRows.filter({hasText:'notes.txt'});
+      const notesIndex = await notesSourceRow.getAttribute('data-tree-stream-index');
+      assert.match(notesIndex || '', /^\d+$/, 'scanned attachment must expose a stable stream index');
+      await notesSourceRow.locator('[data-tree-select]').click();
+      await inspector.locator('[data-tree-attachment-field="filename"]').fill('notes-renamed.txt');
+      await inspector.locator('[data-tree-attachment-field="mimetype"]').fill('text/x-notes');
+      // Renaming updates both rendered rows. Never locate the corresponding
+      // adapter by its OLD mutable display name after the rename.
+      // Read-only parity check: public editor writes the same domain-owned
+      // attachment object consumed by the tested legacy execution adapter.
+      const adaptedFilename = page.locator(
+        'input[data-attachment-field="filename"][data-attachment-index="' + notesIndex + '"]');
+      const adaptedMime = page.locator(
+        'input[data-attachment-field="mimetype"][data-attachment-index="' + notesIndex + '"]');
+      assert.equal(await adaptedFilename.inputValue(), 'notes-renamed.txt');
+      assert.equal(await adaptedMime.inputValue(), 'text/x-notes');
+      await page.locator('#sf14OptionsDrawer > summary').click();
+      assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+    } else {
+      await page.locator('#appendPreserveAll').uncheck();
+      assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
+      assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
+      const attachmentRows = page.locator('.attachment-item');
+      assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
+      const sourceFontRow = page.locator('.attachment-item', { hasText: 'fixture-original.ttf' });
+      await sourceFontRow.locator('input[data-attachment-action="include"]').uncheck();
+      const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
+      await notesRow.locator('input[data-attachment-action="include"]').check();
+      await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
+      await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
+    }
 
-    const attachmentRows = page.locator('.attachment-item');
-    assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
-
-    const sourceFontRow = page.locator('.attachment-item', { hasText: 'fixture-original.ttf' });
-    await sourceFontRow.locator('input[data-attachment-action="include"]').uncheck();
-
-    const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
-    await notesRow.locator('input[data-attachment-action="include"]').check();
-    await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
-    await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
-
+    if (modern) {
+      // Selecting a source attachment sets object-editor focus to "source",
+      // which hides the whole config-card until the user explicitly chooses
+      // the new subtitle category. Opening the options drawer alone does not
+      // change that domain-specific presentation selection.
+      const subtitleFilter=page.locator('#sf14OptionsDrawer [data-editor-filter="subtitle"]');
+      await subtitleFilter.click();
+      assert.equal(await subtitleFilter.getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('#sf14OptionsDrawer .editor-grid')
+        .getAttribute('data-editor-focus'),'subtitle');
+      assert.equal(await page.locator('#newSubtitleList').isVisible(),true);
+    }
     await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Fixture Subtitle');
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
 
-    const output = path.join(outDir, 'selective-attachments.mkv');
-    const reportPath = path.join(outDir, 'selective-attachments.mux-report.json');
+    const basename = modern ? 'selective-attachments-current-ui' : 'selective-attachments';
+    const output = path.join(outDir, basename + '.mkv');
+    const reportPath = path.join(outDir, basename + '.mux-report.json');
     await saveDownload(page, '#downloadLink', output);
     await saveDownload(page, '#reportLink', reportPath);
 
@@ -611,37 +688,49 @@ async function scenarioSelectiveAttachments(browser) {
       /逐附件审计：1 项 FileData SHA-256 通过/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /原附件字节验证：1\/1/);
-    // Read real finished-MKV evidence from the same object workspace, rather
-    // than trusting an isolated downloadable report or a draft status pill.
-    await page.locator('[data-sf-section="attachments"]').click();
-    const observed = page.locator('#sf14SectionItems .sf14-source-observation');
-    assert.equal(await observed.count(),2);
-    const statuses = await observed.evaluateAll(rows=>rows.map(row=>
-      ({state:row.dataset.deliveryStatus,reason:row.dataset.reasonCode})));
-    assert.deepEqual(statuses.map(row=>row.state).sort(),
-      ['absent-in-probe','filedata-verified']);
-    assert.deepEqual(statuses.map(row=>row.reason).sort(),
-      ['ABSENT_IN_COMPLETE_INVENTORY','VERIFIED_FILEDATA']);
-    // Match directly on the container element, not an inner descendant.
-    const provenRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="filedata-verified"]');
-    await provenRow.locator('button[data-observed-id]').click();
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
-      .getAttribute('data-reason-code'),'VERIFIED_FILEDATA');
-    assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
-      .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
-    assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
-    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
-      .textContent(),/来源附件 #[0-9]+.*notes-renamed\.txt.*MIME text\/x-notes/);
-    const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
-    await absentRow.locator('button[data-observed-id]').click();
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
-      .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
-    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
-      .textContent(),/来源附件 #[0-9]+.*拟排除/);
-    assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
-      /成品清单未见原附件/);
+    if (modern) {
+      // Successful output must not discard the active source or original
+      // user-approved edits. The legacy adapter-only task has no such contract.
+      assert.equal(await page.locator('#videoInput').evaluate(el => el.files?.[0]?.name),
+        'source-with-attachments.mkv');
+      assert.equal(await page.locator('#assetInventory .asset-entry').count(),3);
+      // The modern-only attachment tab must be exercised on THIS just-muxed
+      // session with its exact live source, plan and actual report evidence.
+      // Read real finished-MKV evidence from the same object workspace, rather
+      // than trusting an isolated downloadable report or a draft status pill.
+      await page.locator('[data-sf-section="attachments"]').click();
+      const observed = page.locator('#sf14SectionItems .sf14-source-observation');
+      assert.equal(await observed.count(),2);
+      const statuses = await observed.evaluateAll(rows=>rows.map(row=>
+        ({state:row.dataset.deliveryStatus,reason:row.dataset.reasonCode})));
+      assert.deepEqual(statuses.map(row=>row.state).sort(),
+        ['absent-in-probe','filedata-verified']);
+      assert.deepEqual(statuses.map(row=>row.reason).sort(),
+        ['ABSENT_IN_COMPLETE_INVENTORY','VERIFIED_FILEDATA']);
+      // Match directly on the container element, not an inner descendant.
+      const provenRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="filedata-verified"]');
+      await provenRow.locator('button[data-observed-id]').click();
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+        .getAttribute('data-reason-code'),'VERIFIED_FILEDATA');
+      assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
+        .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
+      assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
+      assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+        .textContent(),/来源附件 #[0-9]+.*notes-renamed\.txt.*MIME text\/x-notes/);
+      const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
+      await absentRow.locator('button[data-observed-id]').click();
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+        .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
+      assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+        .textContent(),/来源附件 #[0-9]+.*拟排除/);
+      assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
+        /成品清单未见原附件/);
 
+    } else {
+      assert.equal(await page.locator('#sf14Root').count(),0,
+        'legacy fallback is intentionally not the object-centred inspector');
+    }
     console.log('Scenario 2 PASS');
   } finally {
     await context.close();
@@ -6206,6 +6295,7 @@ try {
   await scenarioRenamedFontIdentity(browser);
   await scenarioCompatibilityEvidenceMatrix(browser);
   await scenarioSelectiveAttachments(browser);
+  await scenarioSelectiveAttachments(browser, {modern:true});
   await scenarioOriginalTracks(browser);
   await scenarioUtf16(browser);
   await scenarioSameNameFonts(browser);
