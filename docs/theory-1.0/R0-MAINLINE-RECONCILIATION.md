@@ -45,3 +45,25 @@ node scripts/reconcile-theory-mainline.mjs docs/theory-1.0/mainline-snapshot-202
 通过当前 R0 文件和测试的准确提交 CI 后，以 **真实来源 MKV + 新 ASS + TTF + 已有附件** 建立统一领域事务、冻结计划、FFmpeg 输出、原生结构/字节检查、保存结果身份的完整链路。先调查当前是否已有对应 E2E 和执行代码；只填补真实缺口，不复制旧入口。与之并行先处理 #150/#151 的批量 PR 关系，不提前合并或改写 main。
 
 长期交接：以 `.uigs/tasks/2026-10-16-softmux-theory1-r0-reconciliation.json` 为持久恢复记录，后续每轮都更新准确 SHA / PR / CI 状态。
+
+
+## Round 2–5 主干语义核查（2026-10-17；只证明接线与测试存在）
+
+原 Round 2–5 的直接 PR #143/#144/#145/#147 均为 `closed / unmerged`，但其堆叠代码由 #148 整合进入 `main`。为避免误删旧实现，对 `main=f0d6f78bd794844571cb22d089f8075cbd8b27e0` 进一步做了模块、运行接线与 E2E 场景检查：
+
+| 原冲刺 | 当前主干实际模块 | 主干入口接线 | 现有真实浏览器场景 | 事实边界 |
+| --- | --- | --- | --- | --- |
+| R2 / P1 | `src/live-container-workspace-authority.js` blob `a73636af2bd75668e2040b4f843745d2bfbc1a58` | `src/main.js` 包含 `createLiveWorkspaceAuthority`、`commitLiveWorkspaceChange` | `scenarioSharedContainerProjectRealMux` 已定义并在测试主流程调用 | 不等于长期撤销和所有跨会话操作完整 |
+| R3 / P1 | `src/portable-external-project-recovery.js` blob `2b113f58ffdb4599fdeed43f0f2a074703b678ef` | `prepareExternalMetadataRecovery`、`applyPreparedExternalRecovery` 均接入 `main.js` | `scenarioExternalCheckpointRecoveryRealMux` 已定义并调用 | 仅外部素材元数据恢复，不是全部源工程恢复 |
+| R4 / P2 | `src/p2-existing-mkv-writer-router.js` blob `8c31d155e4f9459d786c572986eae86f1358b30f` | `main.js` 调用 `setupExistingMkvRoutedEditorUI`，它封装调用 Router | `scenarioRoutedExistingMkvNativeOutput` 已定义并调用 | 四条受限 FileData writer，不是通用 EBML 修改 |
+| R5 / P2 | `src/p2-matroska-inline-metadata-writer.js` blob `fa91cc21adcd6a4730dd2ba34d4697b046864c72` | `main.js` 调用 `setupMatroskaInlineMetadataUI`，该 UI 引入受限 Writer | `scenarioTracklessMkaRealChapterTagTextEdit` 已定义并调用 | 仅等 UTF-8 字节长度的 ChapString/TagString |
+
+四组对应独立 Node 测试文件也已在同一主干存在：
+`tests/live-container-workspace-authority.test.mjs`、
+`tests/portable-external-project-recovery.test.mjs`、
+`tests/p2-existing-mkv-writer-router.test.mjs`、
+`tests/p2-matroska-inline-metadata-writer.test.mjs`。
+
+**可执行结论：** 下一代理不得因为旧功能 PR 关闭未合并就重新开发第二套 Workspace / 外部恢复 / FileData 路由 / Metadata writer。应先复用上述模块，针对缺口追加差分测试、准确 head 的 CI 和独立真实产物核查。
+
+**不可推导：** 此处核对的是主干源代码接线、文件存在与测试调用路径，并未重新单独执行以上四个 Chromium 场景，不证明全部理论目标、所有原 PR 逐行覆盖、准确 CI 通过或实际播放器兼容；仍须依据具体部署提交独立验收，保留 Issue #77 的复杂章节与 TagUID 风险。
