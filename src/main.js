@@ -1357,6 +1357,7 @@ function withSourceAttachmentUndoIndicator(sections) {
     projectActualOutputEvidence(lastActualOutput.report,{
       currentSourceKey:outputCompositionFileKey(source),
       sourceKeyAtExecution:lastActualOutput.sourceKey,
+      sourceReferenceCurrent:lastActualOutput.sourceFile === source,
       currentPlan:buildMuxPlan(),
     });
   // Both actual File identity and exact displayed plan must match before
@@ -1738,6 +1739,7 @@ function renderActualOutputEvidence() {
   const model = lastActualOutput && projectActualOutputEvidence(lastActualOutput.report, {
     currentSourceKey: outputCompositionFileKey(videoInput.files?.[0] || null),
     sourceKeyAtExecution: lastActualOutput.sourceKey,
+    sourceReferenceCurrent: lastActualOutput.sourceFile === (videoInput.files?.[0] || null),
     currentPlan: buildMuxPlan(),
   });
   outputEvidencePanel.hidden = !model;
