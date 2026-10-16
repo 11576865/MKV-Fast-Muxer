@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-10-16-softmux-theory1-r0-reconciliation",
+  "level": "project",
+  "project_id": "MKV-Fast-Muxer",
+  "goal": "Execute the approved 2026-10-12 Matroska theoretical 1.0 and 2026-10-16 R0-R6 convergence contract through bounded, independently verifiable vertical slices without changing the 57 original scenarios or silently retiring legacy features.",
+  "status": "work-unit-submitted-pending-external-validation",
+  "current_bounded_work_unit": "R0 dated mainline and PR reconciliation, read-only scenario-ledger protection and regressions",
+  "completed_units": [
+    "Frozen current observed main f0d6f78bd794844571cb22d089f8075cbd8b27e0 at product version 0.1019.",
+    "Reviewed approved theory and release contract, 57-case acceptance ledger and AGENTS.md instructions.",
+    "Confirmed #142/#148/#149/#153/#155/#156 merged; #143/#144/#145/#147 directly closed unmerged; #150/#151/#154 remain open. Status is not semantic code absence or full test acceptance.",
+    "Committed read-only reconciliation CLI and 2026-10-16 PR facts snapshot, documentation and Node guard tests.",
+    "Performed in-isolate parsing and sample reconciliation of the actual remote pure function: 10 rounds; review flags 2,3,4,5,6,7,8,10; duplicated PR rejected.",
+    "Opened Draft PR #157 against observed main; preserved 57 IDs and historical Issue #77 risk."
+  ],
+  "next_units": [
+    "Inspect #157 exact-head Node/test/build/Chromium run results at the next explicit continuation; repair any actual red test in one bounded generation if needed.",
+    "R0 follow-up: compare closed/unmerged direct R2-R5 feature PR semantic content with merged integration #148 and current main, then record implementation-vs-acceptance separately.",
+    "R1/R2 vertical product slice: real source MKV + new ASS + font + existing attachment -> shared ContainerProject -> frozen executable plan -> actual mux -> independent audit -> safe artifact save.",
+    "R4/B-013: reconcile overlapping PR #150/#151 before implementing save-only or failed-job retry; test 20 real output tasks, failure and recovery.",
+    "R5/R6: scope separated render/player proofs, field device/performance and full 44 legacy capability regression before official 1.0 release."
+  ],
+  "branch": "feat/theory-1-0-r0-evidence-reconciliation-20261016",
+  "pr": 157,
+  "latest_durable_commit": "a3dc594d621a68d40270ee3800433def5674e798",
+  "external_validation_states": {
+    "PR157_exact_head_Node_build_Chromium": "pending; no workflow verdict checked this work unit",
+    "native_mkv_interoperability": "not executed for tooling-only R0",
+    "field_device_tests": "not executed",
+    "production_deployment": "unchanged"
+  },
+  "blockers": [
+    "Full Node test/build/Chromium CI still unconfirmed for #157 exact final task-record commit",
+    "Original ledger 0 fully verified is evidence-backfill state only, not code maturity",
+    "General FFmpeg complex ChapterUID/targeted Tag preservation not proven (#77)."
+  ],
+  "updated_timestamp": "2026-10-16T08:08:22Z",
+  "uigs_intake": {
+    "status": "deduplicated_no_new_generalizable_principle",
+    "existing_candidates": [
+      "inbox/candidates/2026-10-02-ui-requirement-evidence-traceability-ledger.md",
+      "inbox/candidates/2026-10-15-version-vector-and-atomic-ui-cutover-gate.md",
+      "inbox/candidates/2026-10-12-legacy-capability-migration-and-document-plan-batch-queue.md"
+    ],
+    "canonical_promotion": false
+  }
+}
