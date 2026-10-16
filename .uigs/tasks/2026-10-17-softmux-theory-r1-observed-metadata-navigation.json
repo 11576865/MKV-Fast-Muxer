@@ -34,7 +34,7 @@
     "production_build": "PENDING exact-head CI",
     "chromium_real_mkv_and_native": "PENDING new scenario + all inherited native artifact checks",
     "field_device": "not performed",
-    "mergability": "GitHub PR creation returned false at creation-time; recheck after computation; do not assert conflict or mergeability without fresh PR read",
+    "mergability": "This branch was explicitly recreated from validated main merge dc481b9c; verify current PR #159 mergeable status independently and after CI, do not trust creation-time false.",
     "product_version": "unchanged until actual release"
   },
   "safety_gates": [
@@ -52,7 +52,9 @@
     "Review R4 batch #150/#151 overlapping PRs before any duplicate batch reimplementation."
   ],
   "uigs_intake": {
-    "status": "PENDING dedupe/record or existing finding",
+    "status": "observation-written-pending-exact-head-CI",
+    "record": "11576865/UIGS-Foundry/inbox/observations/2026-10-17-softmux-flat-observation-to-bounded-writer-tool-identity-gate.md",
+    "commit": "c02ed050a732ebdb0e74f7303b35b7fc84ead3c0",
     "canonical_modified": false
   },
   "updated_date": "2026-10-17"
