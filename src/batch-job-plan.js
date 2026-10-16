@@ -103,9 +103,9 @@ const TRANSITIONS = Object.freeze({
   preparing: ['muxing', 'failed', 'cancelled', 'interrupted'],
   muxing: ['saving', 'failed', 'cancelled', 'interrupted'],
   saving: ['succeeded', 'awaitingSave', 'saveWarning', 'auditWarning', 'failed', 'cancelled', 'interrupted'],
-  awaitingSave: [],
-  auditWarning: [],
-  succeeded: [], saveWarning: [], failed: [], cancelled: [], interrupted: [],
+  awaitingSave: ['saving'],
+  auditWarning: ['saving'],
+  succeeded: [], saveWarning: ['saving'], failed: [], cancelled: [], interrupted: [],
 });
 
 /** A batch-owned status ledger, never an editable copy of track/asset state. */

@@ -2232,6 +2232,8 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
     await page.evaluate(() => {
       const files = new Map();
       window.__batchPairDirectoryFiles = files;
+      window.__batchPairWrites = [];
+      window.__batchReportFail = true;
       window.showDirectoryPicker = async () => ({
         name: 'partial-report-failure-dir',
         requestPermission: async () => 'granted',
@@ -2244,11 +2246,13 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
             files.set(name, null);
           }
           return {
+            getFile: async () => files.get(name),
             createWritable: async () => {
               let pending = null;
               return {
                 write: async blob => {
-                  if (name.endsWith('.mux-report.json')) throw new Error('report-specific simulated disk quota');
+                  window.__batchPairWrites.push(name);
+                  if (window.__batchReportFail && name.endsWith('.mux-report.json')) throw new Error('report-specific simulated disk quota');
                   pending = blob;
                 },
                 close: async () => { files.set(name, pending); },
@@ -2292,6 +2296,43 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
     assert.equal(published.mkvIsBlob, true, JSON.stringify(published));
     assert.ok(published.mkvBytes > 0);
     assert.equal(published.reportIsBlob, false);
+    const completedLog = await page.locator('#log').textContent();
+    const originalMkvHash = await page.evaluate(async () => {
+      const blob = window.__batchPairDirectoryFiles.get('Batch S01E01.mkv');
+      window.__batchOriginalMkv = blob;
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()));
+      return Array.from(hash,x=>x.toString(16).padStart(2,'0')).join('');
+    });
+    const retry = page.locator('#batchResults [data-batch-save-retry]');
+    assert.equal(await retry.count(),1);
+    // An aborted report left its directory entry. Retry must refuse rather
+    // than deleting/truncating it or remuxing the already valid MKV.
+    await retry.click();
+    await page.waitForFunction(()=>document.querySelector('#batchStatus').textContent.startsWith('批量完成：'));
+    assert.match(await page.locator('#batchResults').textContent(), /保存目标已存在/);
+    assert.deepEqual(await page.evaluate(()=>window.__batchPairWrites),
+      ['Batch S01E01.mkv','Batch S01E01.mux-report.json']);
+    // TEST-ONLY: emulate the user explicitly removing inspected failure
+    // residue and resolving quota; production never deletes directory entries.
+    await page.evaluate(()=>{
+      window.__batchPairDirectoryFiles.delete('Batch S01E01.mux-report.json');
+      window.__batchReportFail=false;
+    });
+    await retry.click();
+    await page.waitForFunction(()=>!document.querySelector('#batchResults [data-batch-save-retry]'));
+    assert.equal(await page.locator('#log').textContent(),completedLog,'save-only retry must not execute mux again');
+    assert.deepEqual(await page.evaluate(()=>window.__batchPairWrites),
+      ['Batch S01E01.mkv','Batch S01E01.mux-report.json','Batch S01E01.mux-report.json']);
+    assert.equal(await page.evaluate(()=>window.__batchPairDirectoryFiles.get('Batch S01E01.mkv')===window.__batchOriginalMkv),true);
+    assert.match(await page.locator('#batchResults').textContent(), /MKV 与报告均已写入/);
+    assert.doesNotMatch(await page.locator('#batchStatus').textContent(), /尚未写入|未完整写入/);
+    const finished = path.join(outDir,'r7-save-only-retained.mkv');
+    const finalReport = path.join(outDir,'r7-save-only-retained.mux-report.json');
+    await saveDownload(page,'#batchResults a.download',finished);
+    await saveDownload(page,'#batchResults a.report-download',finalReport);
+    assert.equal(createHash('sha256').update(await fs.readFile(finished)).digest('hex'),originalMkvHash);
+    assert.equal(streams(probe(finished),'video').length,1);
+    assert.equal(JSON.parse(await fs.readFile(finalReport,'utf8')).output.sha256,originalMkvHash);
     console.log('Batch report-only write failure honest persistence PASS');
   } finally {
     await context.close();
