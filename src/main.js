@@ -20,6 +20,7 @@ import { auditProducedAssEvents } from './ass-event-output-audit.js';
 import { auditProducedAssStyles } from './ass-style-output-audit.js';
 import { auditProducedSubripCues } from './subrip-output-audit.js';
 import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
+import { auditSourceAttachmentDelivery } from './source-attachment-delivery-evidence.js';
 import { buildProbeArgs } from './probe-policy.js';
 import {
   audioIdentityFromProbe,
@@ -4899,6 +4900,16 @@ async function executeCurrentMuxTask(explicit = null) {
   const appendMode = Boolean(videoIsMatroska && (independent
     ? explicit.appendPreserveAll : appendPreserveAll?.checked));
   const scanned = appendMode ? null : manualScanned;
+  // Capture the exact attachment intent before any asynchronous FFmpeg work.
+  // This is report-only evidence, not an editor or mutable task authority.
+  const deliverySourceRows = independent ? [] : (manualScanned?.attachments || []).map(row => ({
+    index:row.index,
+    originalFilename:String(row.originalFilename || row.stream?.tags?.filename || ''),
+    filename:appendMode ? String(row.originalFilename || row.stream?.tags?.filename || '') : String(row.filename || ''),
+    originalMimetype:String(row.originalMimetype || row.stream?.tags?.mimetype || ''),
+    mimetype:appendMode ? String(row.originalMimetype || row.stream?.tags?.mimetype || '') : String(row.mimetype || ''),
+    include:appendMode || Boolean(row.include),
+  }));
   const preserveAllOriginalSubtitles = appendMode;
   const preserveAllOriginalAttachments = videoIsMatroska && (
     appendMode || (!scanned && (independent
@@ -5573,6 +5584,12 @@ async function executeCurrentMuxTask(explicit = null) {
       completionNote += '；原 MKV 附件的字节保真待复核';
     }
     finalAudit.originalAttachmentPayloadAudit = originalPayloadAudit;
+    finalAudit.sourceAttachmentDeliveryAudit = auditSourceAttachmentDelivery({
+      sourceRows:deliverySourceRows,
+      outputProbe:actualOutputProbe,
+      payloadAudit:originalPayloadAudit,
+      ffprobeStatus:finalAudit.status,
+    });
     // P3 subtitle-delivery proof: recover NEW ASS Dialogue events from the
     // actual finished Matroska track. This is deliberately distinct from
     // ffprobe stream identity and does not claim Style/font/render fidelity.
@@ -5816,7 +5833,7 @@ async function executeCurrentMuxTask(explicit = null) {
 
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
     if (!independent) {
-      lastActualOutput = { sourceKey: evidenceSourceAtExecution, report };
+      lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video, report };
       renderActualOutputEvidence();
     }
 
