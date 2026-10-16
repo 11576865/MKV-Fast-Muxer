@@ -62,18 +62,34 @@ export function auditSourceAttachmentDelivery({
     if (!outputStreams)
       return unresolved('OUTPUT_INVENTORY_UNAVAILABLE', '最终 MKV 的附件清单尚未独立取得');
     if (included) {
+      // Structural evidence is diagnostic even when byte-level proof is
+      // missing. Missing, duplicated or incorrectly typed finished objects
+      // must not be hidden behind a generic FileData-unavailable message.
+      if (count(rows.filter(r=>r.include),'filename',intendedName) !== 1)
+        return unresolved('OUTPUT_NAME_AMBIGUOUS',
+          '多个拟保留来源附件使用相同目标名称，无法唯一追踪输出对象');
+      const actual = outputStreams.filter(s => outputName(s) === intendedName);
+      if (!actual.length)
+        return unresolved('OUTPUT_ATTACHMENT_MISSING',
+          '最终 MKV 附件清单未找到拟保留的“' + intendedName +
+          '”；这是成品结构缺失，不是通过 FileData 核验');
+      if (actual.length !== 1)
+        return unresolved('OUTPUT_NAME_AMBIGUOUS',
+          '最终 MKV 包含多个同名附件，无法唯一追踪此来源对象');
+      const actualMime = name(actual[0]?.tags?.mimetype);
+      const intendedMime = name(row.mimetype);
+      if (intendedMime && actualMime.toLowerCase() !== intendedMime.toLowerCase())
+        return unresolved('OUTPUT_MIME_MISMATCH',
+          '最终 MKV 附件“' + intendedName + '”的 MIME 为“' +
+          (actualMime || '未提供') + '”，与草稿“' + intendedMime + '”不符');
       if (!payloadProvenanceValid)
         return unresolved('FILEDATA_AUDIT_UNTRUSTED',
-          '缺少具有正确证据类型、完整 SHA-256 和一致核验计数的独立 FileData 审计');
+          '已观察到最终附件，但缺少具有正确证据类型、完整 SHA-256 和一致核验计数的独立 FileData 审计');
       const matched = observations.filter(o =>
         o.sourceFilename === originalName && o.outputFilename === intendedName);
       if (matched.length !== 1)
         return unresolved('FILEDATA_MATCH_UNAVAILABLE',
           '无法从实际 FileData 审计中唯一对应此来源与拟输出附件');
-      if (count(rows.filter(r=>r.include),'filename',intendedName) !== 1 ||
-          outputStreams.filter(s => outputName(s) === intendedName).length !== 1)
-        return unresolved('OUTPUT_NAME_AMBIGUOUS',
-          '拟输出或最终 MKV 附件名称重复，不能以文件名冒充对象身份');
       return Object.freeze({ ...base, status:'filedata-verified',
         evidence:'source-vs-final-mkv-ebml-filedata-sha256-v1',
         reasonCode:'VERIFIED_FILEDATA',
