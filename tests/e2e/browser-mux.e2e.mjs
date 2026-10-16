@@ -65,18 +65,21 @@ async function saveDownload(page, selector, destination) {
   return destination;
 }
 
-async function openApp(browser) {
+async function openApp(browser, {modern=false} = {}) {
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   const url = new URL(baseUrl);
-  // Legacy-specific functional regression scenarios retain their original
-  // controls. New public default is covered in the whole-workbench scenario.
-  url.searchParams.set('ui','legacy');
+  // Preserve the tested legacy diagnostic flow. A separate explicit
+  // modern invocation exercises the real object workspace on the same
+  // independently produced artifacts, not a simulated inspection panel.
+  if (modern) url.searchParams.delete('ui');
+  else url.searchParams.set('ui','legacy');
   await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
-  assert.equal(await page.locator('#sf14Root').count(),0,
+  if (modern) await page.locator('#sf14Root').waitFor();
+  else assert.equal(await page.locator('#sf14Root').count(),0,
     'explicit ?ui=legacy must keep diagnostic fallback available');
   return { context, page };
 }
@@ -528,9 +531,10 @@ async function scenarioMultiTrack(browser) {
   }
 }
 
-async function scenarioSelectiveAttachments(browser) {
-  console.log('E2E scenario 2: scanned MKV + chapters + selective original attachment');
-  const { context, page } = await openApp(browser);
+async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
+  console.log('E2E scenario 2: scanned MKV + chapters + selective original attachment' +
+    (modern ? ' [current object workbench]' : ' [legacy compatibility]'));
+  const { context, page } = await openApp(browser, {modern});
 
   try {
     await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
@@ -544,6 +548,12 @@ async function scenarioSelectiveAttachments(browser) {
     assert.equal(await page.locator('#compositionSourceEvidenceList [data-evidence-kind="chapter"]').count(), 2);
     assert.ok((await page.locator('#compositionSourceEvidenceList').textContent()).includes('Fixture Container'));
     assert.match(await page.locator('.source-evidence-scope').textContent(), /不是最终成品的保留承诺/);
+    if (modern) {
+      // Source/track controls are progressively disclosed in the modern
+      // inspector. Open the real drawer; never force-click hidden controls.
+      await page.locator('#sf14OptionsDrawer > summary').click();
+      assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open), true);
+    }
     await page.locator('#appendPreserveAll').uncheck();
     assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
     assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
@@ -565,8 +575,9 @@ async function scenarioSelectiveAttachments(browser) {
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
 
-    const output = path.join(outDir, 'selective-attachments.mkv');
-    const reportPath = path.join(outDir, 'selective-attachments.mux-report.json');
+    const basename = modern ? 'selective-attachments-current-ui' : 'selective-attachments';
+    const output = path.join(outDir, basename + '.mkv');
+    const reportPath = path.join(outDir, basename + '.mux-report.json');
     await saveDownload(page, '#downloadLink', output);
     await saveDownload(page, '#reportLink', reportPath);
 
@@ -611,37 +622,44 @@ async function scenarioSelectiveAttachments(browser) {
       /逐附件审计：1 项 FileData SHA-256 通过/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /原附件字节验证：1\/1/);
-    // Read real finished-MKV evidence from the same object workspace, rather
-    // than trusting an isolated downloadable report or a draft status pill.
-    await page.locator('[data-sf-section="attachments"]').click();
-    const observed = page.locator('#sf14SectionItems .sf14-source-observation');
-    assert.equal(await observed.count(),2);
-    const statuses = await observed.evaluateAll(rows=>rows.map(row=>
-      ({state:row.dataset.deliveryStatus,reason:row.dataset.reasonCode})));
-    assert.deepEqual(statuses.map(row=>row.state).sort(),
-      ['absent-in-probe','filedata-verified']);
-    assert.deepEqual(statuses.map(row=>row.reason).sort(),
-      ['ABSENT_IN_COMPLETE_INVENTORY','VERIFIED_FILEDATA']);
-    // Match directly on the container element, not an inner descendant.
-    const provenRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="filedata-verified"]');
-    await provenRow.locator('button[data-observed-id]').click();
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
-      .getAttribute('data-reason-code'),'VERIFIED_FILEDATA');
-    assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
-      .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
-    assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
-    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
-      .textContent(),/来源附件 #[0-9]+.*notes-renamed\.txt.*MIME text\/x-notes/);
-    const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
-    await absentRow.locator('button[data-observed-id]').click();
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
-      .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
-    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
-    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
-      .textContent(),/来源附件 #[0-9]+.*拟排除/);
-    assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
-      /成品清单未见原附件/);
+    if (modern) {
+      // The modern-only attachment tab must be exercised on THIS just-muxed
+      // session with its exact live source, plan and actual report evidence.
+      // Read real finished-MKV evidence from the same object workspace, rather
+      // than trusting an isolated downloadable report or a draft status pill.
+      await page.locator('[data-sf-section="attachments"]').click();
+      const observed = page.locator('#sf14SectionItems .sf14-source-observation');
+      assert.equal(await observed.count(),2);
+      const statuses = await observed.evaluateAll(rows=>rows.map(row=>
+        ({state:row.dataset.deliveryStatus,reason:row.dataset.reasonCode})));
+      assert.deepEqual(statuses.map(row=>row.state).sort(),
+        ['absent-in-probe','filedata-verified']);
+      assert.deepEqual(statuses.map(row=>row.reason).sort(),
+        ['ABSENT_IN_COMPLETE_INVENTORY','VERIFIED_FILEDATA']);
+      // Match directly on the container element, not an inner descendant.
+      const provenRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="filedata-verified"]');
+      await provenRow.locator('button[data-observed-id]').click();
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+        .getAttribute('data-reason-code'),'VERIFIED_FILEDATA');
+      assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
+        .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
+      assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
+      assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+        .textContent(),/来源附件 #[0-9]+.*notes-renamed\.txt.*MIME text\/x-notes/);
+      const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
+      await absentRow.locator('button[data-observed-id]').click();
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+        .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
+      assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
+      assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+        .textContent(),/来源附件 #[0-9]+.*拟排除/);
+      assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
+        /成品清单未见原附件/);
 
+    } else {
+      assert.equal(await page.locator('#sf14Root').count(),0,
+        'legacy fallback is intentionally not the object-centred inspector');
+    }
     console.log('Scenario 2 PASS');
   } finally {
     await context.close();
@@ -6206,6 +6224,7 @@ try {
   await scenarioRenamedFontIdentity(browser);
   await scenarioCompatibilityEvidenceMatrix(browser);
   await scenarioSelectiveAttachments(browser);
+  await scenarioSelectiveAttachments(browser, {modern:true});
   await scenarioOriginalTracks(browser);
   await scenarioUtf16(browser);
   await scenarioSameNameFonts(browser);
