@@ -593,7 +593,7 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       await inspector.locator('[data-tree-attachment-include]').uncheck();
       const notesSourceRow = sourceRows.filter({hasText:'notes.txt'});
       const notesIndex = await notesSourceRow.getAttribute('data-tree-stream-index');
-      assert.match(notesIndex || '', /^\\d+$/, 'scanned attachment must expose a stable stream index');
+      assert.match(notesIndex || '', /^\d+$/, 'scanned attachment must expose a stable stream index');
       await notesSourceRow.locator('[data-tree-select]').click();
       await inspector.locator('[data-tree-attachment-field="filename"]').fill('notes-renamed.txt');
       await inspector.locator('[data-tree-attachment-field="mimetype"]').fill('text/x-notes');
