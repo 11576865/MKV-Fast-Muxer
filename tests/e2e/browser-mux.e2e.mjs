@@ -5894,6 +5894,78 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
   } finally { await context.close(); }
 }
 
+async function scenarioObservedMetadataSafeToolNavigation(browser) {
+  console.log('Theory 1.0 R1: observed chapter/tag opens bounded real EBML tool without inherited edit authority');
+  const context = await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:900}});
+  const page = await context.newPage();
+  page.on('pageerror',error => { throw error; });
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.delete('ui');
+    await page.goto(url.toString(),{waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    const unscannedChapter=page.locator('#sf14SectionSelection [data-open-observed-metadata]');
+    await page.locator('[data-sf-section="chapters"]').click();
+    assert.equal(await unscannedChapter.count(),0,'unscanned source must not offer a writer route');
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-with-attachments.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    const chapterRows=page.locator('#sf14SectionItems button[data-observed-id]');
+    assert.equal(await chapterRows.count(),2,'must route from actual probed chapters, not invented controls');
+    await chapterRows.first().click();
+    const link=page.locator('#sf14SectionSelection [data-open-observed-metadata="chapters"]');
+    assert.equal(await link.count(),1);
+    assert.match(await page.locator('#sf14SectionSelection').textContent(),
+      /重新检查.*EBML|本条观察不等于可写字段/);
+
+    // A forged second File with the same display name never satisfies exact
+    // source identity. The domain route rejects before altering tool inputs.
+    const forged=await page.evaluate(() => {
+      const original=document.querySelector('#videoInput').files[0];
+      const substitute=new File(['forged'],original.name,
+        {type:original.type,lastModified:original.lastModified});
+      const event=new CustomEvent('softmux:open-observed-metadata-tool',{
+        bubbles:true,cancelable:true,
+        detail:{sourceFile:substitute,kind:'chapters',observedId:'source-chapter:0'},
+      });
+      document.querySelector('#sf14Root').dispatchEvent(event);
+      return {accepted:event.defaultPrevented,
+        toolFiles:document.querySelector('#p2MetadataSource').files.length};
+    });
+    assert.deepEqual(forged,{accepted:false,toolFiles:0});
+
+    await link.click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'tools');
+    assert.equal(await page.locator('#p2MetadataInlineDetails').evaluate(el=>el.open),true);
+    assert.equal(await page.locator('#p2MetadataSource').evaluate(el =>
+      el.files?.[0] === document.querySelector('#videoInput').files?.[0]),true,
+    'bounded writer must re-inspect the same exact current source File');
+    await page.waitForFunction(() =>
+      ['ready','blocked'].includes(document.querySelector('#p2MetadataStatus')?.dataset.state),
+      null,{timeout:60000});
+    assert.equal(await page.locator('#p2MetadataReview').isChecked(),false,
+      'source-observation navigation may not inherit writer consent');
+    assert.equal(await page.locator('#p2MetadataPrepare').isDisabled(),true);
+    assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
+
+    await page.locator('[data-sf-view="single"]').click();
+    await page.locator('[data-sf-section="tags"]').click();
+    const tagRows=page.locator('#sf14SectionItems button[data-observed-id]');
+    assert.ok(await tagRows.count()>0,'real source format tags must be observed');
+    await tagRows.first().click();
+    const tagLink=page.locator('#sf14SectionSelection [data-open-observed-metadata="tags"]');
+    assert.equal(await tagLink.count(),1);
+    await tagLink.click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'tools');
+    assert.equal(await page.locator('#p2MetadataSource').evaluate(el =>
+      el.files?.[0] === document.querySelector('#videoInput').files?.[0]),true);
+    assert.equal(await page.locator('#p2MetadataReview').isChecked(),false);
+    assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
+    assert.equal(await page.locator('#unifiedAssetInput').evaluate(el=>el.files.length),1,
+      'navigation must not consume, replace, or clear the main project');
+    console.log('Theory R1 observed Chapter/Tag -> exact-File reinspection and fail-closed consent PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioSoftmux1014WholeWorkbench(browser) {
   console.log('软封0.1014版本: cohesive production DOM UI with source observations');
   const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
@@ -6185,6 +6257,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioR1ObservedAttachmentNavigation(browser);
+  await scenarioObservedMetadataSafeToolNavigation(browser);
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
