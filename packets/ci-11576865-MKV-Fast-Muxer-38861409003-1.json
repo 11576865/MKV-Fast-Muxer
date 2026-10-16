@@ -1,0 +1,44 @@
+{
+  "packet_version": 1,
+  "packet_id": "ci-11576865-MKV-Fast-Muxer-38861409003-1",
+  "status": "pending",
+  "record_type": "ci_failure",
+  "title": "Deploy to GitHub Pages: failure",
+  "summary": "Tracked CI workflow did not complete successfully. Source adapter captured failed job/step evidence when available.",
+  "source_repository": "11576865/MKV-Fast-Muxer",
+  "source_event": "workflow_run",
+  "source_ref": "main",
+  "source_sha": "f46e4f1e4dae63548c1c4ffea736f94e7bd98dfe",
+  "source_url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/38861409003",
+  "created_at": "2026-10-16T06:28:59+00:00",
+  "dedupe_key": "workflow_run:11576865/MKV-Fast-Muxer:38861409003:1",
+  "routing_hints": [
+    "interface-grammar",
+    "operations",
+    "red-reason",
+    "reliability"
+  ],
+  "evidence": {
+    "workflow": "Deploy to GitHub Pages",
+    "run_id": "38861409003",
+    "run_attempt": "1",
+    "conclusion": "failure",
+    "trigger_event": "push",
+    "failed_jobs": [
+      {
+        "id": 116844298770,
+        "name": "build",
+        "conclusion": "failure"
+      }
+    ],
+    "failed_steps": [
+      {
+        "job": "build",
+        "number": 5,
+        "name": "Test",
+        "conclusion": "failure"
+      }
+    ],
+    "capture_error": ""
+  }
+}
