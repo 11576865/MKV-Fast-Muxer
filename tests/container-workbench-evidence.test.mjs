@@ -25,6 +25,20 @@ const report = {
   plan: { audio: 'copy', subtitles: ['new.ass'] },
 };
 
+test('source attachment evidence is projected per object without upgrading UID or save claims',()=>{
+  const proof={schema:'source-attachment-delivery-v1',entries:[
+    {sourceIndex:3,status:'filedata-verified',uidRelationsVerified:false,savedToDiskVerified:false},
+  ],verifiedFileData:1,observedAbsent:0,unresolved:0,
+  uidRelationsVerified:false,savedToDiskVerified:false};
+  const actual=projectActualOutputEvidence({...report,
+    audit:{...report.audit,sourceAttachmentDeliveryAudit:proof},
+  },{currentSourceKey:'source.mkv|80|9',sourceKeyAtExecution:'source.mkv|80|9',
+    currentPlan:report.plan});
+  assert.strictEqual(actual.sourceAttachmentDelivery,proof);
+  assert.equal(actual.sourceAttachmentDelivery.savedToDiskVerified,false);
+  assert.match(actual.publicationNotice,/不在此审计范围/);
+});
+
 test('actual output projects SubRip cue evidence separately from presentation and player claims', () => {
   const proof = { status: 'unavailable', presentationVerified: false, playerVerified: false };
   assert.deepEqual(projectActualOutputEvidence({ ...report,
