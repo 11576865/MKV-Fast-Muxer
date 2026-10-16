@@ -537,11 +537,33 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
   const { context, page } = await openApp(browser, {modern});
 
   try {
-    await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
-    await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
-    await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    if (modern) {
+      // Public intake is the source identity owner in the current workbench.
+      // Directly setting the legacy hidden File adapters bypasses the visible
+      // inventory. After mux, legacy cleanup intentionally clears such an
+      // adapter-only task, so there can be no current-source Inspector proof.
+      await page.setInputFiles('#unifiedAssetInput', [
+        path.join(root, 'source-with-attachments.mkv'),
+        path.join(root, 'zh.ass'),
+        path.join(root, 'DejaVuSans.ttf'),
+      ]);
+      await page.waitForFunction(() =>
+        document.querySelectorAll('#assetInventory .asset-entry').length === 3 &&
+        document.querySelector('#videoInput')?.files?.[0]?.name ===
+          'source-with-attachments.mkv', null, {timeout:60000});
+    } else {
+      await page.setInputFiles('#videoInput', path.join(root, 'source-with-attachments.mkv'));
+      await page.setInputFiles('#subInput', path.join(root, 'zh.ass'));
+      await page.setInputFiles('#fontInput', path.join(root, 'DejaVuSans.ttf'));
+    }
 
     await waitForStatus(page, '轨道扫描完成：');
+    if (modern) {
+      await page.locator('[data-sf-section="attachments"]').click();
+      assert.equal(await page.locator('#sf14SectionItems .sf14-source-observation').count(), 2,
+        'current-source attachment objects must be present before any output');
+      await page.locator('[data-sf-section="tracks"]').click();
+    }
     // The central output workbench must expose source-only chapter/tag
     // observations, without implying the future writer will preserve them.
     await page.locator('#compositionSourceEvidence > summary').click();
@@ -623,6 +645,11 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /原附件字节验证：1\/1/);
     if (modern) {
+      // Successful output must not discard the active source or original
+      // user-approved edits. The legacy adapter-only task has no such contract.
+      assert.equal(await page.locator('#videoInput').evaluate(el => el.files?.[0]?.name),
+        'source-with-attachments.mkv');
+      assert.equal(await page.locator('#assetInventory .asset-entry').count(),3);
       // The modern-only attachment tab must be exercised on THIS just-muxed
       // session with its exact live source, plan and actual report evidence.
       // Read real finished-MKV evidence from the same object workspace, rather
