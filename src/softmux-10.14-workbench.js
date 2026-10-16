@@ -346,6 +346,21 @@ export function mountSoftmux1014Workbench(doc = document) {
       ? '此处显示工程草稿意图；实际 MKV 附件结果须以封装后的独立审计为准。'
       : '此处仅显示已观察的源数据，不代表具备安全写入能力。';
     sectionSelection.appendChild(lifecycle);
+    if (['chapters','tags'].includes(section) && observedSections.scanned &&
+        observedSections.sourceFile) {
+      // A flat ffprobe item is NOT an exact EBML ChapString/TagString target.
+      // Offer a separate independently inspected writer; never preselect a
+      // field, infer a TagTarget UID or carry over review/authorisation.
+      const openTool = doc.createElement('button');
+      openTool.type = 'button';
+      openTool.dataset.openObservedMetadata = section;
+      openTool.textContent = '使用当前来源打开受限章节/标签工具';
+      sectionSelection.appendChild(openTool);
+      const scope = doc.createElement('small');
+      scope.className = 'sf14-observed-metadata-tool-scope';
+      scope.textContent = '将重新检查此来源的真实 EBML 文本字段；本条观察不等于可写字段。需要另行选字段、确认并核验新副本。';
+      sectionSelection.appendChild(scope);
+    }
     if (section === 'attachments' && observedSections.deliveryStale) {
       const stale = doc.createElement('small');
       stale.className = 'sf14-source-delivery-stale';
@@ -466,6 +481,37 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches) setFocus('composition');
   });
   sectionSelection.addEventListener('click',event => {
+    const metadata = event.target.closest('button[data-open-observed-metadata]');
+    if (metadata && sectionSelection.contains(metadata)) {
+      const section = root.dataset.section;
+      const item = observedSections[section]?.find(row => row.id === selectedObservedId);
+      if (!['chapters','tags'].includes(section) || !item ||
+          !observedSections.scanned || !observedSections.sourceFile ||
+          metadata.dataset.openObservedMetadata !== section) return;
+      const EventCtor = doc.defaultView?.CustomEvent;
+      if (!EventCtor) return;
+      const route = new EventCtor('softmux:open-observed-metadata-tool', {
+        bubbles:true,cancelable:true,
+        detail:{sourceFile:observedSections.sourceFile,kind:section,observedId:item.id},
+      });
+      root.dispatchEvent(route);
+      if (!route.defaultPrevented) {
+        sectionSelection.querySelector('.sf14-source-navigation-error')?.remove();
+        const error = doc.createElement('small');
+        error.className = 'sf14-source-navigation-error';
+        error.textContent = '来源身份或可用工具已变化；没有启动修改，请重新扫描当前来源。';
+        sectionSelection.appendChild(error);
+        return;
+      }
+      // This opens an independent tool on the actual source File. It is
+      // deliberately not the main project's Chapter/Tag edit transaction.
+      changeView('tools');
+      const details = get(doc,'p2MetadataInlineDetails');
+      details.open = true;
+      details.scrollIntoView({block:'nearest'});
+      get(doc,'p2MetadataSource')?.focus({preventScroll:true});
+      return;
+    }
     const undo = event.target.closest('button[data-undo-observed-attachment]');
     if (undo && sectionSelection.contains(undo)) {
       const item = observedSections.attachments?.find(row => row.id === selectedObservedId);
