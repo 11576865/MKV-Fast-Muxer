@@ -1352,7 +1352,17 @@ function currentSourceAttachmentUndoPlan() {
 }
 function withSourceAttachmentUndoIndicator(sections) {
   const plan=currentSourceAttachmentUndoPlan();
-  return { ...sections, undoIndex:plan?.[0]?.index ?? null };
+  const source=videoInput.files?.[0] || null;
+  const evidence=lastActualOutput && lastActualOutput.sourceFile === source &&
+    projectActualOutputEvidence(lastActualOutput.report,{
+      currentSourceKey:outputCompositionFileKey(source),
+      sourceKeyAtExecution:lastActualOutput.sourceKey,
+      currentPlan:buildMuxPlan(),
+    });
+  // Both actual File identity and exact displayed plan must match before
+  // presenting old output evidence next to a currently editable object.
+  const deliveryEvidence=evidence?.current ? evidence.sourceAttachmentDelivery?.entries || [] : [];
+  return { ...sections, undoIndex:plan?.[0]?.index ?? null, deliveryEvidence };
 }
 function undoRecentSourceAttachmentChange() {
   const changes=currentSourceAttachmentUndoPlan();
@@ -1778,6 +1788,24 @@ function renderActualOutputEvidence() {
     ? `审计问题（${model.issues.length}）：${model.issues.join('；')}`
     : model.status === 'pass' ? '在现有 ffprobe 检查范围内未发现差异' : '审计证据不足';
   outputEvidenceRevision.textContent = model.revisionNotice;
+  const delivery = model.sourceAttachmentDelivery;
+  if (delivery?.entries?.length) {
+    const addition = '逐附件审计：' + delivery.verifiedFileData +
+      ' 项 FileData SHA-256 通过 · ' + delivery.observedAbsent +
+      ' 项 ffprobe 清单未出现 · ' + delivery.unresolved +
+      ' 项未确认（均不含 UID/保存证据）';
+    outputEvidenceFacts.textContent += ' | ' + addition;
+  }
+  // Refresh the selected attachment Inspector once the finished MKV evidence
+  // exists. Reuse the source scan; never persist evidence as editable rows.
+  const source=videoInput.files?.[0] || null;
+  const scanned=source && scannedSourceFile===source &&
+    trackState?.fileKey===fileKey(source) ? trackState : null;
+  updateSoftmux1014SourceSections(document,withSourceAttachmentUndoIndicator(
+    buildSourceObjectSections(scanned,{
+      appendMode:Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+      sourceFile:scanned ? source : null,
+    })));
 }
 
 function renderOutputComposition() {
