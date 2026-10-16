@@ -347,12 +347,21 @@ export function mountSoftmux1014Workbench(doc = document) {
         const result = doc.createElement('small');
         result.className = 'sf14-source-delivery-evidence';
         result.dataset.status = delivered.status;
+        result.dataset.reasonCode = delivered.reasonCode || 'EVIDENCE_NOT_ESTABLISHED';
+        result.setAttribute('role','status');
         result.textContent = ({
           'filedata-verified':'成品已验证 FileData',
           'absent-in-probe':'成品清单未出现',
           'unavailable':'成品证据不足',
         })[delivered.status] + '：' + delivered.message;
         sectionSelection.appendChild(result);
+        if (delivered.status === 'filedata-verified' && delivered.sha256) {
+          const digest = doc.createElement('small');
+          digest.className = 'sf14-source-delivery-digest';
+          digest.textContent = '已核验 FileData SHA-256：' + delivered.sha256 +
+            ' · ' + delivered.byteLength + ' 字节；不证明附件 UID 和保存状态';
+          sectionSelection.appendChild(digest);
+        }
       }
 
       const open = doc.createElement('button');
@@ -415,6 +424,11 @@ export function mountSoftmux1014Workbench(doc = document) {
             'unavailable':'成品待复核'})[finished.status]
         : item.status === 'remove' ? '拟排除'
         : item.status === 'modify' ? '拟修改' : '来源已观察';
+      if (finished) {
+        row.dataset.deliveryStatus = finished.status;
+        row.dataset.reasonCode = finished.reasonCode || 'EVIDENCE_NOT_ESTABLISHED';
+        button.title = finished.message;
+      }
       button.append(content,state);
       row.appendChild(button);
       sectionItems.appendChild(row);
