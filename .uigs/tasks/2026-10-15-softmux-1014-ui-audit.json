@@ -1,0 +1,40 @@
+{
+  "goal": "继续软封10.14完整UI；先完成Figma/合同/代码差异、功能迁移表与风险清单，再按审阅设计实施",
+  "status": "phase1-code-audit-complete-design-reference-blockers",
+  "current_bounded_work_unit": "PR153后的真实默认UI审计与书面迁移设计；不修改产品入口或实现",
+  "completed_units": [
+    "核对远端main与已合并PR153，记录合同默认入口描述过时",
+    "确认现有DOM rehosting、共享ContainerProject权威、输出投影及Frozen BatchRunner复用边界",
+    "真实MKV在默认UI改名、跨视口保持、实际下载与独立ffprobe验证",
+    "12张真实Chromium截图与视口几何、重复ID和File input身份记录",
+    "44项本地A编号功能迁移表、U0-U7计划及风险清单；没有冒充缺失的L编号"
+  ],
+  "next_units": [
+    "恢复Figma访问，取得10-12决议、10-13报告和L-001至L-044原文，补精确对照",
+    "用户审阅书面设计后细化可执行计划",
+    "在同一shell的显式review展示配置下先实现平板横屏与矩阵优先布局",
+    "迁移对象分类及全部有效功能测试，精确head截图和独立输出审计"
+  ],
+  "branch": "feat/softmux-10.14-ui-audit-20261015",
+  "pr": 154,
+  "latest_durable_commit": "44b09fbecabb49d66eb8b8738038cc20ea202cd6",
+  "base_commit": "a1f4e0aa3af33c2459d8a66569b9043e75feec21",
+  "external_validation_states": {
+    "github_ci": "pending-or-unrequested; not polled",
+    "figma": "proxy CONNECT 403; original prototype not inspected",
+    "figma_plugin": "user referenced Figma plugin; no callable Figma tools or tool-search capability exposed in session"
+  },
+  "local_validation": {
+    "node": "586 passed, 0 failed, 0 skipped",
+    "build": "passed",
+    "browser": "default root real source edit/download/ffprobe; 12 screenshots; complex-source preflight; see docs/ui-audit-20261015/baseline.json",
+    "full_new_ui_e2e": "not-run; existing suite mainly uses legacy route",
+    "visual_findings": "tablet landscape compressed three columns; batch matrix below import list; 820 portrait and 360 phone mux action partly outside viewport"
+  },
+  "blockers": [
+    "Figma proxy 403 and missing primary design/report/L migration references",
+    "Written architectural design requires user review before UI implementation"
+  ],
+  "updated_timestamp": "2026-10-15T22:54:22+08:00",
+  "pr_url": "https://github.com/11576865/MKV-Fast-Muxer/pull/154"
+}
