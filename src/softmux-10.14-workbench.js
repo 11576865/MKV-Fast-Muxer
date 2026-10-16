@@ -335,6 +335,20 @@ export function mountSoftmux1014Workbench(doc = document) {
       : '此处仅显示已观察的源数据，不代表具备安全写入能力。';
     sectionSelection.appendChild(lifecycle);
     if (section === 'attachments' && Number.isSafeInteger(item.sourceIndex)) {
+      const delivered = observedSections.deliveryEvidence?.find(entry =>
+        entry.sourceIndex === item.sourceIndex);
+      if (delivered) {
+        const result = doc.createElement('small');
+        result.className = 'sf14-source-delivery-evidence';
+        result.dataset.status = delivered.status;
+        result.textContent = ({
+          'filedata-verified':'成品已验证 FileData',
+          'absent-in-probe':'成品清单未出现',
+          'unavailable':'成品证据不足',
+        })[delivered.status] + '：' + delivered.message;
+        sectionSelection.appendChild(result);
+      }
+
       const open = doc.createElement('button');
       open.type = 'button';
       open.textContent = '定位来源附件编辑器';
@@ -386,7 +400,14 @@ export function mountSoftmux1014Workbench(doc = document) {
       content.append(title, detail);
       const state = doc.createElement('span');
       state.className = 'sf14-source-observation-status';
-      state.textContent = item.status === 'remove' ? '拟排除'
+      const finished = section === 'attachments' &&
+        observedSections.deliveryEvidence?.find(entry =>
+          entry.sourceIndex === item.sourceIndex);
+      state.textContent = finished
+        ? ({'filedata-verified':'成品 SHA-256 已核验',
+            'absent-in-probe':'成品清单未出现',
+            'unavailable':'成品待复核'})[finished.status]
+        : item.status === 'remove' ? '拟排除'
         : item.status === 'modify' ? '拟修改' : '来源已观察';
       button.append(content,state);
       row.appendChild(button);
