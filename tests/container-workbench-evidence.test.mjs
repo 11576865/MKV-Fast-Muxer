@@ -89,6 +89,22 @@ test('output evidence separates independently passing audit, plan freshness and 
   }).current, false);
 });
 
+test('a different browser File cannot inherit old output evidence even with matching display metadata', () => {
+  const key='source.mkv|80|9';
+  const stale=projectActualOutputEvidence(report,{
+    currentSourceKey:key,sourceKeyAtExecution:key,
+    currentPlan:report.plan,sourceReferenceCurrent:false,
+  });
+  assert.equal(stale.status,'pass','historical artifact audit remains its own fact');
+  assert.equal(stale.current,false,'same metadata is not the current File grant');
+  assert.match(stale.revisionNotice,/File 来源已更换/);
+  const current=projectActualOutputEvidence(report,{
+    currentSourceKey:key,sourceKeyAtExecution:key,
+    currentPlan:report.plan,sourceReferenceCurrent:true,
+  });
+  assert.equal(current.current,true);
+});
+
 test('audit mismatch, unavailable audit and absent artifact evidence never become pass', () => {
   const warn = projectActualOutputEvidence({
     ...report, audit: { status: 'warning', issues: ['Chapter mismatch'] },
