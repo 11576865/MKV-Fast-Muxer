@@ -334,6 +334,12 @@ export function mountSoftmux1014Workbench(doc = document) {
       ? '此处显示工程草稿意图；实际 MKV 附件结果须以封装后的独立审计为准。'
       : '此处仅显示已观察的源数据，不代表具备安全写入能力。';
     sectionSelection.appendChild(lifecycle);
+    if (section === 'attachments' && observedSections.deliveryStale) {
+      const stale = doc.createElement('small');
+      stale.className = 'sf14-source-delivery-stale';
+      stale.textContent = '之前生成过成品，但当前来源或草稿计划已变化；旧成品审计不适用于这个附件。';
+      sectionSelection.appendChild(stale);
+    }
     if (section === 'attachments' && Number.isSafeInteger(item.sourceIndex)) {
       const delivered = observedSections.deliveryEvidence?.find(entry =>
         entry.sourceIndex === item.sourceIndex);
