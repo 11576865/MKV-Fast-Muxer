@@ -537,6 +537,7 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
   const { context, page } = await openApp(browser, {modern});
 
   try {
+    if (modern) await page.setViewportSize({width:1440,height:900});
     if (modern) {
       // Public intake is the source identity owner in the current workbench.
       // Directly setting the legacy hidden File adapters bypasses the visible
@@ -571,25 +572,50 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
     assert.ok((await page.locator('#compositionSourceEvidenceList').textContent()).includes('Fixture Container'));
     assert.match(await page.locator('.source-evidence-scope').textContent(), /不是最终成品的保留承诺/);
     if (modern) {
-      // Source/track controls are progressively disclosed in the modern
-      // inspector. Open the real drawer; never force-click hidden controls.
+      // On the current UI the legacy #appendPreserveAll / .attachment-item
+      // controls still exist as execution adapters, but are not visible.
+      // Use the public source-container tree -> context Inspector controls.
+      const sourceDetails = page.locator('#sourceFilesDetails');
+      if (!await sourceDetails.evaluate(el => el.open)) {
+        await page.locator('#sourceFilesDetails > summary').click();
+      }
+      const tree = page.locator('.asset-container-tree');
+      if (!await tree.evaluate(el => el.open)) {
+        await tree.locator('summary').first().click();
+      }
+      await tree.locator('[data-tree-preserve-all]').uncheck();
+      assert.equal(await tree.locator('[data-tree-group="chapter"] [data-tree-select]').count(),2);
+      assert.equal(await tree.locator('[data-tree-group="metadata"] [data-tree-select]').count(),1);
+      const sourceRows = tree.locator('[data-tree-group="attachment"] .asset-tree-index-row');
+      assert.equal(await sourceRows.count(),2);
+      const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
+      await sourceRows.filter({hasText:'fixture-original.ttf'}).locator('[data-tree-select]').click();
+      await inspector.locator('[data-tree-attachment-include]').uncheck();
+      await sourceRows.filter({hasText:'notes.txt'}).locator('[data-tree-select]').click();
+      await inspector.locator('[data-tree-attachment-field="filename"]').fill('notes-renamed.txt');
+      await inspector.locator('[data-tree-attachment-field="mimetype"]').fill('text/x-notes');
+      // Verify that the visible editor mutated the sole existing execution
+      // state rather than a parallel mock/draft field.
+      const adapted = page.locator('.attachment-item', {hasText:'notes.txt'});
+      assert.equal(await adapted.locator('input[data-attachment-field="filename"]').inputValue(),
+        'notes-renamed.txt');
+      assert.equal(await adapted.locator('input[data-attachment-field="mimetype"]').inputValue(),
+        'text/x-notes');
       await page.locator('#sf14OptionsDrawer > summary').click();
-      assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open), true);
+      assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+    } else {
+      await page.locator('#appendPreserveAll').uncheck();
+      assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
+      assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
+      const attachmentRows = page.locator('.attachment-item');
+      assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
+      const sourceFontRow = page.locator('.attachment-item', { hasText: 'fixture-original.ttf' });
+      await sourceFontRow.locator('input[data-attachment-action="include"]').uncheck();
+      const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
+      await notesRow.locator('input[data-attachment-action="include"]').check();
+      await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
+      await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
     }
-    await page.locator('#appendPreserveAll').uncheck();
-    assert.equal(await page.locator('.container-item-kind', { hasText: '章节' }).count(), 2);
-    assert.equal(await page.locator('.container-item-kind', { hasText: '元数据' }).count(), 1);
-
-    const attachmentRows = page.locator('.attachment-item');
-    assert.equal(await attachmentRows.count(), 2, 'fixture should expose two original attachments');
-
-    const sourceFontRow = page.locator('.attachment-item', { hasText: 'fixture-original.ttf' });
-    await sourceFontRow.locator('input[data-attachment-action="include"]').uncheck();
-
-    const notesRow = page.locator('.attachment-item', { hasText: 'notes.txt' });
-    await notesRow.locator('input[data-attachment-action="include"]').check();
-    await notesRow.locator('input[data-attachment-field="filename"]').fill('notes-renamed.txt');
-    await notesRow.locator('input[data-attachment-field="mimetype"]').fill('text/x-notes');
 
     await page.locator('select[data-new-sub-field="language"][data-index="0"]').selectOption('zho');
     await page.locator('input[data-new-sub-field="title"][data-index="0"]').fill('Fixture Subtitle');
