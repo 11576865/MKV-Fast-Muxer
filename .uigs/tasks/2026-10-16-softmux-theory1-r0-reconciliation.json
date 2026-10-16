@@ -4,18 +4,22 @@
   "level": "project",
   "project_id": "MKV-Fast-Muxer",
   "goal": "Execute the approved 2026-10-12 Matroska theoretical 1.0 and 2026-10-16 R0-R6 convergence contract through bounded, independently verifiable vertical slices without changing the 57 original scenarios or silently retiring legacy features.",
-  "status": "work-unit-submitted-pending-external-validation",
-  "current_bounded_work_unit": "R0 dated mainline and PR reconciliation, read-only scenario-ledger protection and regressions",
+  "status": "repair-submitted-pending-external-validation",
+  "current_bounded_work_unit": "R0 PR #157 bounded repair: inherited stale package-version/report expectations and valid-empty FileData receipt test diagnostic",
   "completed_units": [
     "Frozen current observed main f0d6f78bd794844571cb22d089f8075cbd8b27e0 at product version 0.1019.",
     "Reviewed approved theory and release contract, 57-case acceptance ledger and AGENTS.md instructions.",
     "Confirmed #142/#148/#149/#153/#155/#156 merged; #143/#144/#145/#147 directly closed unmerged; #150/#151/#154 remain open. Status is not semantic code absence or full test acceptance.",
     "Committed read-only reconciliation CLI and 2026-10-16 PR facts snapshot, documentation and Node guard tests.",
     "Performed in-isolate parsing and sample reconciliation of the actual remote pure function: 10 rounds; review flags 2,3,4,5,6,7,8,10; duplicated PR rejected.",
-    "Opened Draft PR #157 against observed main; preserved 57 IDs and historical Issue #77 risk."
+    "Opened Draft PR #157 against observed main; preserved 57 IDs and historical Issue #77 risk.",
+    "PR #157 initial exact head 55abf591: Browser E2E run 38871778183 and Pages run 38871778277 both failed during npm test (615 passed / 3 failed), before Chromium/build.",
+    "Inspected failed job logs: tests/mux-report.test.mjs assumed literal appVersion; tests/preview-ui.test.mjs expected obsolete 1.2.2; tests/source-attachment-delivery-evidence.test.mjs wrongly expected untrusted audit for a valid empty receipt.",
+    "Updated production report wiring test to assert PRODUCT_PACKAGE_VERSION import and createMuxReport call; updated FFmpeg-only preview guard to use shared version; distinguished trusted-empty receipt FILEDATA_MATCH_UNAVAILABLE from forged FILEDATA_AUDIT_UNTRUSTED. Production writer and fail-closed audit logic unchanged.",
+    "Searched UIGS Foundry and found existing Bug 2026-10-11-mkv-e2e-version-assertion-drift and 2026-10-16-softmux-finished-attachment-structural-failure-before-hash-gate Observation; deduplicated, no new Canonical."
   ],
   "next_units": [
-    "Inspect #157 exact-head Node/test/build/Chromium run results at the next explicit continuation; repair any actual red test in one bounded generation if needed.",
+    "At next user-initiated continuation, check the exact head of PR #157 for full Node/build/Chromium verdict; only then consider merging R0; do not infer green from test-only edits.",
     "R0 follow-up: compare closed/unmerged direct R2-R5 feature PR semantic content with merged integration #148 and current main, then record implementation-vs-acceptance separately.",
     "R1/R2 vertical product slice: real source MKV + new ASS + font + existing attachment -> shared ContainerProject -> frozen executable plan -> actual mux -> independent audit -> safe artifact save.",
     "R4/B-013: reconcile overlapping PR #150/#151 before implementing save-only or failed-job retry; test 20 real output tasks, failure and recovery.",
@@ -23,25 +27,39 @@
   ],
   "branch": "feat/theory-1-0-r0-evidence-reconciliation-20261016",
   "pr": 157,
-  "latest_durable_commit": "a3dc594d621a68d40270ee3800433def5674e798",
+  "latest_durable_commit": "8b9fca5b9af9d398cf2619a78d0064e726f4739b",
   "external_validation_states": {
-    "PR157_exact_head_Node_build_Chromium": "pending; no workflow verdict checked this work unit",
-    "native_mkv_interoperability": "not executed for tooling-only R0",
+    "PR157_initial_head_55abf591_Browser_E2E": {
+      "run_id": 38871778183,
+      "status": "completed",
+      "conclusion": "failure",
+      "stage": "Unit tests",
+      "result": "615/618; three test assertion drift failures"
+    },
+    "PR157_initial_head_55abf591_Pages": {
+      "run_id": 38871778277,
+      "status": "completed",
+      "conclusion": "failure",
+      "stage": "Test",
+      "result": "same 3 Node assertion failures"
+    },
+    "PR157_repair_exact_head_Node_build_Chromium": "Pending External Validation; do not poll this repair generation",
+    "native_mkv_interoperability": "not required for tooling and test-oracle repair",
     "field_device_tests": "not executed",
     "production_deployment": "unchanged"
   },
   "blockers": [
-    "Full Node test/build/Chromium CI still unconfirmed for #157 exact final task-record commit",
-    "Original ledger 0 fully verified is evidence-backfill state only, not code maturity",
-    "General FFmpeg complex ChapterUID/targeted Tag preservation not proven (#77)."
+    "Repair generation exact-head Node/build/Chromium CI pending; do not merge #157 until verified.",
+    "Original 57-case ledger remains 0 complete independent proof records; not an implementation completion score.",
+    "Complex Matroska remux structure loss risk #77 remains fail-closed."
   ],
-  "updated_timestamp": "2026-10-16T08:08:22Z",
+  "updated_timestamp": "2026-10-16T10:08:59.252Z",
   "uigs_intake": {
-    "status": "deduplicated_no_new_generalizable_principle",
+    "status": "deduplicated_existing_findings_no_new_generalizable_knowledge",
     "existing_candidates": [
-      "inbox/candidates/2026-10-02-ui-requirement-evidence-traceability-ledger.md",
-      "inbox/candidates/2026-10-15-version-vector-and-atomic-ui-cutover-gate.md",
-      "inbox/candidates/2026-10-12-legacy-capability-migration-and-document-plan-batch-queue.md"
+      "inbox/bugs/2026-10-11-mkv-e2e-version-assertion-drift.md",
+      "inbox/observations/2026-10-16-softmux-finished-attachment-structural-failure-before-hash-gate.md",
+      "inbox/candidates/2026-10-02-ui-requirement-evidence-traceability-ledger.md"
     ],
     "canonical_promotion": false
   }
