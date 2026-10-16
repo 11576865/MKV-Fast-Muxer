@@ -594,6 +594,21 @@ async function scenarioSelectiveAttachments(browser) {
       JSON.stringify(report.audit?.originalAttachmentPayloadAudit));
     assert.equal(report.audit?.originalAttachmentPayloadAudit?.verified, 1);
     assert.equal(report.audit?.originalAttachmentPayloadAudit?.total, 1);
+    const delivery = report.audit?.sourceAttachmentDeliveryAudit;
+    assert.equal(delivery?.schema,'source-attachment-delivery-v1');
+    assert.equal(delivery?.entries?.length,2);
+    assert.equal(delivery.verifiedFileData,1);
+    assert.equal(delivery.observedAbsent,1);
+    assert.equal(delivery.unresolved,0);
+    assert.ok(delivery.entries.some(x=>x.sourceIndex >= 0 &&
+      x.intent==='modify' && x.status==='filedata-verified' &&
+      x.intendedName==='notes-renamed.txt' && x.uidRelationsVerified===false));
+    assert.ok(delivery.entries.some(x=>x.intent==='exclude' &&
+      x.status==='absent-in-probe' && x.originalName==='fixture-original.ttf'));
+    assert.equal(delivery.savedToDiskVerified,false,
+      'initiating download does not prove user-side durable save');
+    assert.match(await page.locator('#outputEvidenceFacts').textContent(),
+      /逐附件审计：1 项 FileData SHA-256 通过/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /原附件字节验证：1\/1/);
 
