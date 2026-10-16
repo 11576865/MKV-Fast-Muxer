@@ -1363,7 +1363,11 @@ function withSourceAttachmentUndoIndicator(sections) {
   // Both actual File identity and exact displayed plan must match before
   // presenting old output evidence next to a currently editable object.
   const deliveryEvidence=evidence?.current ? evidence.sourceAttachmentDelivery?.entries || [] : [];
-  return { ...sections, undoIndex:plan?.[0]?.index ?? null, deliveryEvidence };
+  // A previous artifact may still be downloadable, but is not evidence for
+  // a changed source File or changed current edit plan.
+  const deliveryStale=Boolean(lastActualOutput && !evidence?.current);
+  return { ...sections, undoIndex:plan?.[0]?.index ?? null,
+    deliveryEvidence, deliveryStale };
 }
 function undoRecentSourceAttachmentChange() {
   const changes=currentSourceAttachmentUndoPlan();
