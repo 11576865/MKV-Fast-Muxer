@@ -611,6 +611,30 @@ async function scenarioSelectiveAttachments(browser) {
       /逐附件审计：1 项 FileData SHA-256 通过/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /原附件字节验证：1\/1/);
+    // Read real finished-MKV evidence from the same object workspace, rather
+    // than trusting an isolated downloadable report or a draft status pill.
+    await page.locator('[data-sf-section="attachments"]').click();
+    const observed = page.locator('#sf14SectionItems .sf14-source-observation');
+    assert.equal(await observed.count(),2);
+    const statuses = await observed.evaluateAll(rows=>rows.map(row=>
+      ({state:row.dataset.deliveryStatus,reason:row.dataset.reasonCode})));
+    assert.deepEqual(statuses.map(row=>row.state).sort(),
+      ['absent-in-probe','filedata-verified']);
+    assert.deepEqual(statuses.map(row=>row.reason).sort(),
+      ['ABSENT_IN_COMPLETE_INVENTORY','VERIFIED_FILEDATA']);
+    // Match directly on the container element, not an inner descendant.
+    const provenRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="filedata-verified"]');
+    await provenRow.locator('button[data-observed-id]').click();
+    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+      .getAttribute('data-reason-code'),'VERIFIED_FILEDATA');
+    assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
+      .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
+    assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
+    const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
+    await absentRow.locator('button[data-observed-id]').click();
+    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
+      .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
+    assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
 
     console.log('Scenario 2 PASS');
   } finally {
