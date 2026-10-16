@@ -652,3 +652,15 @@
   font-weight:700;
   cursor:pointer;
 }
+
+
+/* Source-object proof cannot be applied to another live File or draft. */
+.sf14 .sf14-section-selection .sf14-source-delivery-stale {
+  display:block;
+  margin-top:9px;
+  padding:9px 11px;
+  border-inline-start:3px solid #c9a36b;
+  border-radius:5px;
+  background:var(--sf14-raised);
+  color:var(--sf14-ink);
+}
