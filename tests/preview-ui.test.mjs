@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { PRODUCT_PACKAGE_VERSION } from '../src/product-version.js';
 
 async function text(path) {
   return readFile(new URL('../' + path, import.meta.url), 'utf8');
@@ -36,7 +37,7 @@ test('preview uses the existing local FFmpeg runtime without a second subtitle r
   ]);
 
   const pkg = JSON.parse(packageJson);
-  assert.equal(pkg.version, '1.2.2');
+  assert.equal(pkg.version, PRODUCT_PACKAGE_VERSION, 'preview runtime and application use the same version authority');
   assert.equal('jassub' in pkg.dependencies, false);
   assert.doesNotMatch(copyScript, /jassub/i);
   assert.match(copyScript, /ffmpeg-core\.wasm/);
