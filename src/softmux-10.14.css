@@ -701,3 +701,21 @@
 .sf14 .sf14-source-observation[data-delivery-status="filedata-verified"] {
   border-inline-start:2px solid #5bbfa6;
 }
+
+
+/* 0.1019 — explicit output attachment lineage and diagnostic severity.
+ * Read-only; no output object obtains writer authority from a status badge.
+ */
+.sf14 .sf14-attachment-lineage {
+  display:block;
+  overflow-wrap:anywhere;
+  margin:8px 0 4px;
+  color:var(--sf14-muted);
+  font-size:11px;
+}
+.sf14 .sf14-source-observation[data-reason-code="OUTPUT_ATTACHMENT_MISSING"] .sf14-source-observation-status,
+.sf14 .sf14-source-observation[data-reason-code="OUTPUT_MIME_MISMATCH"] .sf14-source-observation-status,
+.sf14 .sf14-source-observation[data-reason-code="OUTPUT_NAME_AMBIGUOUS"] .sf14-source-observation-status {
+  color:#efb4ac;
+  font-weight:700;
+}
