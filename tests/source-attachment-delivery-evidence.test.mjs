@@ -14,7 +14,11 @@ const probe=(names=['renamed.ttf'])=>({streams:names.map((name,index)=>({
 const payload=(observations=[{
   sourceFilename:'original.ttf',outputFilename:'renamed.ttf',
   sha256:'a'.repeat(64),byteLength:64,uidRetained:false,
-}])=>({status:'pass',verified:observations.length,observations});
+}])=>({
+  status:'pass', verified:observations.length, total:observations.length,
+  evidence:'source-vs-final-mkv-ebml-filedata-sha256-v1',
+  scope:'original-attachment-filedata-only', observations,
+});
 const inspect=(changes={})=>auditSourceAttachmentDelivery({
   sourceRows:rows(),outputProbe:probe(),payloadAudit:payload(),
   ffprobeStatus:'pass',...changes,
@@ -58,4 +62,45 @@ test('per-row source identity and incomplete observations are not invented',()=>
   assert.equal(inspect({sourceRows:rows().map((x,i)=>i?x:{...x,index:-1})}).entries[0].status,'unavailable');
   assert.equal(inspect({payloadAudit:payload([{sourceFilename:'original.ttf',outputFilename:'renamed.ttf',sha256:'',byteLength:64}])}).entries[0].status,'unavailable');
   assert.deepEqual(auditSourceAttachmentDelivery().entries,[]);
+});
+
+test('a forged or incomplete FileData audit cannot authorize verified delivery',()=>{
+  const forged=[
+    { ...payload(), evidence:'some-other-audit' },
+    { ...payload(), scope:'ffprobe-stream-metadata' },
+    { ...payload(), verified:2 },
+    { ...payload(), total:0 },
+    { ...payload(), status:'unavailable' },
+    payload([{sourceFilename:'original.ttf',outputFilename:'renamed.ttf',
+      sha256:'not-a-digest',byteLength:64}]),
+    payload([{sourceFilename:'original.ttf',outputFilename:'renamed.ttf',
+      sha256:'a'.repeat(64),byteLength:0}]),
+  ];
+  for(const candidate of forged){
+    const out=inspect({payloadAudit:candidate});
+    assert.equal(out.entries[0].status,'unavailable',
+      'forged/inconsistent receipt must not claim FileData verification');
+    assert.equal(out.entries[0].reasonCode,'FILEDATA_AUDIT_UNTRUSTED');
+    assert.equal(out.entries[0].savedToDiskVerified,false);
+  }
+});
+
+test('partially successful genuine audit can verify one observed byte match only',()=>{
+  const genuine={...payload(),status:'warning',total:2};
+  const out=inspect({payloadAudit:genuine});
+  assert.equal(out.entries[0].status,'filedata-verified');
+  assert.equal(out.entries[0].reasonCode,'VERIFIED_FILEDATA');
+  assert.equal(out.entries[0].uidRelationsVerified,false);
+});
+
+test('failure reasons discriminate stale inventory, ambiguous attachment and failed ffprobe',()=>{
+  const missing=inspect({outputProbe:null});
+  assert.equal(missing.entries[0].reasonCode,'OUTPUT_INVENTORY_UNAVAILABLE');
+  const duplicate=rows();duplicate[1].originalFilename='original.ttf';
+  assert.equal(inspect({sourceRows:duplicate}).entries[0].reasonCode,'SOURCE_NAME_AMBIGUOUS');
+  const renamedCollision=inspect({outputProbe:probe(['renamed.ttf','renamed.ttf'])});
+  assert.equal(renamedCollision.entries[0].reasonCode,'OUTPUT_NAME_AMBIGUOUS');
+  assert.equal(inspect({ffprobeStatus:'warning'}).entries[1].reasonCode,'OUTPUT_AUDIT_NOT_PASS');
+  assert.equal(inspect({outputProbe:probe(['renamed.ttf','notes.txt'])}).entries[1].reasonCode,
+    'EXCLUDED_IDENTITY_AMBIGUOUS');
 });
