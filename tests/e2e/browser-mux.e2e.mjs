@@ -591,16 +591,22 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       const inspector = page.locator('#assetInspectorHost .asset-tree-inspector');
       await sourceRows.filter({hasText:'fixture-original.ttf'}).locator('[data-tree-select]').click();
       await inspector.locator('[data-tree-attachment-include]').uncheck();
-      await sourceRows.filter({hasText:'notes.txt'}).locator('[data-tree-select]').click();
+      const notesSourceRow = sourceRows.filter({hasText:'notes.txt'});
+      const notesIndex = await notesSourceRow.getAttribute('data-tree-stream-index');
+      assert.match(notesIndex || '', /^\\d+$/, 'scanned attachment must expose a stable stream index');
+      await notesSourceRow.locator('[data-tree-select]').click();
       await inspector.locator('[data-tree-attachment-field="filename"]').fill('notes-renamed.txt');
       await inspector.locator('[data-tree-attachment-field="mimetype"]').fill('text/x-notes');
-      // Verify that the visible editor mutated the sole existing execution
-      // state rather than a parallel mock/draft field.
-      const adapted = page.locator('.attachment-item', {hasText:'notes.txt'});
-      assert.equal(await adapted.locator('input[data-attachment-field="filename"]').inputValue(),
-        'notes-renamed.txt');
-      assert.equal(await adapted.locator('input[data-attachment-field="mimetype"]').inputValue(),
-        'text/x-notes');
+      // Renaming updates both rendered rows. Never locate the corresponding
+      // adapter by its OLD mutable display name after the rename.
+      // Read-only parity check: public editor writes the same domain-owned
+      // attachment object consumed by the tested legacy execution adapter.
+      const adaptedFilename = page.locator(
+        'input[data-attachment-field="filename"][data-attachment-index="' + notesIndex + '"]');
+      const adaptedMime = page.locator(
+        'input[data-attachment-field="mimetype"][data-attachment-index="' + notesIndex + '"]');
+      assert.equal(await adaptedFilename.inputValue(), 'notes-renamed.txt');
+      assert.equal(await adaptedMime.inputValue(), 'text/x-notes');
       await page.locator('#sf14OptionsDrawer > summary').click();
       assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
     } else {
