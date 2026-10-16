@@ -630,11 +630,17 @@ async function scenarioSelectiveAttachments(browser) {
     assert.match(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest')
       .textContent(),/SHA-256：[a-f0-9]{64}.*字节/);
     assert.match(await page.locator('#sf14SectionSelection').textContent(),/不证明附件 UID 和保存状态/);
+    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+      .textContent(),/来源附件 #[0-9]+.*notes-renamed\.txt.*MIME text\/x-notes/);
     const absentRow=page.locator('#sf14SectionItems .sf14-source-observation[data-delivery-status="absent-in-probe"]');
     await absentRow.locator('button[data-observed-id]').click();
     assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-evidence')
       .getAttribute('data-reason-code'),'ABSENT_IN_COMPLETE_INVENTORY');
     assert.equal(await page.locator('#sf14SectionSelection .sf14-source-delivery-digest').count(),0);
+    assert.match(await page.locator('#sf14SectionSelection .sf14-attachment-lineage')
+      .textContent(),/来源附件 #[0-9]+.*拟排除/);
+    assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
+      /成品清单未见原附件/);
 
     console.log('Scenario 2 PASS');
   } finally {
