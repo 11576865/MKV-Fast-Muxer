@@ -6049,8 +6049,20 @@ async function scenarioObservedMetadataSafeToolNavigation(browser) {
       el.files?.[0] === document.querySelector('#videoInput').files?.[0]),true);
     assert.equal(await page.locator('#p2MetadataReview').isChecked(),false);
     assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
-    assert.equal(await page.locator('#unifiedAssetInput').evaluate(el=>el.files.length),1,
-      'navigation must not consume, replace, or clear the main project');
+    // The one-shot public importer *must* clear its own FileList after intake.
+    // Main-project continuity lives in the current video File and its owned
+    // source inventory, not in the cleared picker control.
+    assert.equal(await page.locator('#unifiedAssetInput').evaluate(el=>el.files.length),0,
+      'one-shot importer is intentionally cleared after file intake');
+    assert.equal(await page.locator('#videoInput').evaluate(input =>
+      Boolean(input.files?.[0]) &&
+      input.files[0] === document.querySelector('#p2MetadataSource')?.files?.[0]),true,
+    'navigation must retain the main project source as the exact File re-inspected by the bounded tool');
+    assert.equal(await page.locator('#assetInventory [data-asset-source]:checked').count(),1,
+      'main project must retain its selected authoritative source row');
+    assert.match(await page.locator('#assetInventory .asset-entry-name').first().textContent(),
+      /source-with-attachments\.mkv/,
+    'existing source inventory must not be lost after navigation');
     console.log('Theory R1 observed Chapter/Tag -> exact-File reinspection and fail-closed consent PASS');
   }finally{await context.close();}
 }
