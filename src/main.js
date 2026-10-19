@@ -2133,6 +2133,39 @@ function activateCompositionTrack(item) {
   first?.scrollIntoView({ block: 'nearest' });
   renderOutputComposition();
 }
+// R1 bounded navigation: ffprobe flat Chapter / format Tag observations are
+// never themselves EBML writer targets. Explicitly rebind only the EXACT
+// still-scanned public source File into the existing independent P2 inspector.
+// Its change handler resets review and candidate, then re-inspects raw EBML.
+// No field selection, user consent, writer authority or proof is forwarded.
+document.addEventListener('softmux:open-observed-metadata-tool',event => {
+  const {sourceFile,kind,observedId}=event.detail || {};
+  if (!['chapters','tags'].includes(kind) || typeof observedId!=='string' ||
+      isBusy() || batchRunning) return;
+  const source=videoInput.files?.[0] || null;
+  if (!source || sourceFile!==source || scannedSourceFile!==source ||
+      !trackState || trackState.fileKey!==fileKey(source)) return;
+  const roles=resolveImportedRoles(importedAssetEntries,chosenImportSourceKey);
+  if (!roles.sourceKey || !importedAssetEntries.some(entry =>
+      entry.key===roles.sourceKey && entry.file===source)) return;
+  const rows=buildSourceObjectSections(trackState,{sourceFile:source})[kind];
+  if (!rows?.some(row => row.id===observedId)) return;
+  const input=$('p2MetadataSource');
+  if (!input || typeof DataTransfer!=='function') return;
+  try {
+    const files=new DataTransfer();
+    files.items.add(source);
+    input.files=files.files;
+    if (input.files?.[0]!==source) return;
+    // Always invalidate any previous independent candidate / consent by
+    // dispatching a new source change, even when the same File was used.
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+    event.preventDefault();
+  } catch(error) {
+    // Unsupported FileList rebinds fail closed, without claiming navigation.
+    console.warn('受限章节/标签工具来源绑定失败',error);
+  }
+});
 // R1: route an observed source attachment into the existing authoritative
 // source tree editor. Scan must still bind to this exact File; no second
 // attachment field owner or guessed writer capability is introduced.
