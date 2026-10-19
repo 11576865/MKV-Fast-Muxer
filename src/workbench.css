@@ -1853,3 +1853,53 @@ body { background: var(--bg); }
 }
 .batch-recipe-v2-review-job strong { font-size: .8rem; }
 .batch-recipe-v2-review-job .track-meta { white-space: normal; }
+
+
+/* Softmux 1.0 WU-01: source-local, non-blocking >1 GB advisory.
+   Distinct from aggregate workload hints and genuine engine admission errors. */
+.mux-source-size-advisory {
+  display: inline-block;
+  position: relative;
+  min-width: 0;
+  color: var(--warning);
+  font-size: .71rem;
+  vertical-align: middle;
+}
+.mux-source-size-advisory summary {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--warning) 50%, var(--line));
+  border-radius: 5px;
+  background: var(--warning-soft);
+  cursor: pointer;
+  list-style: none;
+  font-weight: 650;
+}
+.mux-source-size-advisory summary::-webkit-details-marker { display: none; }
+.mux-source-size-advisory summary:hover,
+.mux-source-size-advisory summary:focus-visible {
+  outline: 2px solid var(--warning);
+  outline-offset: 2px;
+}
+.mux-source-size-advisory-help {
+  display: block;
+  padding: 6px 8px;
+  max-width: 370px;
+  color: var(--text);
+  background: var(--surface-2);
+  border-left: 2px solid var(--warning);
+  border-radius: 3px;
+  font-size: .7rem;
+  line-height: 1.6;
+}
+.mux-source-size-inline {
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--warning);
+  font-size: .7rem;
+  font-weight: 660;
+}
+.batch-job-facts .mux-source-size-advisory { margin-left: 6px; }
