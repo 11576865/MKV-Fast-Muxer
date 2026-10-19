@@ -6121,8 +6121,14 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
         assert.match(await page.locator('#sf14SectionSelection').textContent(),
           /ffprobe|来源|格式层|UID|章节/);
         if (section !== 'attachments') {
-          assert.equal(await page.locator('#sf14SectionSelection button').count(),0,
-            'flat chapter/tag observation must not offer an unverified writer');
+          const bridge = page.locator('#sf14SectionSelection button[data-open-observed-metadata]');
+          assert.equal(await bridge.count(),1,
+            'flat chapter/tag observation offers only the explicit independent bounded-tool bridge');
+          assert.equal(await page.locator('#sf14SectionSelection button').count(),1,
+            'flat metadata must not expose any direct writer or extra mutation control');
+          assert.match(await page.locator('#sf14SectionSelection').textContent(),
+            /重新检查.*EBML|本条观察不等于可写字段/,
+            'tool bridge must communicate that observation does not grant EBML edit authority');
         }
       }
       const evidenceTypes = await page.locator('#sf14SectionItems .sf14-source-observation')
