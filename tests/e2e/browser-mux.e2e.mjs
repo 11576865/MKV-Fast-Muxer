@@ -6295,14 +6295,14 @@ async function scenarioGigabyteSourceAdvisory(browser) {
         document.querySelector('#videoInput')?.files?.[0]?.name === name,
         path.basename(file), { timeout: 60_000 });
       await page.waitForFunction(expectedFlag => {
-        const warning = document.querySelector('#workloadNotice [data-source-size-warning]');
+        const warning = document.querySelector('#sf14SourceSizeWarning [data-source-size-warning]');
         return Boolean(warning) === expectedFlag;
       }, expected);
       assert.equal(await page.locator('#assetInventory [data-source-size-warning]').count(),
         expected ? 1 : 0, 'the warning belongs to the individual source row');
       const startDisabled = await page.locator('#muxBtn').isDisabled();
       if (expected) {
-        const advisory = page.locator('#workloadNotice [data-source-size-warning]');
+        const advisory = page.locator('#sf14SourceSizeWarning [data-source-size-warning]');
         await advisory.locator('summary').click();
         assert.match(await advisory.textContent(), /允许继续尝试封装/);
         assert.equal(await page.locator('#workloadNotice').getAttribute('data-level'),'normal',
