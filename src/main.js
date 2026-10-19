@@ -1205,6 +1205,15 @@ function sourceSizeAdvisoryMarkup(file) {
   </details>`;
 }
 function renderWorkloadNotice() {
+  // 1.0's default composition-first UI can hide the source pane to maximize
+  // output space. Keep the *same* source-specific warning accessible from its
+  // visible header; don't require opening hidden legacy workload notices.
+  const modernWarning = $('sf14SourceSizeWarning');
+  if (modernWarning) {
+    const advisory = sourceSizeAdvisoryMarkup(videoInput.files?.[0]);
+    modernWarning.innerHTML = advisory;
+    modernWarning.hidden = !advisory;
+  }
   if (!workloadNotice) return;
   const files = selectedInputFiles();
   if (!files.length) {
