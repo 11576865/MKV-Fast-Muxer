@@ -719,3 +719,24 @@
   color:#efb4ac;
   font-weight:700;
 }
+
+
+/* WU-01: default layout may hide the source pane; large-file advice remains
+   visible and keyboard/touch accessible in the persistent header. */
+.sf14-header-actions .sf14-source-size-warning {display:inline-flex;align-items:center;z-index:4;}
+.sf14-source-size-warning[hidden] {display:none!important;}
+.sf14-source-size-warning .mux-source-size-advisory {position:relative;}
+.sf14-source-size-warning .mux-source-size-advisory-help {
+  position:absolute;
+  inset-inline-end:0;
+  top:calc(100% + 5px);
+  min-width:220px;
+  width:min(330px,75vw);
+  padding:10px 12px;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-left:3px solid var(--warning);
+  border-radius:7px;
+  box-shadow:var(--shadow);
+  z-index:10;
+}

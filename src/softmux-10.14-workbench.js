@@ -34,6 +34,7 @@ export function mountSoftmux1014Workbench(doc = document) {
       '</nav>',
       '<div class="sf14-header-actions">',
         '<button type="button" id="sf14SourceToggle" aria-expanded="false">来源</button>',
+         '<div id="sf14SourceSizeWarning" class="sf14-source-size-warning" aria-live="polite" hidden></div>',
         '<button type="button" id="sf14Add">＋ 添加资源</button>',
         '<button type="button" id="sf14Help">帮助</button>',
         '<button type="button" id="sf14Settings">设置</button>',
