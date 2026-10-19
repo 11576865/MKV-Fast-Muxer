@@ -1,0 +1,44 @@
+{
+  "packet_version": 1,
+  "packet_id": "ci-11576865-MKV-Fast-Muxer-39297923622-1",
+  "status": "pending",
+  "record_type": "ci_failure",
+  "title": "Browser E2E mux tests: failure",
+  "summary": "Tracked CI workflow did not complete successfully. Source adapter captured failed job/step evidence when available.",
+  "source_repository": "11576865/MKV-Fast-Muxer",
+  "source_event": "workflow_run",
+  "source_ref": "feat/softmux1021-metadata-safe-navigation-20261020",
+  "source_sha": "8b8e8d88ad5c63a04c491c01a3f9f73b1ebabbf5",
+  "source_url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/39297923622",
+  "created_at": "2026-10-19T17:57:25+00:00",
+  "dedupe_key": "workflow_run:11576865/MKV-Fast-Muxer:39297923622:1",
+  "routing_hints": [
+    "interface-grammar",
+    "operations",
+    "red-reason",
+    "reliability"
+  ],
+  "evidence": {
+    "workflow": "Browser E2E mux tests",
+    "run_id": "39297923622",
+    "run_attempt": "1",
+    "conclusion": "failure",
+    "trigger_event": "pull_request",
+    "failed_jobs": [
+      {
+        "id": 118215181756,
+        "name": "chromium-mux",
+        "conclusion": "failure"
+      }
+    ],
+    "failed_steps": [
+      {
+        "job": "chromium-mux",
+        "number": 10,
+        "name": "Browser end-to-end mux tests",
+        "conclusion": "failure"
+      }
+    ],
+    "capture_error": ""
+  }
+}
