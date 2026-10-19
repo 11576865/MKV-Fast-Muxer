@@ -40,3 +40,32 @@ export function classifyBrowserWorkload(totalBytes) {
     message: '当前体积未触发大文件提示，但浏览器处理仍受设备内存和 WASM 限制。',
   };
 }
+
+
+/**
+ * Advisory threshold, not an engine admission limit. The configured
+ * FFmpeg/Wasm runtime may accept larger inputs; runtime memory failures and
+ * Matroska preservation blocks remain separate decisions.
+ */
+export const MUX_SOURCE_WARNING_BYTES = 1_000_000_000;
+export const MUX_SOURCE_MEMORY_WARNING =
+  '文件超过 1 GB，处理可能消耗较多内存。当前浏览器允许继续尝试封装。';
+
+export function classifyMuxSourceSize(file, { confirmedInputMaxBytes = null } = {}) {
+  const size = Number(file?.size);
+  if (!file || !Number.isSafeInteger(size) || size < 0) {
+    return Object.freeze({
+      warning: false, canAttempt: false, blockedReason: 'SOURCE_SIZE_UNKNOWN',
+    });
+  }
+  // No artificial 1 GB input/output ceiling. The engine maximum can only
+  // be supplied after it is confirmed for the actually loaded FFmpeg build.
+  const knownEngineLimit = Number.isSafeInteger(confirmedInputMaxBytes) &&
+    confirmedInputMaxBytes >= 0;
+  const engineBlocked = knownEngineLimit && size > confirmedInputMaxBytes;
+  return Object.freeze({
+    warning: size > MUX_SOURCE_WARNING_BYTES,
+    canAttempt: !engineBlocked,
+    blockedReason: engineBlocked ? 'ENGINE_INPUT_LIMIT' : null,
+  });
+}
