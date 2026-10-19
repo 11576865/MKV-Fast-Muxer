@@ -6268,11 +6268,62 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
   } finally { await context.close(); }
 }
 
+
+/**
+ * WU-01 browser UI acceptance: sparse files expose real File.size without
+ * allocating gigabytes. This intentionally does not assert 1.5 GB real mux
+ * success: actual device/Wasm memory and output evidence remain separate.
+ */
+async function scenarioGigabyteSourceAdvisory(browser) {
+  console.log('Softmux WU-01: decimal 1 GB non-blocking warning UI');
+  const source = path.join(root, 'base.mp4');
+  const fixture = async (name, bytes) => {
+    const dest = path.join(outDir, name);
+    await fs.copyFile(source, dest);
+    const handle = await fs.open(dest, 'r+');
+    try { await handle.truncate(bytes); } finally { await handle.close(); }
+    assert.equal((await fs.stat(dest)).size, bytes);
+    return dest;
+  };
+  const atBoundary = await fixture('warn-exact-1000000000.mp4', 1_000_000_000);
+  const aboveBoundary = await fixture('warn-over-1000000001.mp4', 1_000_000_001);
+  const inspect = async (file, expected) => {
+    const { context, page } = await openApp(browser, { modern: true });
+    try {
+      await page.setInputFiles('#unifiedAssetInput', file);
+      await page.waitForFunction(name =>
+        document.querySelector('#videoInput')?.files?.[0]?.name === name,
+        path.basename(file), { timeout: 60_000 });
+      await page.waitForFunction(expectedFlag => {
+        const warning = document.querySelector('#workloadNotice [data-source-size-warning]');
+        return Boolean(warning) === expectedFlag;
+      }, expected);
+      assert.equal(await page.locator('#assetInventory [data-source-size-warning]').count(),
+        expected ? 1 : 0, 'the warning belongs to the individual source row');
+      const startDisabled = await page.locator('#muxBtn').isDisabled();
+      if (expected) {
+        const advisory = page.locator('#workloadNotice [data-source-size-warning]');
+        await advisory.locator('summary').click();
+        assert.match(await advisory.textContent(), /允许继续尝试封装/);
+        assert.equal(await page.locator('#workloadNotice').getAttribute('data-level'),'normal',
+          'old total workload classification must not be repurposed as a hard size gate');
+      }
+      return startDisabled;
+    } finally { await context.close(); }
+  };
+  const baseline = await inspect(atBoundary, false);
+  const warned = await inspect(aboveBoundary, true);
+  assert.equal(warned, baseline,
+    'crossing 1 GB alone must not change the executability of the same media');
+  console.log('Softmux decimal 1 GB boundary advisory browser UI PASS');
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioGigabyteSourceAdvisory(browser);
   await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
