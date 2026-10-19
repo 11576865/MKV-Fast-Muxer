@@ -1601,6 +1601,15 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').first()
       .check();
     await page.locator('#fontMode').selectOption('force');
+    // Edits re-project asynchronously from the shared immutable domain owner.
+    // Assert the *current executable plan* eventually contains all three
+    // changes, rather than sampling the DOM in the same event loop turn.
+    // A stale or lost business edit still fails this bounded expectation.
+    await page.waitForFunction(() => {
+      const plan=document.querySelector('#muxPlan')?.textContent||'';
+      return plan.includes('R2 Original Source') &&
+        plan.includes('R2 Added Audio') && plan.includes('R2 Added ASS');
+    }, null, {timeout: 12000});
     const plan=await page.locator('#muxPlan').textContent();
     assert.match(plan,/R2 Original Source/);
     assert.match(plan,/R2 Added Audio/);
