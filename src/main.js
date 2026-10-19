@@ -95,7 +95,7 @@ import { setupMatroskaInlineMetadataUI } from './p2-matroska-inline-metadata-ui.
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
-import { classifyBrowserWorkload, formatBytes, sumFileSizes } from './workload.js';
+import { classifyBrowserWorkload, classifyMuxSourceSize, MUX_SOURCE_MEMORY_WARNING, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
 import {
   collectSubtitleInputs,
@@ -1193,6 +1193,17 @@ function selectedInputFiles() {
   ];
 }
 
+// Read-only warning. The independent FFmpeg admission and data-preservation
+// gates remain authoritative; this must not disable the mux action.
+function sourceSizeAdvisoryMarkup(file) {
+  if (!classifyMuxSourceSize(file).warning) return '';
+  return `<details class="mux-source-size-advisory" data-source-size-warning="true">
+    <summary title="${escapeHtml(MUX_SOURCE_MEMORY_WARNING)}" aria-label="文件超过 1 GB：查看非阻断内存风险提示">
+      <span aria-hidden="true">⚠</span> <span>超过 1 GB</span>
+    </summary>
+    <span class="mux-source-size-advisory-help">${escapeHtml(MUX_SOURCE_MEMORY_WARNING)}</span>
+  </details>`;
+}
 function renderWorkloadNotice() {
   if (!workloadNotice) return;
   const files = selectedInputFiles();
@@ -1205,7 +1216,7 @@ function renderWorkloadNotice() {
   const totalBytes = sumFileSizes(files);
   const workload = classifyBrowserWorkload(totalBytes);
   workloadNotice.dataset.level = workload.level;
-  workloadNotice.innerHTML = `<strong>输入：${escapeHtml(formatBytes(totalBytes))}</strong>${workload.level === 'normal' ? '' : `<span>${escapeHtml(workload.message)}</span>`}`;
+  workloadNotice.innerHTML = `<strong>输入：${escapeHtml(formatBytes(totalBytes))}</strong>${workload.level === 'normal' ? '' : `<span>${escapeHtml(workload.message)}</span>`}${sourceSizeAdvisoryMarkup(videoInput.files?.[0])}`;
 }
 
 function setBulkToolsDisabled(disabled) {
@@ -2607,6 +2618,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
           <span class="asset-entry-type">${kindLabel} · ${escapeHtml(entry.label)} · ${statusLabel}</span>
+          ${entry.kind === "container" ? sourceSizeAdvisoryMarkup(entry.file) : ""}
         </div>
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
@@ -5972,6 +5984,7 @@ function renderBatchAssetInventory() {
         <div class="asset-entry-line">
           <strong class="asset-entry-name">${escapeHtml(entry.file.webkitRelativePath || entry.file.name)}</strong>
           <span class="asset-entry-type">${role} · ${escapeHtml(entry.label)}</span>
+          ${entry.kind === "container" ? sourceSizeAdvisoryMarkup(entry.file) : ""}
         </div>
         <div class="asset-entry-desc">${escapeHtml(diagnosis)}</div>
       </div>
@@ -6133,7 +6146,7 @@ function renderBatchJobInspector(pairing) {
       ${executionState.error ? ` · ${escapeHtml(executionState.error)}` : ''}
     </p>` : ''}
     <dl class="batch-job-facts">
-      <div><dt>来源</dt><dd>${escapeHtml(job.video.webkitRelativePath || job.video.name)}</dd></div>
+      <div><dt>来源</dt><dd>${escapeHtml(job.video.webkitRelativePath || job.video.name)} ${sourceSizeAdvisoryMarkup(job.video)}</dd></div>
       <div><dt>实际类型</dt><dd>${escapeHtml(job.videoIdentity?.containerLabel || '待识别')}${job.videoIdentityMismatch ? ' · 扩展名不一致' : ''}</dd></div>
       <div><dt>字幕</dt><dd>${job.subtitleTracks.length} 条 · ${escapeHtml(batchSubtitleSummary(job))}</dd></div>
       <div><dt>字体策略</dt><dd>${escapeHtml(pairing.fonts?.length
@@ -6271,10 +6284,10 @@ async function syncBatchPlan() {
     const executionState = indexed?.outputName === job.outputName ? indexed.state : null;
     return `
     <button type="button" class="plan-row plan-video batch-job-row" data-batch-job-index="${index}"
-      data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}">
+      data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}${classifyMuxSourceSize(job.video).warning ? " · 文件超过 1 GB，可能占用较多内存，仍允许尝试封装" : ""}">
       <span class="plan-kind">#${index + 1}</span>
       <span class="plan-main">
-        <strong>${escapeHtml(job.outputName)}</strong>
+        <strong>${escapeHtml(job.outputName)}</strong>${classifyMuxSourceSize(job.video).warning ? `<span class="mux-source-size-inline" role="img" title="${escapeHtml(MUX_SOURCE_MEMORY_WARNING)}" aria-label="${escapeHtml(MUX_SOURCE_MEMORY_WARNING)}">⚠ 超过 1 GB · 可继续</span>` : ""}
         <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · 实际：${escapeHtml(job.videoIdentity?.containerLabel || "未识别")} · ${escapeHtml(batchSubtitleSummary(job))}
           · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
