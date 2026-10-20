@@ -4816,6 +4816,123 @@ async function scenarioP0UnknownHeaderFailsClosed(browser) {
   }
 }
 
+
+/**
+ * Softmux 1.0 S08 / F-B: the public object workbench must not promote a
+ * real nested ChapterUID + targeted Tag source into a supposedly safe remux.
+ * Refusing that source must not taint a separately selected safe File, and
+ * a valid source must still produce a real, independently probed MKV.
+ *
+ * Unlike the legacy-adapter preflight test, both source choices below happen
+ * through the same user-visible inventory and source-selection radios.
+ */
+async function scenarioS08ModernUnsafeSourceSwitch(browser) {
+  console.log('S08 current workbench: nested ChapterUID/Tag fail-closed and safe source recovery');
+  const risky = path.join(root, 'p0-independent-mkvtoolnix.mkv');
+  const safe = path.join(root, 'source-with-attachments.mkv');
+  const digest = async file => createHash('sha256').update(await fs.readFile(file)).digest('hex');
+  const riskyBefore = await digest(risky);
+  const safeBefore = await digest(safe);
+  const { context, page } = await openApp(browser, { modern: true });
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setInputFiles('#unifiedAssetInput', [
+      risky, safe, path.join(root, 'zh.ass'),
+    ]);
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#assetInventory .asset-entry[data-kind="container"]').length === 2,
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0,
+      'two actual media sources must require an explicit user selection');
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+
+    // On the production 681–1365px tablet layout, the source list is an
+    // intentionally collapsed overlay. Open it through the actual user-facing
+    // 来源 control before choosing a radio; do not force-click a hidden input.
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14SourceToggle').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#sf14Single').getAttribute('data-show-source'), 'true');
+    assert.equal(await page.locator('#sf14Source').isVisible(), true);
+    assert.equal(await page.locator('#sourceFilesDetails').evaluate(el => el.open), true);
+
+    const sourceChoice = name => page.locator('#assetInventory .asset-entry[data-kind="container"]')
+      .filter({ hasText: name }).locator('[data-asset-source]');
+    assert.equal(await sourceChoice('p0-independent-mkvtoolnix.mkv').isVisible(), true);
+    await sourceChoice('p0-independent-mkvtoolnix.mkv').check();
+    await page.waitForFunction(() =>
+      document.querySelector('#videoInput')?.files?.[0]?.name === 'p0-independent-mkvtoolnix.mkv' &&
+      document.querySelector('#preservationReadiness')?.dataset.status === 'blocked',
+      null, { timeout: 120_000 });
+    assert.equal(await page.locator('#assetInventory [data-asset-source]:checked').count(), 1);
+    assert.equal(await page.locator('#muxBtn').isDisabled(), true);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(), /嵌套章节/);
+    assert.match(await page.locator('#preservationReadinessDescription').textContent(),
+      /指向特定章节 UID 的标签/);
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+
+    // A disabled button is insufficient evidence: the runtime must refuse
+    // an attempted execution even after a test bypasses presentation gating.
+    await page.waitForFunction(() => document.querySelector('#cancelBtn')?.disabled === true,
+      null, { timeout: 90_000 });
+    await page.evaluate(() => {
+      const button = document.querySelector('#muxBtn');
+      button.disabled = false;
+      button.click();
+    });
+    await page.waitForFunction(() =>
+      (document.querySelector('#status')?.textContent || '').includes('结构保留预检阻断'),
+      null, { timeout: 90_000 });
+    assert.equal(await page.locator('#downloadLink').isVisible(), false);
+    assert.equal(await page.locator('#reportLink').isVisible(), false);
+    assert.equal(await digest(risky), riskyBefore,
+      'the denied source must not be modified or published');
+
+    // The previous denied File may remain in the inventory; it must not
+    // poison the newly selected File or silently replace its source identity.
+    await sourceChoice('source-with-attachments.mkv').check();
+    await page.waitForFunction(() =>
+      document.querySelector('#videoInput')?.files?.[0]?.name === 'source-with-attachments.mkv' &&
+      ['clear', 'warning'].includes(document.querySelector('#preservationReadiness')?.dataset.status) &&
+      !document.querySelector('#muxBtn')?.disabled,
+      null, { timeout: 120_000 });
+    assert.equal(await page.locator('#assetInventory [data-asset-source]:checked').count(), 1);
+    assert.doesNotMatch(await page.locator('#preservationReadinessDescription').textContent(),
+      /嵌套章节/);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page, '完成。');
+    const delivered = path.join(outDir, 's08-modern-source-switch-safe.mkv');
+    await saveDownload(page, '#downloadLink', delivered);
+    const result = probe(delivered);
+    assert.ok(streams(result, 'video').length >= 1);
+    assert.ok(streams(result, 'audio').length >= 1);
+    assert.ok(streams(result, 'subtitle').length >= 1,
+      'the public input subtitle must remain bound through source selection');
+    assert.equal(await digest(safe), safeBefore);
+    assert.equal(await digest(risky), riskyBefore);
+    const receipt = {
+      schema: 'softmux-s08-modern-source-safety-v1',
+      riskSource: path.basename(risky),
+      riskSourceSha256: riskyBefore,
+      blockedBeforeExecution: true,
+      executionBypassRejected: true,
+      riskSourceUnchanged: true,
+      safeSource: path.basename(safe),
+      safeSourceSha256: safeBefore,
+      delivered: path.basename(delivered),
+      deliveredSha256: await digest(delivered),
+      independentlyProbed: true,
+      limitation: 'Specific MKVToolNix fixture and hosted Chromium only; no universal EBML preservation or device claim.',
+    };
+    await fs.writeFile(path.join(outDir, 'softmux-s08-modern-source-safety-evidence.json'),
+      JSON.stringify(receipt, null, 2) + '\n');
+    console.log('S08 current-workbench fail-closed + reselected real MKV output PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksWholeBatch(browser) {
   console.log('P0 preservation gate: reject batch before any output is started');
   const { context, page } = await openApp(browser);
@@ -6656,6 +6773,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioGigabyteSourceAdvisory(browser);
+  await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
   // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic
   await scenarioR1ObservedAttachmentNavigation(browser);
