@@ -1594,6 +1594,19 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
     await page.locator('.track-row.track-audio input[data-track-field="title"]').first()
       .fill('R2 Original Source');
+    const sourceTitleInput = page.locator('.track-row.track-audio input[data-track-field="title"]').first();
+    const captureR2Source = async (stage) => page.evaluate(stage => ({
+      stage,
+      sourceInput: document.querySelector('.track-row.track-audio input[data-track-field="title"]')?.value,
+      planHasOriginal: (document.querySelector('#muxPlan')?.textContent || '').includes('R2 Original Source'),
+      status: document.querySelector('#status')?.textContent || '',
+      scannedAudioTitles: [...document.querySelectorAll('.track-row.track-audio input[data-track-field="title"]')].map(e=>e.value),
+      plannedAudioTitles: [...document.querySelectorAll('#muxPlan .plan-row')].map(e=>e.textContent.trim()).filter(t=>t.includes('音频')),
+    }), stage);
+    const afterSource = await captureR2Source('after-source-title-fill');
+    console.log('R2 SOURCE DIAGNOSTIC', JSON.stringify(afterSource));
+    assert.equal(afterSource.sourceInput,'R2 Original Source',
+      'source field must hold the requested value immediately after user edit');
     await page.locator('#newAudioList input[data-new-audio-field="title"]').first()
       .fill('R2 Added Audio');
     await page.locator('#newSubtitleList input[data-new-sub-field="title"]').first()
@@ -1601,6 +1614,7 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').first()
       .check();
     await page.locator('#fontMode').selectOption('force');
+    console.log('R2 FINAL DIAGNOSTIC', JSON.stringify(await captureR2Source('after-external-edits')));
     // Edits re-project asynchronously from the shared immutable domain owner.
     // Assert the *current executable plan* eventually contains all three
     // changes, rather than sampling the DOM in the same event loop turn.
@@ -6425,6 +6439,7 @@ try {
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioObservedMetadataSafeToolNavigation(browser);
+  await scenarioSharedContainerProjectRealMux(browser); // isolate R2 after new navigation during regression diagnosis
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
@@ -6467,7 +6482,7 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
-  await scenarioSharedContainerProjectRealMux(browser);
+  // R2 already exercised above during joint-integration regression diagnosis.
   await scenarioExternalCheckpointRecoveryRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
