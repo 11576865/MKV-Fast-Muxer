@@ -1663,6 +1663,66 @@ async function scenarioExternalCheckpointRecoveryRealMux(browser) {
   } finally { await context.close(); }
 }
 
+/**
+ * Adversarial focused source-field continuity: unrelated readiness/option
+ * changes can call updateUI while an actual source title input is focused.
+ * This must neither replace the input before its next keystroke nor lose the
+ * immutable source-to-executable-plan edit; source replacement must still
+ * invalidate that bound DOM field.
+ */
+async function scenarioFocusedSourceTrackSurvivesBackgroundRefresh(browser) {
+  console.log('R2 source editor: focused title survives unrelated global refresh and delivers exact MKV');
+  const {context,page} = await openApp(browser);
+  try {
+    await page.setInputFiles('#videoInput', path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    const title=page.locator('.track-row.track-audio input[data-track-field="title"]').first();
+    await title.fill('Focused source edit retained');
+    await title.focus();
+    const continuity=await page.evaluate(() => {
+      const input=document.querySelector('.track-row.track-audio input[data-track-field="title"]');
+      const opts=document.querySelector('#fontSubsetEnabled');
+      if (!input || !opts) throw Error('SOURCE_EDITOR_REFRESH_FIXTURE_MISSING');
+      // This actual production change handler calls updateUI() and renderMuxPlan().
+      // The event is fired without stealing focus, just as an async probe can.
+      opts.dispatchEvent(new Event('change',{bubbles:true}));
+      const current=document.querySelector('.track-row.track-audio input[data-track-field="title"]');
+      return {
+        sameNode:current===input,
+        connected:input.isConnected,
+        stillFocused:document.activeElement===input,
+        title:current?.value,
+        planned:document.querySelector('#muxPlan')?.textContent.includes('Focused source edit retained'),
+      };
+    });
+    assert.deepEqual(continuity,{
+      sameNode:true,connected:true,stillFocused:true,
+      title:'Focused source edit retained',planned:true,
+    },'unrelated refresh cannot unmount the focused source editor');
+    await title.fill('Focused source edit retained after refresh');
+    assert.match(await page.locator('#muxPlan').textContent(),
+      /Focused source edit retained after refresh/);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const file=path.join(outDir,'r2-focused-source-track-preserved.mkv');
+    await saveDownload(page,'#downloadLink',file);
+    assert.equal(streams(probe(file),'audio')[0]?.tags?.title,
+      'Focused source edit retained after refresh',
+      'real FFmpeg output must contain the same authored title, not just the DOM value');
+
+    // A different File is a different authority. Retaining a focused editor
+    // is never permission to keep stale source identity after replacement.
+    const previous=await title.elementHandle();
+    await page.setInputFiles('#videoInput',path.join(root,'source-with-attachments.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    assert.equal(await previous.evaluate(el=>el.isConnected),false);
+    assert.doesNotMatch(await page.locator('.track-row.track-audio input[data-track-field="title"]').first().inputValue(),
+      /Focused source edit retained/);
+    console.log('R2 focused source editor + real output + switched-file invalidation PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioSharedContainerProjectRealMux(browser) {
   console.log('E2E P1 ROUND2: source + external + font share ONE live ContainerProject -> real MKV');
   const {context,page}=await openApp(browser);
@@ -6660,6 +6720,7 @@ try {
   // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic
   await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioObservedMetadataSafeToolNavigation(browser);
+  await scenarioFocusedSourceTrackSurvivesBackgroundRefresh(browser);
   await scenarioSharedContainerProjectRealMux(browser); // isolate R2 after new navigation during regression diagnosis
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
