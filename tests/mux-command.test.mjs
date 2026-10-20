@@ -282,11 +282,17 @@ test('bounded source-proven AAC priming correction applies only to newly added t
   assert.deepEqual(args.slice(0,12),[
     '-copyts','-i','source.mp4',
     '-itsoffset','-0.021','-i','first.srt',
-    '-i','image.sup',
-    '-itsoffset','-0.021','-i'
+    '-i','image.sup','-i','third.ass'
   ]);
-  assert.equal(args[12],'third.ass');
-  assert.equal(args.filter(x => x === '-itsoffset').length,2);
+  assert.equal(args.filter(x => x === '-itsoffset').length,1,
+    'ASS needs its independently verified centisecond mux policy unchanged');
+  const assOnly = buildMuxCommand({
+    mainInputPath:'source.mp4',outputPath:'out.mkv',
+    newSubtitleTracks:[{path:'dialogue.ass',inputIndex:1,format:{id:'ass'}}],
+    subtitleTimestampCorrectionSeconds:-0.021,
+  });
+  assert.equal(assOnly.includes('-itsoffset'),false,
+    'input offset proved for SRT must not alter otherwise correct ASS Dialogue time');
   for(const invalid of [-0.3,0.021,Infinity,NaN,-0.0215]) {
     assert.throws(()=>buildMuxCommand({
       mainInputPath:'source.mp4',outputPath:'out.mkv',
