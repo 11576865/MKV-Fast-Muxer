@@ -150,6 +150,22 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      # WU-03: one actual modern public-workspace task (source MKV + new ASS
+      # and font + source attachment exclusion/rename). An independent native
+      # oracle checks downloaded bytes, two source bitstreams, FileData hashes,
+      # source immutability and honest save-state scope.
+      - name: Upload WU-03 F-A single-workspace independent delivery proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wu03-fa-modern-workspace-actual-mkv-native-evidence
+          path: |
+            .e2e/output/wu03-fa-single-workspace-independent-evidence.json
+            .e2e/output/selective-attachments-current-ui.mkv
+            .e2e/output/selective-attachments-current-ui.mux-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # Production-facing release gate: rendered pixels from the finished
       # browser-generated MKV, with independently extracted unique font.
       # The JSON verdict and PNG controls are uploaded even on failure.
