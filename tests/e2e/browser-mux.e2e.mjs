@@ -6544,6 +6544,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioGigabyteSourceAdvisory(browser);
+  await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
   await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioObservedMetadataSafeToolNavigation(browser);
   await scenarioSharedContainerProjectRealMux(browser); // isolate R2 after new navigation during regression diagnosis
@@ -6605,7 +6606,7 @@ try {
   await scenarioBatchReportSavePartialPersistence(browser);
   await scenarioBatchRecipeV2PerOutputRealMux(browser);
   await scenarioBatchQueue(browser);
-  await scenarioBatchFailedJobRetry(browser);
+  // Failed-Job retry exercised early as a mandatory real-file timestamp canary.
   await scenarioBatchResultUrlLifetime(browser);
   await scenarioBatchContentIdentity(browser);
   await scenarioAutoLanguageInference(browser);
