@@ -39,7 +39,6 @@ import {
   summarizeCompatibility,
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
-import { inspectTimedTextAacPriming } from './timed-text-priming.js';
 import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
 import { preservationReadiness } from './preservation-readiness.js';
 import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
@@ -3912,46 +3911,6 @@ async function runProbe(path, probePath, { decodeStreams = false } = {}) {
   };
 }
 
-// Probe ONLY the first actual AAC packet from the staged ISO BMFF source.
- // The skip-samples side data and negative PTS must independently agree; the
- // result is a bounded correction for *new* timed text, not source track edits.
-async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, container) {
-  const audios = (probe?.streams || []).filter(s => s.codec_type === 'audio');
-  if (!['iso-bmff','mov'].includes(container) || audios.length !== 1 ||
-      String(audios[0].codec_name || '').toLowerCase() !== 'aac') {
-    logEl.textContent += 'TIMELINE_PROBE_SKIP: container=' + container +
-      ' audioCount=' + audios.length + ' codec=' + (audios[0]?.codec_name||'none') + '\n';
-    return 0;
-  }
-  try {
-    await removeQuietly(resultPath);
-    await ffmpeg.ffprobe([
-      '-v','error','-select_streams','a:0','-read_intervals','%+#1',
-      '-show_streams','-show_packets',
-      '-show_entries','stream=index,codec_name,sample_rate:packet=pts_time',
-      '-of','json',sourcePath,'-o',resultPath,
-    ]);
-    // The bundled ffprobe wrapper may return -1 after writing valid JSON.
-    const raw = await ffmpeg.readFile(resultPath);
-    const packetProbe = JSON.parse(new TextDecoder().decode(raw));
-    const proven = inspectTimedTextAacPriming(probe, packetProbe, container);
-    logEl.textContent += 'TIMELINE_PROBE_RESULT: ' + proven.reason +
-      ' pts=' + (packetProbe?.packets?.[0]?.pts_time??'none') +
-      ' side=' + JSON.stringify(packetProbe?.packets?.[0]?.side_data_list||[]) + '\n';
-    if (proven.applied) {
-      logEl.textContent += 'INFO: 来源 AAC 第一个实际数据包含 ' +
-        proven.skipSamples + ' 个 priming skip samples，原 PTS ' +
-        proven.observedNegativePtsSeconds + ' s。对新 SubRip/SRT 字幕输入施加 ' +
-        proven.correctionSeconds + ' s 时间补偿；原视频、音频流仍 stream copy。\n';
-    }
-    return proven.correctionSeconds;
-  } catch(error) {
-    logEl.textContent += 'WARNING: 来源 AAC 首包时间证据不可用；不猜测补偿量。' +
-      (error?.message || String(error)) + '\n';
-    return 0;
-  }
-}
-
 async function probeInput(path, probePath, { allowDecodeFallback = true } = {}) {
   try {
     return await runProbe(path, probePath, { decodeStreams: false });
@@ -5459,24 +5418,7 @@ async function executeCurrentMuxTask(explicit = null) {
       filename: item.attachmentName,
     }));
 
-    // An AAC priming sample can shift a newly added SRT/ASS by one audio
-    // encoder frame (+21 ms at 48 kHz) in the Matroska copy path.
-    // Derive correction from actual staged-source packets; never hardcode 21.
-    // Real output proof currently covers one newly added SRT stream; when
-    // SSA/ASS/WebVTT coexist, shifting only one track changes the container
-    // timeline and independently audited mixed-subtitle parity fails.
-    const hasNewTimedText = runtimeSubtitles.length === 1 && (
-      runtimeSubtitles[0].format?.id === 'srt' ||
-      /\.srt$/i.test(String(runtimeSubtitles[0].path || '')));
-    const primingProbePath = `${prefix}-aac-priming.json`;
-    if (hasNewTimedText) extraProbePaths.push(primingProbePath);
-    const subtitleTimestampCorrectionSeconds = hasNewTimedText
-      ? await sourceTimedTextPrimingCorrection(
-          videoPath, primingProbePath, inputProbe, headerVideoIdentity.container)
-      : 0;
-    assertCurrentSubtitleWitness();
     const commandOptions = {
-      subtitleTimestampCorrectionSeconds,
       mainInputPath: videoPath,
       outputPath,
       sourceAudioCount: sourceAudios.length,
