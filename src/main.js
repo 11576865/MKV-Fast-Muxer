@@ -3941,7 +3941,7 @@ async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, c
     if (proven.applied) {
       logEl.textContent += 'INFO: 来源 AAC 第一个实际数据包含 ' +
         proven.skipSamples + ' 个 priming skip samples，原 PTS ' +
-        proven.observedNegativePtsSeconds + ' s。对新文本字幕输入施加 ' +
+        proven.observedNegativePtsSeconds + ' s。对新 SubRip/SRT 字幕输入施加 ' +
         proven.correctionSeconds + ' s 时间补偿；原视频、音频流仍 stream copy。\n';
     }
     return proven.correctionSeconds;
@@ -5463,8 +5463,7 @@ async function executeCurrentMuxTask(explicit = null) {
     // encoder frame (+21 ms at 48 kHz) in the Matroska copy path.
     // Derive correction from actual staged-source packets; never hardcode 21.
     const hasNewTimedText = runtimeSubtitles.some(track =>
-      ['ass','srt','webvtt'].includes(track.format?.id) ||
-      /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || '')));
+      track.format?.id === 'srt' || /\.srt$/i.test(String(track.path || '')));
     const primingProbePath = `${prefix}-aac-priming.json`;
     if (hasNewTimedText) extraProbePaths.push(primingProbePath);
     const subtitleTimestampCorrectionSeconds = hasNewTimedText
