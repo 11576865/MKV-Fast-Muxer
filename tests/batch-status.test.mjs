@@ -75,3 +75,15 @@ test('partial persistence is not counted as a fully saved MKV+report pair', () =
   assert.match(result, /其中 1 项未完整写入目录/);
   assert.match(result, /其中 1 项 MKV 已写入目录，但审计报告尚未写入/);
 });
+
+test('successful subset retry cannot erase cancellation or fatal interruption of other tasks', async () => {
+  const api = await import('../src/batch-status.js');
+  assert.equal(typeof api.combineBatchRetryTerminal, 'function');
+  const current = {cancelled:false, fatalError:''};
+  const fatal = api.combineBatchRetryTerminal({cancelled:false,fatalError:'job2 setup failed'},current);
+  assert.match(formatBatchTerminalStatus({...fatal,results:[{ok:true}]}),/^批量中断：job2 setup failed/);
+  const cancelled = api.combineBatchRetryTerminal({cancelled:true,fatalError:''},current);
+  assert.match(formatBatchTerminalStatus({...cancelled,results:[{ok:true}]}),/^批量已取消/);
+  assert.deepEqual(api.combineBatchRetryTerminal(current,{cancelled:true,fatalError:'retry setup failed'}),
+    {cancelled:true,fatalError:'retry setup failed'});
+});

@@ -29,3 +29,11 @@ export function formatBatchTerminalStatus({
     ? `批量已取消：完成 ${done}，失败 ${failed}。${saveWarning}${auditWarning}`
     : `批量完成：成功 ${done}，失败 ${failed}。${saveWarning}${auditWarning}`;
 }
+
+/** A subset retry cannot resolve cancellation/interruption of unselected jobs. */
+export function combineBatchRetryTerminal(previous = {}, current = {}) {
+  return Object.freeze({
+    cancelled: Boolean(previous.cancelled || current.cancelled),
+    fatalError: String(current.fatalError || previous.fatalError || ''),
+  });
+}
