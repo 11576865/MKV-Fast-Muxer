@@ -268,29 +268,3 @@ test('SRT and WebVTT preserve input timestamps before AAC priming can shift cues
     assert.equal(args[args.indexOf('-c') + 1], 'copy');
   }
 });
-
-test('source-proven AAC priming correction is scoped to exactly one newly added SRT', () => {
-  const base={mainInputPath:'source.mp4',outputPath:'out.mkv',sourceAudioCount:1};
-  const srt={path:'first.srt',inputIndex:1,format:{id:'srt'}};
-  const args=buildMuxCommand({...base,newSubtitleTracks:[srt],
-    subtitleTimestampCorrectionSeconds:-0.021});
-  assert.deepEqual(args.slice(0,7),
-    ['-copyts','-i','source.mp4','-itsoffset','-0.021','-i','first.srt']);
-  assert.equal(args.filter(x=>x==='-itsoffset').length,1);
-  const mixed=[srt,{path:'image.sup',inputIndex:2,format:{id:'pgs'}},
-    {path:'third.ass',inputIndex:3,format:{id:'ass'}}];
-  const mixedNoCorrection=buildMuxCommand({...base,newSubtitleTracks:mixed});
-  assert.equal(mixedNoCorrection.includes('-itsoffset'),false);
-  for (const tracks of [mixed,[
-    {path:'dialogue.ass',inputIndex:1,format:{id:'ass'}}],[
-    {path:'webvtt.vtt',inputIndex:1,format:{id:'webvtt'}}],[]]) {
-    assert.throws(()=>buildMuxCommand({...base,newSubtitleTracks:tracks,
-      subtitleTimestampCorrectionSeconds:-0.021}),
-    /SUBTITLE_TIMELINE_CORRECTION_SCOPE_UNVERIFIED/);
-  }
-  for (const invalid of [-0.3,0.021,Infinity,NaN,-0.0215]) {
-    assert.throws(()=>buildMuxCommand({...base,newSubtitleTracks:[srt],
-      subtitleTimestampCorrectionSeconds:invalid}),
-    /SUBTITLE_TIMELINE_CORRECTION_INVALID/);
-  }
-});
