@@ -26,7 +26,16 @@ export function inspectTimedTextAacPriming(sourceProbe, packetProbe, container) 
   const skip = (packet.side_data_list || []).find(s =>
     s.side_data_type === 'Skip Samples' && Number.isSafeInteger(Number(s.skip_samples)) &&
     Number(s.skip_samples) > 0);
-  const rate = Number(audios[0].sample_rate);
+  // The general source probe deliberately omits sample_rate. Require an
+  // independent, richer first-packet probe identifying the SAME AAC stream,
+  // rather than accidentally interpreting an omitted field as no priming.
+  const probedAudio = packetProbe?.streams?.[0];
+  if (!probedAudio || packetProbe.streams.length !== 1 ||
+      Number(probedAudio.index) !== Number(audios[0].index) ||
+      String(probedAudio.codec_name || '').toLowerCase() !== 'aac') {
+    return unsupported('AUDIO_STREAM_PROOF_MISMATCH');
+  }
+  const rate = Number(probedAudio.sample_rate);
   if (!skip || !Number.isSafeInteger(rate) || rate < 8000 || rate > 384000)
     return unsupported('NO_VALIDATED_SKIP_SAMPLES');
   const expectedSeconds = Number(skip.skip_samples)/rate;
