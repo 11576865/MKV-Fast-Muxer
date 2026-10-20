@@ -1703,23 +1703,34 @@ async function scenarioFocusedSourceTrackSurvivesBackgroundRefresh(browser) {
     await title.fill('Focused source edit retained after refresh');
     assert.match(await page.locator('#muxPlan').textContent(),
       /Focused source edit retained after refresh/);
-    await page.locator('#muxBtn').click();
-    await waitForStatus(page,'完成。');
-    const file=path.join(outDir,'r2-focused-source-track-preserved.mkv');
-    await saveDownload(page,'#downloadLink',file);
-    assert.equal(streams(probe(file),'audio')[0]?.tags?.title,
-      'Focused source edit retained after refresh',
-      'real FFmpeg output must contain the same authored title, not just the DOM value');
 
-    // A different File is a different authority. Retaining a focused editor
-    // is never permission to keep stale source identity after replacement.
+    // Source-switch invalidation must be checked BEFORE mux: the legacy
+    // adapter intentionally clears its input widgets after a finished job.
+    // Taking the old element handle after mux would be a test lifecycle error,
+    // not proof about the File-bound source editor.
     const previous=await title.elementHandle();
     await page.setInputFiles('#videoInput',path.join(root,'source-with-attachments.mkv'));
     await waitForStatus(page,'轨道扫描完成：');
     assert.equal(await previous.evaluate(el=>el.isConnected),false);
     assert.doesNotMatch(await page.locator('.track-row.track-audio input[data-track-field="title"]').first().inputValue(),
       /Focused source edit retained/);
-    console.log('R2 focused source editor + real output + switched-file invalidation PASS');
+
+    // Reauthorize the original source in this new session generation, edit
+    // again, and verify the actual Matroska output carries the new title.
+    await page.setInputFiles('#videoInput',path.join(root,'source-multitrack.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    await page.locator('#appendPreserveAll').uncheck();
+    const finalTitle='Focused source edit retained after refresh';
+    await page.locator('.track-row.track-audio input[data-track-field="title"]').first().fill(finalTitle);
+    assert.match(await page.locator('#muxPlan').textContent(),
+      /Focused source edit retained after refresh/);
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const file=path.join(outDir,'r2-focused-source-track-preserved.mkv');
+    await saveDownload(page,'#downloadLink',file);
+    assert.equal(streams(probe(file),'audio')[0]?.tags?.title,finalTitle,
+      'real FFmpeg output must contain the same authored title, not just the DOM value');
+    console.log('R2 focused source editor + switched-file invalidation + real MKV PASS');
   }finally{await context.close();}
 }
 
