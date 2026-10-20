@@ -269,34 +269,28 @@ test('SRT and WebVTT preserve input timestamps before AAC priming can shift cues
   }
 });
 
-test('bounded source-proven AAC priming correction applies only to newly added timed text inputs', () => {
-  const args = buildMuxCommand({
-    mainInputPath:'source.mp4',outputPath:'out.mkv',sourceAudioCount:1,
-    newSubtitleTracks:[
-      {path:'first.srt',inputIndex:1,format:{id:'srt'}},
-      {path:'image.sup',inputIndex:2,format:{id:'pgs'}},
-      {path:'third.ass',inputIndex:3,format:{id:'ass'}},
-    ],
-    subtitleTimestampCorrectionSeconds:-0.021,
-  });
-  assert.deepEqual(args.slice(0,11),[
-    '-copyts','-i','source.mp4',
-    '-itsoffset','-0.021','-i','first.srt',
-    '-i','image.sup','-i','third.ass'
-  ]);
-  assert.equal(args.filter(x => x === '-itsoffset').length,1,
-    'ASS needs its independently verified centisecond mux policy unchanged');
-  const assOnly = buildMuxCommand({
-    mainInputPath:'source.mp4',outputPath:'out.mkv',
-    newSubtitleTracks:[{path:'dialogue.ass',inputIndex:1,format:{id:'ass'}}],
-    subtitleTimestampCorrectionSeconds:-0.021,
-  });
-  assert.equal(assOnly.includes('-itsoffset'),false,
-    'input offset proved for SRT must not alter otherwise correct ASS Dialogue time');
-  for(const invalid of [-0.3,0.021,Infinity,NaN,-0.0215]) {
-    assert.throws(()=>buildMuxCommand({
-      mainInputPath:'source.mp4',outputPath:'out.mkv',
-      subtitleTimestampCorrectionSeconds:invalid,
-    }),/SUBTITLE_TIMELINE_CORRECTION_INVALID/);
+test('source-proven AAC priming correction is scoped to exactly one newly added SRT', () => {
+  const base={mainInputPath:'source.mp4',outputPath:'out.mkv',sourceAudioCount:1};
+  const srt={path:'first.srt',inputIndex:1,format:{id:'srt'}};
+  const args=buildMuxCommand({...base,newSubtitleTracks:[srt],
+    subtitleTimestampCorrectionSeconds:-0.021});
+  assert.deepEqual(args.slice(0,7),
+    ['-copyts','-i','source.mp4','-itsoffset','-0.021','-i','first.srt']);
+  assert.equal(args.filter(x=>x==='-itsoffset').length,1);
+  const mixed=[srt,{path:'image.sup',inputIndex:2,format:{id:'pgs'}},
+    {path:'third.ass',inputIndex:3,format:{id:'ass'}}];
+  const mixedNoCorrection=buildMuxCommand({...base,newSubtitleTracks:mixed});
+  assert.equal(mixedNoCorrection.includes('-itsoffset'),false);
+  for (const tracks of [mixed,[
+    {path:'dialogue.ass',inputIndex:1,format:{id:'ass'}}],[
+    {path:'webvtt.vtt',inputIndex:1,format:{id:'webvtt'}}],[]]) {
+    assert.throws(()=>buildMuxCommand({...base,newSubtitleTracks:tracks,
+      subtitleTimestampCorrectionSeconds:-0.021}),
+    /SUBTITLE_TIMELINE_CORRECTION_SCOPE_UNVERIFIED/);
+  }
+  for (const invalid of [-0.3,0.021,Infinity,NaN,-0.0215]) {
+    assert.throws(()=>buildMuxCommand({...base,newSubtitleTracks:[srt],
+      subtitleTimestampCorrectionSeconds:invalid}),
+    /SUBTITLE_TIMELINE_CORRECTION_INVALID/);
   }
 });
