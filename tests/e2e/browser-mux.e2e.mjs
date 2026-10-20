@@ -2584,6 +2584,24 @@ async function scenarioBatchRecipeV2PerOutputRealMux(browser) {
     assert.equal(firstAudit.plan.execution,'frozen-batch-context-v1');
     assert.equal(firstAudit.plan.subtitles[0].title,'Episode One V2 Approved');
     assert.equal(firstAudit.plan.outputName,'Batch S01E01.mkv');
+    const stateProbe = await page.evaluate(() => ({
+      rows:[...document.querySelectorAll('#batchPlan button[data-batch-job-index]')]
+        .map(row=>({name:row.querySelector('strong')?.textContent,
+          state:row.querySelector('.batch-review-state')?.dataset.state,
+          label:row.querySelector('.batch-review-state')?.textContent})),
+      status:document.querySelector('#batchStatus')?.textContent||'',
+      results:[...document.querySelectorAll('#batchResults .new-track-row')]
+        .map(row=>row.textContent.slice(0,300)),
+    }));
+    console.log('R7 RECIPE MATRIX DIAGNOSTIC',JSON.stringify(stateProbe));
+    const secondAuditFile = path.join(outDir,'r7-recipe-second-audit-diagnostic.json');
+    await saveDownload(page,'#batchResults .new-track-row:nth-child(2) a.report-download',secondAuditFile);
+    const secondAudit=JSON.parse(await fs.readFile(secondAuditFile,'utf8'));
+    console.log('R7 SECOND AUDIT DIAGNOSTIC',JSON.stringify({
+      status:secondAudit.audit?.ok, issues:secondAudit.audit?.issues,
+      subripCueAudit:secondAudit.audit?.subripCueAudit,
+      subtitle:secondAudit.subtitle?.tracks,
+    }).slice(0,3000));
     assert.equal(await page.locator('#batchPlan .batch-review-state[data-state="awaitingSave"]').count(),2);
     console.log('Batch Recipe v2 independent output and execution audit PASS');
   } finally { await context.close(); }
@@ -6545,6 +6563,7 @@ const browser = await chromium.launch({
 try {
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
+  // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic
   await scenarioR1ObservedAttachmentNavigation(browser);
   await scenarioObservedMetadataSafeToolNavigation(browser);
   await scenarioSharedContainerProjectRealMux(browser); // isolate R2 after new navigation during regression diagnosis
