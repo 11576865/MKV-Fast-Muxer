@@ -4846,8 +4846,18 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
       'two actual media sources must require an explicit user selection');
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
 
+    // On the production 681–1365px tablet layout, the source list is an
+    // intentionally collapsed overlay. Open it through the actual user-facing
+    // 来源 control before choosing a radio; do not force-click a hidden input.
+    await page.locator('#sf14SourceToggle').click();
+    assert.equal(await page.locator('#sf14SourceToggle').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#sf14Single').getAttribute('data-show-source'), 'true');
+    assert.equal(await page.locator('#sf14Source').isVisible(), true);
+    assert.equal(await page.locator('#sourceFilesDetails').evaluate(el => el.open), true);
+
     const sourceChoice = name => page.locator('#assetInventory .asset-entry[data-kind="container"]')
       .filter({ hasText: name }).locator('[data-asset-source]');
+    assert.equal(await sourceChoice('p0-independent-mkvtoolnix.mkv').isVisible(), true);
     await sourceChoice('p0-independent-mkvtoolnix.mkv').check();
     await page.waitForFunction(() =>
       document.querySelector('#videoInput')?.files?.[0]?.name === 'p0-independent-mkvtoolnix.mkv' &&
