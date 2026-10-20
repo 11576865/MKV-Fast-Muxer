@@ -128,6 +128,25 @@ jobs:
           cat /tmp/mkvfm-preview.log
           exit 1
 
+      # S10: actual twenty-job Chromium/FFmpeg.wasm media execution, not
+      # synthetic plans or mocked outputs. Real 20 final MKV downloads,
+      # source-unchanged SHA, per-item native ffprobe/FFmpeg and report audits.
+      - name: S10 - twenty actual Matroska batch deliveries
+        run: npm run test:e2e:batch20
+
+      - name: Upload S10 twenty actual MKV acceptance manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s10-twenty-real-matroska-batch-evidence
+          path: |
+            .e2e/batch20-output/softmux-s10-twenty-real-mkvs-evidence.json
+            .e2e/batch20-output/Batch Stress S09E01.mkv
+            .e2e/batch20-output/Batch Stress S09E10.mkv
+            .e2e/batch20-output/Batch Stress S09E20.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
