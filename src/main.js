@@ -1454,6 +1454,11 @@ function captureNewTrackEditorState() {
   }
 }
 
+// Last rendered source owner, not a name/size-based approximation. A font or
+// subtitle readiness refresh may update the rest of the UI while a focused
+// source-track field is being edited; never unmount that exact field mid-input.
+let renderedSourceTrackEditor = null;
+
 function updateUI() {
   // Async container/font/subtitle probes may complete while the user is editing
   // track metadata. Snapshot live editor values before replacing list markup so
@@ -1563,7 +1568,19 @@ function updateUI() {
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
   if (trackState) {
-    renderTrackList();
+    const focused = document.activeElement;
+    // Rebuilding the active field can discard an input event that is about to
+    // commit, even if the global refresh concerns only an unrelated font probe.
+    // Retain only for the exact already-scanned File + model + edit mode;
+    // source replacement, busy transitions and mode switches still redraw.
+    const keepFocusedSourceEditor = !busy &&
+      scannedSourceFile === video &&
+      renderedSourceTrackEditor?.source === video &&
+      renderedSourceTrackEditor?.state === trackState &&
+      renderedSourceTrackEditor?.appendMode === appendMode &&
+      focused && trackList.contains(focused) &&
+      focused.matches('input[data-track-field]') && !focused.disabled;
+    if (!keepFocusedSourceEditor) renderTrackList();
     renderAttachmentList();
   } else {
     renderContainerChangeSummary();
@@ -4384,6 +4401,10 @@ function renderMuxPlan() {
 }
 
 function renderTrackList() {
+  renderedSourceTrackEditor = trackState
+    ? { source:videoInput.files?.[0] || null, state:trackState,
+        appendMode:Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked) }
+    : null;
   if (!trackState) {
     trackList.innerHTML = '<div class="track-empty">选择 MKV 后自动读取容器内容。</div>';
     renderContainerChangeSummary();
