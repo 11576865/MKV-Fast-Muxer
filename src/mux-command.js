@@ -59,6 +59,11 @@ export function buildMuxCommand({
       subtitleTimestampCorrectionSeconds < -0.25 ||
       Math.round(subtitleTimestampCorrectionSeconds*1000)/1000 !== subtitleTimestampCorrectionSeconds)
     throw new Error('SUBTITLE_TIMELINE_CORRECTION_INVALID');
+  if (subtitleTimestampCorrectionSeconds && (newSubtitleTracks.length !== 1 ||
+      !(newSubtitleTracks[0].format?.id === 'srt' ||
+        /\.srt$/i.test(String(newSubtitleTracks[0].path || ''))))) {
+    throw new Error('SUBTITLE_TIMELINE_CORRECTION_SCOPE_UNVERIFIED');
+  }
   const args = needsTextTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];
 
   for (const track of externalAudioTracks) {
