@@ -268,3 +268,29 @@ test('SRT and WebVTT preserve input timestamps before AAC priming can shift cues
     assert.equal(args[args.indexOf('-c') + 1], 'copy');
   }
 });
+
+test('bounded source-proven AAC priming correction applies only to newly added timed text inputs', () => {
+  const args = buildMuxCommand({
+    mainInputPath:'source.mp4',outputPath:'out.mkv',sourceAudioCount:1,
+    newSubtitleTracks:[
+      {path:'first.srt',inputIndex:1,format:{id:'srt'}},
+      {path:'image.sup',inputIndex:2,format:{id:'pgs'}},
+      {path:'third.ass',inputIndex:3,format:{id:'ass'}},
+    ],
+    subtitleTimestampCorrectionSeconds:-0.021,
+  });
+  assert.deepEqual(args.slice(0,12),[
+    '-copyts','-i','source.mp4',
+    '-itsoffset','-0.021','-i','first.srt',
+    '-i','image.sup',
+    '-itsoffset','-0.021','-i'
+  ]);
+  assert.equal(args[12],'third.ass');
+  assert.equal(args.filter(x => x === '-itsoffset').length,2);
+  for(const invalid of [-0.3,0.021,Infinity,NaN,-0.0215]) {
+    assert.throws(()=>buildMuxCommand({
+      mainInputPath:'source.mp4',outputPath:'out.mkv',
+      subtitleTimestampCorrectionSeconds:invalid,
+    }),/SUBTITLE_TIMELINE_CORRECTION_INVALID/);
+  }
+});
