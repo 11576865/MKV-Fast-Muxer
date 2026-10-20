@@ -7,6 +7,7 @@ import { BATCH_JOB_PLAN_SCHEMA } from './batch-job-plan.js';
  */
 export async function runFrozenBatchQueue(plan, {
   ledger,
+  jobIds = plan?.jobs?.map(job => job.jobId),
   shouldCancel = () => false,
   prepare,
   execute,
@@ -20,13 +21,22 @@ export async function runFrozenBatchQueue(plan, {
     throw new Error('批次执行器缺少必要的操作回调');
   }
 
+  const selectedIds = Array.from(jobIds || []);
+  const states = new Map(ledger.snapshot().map(entry => [entry.jobId, entry.state]));
+  if (!selectedIds.length || new Set(selectedIds).size !== selectedIds.length ||
+      selectedIds.some(id => states.get(id) !== 'queued') ||
+      plan.jobs.some(job => states.get(job.jobId) === 'queued' && !selectedIds.includes(job.jobId))) {
+    throw new Error('执行范围必须包含全部已授权待执行任务，且不能包含已完成或未知任务');
+  }
+  const selected = new Set(selectedIds);
   const results = [];
   let fatalError = '';
   let cancelled = false;
   try {
     for (let index = 0; index < plan.jobs.length; index += 1) {
-      if (shouldCancel()) { cancelled = true; break; }
       const job = plan.jobs[index];
+      if (!selected.has(job.jobId)) continue;
+      if (shouldCancel()) { cancelled = true; break; }
       ledger.transition(job.jobId, 'preparing');
       // Adapter staging errors are batch-fatal: the inherited single-job
       // inputs may be partially changed and cannot be trusted for later jobs.
