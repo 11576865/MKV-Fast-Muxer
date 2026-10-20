@@ -166,6 +166,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # S08: a real nested ChapterUID / targeted Tag source must be
+      # rejected even via a forced runtime click. Source re-selection must
+      # recover and deliver a real MKV under independent native ffprobe.
+      - name: Upload S08 current workbench fail-closed and recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s08-current-workbench-complex-mkv-safety
+          path: |
+            .e2e/output/softmux-s08-modern-source-safety-evidence.json
+            .e2e/output/s08-modern-source-switch-safe.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
       # Production-facing release gate: rendered pixels from the finished
       # browser-generated MKV, with independently extracted unique font.
       # The JSON verdict and PNG controls are uploaded even on failure.
