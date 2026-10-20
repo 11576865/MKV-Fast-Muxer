@@ -43,7 +43,6 @@ export function buildMuxCommand({
   preserveOriginalDataStreams = false,
   originalAttachmentCount = 0,
   fontAttachments = [],
-  subtitleTimestampCorrectionSeconds = 0,
 }) {
   // Encoder-priming audio timestamps can shift newly delivered timed text
   // even under stream copy. Preserve the timeline for scoped ASS/SRT/WebVTT
@@ -51,33 +50,12 @@ export function buildMuxCommand({
   const needsTextTimeline = newSubtitleTracks.some((track) =>
     ['ass', 'srt', 'webvtt'].includes(track.format?.id) ||
     /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || '')));
-  // The correction is only allowed when a separate source-packet probe proved
-  // the AAC priming duration. This low-level command contract refuses guessed
-  // or overbroad offsets even if an adapter supplied one by mistake.
-  if (!Number.isFinite(subtitleTimestampCorrectionSeconds) ||
-      subtitleTimestampCorrectionSeconds > 0 ||
-      subtitleTimestampCorrectionSeconds < -0.25 ||
-      Math.round(subtitleTimestampCorrectionSeconds*1000)/1000 !== subtitleTimestampCorrectionSeconds)
-    throw new Error('SUBTITLE_TIMELINE_CORRECTION_INVALID');
-  if (subtitleTimestampCorrectionSeconds && (newSubtitleTracks.length !== 1 ||
-      !(newSubtitleTracks[0].format?.id === 'srt' ||
-        /\.srt$/i.test(String(newSubtitleTracks[0].path || ''))))) {
-    throw new Error('SUBTITLE_TIMELINE_CORRECTION_SCOPE_UNVERIFIED');
-  }
   const args = needsTextTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];
 
   for (const track of externalAudioTracks) {
     args.push('-i', track.path);
   }
   for (const track of newSubtitleTracks) {
-    // The observed AAC priming delta is currently proven for newly imported
-    // SubRip only. ASS has its own independently verified centisecond policy:
-    // applying the same offset overshot its Dialogue times by 2 cs in actual
-    // wasm output. WebVTT also needs a separate real-output acceptance case.
-    const isSubRip = track.format?.id === 'srt' ||
-      /\.srt$/i.test(String(track.path || ''));
-    if (subtitleTimestampCorrectionSeconds && isSubRip)
-      args.push('-itsoffset', String(subtitleTimestampCorrectionSeconds));
     args.push('-i', track.path);
   }
 
