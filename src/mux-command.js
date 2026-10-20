@@ -43,6 +43,7 @@ export function buildMuxCommand({
   preserveOriginalDataStreams = false,
   originalAttachmentCount = 0,
   fontAttachments = [],
+  subtitleTimestampCorrectionSeconds = 0,
 }) {
   // Encoder-priming audio timestamps can shift newly delivered timed text
   // even under stream copy. Preserve the timeline for scoped ASS/SRT/WebVTT
@@ -50,12 +51,24 @@ export function buildMuxCommand({
   const needsTextTimeline = newSubtitleTracks.some((track) =>
     ['ass', 'srt', 'webvtt'].includes(track.format?.id) ||
     /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || '')));
+  // The correction is only allowed when a separate source-packet probe proved
+  // the AAC priming duration. This low-level command contract refuses guessed
+  // or overbroad offsets even if an adapter supplied one by mistake.
+  if (!Number.isFinite(subtitleTimestampCorrectionSeconds) ||
+      subtitleTimestampCorrectionSeconds > 0 ||
+      subtitleTimestampCorrectionSeconds < -0.25 ||
+      Math.round(subtitleTimestampCorrectionSeconds*1000)/1000 !== subtitleTimestampCorrectionSeconds)
+    throw new Error('SUBTITLE_TIMELINE_CORRECTION_INVALID');
   const args = needsTextTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];
 
   for (const track of externalAudioTracks) {
     args.push('-i', track.path);
   }
   for (const track of newSubtitleTracks) {
+    const isText = ['ass','srt','webvtt'].includes(track.format?.id) ||
+      /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || ''));
+    if (subtitleTimestampCorrectionSeconds && isText)
+      args.push('-itsoffset', String(subtitleTimestampCorrectionSeconds));
     args.push('-i', track.path);
   }
 
