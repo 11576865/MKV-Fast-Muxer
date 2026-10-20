@@ -3934,12 +3934,12 @@ async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, c
       logEl.textContent += 'INFO: 来源 AAC 第一个实际数据包含 ' +
         proven.skipSamples + ' 个 priming skip samples，原 PTS ' +
         proven.observedNegativePtsSeconds + ' s。对新文本字幕输入施加 ' +
-        proven.correctionSeconds + ' s 时间补偿；原视频、音频流仍 stream copy。\\n';
+        proven.correctionSeconds + ' s 时间补偿；原视频、音频流仍 stream copy。\n';
     }
     return proven.correctionSeconds;
   } catch(error) {
     logEl.textContent += 'WARNING: 来源 AAC 首包时间证据不可用；不猜测补偿量。' +
-      (error?.message || String(error)) + '\\n';
+      (error?.message || String(error)) + '\n';
     return 0;
   }
 }
@@ -5456,7 +5456,7 @@ async function executeCurrentMuxTask(explicit = null) {
     // Derive correction from actual staged-source packets; never hardcode 21.
     const hasNewTimedText = runtimeSubtitles.some(track =>
       ['ass','srt','webvtt'].includes(track.format?.id) ||
-      /\\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || '')));
+      /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || '')));
     const primingProbePath = `${prefix}-aac-priming.json`;
     if (hasNewTimedText) extraProbePaths.push(primingProbePath);
     const subtitleTimestampCorrectionSeconds = hasNewTimedText
