@@ -103,9 +103,9 @@ const TRANSITIONS = Object.freeze({
   preparing: ['muxing', 'failed', 'cancelled', 'interrupted'],
   muxing: ['saving', 'failed', 'cancelled', 'interrupted'],
   saving: ['succeeded', 'awaitingSave', 'saveWarning', 'auditWarning', 'failed', 'cancelled', 'interrupted'],
-  awaitingSave: [],
-  auditWarning: [],
-  succeeded: [], saveWarning: [], failed: [], cancelled: [], interrupted: [],
+  awaitingSave: ['saving'],
+  auditWarning: ['saving'],
+  succeeded: [], saveWarning: ['saving'], failed: [], cancelled: [], interrupted: [],
 });
 
 /** A batch-owned status ledger, never an editable copy of track/asset state. */
@@ -135,5 +135,17 @@ export function createBatchJobLedger(plan, onChange = () => {}) {
       if (current.state === 'queued') transition(job.jobId, cancelled ? 'cancelled' : 'interrupted', { error: reason });
     }
   }
-  return Object.freeze({ snapshot, transition, interruptRemaining, plan });
+  // Explicit retry authorization, separate from normal terminal transitions.
+  // Validate the entire set first, so a mixed request cannot partly requeue.
+  function requeueFailed(jobIds) {
+    const ids = Array.from(jobIds || []);
+    if (!ids.length || new Set(ids).size !== ids.length ||
+        [...entries.values()].some(e => ['queued','preparing','muxing','saving'].includes(e.state)) ||
+        ids.some(id => entries.get(id)?.state !== 'failed')) {
+      throw new Error('仅允许重试空闲批次中明确选择的失败任务');
+    }
+    for (const id of ids) entries.set(id, Object.freeze({ ...entries.get(id), state: 'queued', error: '' }));
+    notify();
+  }
+  return Object.freeze({ snapshot, transition, interruptRemaining, requeueFailed, plan });
 }
