@@ -3927,8 +3927,9 @@ async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, c
     await removeQuietly(resultPath);
     await ffmpeg.ffprobe([
       '-v','error','-select_streams','a:0','-read_intervals','%+#1',
-      '-show_packets','-show_entries','packet=pts_time',
-      '-of','json','-o',resultPath,sourcePath,
+      '-show_streams','-show_packets',
+      '-show_entries','stream=index,codec_name,sample_rate:packet=pts_time',
+      '-of','json',sourcePath,'-o',resultPath,
     ]);
     // The bundled ffprobe wrapper may return -1 after writing valid JSON.
     const raw = await ffmpeg.readFile(resultPath);
