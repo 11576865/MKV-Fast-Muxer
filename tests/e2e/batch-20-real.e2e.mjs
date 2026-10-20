@@ -88,7 +88,9 @@ try {
   const pageErrors=[];
   page.on('pageerror',e=>{pageErrors.push(String(e));console.error('BATCH20 pageerror',e);});
   await page.goto(new URL('?ui=legacy',baseUrl).toString(),{waitUntil:'networkidle'});
-  await page.locator('#batchStartBtn').waitFor();
+  // The batch drawer is intentionally collapsed on initial load; the
+  // start button becomes visible only after the user opens the drawer.
+  await page.locator('#muxBtn').waitFor();
   manifest.browser=await page.evaluate(()=>({
     userAgent:navigator.userAgent,hardwareConcurrency:navigator.hardwareConcurrency,
   }));
