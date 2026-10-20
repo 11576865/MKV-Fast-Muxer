@@ -2660,12 +2660,25 @@ async function scenarioBatchFailedJobRetry(browser) {
     assert.equal(report.subtitle.tracks[0].language,'eng');
     assert.equal(streams(probe(retryPath),'subtitle')[0].codec_name,'subrip');
     // Independently check actual recovered cue payload, not just report fields.
-    const recovered = execFileSync('ffmpeg',['-v','error','-i',retryPath,'-map','0:s:0','-f','srt','-'],{encoding:'utf8'});
+    // The actual Matroska subtitle packet timeline is the oracle. Native
+    // FFmpeg without -copyts can rebase ALL tracks by AAC negative priming PTS
+    // and turn a genuine 100 ms subtitle into a misleading 121 ms SRT dump.
+    // Require exact packet PTS and independent native -copyts demux parity.
+    const packetAudit = JSON.parse(execFileSync('ffprobe',[
+      '-v','error','-select_streams','s:0','-show_packets',
+      '-show_entries','packet=pts_time','-of','json',retryPath,
+    ],{encoding:'utf8'}));
+    const packetStarts=(packetAudit.packets||[]).map(p=>Math.round(Number(p.pts_time)*1000));
+    console.log('R7 ACTUAL MKV SRT PACKET PTS',JSON.stringify(packetStarts));
+    assert.deepEqual(packetStarts,[100,1550],
+      'finished MKV actual subtitle packet PTS must equal source, not rebased extraction');
+    const recovered = execFileSync('ffmpeg',[
+      '-v','error','-copyts','-i',retryPath,'-map','0:s:0','-f','srt','-',
+    ],{encoding:'utf8'});
     const expected = await fs.readFile(path.join(root,'Batch S01E02.en.srt'),'utf8');
     const text = value => value.replace(/\r/g,'').trim();
-    console.log('R7 TIMELINE PROBE EVIDENCE', (await page.locator('#log').textContent())
-      .split(String.fromCharCode(10)).filter(line=>/TIMELINE_PROBE|AAC|priming|时间补偿/.test(line)).join(' | '));
-    assert.equal(text(recovered),text(expected));
+    assert.equal(text(recovered),text(expected),
+      'independent FFmpeg readback preserving original container PTS must match all source cues');
     const retainedAgain = path.join(outDir,'r7-retry-retained-first-again.mkv');
     await saveDownload(page,'#batchResults .new-track-row:first-child a.download',retainedAgain);
     assert.equal(createHash('sha256').update(await fs.readFile(retainedAgain)).digest('hex'),firstHash);
