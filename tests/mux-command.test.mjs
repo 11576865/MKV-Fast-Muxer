@@ -279,7 +279,7 @@ test('bounded source-proven AAC priming correction applies only to newly added t
     ],
     subtitleTimestampCorrectionSeconds:-0.021,
   });
-  assert.deepEqual(args.slice(0,12),[
+  assert.deepEqual(args.slice(0,11),[
     '-copyts','-i','source.mp4',
     '-itsoffset','-0.021','-i','first.srt',
     '-i','image.sup','-i','third.ass'
