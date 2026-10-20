@@ -5462,8 +5462,12 @@ async function executeCurrentMuxTask(explicit = null) {
     // An AAC priming sample can shift a newly added SRT/ASS by one audio
     // encoder frame (+21 ms at 48 kHz) in the Matroska copy path.
     // Derive correction from actual staged-source packets; never hardcode 21.
-    const hasNewTimedText = runtimeSubtitles.some(track =>
-      track.format?.id === 'srt' || /\.srt$/i.test(String(track.path || '')));
+    // Real output proof currently covers one newly added SRT stream; when
+    // SSA/ASS/WebVTT coexist, shifting only one track changes the container
+    // timeline and independently audited mixed-subtitle parity fails.
+    const hasNewTimedText = runtimeSubtitles.length === 1 && (
+      runtimeSubtitles[0].format?.id === 'srt' ||
+      /\.srt$/i.test(String(runtimeSubtitles[0].path || '')));
     const primingProbePath = `${prefix}-aac-priming.json`;
     if (hasNewTimedText) extraProbePaths.push(primingProbePath);
     const subtitleTimestampCorrectionSeconds = hasNewTimedText
