@@ -2646,7 +2646,7 @@ async function scenarioBatchFailedJobRetry(browser) {
     const expected = await fs.readFile(path.join(root,'Batch S01E02.en.srt'),'utf8');
     const text = value => value.replace(/\r/g,'').trim();
     console.log('R7 TIMELINE PROBE EVIDENCE', (await page.locator('#log').textContent())
-      .split('\\n').filter(line=>/TIMELINE_PROBE|AAC|priming|时间补偿/.test(line)).join(' | '));
+      .split(String.fromCharCode(10)).filter(line=>/TIMELINE_PROBE|AAC|priming|时间补偿/.test(line)).join(' | '));
     assert.equal(text(recovered),text(expected));
     const retainedAgain = path.join(outDir,'r7-retry-retained-first-again.mkv');
     await saveDownload(page,'#batchResults .new-track-row:first-child a.download',retainedAgain);
