@@ -1594,6 +1594,19 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     await page.setInputFiles('#fontInput',path.join(root,'DejaVuSans.ttf'));
     await page.locator('.track-row.track-audio input[data-track-field="title"]').first()
       .fill('R2 Original Source');
+    const sourceTitleInput = page.locator('.track-row.track-audio input[data-track-field="title"]').first();
+    const captureR2Source = async (stage) => page.evaluate(stage => ({
+      stage,
+      sourceInput: document.querySelector('.track-row.track-audio input[data-track-field="title"]')?.value,
+      planHasOriginal: (document.querySelector('#muxPlan')?.textContent || '').includes('R2 Original Source'),
+      status: document.querySelector('#status')?.textContent || '',
+      scannedAudioTitles: [...document.querySelectorAll('.track-row.track-audio input[data-track-field="title"]')].map(e=>e.value),
+      plannedAudioTitles: [...document.querySelectorAll('#muxPlan .plan-row')].map(e=>e.textContent.trim()).filter(t=>t.includes('音频')),
+    }), stage);
+    const afterSource = await captureR2Source('after-source-title-fill');
+    console.log('R2 SOURCE DIAGNOSTIC', JSON.stringify(afterSource));
+    assert.equal(afterSource.sourceInput,'R2 Original Source',
+      'source field must hold the requested value immediately after user edit');
     await page.locator('#newAudioList input[data-new-audio-field="title"]').first()
       .fill('R2 Added Audio');
     await page.locator('#newSubtitleList input[data-new-sub-field="title"]').first()
@@ -1601,6 +1614,16 @@ async function scenarioSharedContainerProjectRealMux(browser) {
     await page.locator('#newSubtitleList input[data-new-sub-field="forced"]').first()
       .check();
     await page.locator('#fontMode').selectOption('force');
+    console.log('R2 FINAL DIAGNOSTIC', JSON.stringify(await captureR2Source('after-external-edits')));
+    // Edits re-project asynchronously from the shared immutable domain owner.
+    // Assert the *current executable plan* eventually contains all three
+    // changes, rather than sampling the DOM in the same event loop turn.
+    // A stale or lost business edit still fails this bounded expectation.
+    await page.waitForFunction(() => {
+      const plan=document.querySelector('#muxPlan')?.textContent||'';
+      return plan.includes('R2 Original Source') &&
+        plan.includes('R2 Added Audio') && plan.includes('R2 Added ASS');
+    }, null, {timeout: 12000});
     const plan=await page.locator('#muxPlan').textContent();
     assert.match(plan,/R2 Original Source/);
     assert.match(plan,/R2 Added Audio/);
@@ -5983,6 +6006,90 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
   } finally { await context.close(); }
 }
 
+async function scenarioObservedMetadataSafeToolNavigation(browser) {
+  console.log('Theory 1.0 R1: observed chapter/tag opens bounded real EBML tool without inherited edit authority');
+  const context = await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:900}});
+  const page = await context.newPage();
+  page.on('pageerror',error => { throw error; });
+  try {
+    const url = new URL(baseUrl);
+    url.searchParams.delete('ui');
+    await page.goto(url.toString(),{waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    const unscannedChapter=page.locator('#sf14SectionSelection [data-open-observed-metadata]');
+    await page.locator('[data-sf-section="chapters"]').click();
+    assert.equal(await unscannedChapter.count(),0,'unscanned source must not offer a writer route');
+    await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-with-attachments.mkv'));
+    await waitForStatus(page,'轨道扫描完成：');
+    const chapterRows=page.locator('#sf14SectionItems button[data-observed-id]');
+    assert.equal(await chapterRows.count(),2,'must route from actual probed chapters, not invented controls');
+    await chapterRows.first().click();
+    const link=page.locator('#sf14SectionSelection [data-open-observed-metadata="chapters"]');
+    assert.equal(await link.count(),1);
+    assert.match(await page.locator('#sf14SectionSelection').textContent(),
+      /重新检查.*EBML|本条观察不等于可写字段/);
+
+    // A forged second File with the same display name never satisfies exact
+    // source identity. The domain route rejects before altering tool inputs.
+    const forged=await page.evaluate(() => {
+      const original=document.querySelector('#videoInput').files[0];
+      const substitute=new File(['forged'],original.name,
+        {type:original.type,lastModified:original.lastModified});
+      const event=new CustomEvent('softmux:open-observed-metadata-tool',{
+        bubbles:true,cancelable:true,
+        detail:{sourceFile:substitute,kind:'chapters',observedId:'source-chapter:0'},
+      });
+      document.querySelector('#sf14Root').dispatchEvent(event);
+      return {accepted:event.defaultPrevented,
+        toolFiles:document.querySelector('#p2MetadataSource').files.length};
+    });
+    assert.deepEqual(forged,{accepted:false,toolFiles:0});
+
+    await link.click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'tools');
+    assert.equal(await page.locator('#p2MetadataInlineDetails').evaluate(el=>el.open),true);
+    assert.equal(await page.locator('#p2MetadataSource').evaluate(el =>
+      el.files?.[0] === document.querySelector('#videoInput').files?.[0]),true,
+    'bounded writer must re-inspect the same exact current source File');
+    await page.waitForFunction(() =>
+      ['ready','blocked'].includes(document.querySelector('#p2MetadataStatus')?.dataset.state),
+      null,{timeout:60000});
+    assert.equal(await page.locator('#p2MetadataReview').isChecked(),false,
+      'source-observation navigation may not inherit writer consent');
+    assert.equal(await page.locator('#p2MetadataPrepare').isDisabled(),true);
+    assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
+
+    await page.locator('[data-sf-view="single"]').click();
+    await page.locator('[data-sf-section="tags"]').click();
+    const tagRows=page.locator('#sf14SectionItems button[data-observed-id]');
+    assert.ok(await tagRows.count()>0,'real source format tags must be observed');
+    await tagRows.first().click();
+    const tagLink=page.locator('#sf14SectionSelection [data-open-observed-metadata="tags"]');
+    assert.equal(await tagLink.count(),1);
+    await tagLink.click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'tools');
+    assert.equal(await page.locator('#p2MetadataSource').evaluate(el =>
+      el.files?.[0] === document.querySelector('#videoInput').files?.[0]),true);
+    assert.equal(await page.locator('#p2MetadataReview').isChecked(),false);
+    assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
+    // The one-shot public importer *must* clear its own FileList after intake.
+    // Main-project continuity lives in the current video File and its owned
+    // source inventory, not in the cleared picker control.
+    assert.equal(await page.locator('#unifiedAssetInput').evaluate(el=>el.files.length),0,
+      'one-shot importer is intentionally cleared after file intake');
+    assert.equal(await page.locator('#videoInput').evaluate(input =>
+      Boolean(input.files?.[0]) &&
+      input.files[0] === document.querySelector('#p2MetadataSource')?.files?.[0]),true,
+    'navigation must retain the main project source as the exact File re-inspected by the bounded tool');
+    assert.equal(await page.locator('#assetInventory [data-asset-source]:checked').count(),1,
+      'main project must retain its selected authoritative source row');
+    assert.match(await page.locator('#assetInventory .asset-entry-name').first().textContent(),
+      /source-with-attachments\.mkv/,
+    'existing source inventory must not be lost after navigation');
+    console.log('Theory R1 observed Chapter/Tag -> exact-File reinspection and fail-closed consent PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioSoftmux1014WholeWorkbench(browser) {
   console.log('软封0.1014版本: cohesive production DOM UI with source observations');
   const context = await browser.newContext({ acceptDownloads: true, viewport: {width:1440,height:900} });
@@ -6037,8 +6144,14 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
         assert.match(await page.locator('#sf14SectionSelection').textContent(),
           /ffprobe|来源|格式层|UID|章节/);
         if (section !== 'attachments') {
-          assert.equal(await page.locator('#sf14SectionSelection button').count(),0,
-            'flat chapter/tag observation must not offer an unverified writer');
+          const bridge = page.locator('#sf14SectionSelection button[data-open-observed-metadata]');
+          assert.equal(await bridge.count(),1,
+            'flat chapter/tag observation offers only the explicit independent bounded-tool bridge');
+          assert.equal(await page.locator('#sf14SectionSelection button').count(),1,
+            'flat metadata must not expose any direct writer or extra mutation control');
+          assert.match(await page.locator('#sf14SectionSelection').textContent(),
+            /重新检查.*EBML|本条观察不等于可写字段/,
+            'tool bridge must communicate that observation does not grant EBML edit authority');
         }
       }
       const evidenceTypes = await page.locator('#sf14SectionItems .sf14-source-observation')
@@ -6325,6 +6438,8 @@ const browser = await chromium.launch({
 try {
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioR1ObservedAttachmentNavigation(browser);
+  await scenarioObservedMetadataSafeToolNavigation(browser);
+  await scenarioSharedContainerProjectRealMux(browser); // isolate R2 after new navigation during regression diagnosis
   await scenarioSoftmux1014WholeWorkbench(browser);
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
@@ -6367,7 +6482,7 @@ try {
   await scenarioFontCollectionAndAdvancedFlags(browser);
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
-  await scenarioSharedContainerProjectRealMux(browser);
+  // R2 already exercised above during joint-integration regression diagnosis.
   await scenarioExternalCheckpointRecoveryRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
