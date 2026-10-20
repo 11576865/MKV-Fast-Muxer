@@ -65,9 +65,13 @@ export function buildMuxCommand({
     args.push('-i', track.path);
   }
   for (const track of newSubtitleTracks) {
-    const isText = ['ass','srt','webvtt'].includes(track.format?.id) ||
-      /\.(ass|srt|vtt|webvtt)$/i.test(String(track.path || ''));
-    if (subtitleTimestampCorrectionSeconds && isText)
+    // The observed AAC priming delta is currently proven for newly imported
+    // SubRip only. ASS has its own independently verified centisecond policy:
+    // applying the same offset overshot its Dialogue times by 2 cs in actual
+    // wasm output. WebVTT also needs a separate real-output acceptance case.
+    const isSubRip = track.format?.id === 'srt' ||
+      /\.srt$/i.test(String(track.path || ''));
+    if (subtitleTimestampCorrectionSeconds && isSubRip)
       args.push('-itsoffset', String(subtitleTimestampCorrectionSeconds));
     args.push('-i', track.path);
   }
