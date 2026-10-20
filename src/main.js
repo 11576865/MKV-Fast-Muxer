@@ -54,9 +54,10 @@ import { assignUniqueAttachmentNames, dedupeFilesBySha256, sha256Hex } from './f
 import { createMuxReport, reportFilename, serializeMuxReport } from './mux-report.js';
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
+import { createBatchSaveRetryRegistry } from './batch-save-retry.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
-import { formatBatchTerminalStatus } from './batch-status.js';
+import { formatBatchTerminalStatus, combineBatchRetryTerminal } from './batch-status.js';
 import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
 import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
@@ -528,6 +529,12 @@ let batchStartCancelled = false;
 let batchCancelRequested = false;
 let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
+const batchSaveRetries = createBatchSaveRetryRegistry();
+let batchSaveRetryBusy = false;
+let retainedBatchResults = [];
+let retainedBatchLedger = null;
+let retainedBatchExecution = null;
+let retainedBatchTerminal = { cancelled: false, fatalError: '' };
 let pendingBatchRecipeV2=null;
 let approvedBatchRecipeV2=null;
 let currentBatchTaskMetadata=new Map();
@@ -1236,13 +1243,13 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning || previewing;
+  return running || scanning || previewing || batchSaveRetryBusy;
 }
 
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending || batchRunning;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -6508,7 +6515,7 @@ function setInputFiles(input, files) {
 }
 
 async function chooseBatchOutputDirectory() {
-  if (batchRunning || batchStartPending) return;
+  if (batchRunning || batchStartPending || batchSaveRetryBusy) return;
   if (!('showDirectoryPicker' in window)) {
     batchOutputDirStatus.textContent = '当前浏览器不支持目录写入；仍可逐项保存。';
     return;
@@ -6947,16 +6954,134 @@ async function prepareBatchStart() {
   }
 }
 
+function renderRetainedBatchResults(currentResults = retainedBatchResults) {
+  retainedBatchResults = Array.from(currentResults);
+  const resultStates = new Map(retainedBatchLedger?.snapshot().map(entry => [entry.jobId, entry]) || []);
+  batchResults.innerHTML = retainedBatchResults.map((item) => item.ok
+          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · MKV 与报告均已写入 ${escapeHtml(item.destinationName || '输出目录')}` : item.mkvSavedToDirectory ? ` · MKV 已写入目录，但报告写入失败：${escapeHtml(item.reportSaveError || item.directorySaveError || '未知原因')}；报告仍可单独下载` : item.directorySaveError ? ` · 目录保存失败：${escapeHtml(item.directorySaveError)}；可通过下载链接保存 MKV 与报告` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}${!item.savedToDirectory && batchSaveRetries.has(item.job.jobId) ? `<button type="button" data-batch-save-retry="${escapeHtml(item.job.jobId)}" ${batchSaveRetryBusy || batchRunning ? 'disabled' : ''}>仅重试保存</button>` : ''}</div></div>`
+          : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>${escapeHtml(BATCH_JOB_STATES[resultStates.get(item.job.jobId)?.state] || '执行失败')} · ${escapeHtml(resultStates.get(item.job.jobId)?.error || item.error)}</small></div>${resultStates.get(item.job.jobId)?.state === 'failed' ? `<button type="button" data-batch-job-retry="${escapeHtml(item.job.jobId)}" ${batchRunning || batchStartPending || batchSaveRetryBusy ? 'disabled' : ''}>重试此失败任务</button>` : ''}</div>`
+        ).join('');
+}
+
+batchResults?.addEventListener('click', async (event) => {
+  const button = event.target.closest?.('[data-batch-save-retry]');
+  if (!button || isBusy() || batchRunning || batchStartPending || batchImportInProgress) return;
+  const id = button.dataset.batchSaveRetry;
+  const index = retainedBatchResults.findIndex(item => item.job.jobId === id);
+  const item = retainedBatchResults[index];
+  if (!item?.ok || !batchSaveRetries.has(id)) return;
+  if (!batchOutputDirectoryHandle) await chooseBatchOutputDirectory();
+  if (!batchOutputDirectoryHandle || isBusy() || batchRunning || batchStartPending ||
+      retainedBatchResults[index] !== item || !batchSaveRetries.has(id)) return;
+  const directory = batchOutputDirectoryHandle;
+  const ledger = retainedBatchLedger;
+  const previous = ledger?.snapshot().find(entry => entry.jobId === id);
+  batchSaveRetryBusy = true;
+  updateUI();
+  renderRetainedBatchResults();
+  batchStatus.textContent = '正在保存已生成成品（不重新封装）……';
+  try {
+    if (previous) ledger.transition(id, 'saving');
+    const receipt = await batchSaveRetries.retry(id, directory);
+    retainedBatchResults[index] = Object.freeze({ ...item, ...receipt });
+    if (previous) ledger.transition(id, item.auditStatus !== 'pass' ? 'auditWarning'
+      : receipt.savedToDirectory ? 'succeeded' : 'saveWarning',
+      { error: item.auditStatus !== 'pass'
+        ? '独立审计仍待复核；保存重试未执行新的审计。' + receipt.directorySaveError
+        : receipt.directorySaveError });
+  } catch (error) {
+    const reason = error?.message || String(error);
+    retainedBatchResults[index] = Object.freeze({ ...item,
+      mkvSaveError: '', reportSaveError: '', directorySaveError: reason });
+    if (previous && ledger.snapshot().find(entry => entry.jobId === id)?.state === 'saving')
+      ledger.transition(id, previous.state, { error: reason });
+  } finally {
+    batchSaveRetryBusy = false;
+    renderRetainedBatchResults();
+    batchStatus.textContent = formatBatchTerminalStatus({
+      ...retainedBatchTerminal, results: retainedBatchResults,
+    });
+    updateUI();
+    void requestBatchPlanSync();
+  }
+});
+
+batchResults?.addEventListener('click', async (event) => {
+  const button = event.target.closest?.('[data-batch-job-retry]');
+  if (!button || isBusy() || batchRunning || batchStartPending || batchImportInProgress) return;
+  const id = button.dataset.batchJobRetry;
+  const execution = retainedBatchExecution;
+  const ledger = retainedBatchLedger;
+  const item = retainedBatchResults.find(result => result.job.jobId === id);
+  if (!execution || !ledger || item?.ok !== false ||
+      ledger.snapshot().find(entry => entry.jobId === id)?.state !== 'failed') return;
+  const job = execution.frozenPlan.jobs.find(entry => entry.jobId === id);
+  const directory = batchOutputDirectoryHandle;
+  batchStartPending = true;
+  batchStartCancelled = false;
+  updateUI();
+  renderRetainedBatchResults();
+  batchStatus.textContent = '正在检查原失败任务与输出目录……';
+  try {
+    if (directory) {
+      const conflicts = await findExistingBatchOutputs(directory, [job]);
+      if (conflicts.length) throw Error('输出目录已有 ' + conflicts.join('、') + '；不会覆盖，请检查残留或选择新目录。');
+    }
+    const identity = await sniffFileContainer(job.video);
+    if (identity.container === 'unknown') throw Error('原来源容器身份无法核验');
+    if (['matroska', 'matroska-webm'].includes(identity.container)) {
+      const protection = await inspectMatroskaPreservation(job.video);
+      const refusal = preservationBlockMessage(job.video.name, protection);
+      if (refusal) throw Error(refusal);
+    }
+    if (batchStartCancelled) throw Error('失败任务重试预检已取消');
+    if (retainedBatchExecution !== execution || retainedBatchLedger !== ledger ||
+        batchOutputDirectoryHandle !== directory ||
+        retainedBatchResults.find(result => result.job.jobId === id) !== item)
+      throw Error('重试期间任务或目录发生变化，请重新选择');
+    ledger.requeueFailed([id]);
+    batchRunning = true;
+    batchCancelRequested = false;
+  } catch (error) {
+    batchStatus.textContent = '重试未开始：' + (error?.message || String(error));
+  } finally {
+    batchStartPending = false;
+    batchStartCancelled = false;
+    updateUI();
+    renderRetainedBatchResults();
+  }
+  if (batchRunning) await executeFrozenBatch({ ...execution, selectedOutputDirectory: directory }, [id]);
+});
+
 batchStartBtn?.addEventListener('click', async () => {
   const preparation = await prepareBatchStart();
   if (!preparation) return;
+  await executeFrozenBatch(preparation);
+});
+
+async function executeFrozenBatch(preparation, retryIds = null) {
   const { pairing, frozenPlan, selectedOutputDirectory } = preparation;
-  // Old batch links remain valid until a replacement batch actually starts.
-  // Clear them together with the old results to release large Blob references.
-  batchResultUrls.releaseAll();
-  batchResults.innerHTML = '';
-  batchStatus.textContent = `批量任务：0 / ${frozenPlan.jobs.length}`;
-  activeBatchJobLedger = createBatchJobLedger(frozenPlan, refreshBatchExecutionViews);
+  const previousResults = retryIds ? [...retainedBatchResults] : [];
+  const previousTerminal = retryIds ? retainedBatchTerminal : null;
+  const mergeResults = next => frozenPlan.jobs.map(job =>
+    next.find(item => item.job.jobId === job.jobId) ||
+    previousResults.find(item => item.job.jobId === job.jobId)).filter(Boolean);
+  if (!retryIds) {
+    retainedBatchExecution = preparation;
+    // Old batch links remain valid until a replacement batch actually starts.
+    // Clear them together with the old results to release large Blob references.
+    batchSaveRetries.releaseAll();
+    retainedBatchResults = [];
+    retainedBatchTerminal = { cancelled: false, fatalError: '' };
+    batchResultUrls.releaseAll();
+    batchResults.innerHTML = '';
+    batchStatus.textContent = `批量任务：0 / ${frozenPlan.jobs.length}`;
+    activeBatchJobLedger = createBatchJobLedger(frozenPlan, refreshBatchExecutionViews);
+    retainedBatchLedger = activeBatchJobLedger;
+  } else {
+    activeBatchJobLedger = retainedBatchLedger;
+  }
+  renderRetainedBatchResults();
   requestBatchPlanSync();
 
   const requestedBatchFonts = frozenPlan.fonts;
@@ -6978,9 +7103,10 @@ batchStartBtn?.addEventListener('click', async () => {
 
     const outcome = await runFrozenBatchQueue(frozenPlan, {
       ledger: activeBatchJobLedger,
+      ...(retryIds ? { jobIds: retryIds } : {}),
       shouldCancel: () => batchCancelRequested,
       prepare: async (job, index) => {
-        batchStatus.textContent = `批量任务：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
+        batchStatus.textContent = `${retryIds ? '重试失败任务' : '批量任务'}：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
         activeBatchMuxContext = null;
         const headerIdentity = await sniffFileContainer(job.video);
         if (headerIdentity.container === 'unknown') {
@@ -7006,7 +7132,7 @@ batchStartBtn?.addEventListener('click', async () => {
         if (!result?.blob) throw new Error(status.textContent || '批量单项封装未交付成品');
         return result;
       },
-      publish: async (_job, artifact) => {
+      publish: async (job, artifact) => {
         let publication = {
           savedToDirectory: false,
           mkvSavedToDirectory: false,
@@ -7027,19 +7153,16 @@ batchStartBtn?.addEventListener('click', async () => {
               directorySaveError: error?.message || String(error) };
           }
         }
+        batchSaveRetries.retain(job.jobId, artifact, publication, selectedOutputDirectory);
         return {
+          destinationName: selectedOutputDirectory?.name || '',
           url: batchResultUrls.create(artifact.blob),
           reportUrl: batchResultUrls.create(artifact.reportBlob),
           reportName: artifact.reportName,
           ...publication,
         };
       },
-      onResults: (currentResults) => {
-        batchResults.innerHTML = currentResults.map((item) => item.ok
-          ? `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>已生成 · ${item.auditStatus === 'pass' ? 'ffprobe 审计通过' : item.auditStatus === 'warning' ? `审计差异 ${item.auditIssues?.length || 0} 项` : '审计未完成，需复核'}${item.savedToDirectory ? ` · MKV 与报告均已写入 ${escapeHtml(selectedOutputDirectory?.name || '输出目录')}` : item.mkvSavedToDirectory ? ` · MKV 已写入目录，但报告写入失败：${escapeHtml(item.reportSaveError || item.directorySaveError || '未知原因')}；报告仍可单独下载` : item.directorySaveError ? ` · 目录保存失败：${escapeHtml(item.directorySaveError)}；可通过下载链接保存 MKV 与报告` : ' · 等待下载保存'}</small></div><div class="new-track-flags"><a class="download" href="${item.url}" download="${escapeHtml(item.outputName)}">保存 MKV</a>${item.reportUrl ? `<a class="report-download" href="${item.reportUrl}" download="${escapeHtml(item.reportName)}">报告</a>` : ''}</div></div>`
-          : `<div class="new-track-row"><div class="new-track-main"><strong>${escapeHtml(item.job.video.name)}</strong><small>失败 · ${escapeHtml(item.error)}</small></div></div>`
-        ).join('');
-      },
+      onResults: next => renderRetainedBatchResults(mergeResults(next)),
     });
     results.push(...outcome.results);
     batchFatalError = outcome.fatalError;
@@ -7058,17 +7181,21 @@ batchStartBtn?.addEventListener('click', async () => {
   } finally {
     activeBatchJobLedger?.interruptRemaining(batchCancelRequested ? '用户取消后尚未运行' : batchFatalError || '队列已结束', { cancelled: batchCancelRequested });
     batchRunning = false;
+    const currentTerminal = { cancelled: batchCancelRequested, fatalError: batchFatalError };
+    retainedBatchTerminal = retryIds
+      ? combineBatchRetryTerminal(previousTerminal, currentTerminal) : currentTerminal;
+    const combinedResults = mergeResults(results);
+    renderRetainedBatchResults(combinedResults);
     batchStatus.textContent = formatBatchTerminalStatus({
-      results,
-      cancelled: batchCancelRequested,
-      fatalError: batchFatalError,
+      results: combinedResults,
+      ...retainedBatchTerminal,
     });
     batchCancelRequested = false;
     // Batch did not modify the user's source, subtitle, font or audio inputs.
     updateUI();
     requestBatchPlanSync();
   }
-});
+}
 
 resetTrackState();
 updateUI();
