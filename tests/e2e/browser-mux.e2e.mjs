@@ -535,6 +535,9 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
   console.log('E2E scenario 2: scanned MKV + chapters + selective original attachment' +
     (modern ? ' [current object workbench]' : ' [legacy compatibility]'));
   const { context, page } = await openApp(browser, {modern});
+  const sourcePath = path.join(root, 'source-with-attachments.mkv');
+  const sourceHashBefore = modern ? createHash('sha256')
+    .update(await fs.readFile(sourcePath)).digest('hex') : '';
 
   try {
     if (modern) await page.setViewportSize({width:1440,height:900});
@@ -684,6 +687,84 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       x.status==='absent-in-probe' && x.originalName==='fixture-original.ttf'));
     assert.equal(delivery.savedToDiskVerified,false,
       'initiating download does not prove user-side durable save');
+    if (modern) {
+      // WU-03 F-A: one public mixed-source task, independently verified from
+      // the REAL downloaded MKV rather than the same JS report that created it.
+      // Input is a real chapter/tag/2-attachment MKV; new ASS and font were
+      // imported in the exact same single-project task above.
+      const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+      const finishedHash = digest(await fs.readFile(output));
+      assert.equal(report.output.sha256, finishedHash,
+        'delivered report SHA-256 must bind these exact downloaded MKV bytes');
+      assert.equal(digest(await fs.readFile(sourcePath)), sourceHashBefore,
+        'single-workspace source media must stay byte-for-byte unchanged');
+      const nativeInfo = file => JSON.parse(execFileSync('mkvmerge',
+        ['-J',file], {encoding:'utf8',timeout:30000}));
+      const originalNative = nativeInfo(sourcePath);
+      const finishedNative = nativeInfo(output);
+      const oldNotes = originalNative.attachments.find(a => a.file_name==='notes.txt');
+      const newNotes = finishedNative.attachments.find(a => a.file_name==='notes-renamed.txt');
+      const newFont = finishedNative.attachments.find(a => a.file_name==='DejaVuSans.ttf');
+      assert.ok(oldNotes && newNotes && newFont,
+        'independent MKVToolNix attachment inventory must match actual source/added resources');
+      assert.equal(finishedNative.attachments.length,2);
+      assert.equal(finishedNative.attachments.some(a => a.file_name==='fixture-original.ttf'),false,
+        'excluded source font must not survive in the real new Matroska file');
+      const origNotesBytes = path.join(outDir,'wu03-source-notes.txt');
+      const finishedNotesBytes = path.join(outDir,'wu03-finished-notes.txt');
+      const finishedFontBytes = path.join(outDir,'wu03-finished-DejaVuSans.ttf');
+      execFileSync('mkvextract',[sourcePath,'attachments',
+        String(oldNotes.id)+':'+origNotesBytes],{timeout:30000});
+      execFileSync('mkvextract',[output,'attachments',
+        String(newNotes.id)+':'+finishedNotesBytes,
+        String(newFont.id)+':'+finishedFontBytes],{timeout:30000});
+      const notesDigest=digest(await fs.readFile(origNotesBytes));
+      assert.equal(digest(await fs.readFile(finishedNotesBytes)),notesDigest,
+        'renamed original attachment must preserve exact FileData');
+      const externalFontDigest=digest(await fs.readFile(path.join(root,'DejaVuSans.ttf')));
+      assert.equal(digest(await fs.readFile(finishedFontBytes)),externalFontDigest,
+        'new font must be present as exact font bytes, not only as a filename');
+      const packetHash = (file,stream) => execFileSync('ffmpeg',[
+        '-hide_banner','-loglevel','error','-i',file,
+        '-map',stream,'-c','copy','-f','hash','-hash','SHA256','-',
+      ],{encoding:'utf8',timeout:30000}).trim();
+      const videoPacketHash = packetHash(sourcePath,'0:v:0');
+      const audioPacketHash = packetHash(sourcePath,'0:a:0');
+      assert.equal(packetHash(output,'0:v:0'),videoPacketHash,
+        'original compressed video bitstream must remain stream-copy identical');
+      assert.equal(packetHash(output,'0:a:0'),audioPacketHash,
+        'original compressed audio bitstream must remain stream-copy identical');
+      assert.equal(report.audit?.assEventAudit?.status,'pass',
+        'the imported ASS must pass its independent finished-MKV event check');
+      assert.equal(report.audit?.originalAttachmentPayloadAudit?.status,'pass');
+      const manifest = {
+        schema:'softmux-wu03-fa-one-real-workspace-v1',
+        source:'source-with-attachments.mkv',
+        inputSourceSha256:sourceHashBefore,
+        originalSourceUnchanged:true,
+        deliveredMkv:basename+'.mkv',deliveredMkvSha256:finishedHash,
+        downloadedReportSha256:report.output.sha256,
+        nativeTools:['mkvmerge -J','mkvextract attachments','ffprobe','ffmpeg -f hash SHA256'],
+        sourceChapterCount:2,finishedChapterCount:(outputProbe.chapters||[]).length,
+        copiedVideoPacketsSha256:videoPacketHash,
+        copiedAudioPacketsSha256:audioPacketHash,
+        preservedOriginalNotesSha256:notesDigest,
+        newlyAttachedFontSha256:externalFontDigest,
+        excludedOriginalAttachment:'fixture-original.ttf',
+        independentAttachmentNames:finishedNative.attachments.map(a=>a.file_name).sort(),
+        finalAttachmentAudit:delivery.entries.map(e=>({name:e.originalName,
+          intent:e.intent,reason:e.reasonCode,status:e.status})),
+        finalAudit:report.audit.status,
+        subtitleAudit:report.audit.assEventAudit.status,
+        scope:'2-second test fixture, this specified flat chapter/tag arrangement; not arbitrary EBML preservation',
+        runnerDownloadedMkv:true,
+        inAppSavedToDiskVerified:false,
+        verdict:'PASS',
+      };
+      await fs.writeFile(path.join(outDir,'wu03-fa-single-workspace-independent-evidence.json'),
+        JSON.stringify(manifest,null,2)+'\n');
+      console.log('WU-03 F-A single public source + ASS/font + attachment edit + native packet/bytes/hash PASS');
+    }
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
       /逐附件审计：1 项 FileData SHA-256 通过/);
     assert.match(await page.locator('#outputEvidenceFacts').textContent(),
