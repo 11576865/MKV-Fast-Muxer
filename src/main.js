@@ -3918,7 +3918,11 @@ async function runProbe(path, probePath, { decodeStreams = false } = {}) {
 async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, container) {
   const audios = (probe?.streams || []).filter(s => s.codec_type === 'audio');
   if (!['iso-bmff','mov'].includes(container) || audios.length !== 1 ||
-      String(audios[0].codec_name || '').toLowerCase() !== 'aac') return 0;
+      String(audios[0].codec_name || '').toLowerCase() !== 'aac') {
+    logEl.textContent += 'TIMELINE_PROBE_SKIP: container=' + container +
+      ' audioCount=' + audios.length + ' codec=' + (audios[0]?.codec_name||'none') + '\n';
+    return 0;
+  }
   try {
     await removeQuietly(resultPath);
     await ffmpeg.ffprobe([
@@ -3930,6 +3934,9 @@ async function sourceTimedTextPrimingCorrection(sourcePath, resultPath, probe, c
     const raw = await ffmpeg.readFile(resultPath);
     const packetProbe = JSON.parse(new TextDecoder().decode(raw));
     const proven = inspectTimedTextAacPriming(probe, packetProbe, container);
+    logEl.textContent += 'TIMELINE_PROBE_RESULT: ' + proven.reason +
+      ' pts=' + (packetProbe?.packets?.[0]?.pts_time??'none') +
+      ' side=' + JSON.stringify(packetProbe?.packets?.[0]?.side_data_list||[]) + '\n';
     if (proven.applied) {
       logEl.textContent += 'INFO: 来源 AAC 第一个实际数据包含 ' +
         proven.skipSamples + ' 个 priming skip samples，原 PTS ' +
