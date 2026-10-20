@@ -127,3 +127,14 @@ test('running batch UI reads frozen ledger and uses the direct single-task mux r
   assert.doesNotMatch(main, /muxBtn\.click\(\)/);
   assert.match(css, /\.batch-review-lifecycle/);
 });
+
+test('saving retained artifacts may resume a save warning without restarting mux or erasing audit state', () => {
+  const plan = freezeBatchJobPlan(validPairing(), {generation:9});
+  const ledger = createBatchJobLedger(plan), id = plan.jobs[0].jobId;
+  for (const state of ['preparing','muxing','saving','saveWarning']) ledger.transition(id,state);
+  assert.throws(()=>ledger.transition(id,'muxing'), /不允许/);
+  ledger.transition(id,'saving');
+  ledger.transition(id,'succeeded');
+  assert.equal(ledger.snapshot()[0].state,'succeeded');
+  assert.throws(()=>ledger.transition(id,'preparing'), /不允许/);
+});
