@@ -1,0 +1,177 @@
+name: S12 genuine large Matroska execution envelope
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/s12-make-genuine-large-mkv.mjs'
+      - 'tests/e2e/s12-real-large-mkv.e2e.mjs'
+      - '.github/workflows/s12-real-large-envelope.yml'
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Select only one real source-size tier; all runs are actual Chromium/FFmpeg.wasm jobs'
+        required: true
+        default: '512m'
+        type: choice
+        options:
+          - 64m
+          - 128m
+          - 256m
+          - 512m
+          - 1000m
+          - 1200m
+      kind:
+        description: 'Which true-data geometry to run (not a fake File size)'
+        required: true
+        default: attachment
+        type: choice
+        options:
+          - attachment
+          - pcm
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s12-real-envelope-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  source-output-real-bytes:
+    name: "S12 actual MKV / ${{ matrix.tier }} / ${{ matrix.kind }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        # Differentiate EBML attachment bulk from actual media packet bulk.
+        # Prior >1GB negative tiers remain manually dispatchable.
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}"}}]', inputs.tier, inputs.kind) || '[{"tier":"64m","kind":"attachment"},{"tier":"128m","kind":"attachment"},{"tier":"256m","kind":"attachment"},{"tier":"512m","kind":"attachment"},{"tier":"256m","kind":"pcm"},{"tier":"512m","kind":"pcm"},{"tier":"1000m","kind":"pcm"}]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      S12_TIER: ${{ matrix.tier }}
+      S12_KIND: ${{ matrix.kind }}
+      S12_DIR: .e2e/s12
+      E2E_BASE_URL: http://127.0.0.1:4173/
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install runtime and build (no synthetic browser)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install
+          npm run build
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          packages=()
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null 2>&1 || ! command -v mkvextract >/dev/null 2>&1; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          ffmpeg -version | head -n 1
+          mkvmerge --version
+          df -h .
+          free -m
+
+      - name: Create actual large valid MKV source (no truncate, no sparse)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-make-genuine-large-mkv.mjs
+          ls -lh .e2e/s12/*
+          # Upload the receipt rather than storing huge 1.2GB artifacts
+          # in the repository or GitHub Actions artifact service.
+
+      - name: Serve exact candidate build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/s12-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/s12-preview.log
+          exit 1
+
+      - name: Execute REAL browser scan/mux/download/native SHA
+        id: real_mux
+        shell: bash
+        run: |
+          set -euo pipefail
+          # External deadline ensures a hung browser tier is recorded as
+          # failed, not silently marked PASS or allowed to consume all CI.
+          timeout --signal=TERM --kill-after=15s 15m \
+            node tests/e2e/s12-real-large-mkv.e2e.mjs
+
+      - name: Finalize interrupted browser receipt without claiming success
+        if: always()
+        env:
+          STEP_RESULT: ${{ steps.real_mux.outcome }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const dir=path.resolve('.e2e/s12');
+          fs.mkdirSync(dir,{recursive:true});
+          const file=path.join(dir,'s12-run-receipt.json');
+          let data;
+          try{data=JSON.parse(fs.readFileSync(file,'utf8'));}
+          catch{
+            data={schema:'softmux-s12-real-browser-envelop-v1',tier:process.env.S12_TIER,
+              phase:'fixture-or-runtime-setup',result:'NOT_RUN_OR_SETUP_FAILED'};
+          }
+          if(data.result==='IN_PROGRESS'){
+            data.result='INTERRUPTED_OR_TIMEOUT';
+            data.error=data.error||{
+              message:'Browser job exited before writing a terminal result; inspect the exact workflow logs for OOM/timeout/process termination.',
+              runnerStepOutcome:process.env.STEP_RESULT
+            };
+          }
+          data.workflowStepOutcome=process.env.STEP_RESULT||'not-executed';
+          data.finalizedAt=new Date().toISOString();
+          fs.writeFileSync(file,JSON.stringify(data,null,2)+'\n');
+          console.log('S12 terminal receipt:',JSON.stringify({
+            tier:data.tier,result:data.result,phase:data.phase,step:data.workflowStepOutcome,
+          }));
+          NODE
+
+      - name: Archive bounded receipts, not huge data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-genuine-mkv-${{ matrix.tier }}-${{ matrix.kind }}-receipt
+          path: |
+            .e2e/s12/s12-fixture-receipt.json
+            .e2e/s12/s12-run-receipt.json
+            .e2e/s12/s12-*-mux-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Final scope declaration
+        if: always()
+        run: |
+          echo "S12 tier: ${S12_TIER}, kind: ${S12_KIND}"
+          echo "Actual generated MKV and actual browser download are ephemeral runner files."
+          echo "Uploaded receipt is NOT a substitute for a independently re-downloadable output."
+          echo "Attachment case tests EBML FileData; PCM case tests timed media packets; neither implies typical 1GB compressed-film success."
+          echo "A red tier is a failed/blocked acceptance, never proof that the engine has a 1GB hard limit."
