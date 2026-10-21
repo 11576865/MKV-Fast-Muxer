@@ -115,8 +115,16 @@ try{
  const input=probe(source);
  assert.ok(input.streams.some(s=>s.codec_type==='video'));
  assert.ok(input.streams.some(s=>s.codec_type==='audio'));
+ const inputAttachmentStreams=input.streams.filter(s=>s.codec_type==='attachment');
+ assert.equal(inputAttachmentStreams.length,raw.attachmentCount,
+   'S12 fixture contract: native input attachment count must match the physically written manifest');
+ manifest.originalAttachmentLayout={
+   count:raw.attachmentCount,
+   chunkMiB:raw.attachmentChunkMiB??null,
+   declaredPartBytes:(raw.attachments||[]).map(x=>x.bytes),
+ };
  if(kind==='attachment')
-   assert.ok(input.streams.some(s=>s.codec_type==='attachment'));
+   assert.ok(inputAttachmentStreams.length>0);
  else {
    assert.ok(input.streams.some(s=>s.codec_type==='audio'&&s.codec_name===raw.expectedAudioCodec),
      'long PCM control must contain the actual declared multichannel media codec');
@@ -252,8 +260,8 @@ try{
  assert.ok(kinds.includes('audio'),'native final audio missing');
  assert.ok(kinds.includes('subtitle'),'new subtitle not delivered');
  const attachments=output.streams.filter(s=>s.codec_type==='attachment');
- if(kind==='attachment')assert.ok(attachments.length>=raw.attachmentCount,
-   'native output has lost a genuine original Matroska attachment');
+ assert.equal(attachments.length,raw.attachmentCount,
+   'source-only subtitle append must neither drop nor invent original Matroska attachments');
  if(kind==='pcm'){
    assert.ok(output.streams.some(s=>s.codec_type==='audio'&&s.codec_name===raw.expectedAudioCodec),
      'timed PCM audio codec was not delivered');
