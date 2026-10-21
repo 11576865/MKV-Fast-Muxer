@@ -1,13 +1,13 @@
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { stageBrowserPrimarySource } from '../src/ffmpeg-browser-source-staging.js';
-import { prepareResearchSeekHeadReattachment } from './s12-reattach-seekhead-prototype.mjs';
+import { prepareResearchSeekHeadReattachment, preflightResearchOriginalAttachments } from './s12-reattach-seekhead-prototype.mjs';
 
 const source=document.querySelector('#source');
 const execute=document.querySelector('#execute');
 const status=document.querySelector('#status');
 const log=document.querySelector('#log');
-const state={phase:'idle',error:null,evidence:null,wasmExitCode:null,
+const state={phase:'idle',error:null,evidence:null,preflight:null,wasmExitCode:null,
   wasmLogTail:[],sourceKind:null};
 window.__s12WasmReattach=state;
 let busy=false,outputUrl=null;
@@ -20,7 +20,7 @@ source.addEventListener('change',()=>update('source-selected'));
 execute.addEventListener('click',async()=>{
  if(busy||!source.files?.[0])return;
  busy=true;state.error=null;state.evidence=null;
- state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;
+ state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;state.preflight=null;
  const original=source.files[0];
  const ffmpeg=new FFmpeg();
  const pushLog=value=>{
@@ -35,6 +35,9 @@ execute.addEventListener('click',async()=>{
  try{
   if(original.size<128*1024*1024)
    throw Error('S12_WASM_REATTACH_REQUIRES_LARGE_EXACT_FILE');
+  update('preflight-original-source-tags-chapters-and-attachment-master');
+  // Reject unsupported source graph BEFORE loading the Wasm engine.
+  state.preflight=await preflightResearchOriginalAttachments(original);
   update('load-local-ffmpeg-wasm');
   const base=new URL('ffmpeg-core/',window.location.origin+'/').href;
   const worker=new URL('ffmpeg-class-worker/worker.js',window.location.origin+'/').href;
