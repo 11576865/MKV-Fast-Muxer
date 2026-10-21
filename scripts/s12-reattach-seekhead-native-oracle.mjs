@@ -39,19 +39,26 @@ const names=streams=>streams
  .map(s=>s.tags?.filename||'');
 for(const p of payloads)await fs.writeFile(p.file,p.bytes);
 await fs.writeFile(f('new.srt'),'1\n00:00:00,100 --> 00:00:01,000\nS12 original attachment bytes preserved\n');
-const args=[
+const cleanAV=f('native-small-av.mp4');
+exec('ffmpeg',[
  '-hide_banner','-loglevel','error','-y',
  '-f','lavfi','-i','testsrc2=size=160x90:rate=5',
  '-f','lavfi','-i','sine=frequency=300:sample_rate=44100',
- '-t','2','-c:v','mpeg4','-q:v','5','-c:a','aac'
-];
-for(let i=0;i<payloads.length;i++){
- args.push('-attach',payloads[i].file,
- '-metadata:s:t:'+i,'mimetype=application/octet-stream',
- '-metadata:s:t:'+i,'filename='+payloads[i].name);
+ '-t','2','-c:v','mpeg4','-q:v','5','-c:a','aac',cleanAV
+]);
+// FFmpeg-generated originals frequently contain native Tags, now explicitly
+// refused by the bounded prototype. Make a no-Tag/no-Chapters fixture
+// independently with mkvmerge, rather than weakening the safety gate.
+function makeOriginalWithTags({target,tagFile=null}){
+ const args=['-q','--disable-track-statistics-tags','-o',target];
+ if(tagFile)args.push('--global-tags',tagFile);
+ for(const item of payloads)args.push('--attachment-name',item.name,
+   '--attachment-mime-type','application/octet-stream',
+   '--attach-file',item.file);
+ args.push('--no-global-tags','--no-track-tags','--no-chapters',cleanAV);
+ exec('mkvmerge',args);
 }
-args.push(realSource);
-exec('ffmpeg',args);
+makeOriginalWithTags({target:realSource});
 const orig=probe(realSource);
 assert.ok(orig.streams.some(s=>s.codec_type==='video'));
 assert.ok(orig.streams.some(s=>s.codec_type==='audio'));
@@ -90,6 +97,22 @@ for(const p of payloads){
  assert.equal(extracted,original,'native extracted original attachment mismatch '+p.name);
 }
 assert.equal(await sha(realSource),sourceSha,'native source modified');
+// A genuine source Tag master must be rejected rather than disappearing
+// during the external FFmpeg-only stream-copy baseline remux.
+const tagsFile=f('real-original-global-tags.xml');
+await fs.writeFile(tagsFile,[
+ '<?xml version="1.0" encoding="utf-8"?>',
+ '<Tags><Tag><Targets/>',
+ '<Simple><Name>S12_SOURCE_TAG_NOT_SAFE_TO_DROP</Name>',
+ '<String>TagAttachmentUID/ChapterUID coverage not verified</String>',
+ '</Simple></Tag></Tags>'
+].join(''));
+const tagged=f('native-original-with-real-tags.mkv');
+makeOriginalWithTags({target:tagged,tagFile:tagsFile});
+await assert.rejects(prepareResearchSeekHeadReattachment({
+ original:new Blob([await fs.readFile(tagged)]),
+ remuxed:new Blob([remuxBytes])
+}),/S12_REATTACH_SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE/);
 // Fail-closed negative cases: a missing original master, or an already
 // attachment-bearing FFmpeg output, cannot be mistaken for this exact class.
 await assert.rejects(prepareResearchSeekHeadReattachment({
