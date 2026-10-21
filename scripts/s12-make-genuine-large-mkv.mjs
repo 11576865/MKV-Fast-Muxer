@@ -30,6 +30,52 @@ const source=path.join(root,'s12-'+TIER+'-actual-input.mkv');
 const clip=path.join(root,'s12-short-media.mp4');
 const inputBytes=tiers[TIER];
 const receipt=path.join(root,'s12-fixture-receipt.json');
+const KIND=process.env.S12_KIND||'attachment';
+if(!['attachment','pcm'].includes(KIND)) throw Error('S12_UNKNOWN_KIND:'+KIND);
+
+// Real packet-volume comparison: unlike the attachment-heavy fixture, the
+// bulk bytes here are legitimate long-form multichannel 32-bit PCM audio
+// packets plus a repeating, valid MPEG-4 picture track. Deliberately not
+// representative of typical compressed-film bitrate/content.
+if(KIND==='pcm'){
+ execFileSync('ffmpeg',[
+  '-hide_banner','-loglevel','error','-y',
+  '-f','lavfi','-i','testsrc2=size=160x90:rate=5',
+  '-t','2','-an','-c:v','mpeg4','-q:v','5',clip,
+ ],{timeout:90_000,stdio:'inherit'});
+ const pcmBytesPerSecond=48000*8*4;
+ const duration=Math.ceil(inputBytes/pcmBytesPerSecond)+2;
+ execFileSync('ffmpeg',[
+  '-hide_banner','-loglevel','error','-y',
+  '-stream_loop','-1','-i',clip,
+  '-f','lavfi','-i','anullsrc=r=48000:cl=7.1',
+  '-t',String(duration),'-map','0:v:0','-map','1:a:0',
+  '-c:v','copy','-c:a','pcm_s32le',source
+ ],{timeout:240_000,stdio:'inherit'});
+ const actual=(await fs.stat(source)).size;
+ if(actual<inputBytes)throw Error('S12_PCM_VIDEO_MKV_TOO_SMALL:'+actual);
+ const data=JSON.parse(execFileSync('ffprobe',[
+  '-v','error','-show_streams','-show_format','-of','json',source
+ ],{encoding:'utf8',timeout:60_000}));
+ if(!(data.streams||[]).some(s=>s.codec_type==='video')||
+    !(data.streams||[]).some(s=>s.codec_type==='audio'&&s.codec_name==='pcm_s32le'))
+  throw Error('S12_PCM_VIDEO_NATIVE_STREAMS_MISSING');
+ const saved={
+  schema:'softmux-s12-genuine-large-matroska-input-v1',
+  tier:TIER,kind:KIND,generatedAt:new Date().toISOString(),
+  source:path.basename(source),sourceBytes:actual,
+  payloadBytes:0,payloadSha256:null,attachmentCount:0,attachments:[],
+  expectedAudioCodec:'pcm_s32le',mediaDurationSeconds:duration,
+  mediaNote:'Real long-duration MPEG-4 video packets and 7.1-channel 32-bit PCM audio packets; NOT typical compressed-film bitrate, no original attachments',
+  sparseFile:false,generator:'native FFmpeg long actual PCM packets and stream-looped MPEG-4 video',
+  nativeInputStreamKinds:data.streams.map(s=>s.codec_type),
+  sourceFilePath:source
+ };
+ await fs.writeFile(receipt,JSON.stringify(saved,null,2)+'\n');
+ console.log(JSON.stringify(saved));
+ process.exit(0);
+}
+
 // ffprobe currently rejects a SINGLE oversized FileData EBML element
 // (0x465C above 0x10000000); do not misattribute that parser cap to
 // ffmpeg.wasm. The same genuinely written total payload is sharded into
@@ -89,7 +135,7 @@ if(!(probe.streams||[]).some(s=>s.codec_type==='video') ||
    !(probe.streams||[]).some(s=>s.codec_type==='attachment'))
   throw Error('S12_NATIVE_MKV_STREAM_OR_ATTACHMENT_ABSENT');
 const saved={
- schema:'softmux-s12-genuine-large-matroska-input-v1',tier:TIER,
+ schema:'softmux-s12-genuine-large-matroska-input-v1',tier:TIER,kind:KIND,
  generatedAt:new Date().toISOString(),
  source:path.basename(source),sourceBytes:sourceStat.size,
  payloadBytes:inputBytes,payloadSha256:aggregate.digest('hex'),
