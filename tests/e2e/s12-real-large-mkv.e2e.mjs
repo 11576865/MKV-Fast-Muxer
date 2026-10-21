@@ -161,7 +161,12 @@ try{
  await page.waitForFunction(()=>{
   const s=document.querySelector('#status')?.textContent||'';
   if(s.startsWith('轨道扫描完成：'))return true;
-  if(s.startsWith('轨道扫描失败')||s.startsWith('失败：'))throw Error(s);
+  if(s.startsWith('轨道扫描失败')||s.startsWith('失败：')||
+     s.includes('没有确认任何实际轨道')||
+     s.includes('SOURCE_PROBE_EMPTY_STREAMS')||
+     s.startsWith('浏览器 / WebAssembly 可用内存不足')||
+     s.includes('当前任务没有完成'))
+    throw Error('S12_SOURCE_PROBE_TERMINAL_FAILURE: '+s);
   return false;
  },null,{timeout:360_000});
  const scanStatus=await page.locator('#status').textContent();
@@ -171,8 +176,11 @@ try{
  }));
  manifest.scannedStreamCount=scannedCount;
  manifest.sourceSelection=selectedSource;
+ const sourceLog=await page.locator('#log').textContent();
+ manifest.probeSourceStaging=/来源扫描输入策略：(workerfs|memfs)/.exec(sourceLog||'')?.[1]??'not-recorded';
  await mark('browser-source-probe-completed',{
   status:scanStatus,scannedStreamCount:scannedCount,
+  sourceStaging:manifest.probeSourceStaging,
   preservationStatus:await page.locator('#preservationReadiness').getAttribute('data-status')
  });
  assert.ok(scannedCount>=3,
@@ -262,6 +270,13 @@ try{
    await page.locator('#status').textContent().catch(()=>'(status inaccessible)'):null;
  manifest.lastBrowserLogTail=page?
    await page.locator('#log').textContent().then(s=>s?.slice(-4000)).catch(()=>'(log inaccessible)'):null;
+ manifest.browserStageFailureClass=
+   /Out of memory/i.test(manifest.lastBrowserLogTail||'')?'ffmpeg-wasm-internal-oom':
+   /decoder context|Aborted\(\)/i.test(manifest.lastBrowserLogTail||'')?'ffmpeg-wasm-decoder-abort':
+   /S12_SCAN_EMPTY_OR_INCOMPLETE|SOURCE_PROBE_EMPTY_STREAMS/.test(
+      String(manifest.error?.message||'')+String(manifest.lastBrowserLogTail||''))?'empty-unverified-source-probe':
+   /Timeout/.test(manifest.error?.message||'')?'deadline':
+   'other';
  manifest.lastPreservationStatus=page?
    await page.locator('#preservationReadinessDescription').textContent().catch(()=>null):null;
  manifest.endedAt=new Date().toISOString();
