@@ -1,0 +1,72 @@
+name: S12 native original Attachments SeekHead byte-lane research
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/s12-reattach-seekhead-prototype.mjs'
+      - 'scripts/s12-reattach-seekhead-native-oracle.mjs'
+      - '.github/workflows/s12-reattach-seekhead-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s12-reattach-seekhead-native-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  native-reattach-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact research commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native independent Matroska tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y mkvtoolnix
+          fi
+          ffmpeg -version | head -n 1
+          mkvmerge --version
+
+      - name: Execute real dual-attachment source/FFmpeg subtitle mux/SeekHead CRC splice/native byte oracle
+        run: node scripts/s12-reattach-seekhead-native-oracle.mjs
+
+      - name: Retain bounded independent witness for any result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-native-seekhead-reattach-small-two-attachment-proof
+          path: |
+            .e2e/s12-raw-reattach/native-prototype-receipt.json
+            .e2e/s12-raw-reattach/native-original-two-attachments.mkv
+            .e2e/s12-raw-reattach/native-remux-with-subtitle-no-attachments.mkv
+            .e2e/s12-raw-reattach/candidate-original-attachments-reattached.mkv
+            .e2e/s12-raw-reattach/first-original.bin
+            .e2e/s12-raw-reattach/second-original.bin
+            .e2e/s12-raw-reattach/extracted-first-original.bin
+            .e2e/s12-raw-reattach/extracted-second-original.bin
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Explicitly restrict scope
+        if: always()
+        run: |
+          echo "Research-only native test, not browser FFmpeg.wasm."
+          echo "No general Matroska graph/CRC/UID/tag/chapters/Cues authority."
+          echo "No 256 MiB original attachment acceptance or production feature release."
