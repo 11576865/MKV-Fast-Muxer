@@ -21,6 +21,15 @@ on:
           - 512m
           - 1000m
           - 1200m
+      chunk_mib:
+        description: 'Genuine original Matroska attachment FileData element size (MiB)'
+        required: true
+        default: '64'
+        type: choice
+        options:
+          - '32'
+          - '64'
+          - '128'
       kind:
         description: 'Which true-data geometry to run (not a fake File size)'
         required: true
@@ -39,18 +48,20 @@ concurrency:
 
 jobs:
   source-output-real-bytes:
-    name: "S12 actual MKV / ${{ matrix.tier }} / ${{ matrix.kind }}"
+    name: "S12 actual MKV / ${{ matrix.tier }} / ${{ matrix.kind }} / ${{ matrix.chunk_mib }}MiB chunks"
     strategy:
       fail-fast: false
       matrix:
-        # Differentiate EBML attachment bulk from actual media packet bulk.
-        # Prior >1GB negative tiers remain manually dispatchable.
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}"}}]', inputs.tier, inputs.kind) || '[{"tier":"64m","kind":"attachment"},{"tier":"128m","kind":"attachment"},{"tier":"256m","kind":"attachment"},{"tier":"512m","kind":"attachment"},{"tier":"256m","kind":"pcm"},{"tier":"512m","kind":"pcm"},{"tier":"1000m","kind":"pcm"}]') }}
+        # Fix the total true random payload bytes; independently vary the
+        # number of original AttachedFile objects and FileData element size.
+        # Every red matrix entry stays a failed test, not an approval.
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}","chunk_mib":"{2}"}}]', inputs.tier, inputs.kind, inputs.chunk_mib) || '[{"tier":"128m","kind":"attachment","chunk_mib":"64"},{"tier":"128m","kind":"attachment","chunk_mib":"32"},{"tier":"256m","kind":"attachment","chunk_mib":"128"},{"tier":"256m","kind":"attachment","chunk_mib":"64"},{"tier":"256m","kind":"attachment","chunk_mib":"32"}]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
       S12_TIER: ${{ matrix.tier }}
       S12_KIND: ${{ matrix.kind }}
+      S12_ATTACHMENT_CHUNK_MIB: ${{ matrix.chunk_mib }}
       S12_DIR: .e2e/s12
       E2E_BASE_URL: http://127.0.0.1:4173/
     steps:
@@ -159,7 +170,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: s12-genuine-mkv-${{ matrix.tier }}-${{ matrix.kind }}-receipt
+          name: s12-genuine-mkv-${{ matrix.tier }}-${{ matrix.kind }}-${{ matrix.chunk_mib }}MiB-chunks-receipt
           path: |
             .e2e/s12/s12-fixture-receipt.json
             .e2e/s12/s12-run-receipt.json
@@ -170,7 +181,7 @@ jobs:
       - name: Final scope declaration
         if: always()
         run: |
-          echo "S12 tier: ${S12_TIER}, kind: ${S12_KIND}"
+          echo "S12 tier: ${S12_TIER}, kind: ${S12_KIND}, per-attachment size: ${S12_ATTACHMENT_CHUNK_MIB} MiB"
           echo "Actual generated MKV and actual browser download are ephemeral runner files."
           echo "Uploaded receipt is NOT a substitute for a independently re-downloadable output."
           echo "Attachment case tests EBML FileData; PCM case tests timed media packets; neither implies typical 1GB compressed-film success."
