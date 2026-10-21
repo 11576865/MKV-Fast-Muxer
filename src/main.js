@@ -4717,6 +4717,10 @@ async function scanSourceContainer({ automatic = false } = {}) {
     // Explicit user retry clears this suppression; a new File resets it.
     if (!Array.isArray(probe?.streams) || !probe.streams.length) {
       containerAutoScanSuppressedKey = sourceKey;
+      // A user-invoked rescan can start from an earlier valid trackState.
+      // An empty new observation must invalidate that cached source editor,
+      // never leave historical track metadata executable as if revalidated.
+      if (scannedSourceFile === video) resetTrackState();
       requireObservedSourceStreams(probe);
     }
 
