@@ -7,6 +7,9 @@ on:
       - 'research/s12-reattach-seekhead-prototype.mjs'
       - 'scripts/s12-reattach-seekhead-native-oracle.mjs'
       - 'scripts/s12-reattach-seekhead-large-native-oracle.mjs'
+      - 'research/s12-browser-byte-lane.html'
+      - 'research/s12-browser-byte-lane.mjs'
+      - 'tests/e2e/s12-browser-reattach-byte-lane.e2e.mjs'
       - '.github/workflows/s12-reattach-seekhead-research.yml'
   workflow_dispatch:
 
@@ -140,3 +143,100 @@ jobs:
           echo "Native-only physical 128/256MiB original attachments, not browser ffmpeg.wasm."
           echo "All full media files remain ephemeral on the GitHub runner."
           echo "No Chapters/Tags/UID graph/Cues or user-save acceptance grant."
+
+  actual-browser-file-byte-lane:
+    name: "S12 actual Chromium File+Blob original attachments / ${{ matrix.tier }} / ${{ matrix.chunk_mib }}MiB"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tier: 128m
+            chunk_mib: 64
+          - tier: 256m
+            chunk_mib: 64
+    env:
+      S12_REATTACH_TIER: ${{ matrix.tier }}
+      S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_FIXTURE_ONLY: "1"
+      S12_REATTACH_DIR: .e2e/s12-reattach-large
+      S12_REATTACH_BASE_URL: http://127.0.0.1:4179
+    steps:
+      - name: Checkout exact research commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install repository and actual browser + independent native tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install
+          if command -v google-chrome >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          packages=()
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          node --version
+          mkvmerge --version
+
+      - name: Construct real original MKV and native no-attachments FFmpeg baseline ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-reattach-seekhead-large-native-oracle.mjs
+          test -f .e2e/s12-reattach-large/remux-without-original-attachments.mkv
+
+      - name: Start standalone browser research fixture (not production UI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 4179 --strictPort >/tmp/s12-byte-lane-vite.log 2>&1 &
+          for i in {1..80}; do
+            if curl --fail --silent http://127.0.0.1:4179/research/s12-browser-byte-lane.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/s12-byte-lane-vite.log
+          exit 1
+
+      - name: Real Chromium File upload, byte-view composition, MKV download and independent extraction SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s 18m \
+            node tests/e2e/s12-browser-reattach-byte-lane.e2e.mjs
+
+      - name: Upload small machine receipts, not hundreds of MiB of actual media
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-browser-byte-lane-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-receipts
+          path: |
+            .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+            .e2e/s12-reattach-large/s12-browser-reattach-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Explicit limitation
+        if: always()
+        run: |
+          echo "This exercises browser File / Blob.slice / download for a true large source."
+          echo "The baseline no-attachment media remux was native FFmpeg, NOT ffmpeg.wasm."
+          echo "This does not authorize a product feature or prove all Tags/Chapters/Cues."
