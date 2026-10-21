@@ -193,9 +193,11 @@ try{
   sourceStaging:manifest.probeSourceStaging,
   preservationStatus:await page.locator('#preservationReadiness').getAttribute('data-status')
  });
- assert.ok(scannedCount>=3,
-  'S12_SCAN_EMPTY_OR_INCOMPLETE: native valid video/audio/attachments yielded '+
-  scannedCount+' observed browser streams; must not treat text Scan complete as success');
+ const minExpectedStreams=kind==='pcm'?2:3;
+ assert.ok(scannedCount>=minExpectedStreams,
+  'S12_SCAN_EMPTY_OR_INCOMPLETE: native valid '+kind+' source should have at least '+
+  minExpectedStreams+' observed browser streams; got '+scannedCount+
+  '. Must not treat an incomplete ffprobe inventory as a successful scan');
  const forbidden=await page.locator('#muxBtn').isDisabled();
  assert.equal(forbidden,false,'S12 must inspect independent block rather than force a disabled mux');
  await mark('real-wasm-mux-start');
