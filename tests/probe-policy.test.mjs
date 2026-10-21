@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildProbeArgs,
+  requireObservedSourceStreams,
   PROBE_CHAPTER_ENTRIES,
   PROBE_ENTRIES,
   PROBE_FORMAT_ENTRIES,
@@ -51,4 +52,23 @@ test('probe input and output paths are preserved verbatim', () => {
   const args = buildProbeArgs('task-1-input.av1.mp4', 'task-1-probe.json');
   assert.ok(args.includes('task-1-input.av1.mp4'));
   assert.equal(args.at(-1), 'task-1-probe.json');
+});
+
+test('valid JSON with zero observed source streams cannot confer scanned-source authority', () => {
+  for (const observed of [null, {}, {streams:null}, {streams:[]}, {
+    streams:[],format:{format_name:'matroska,webm'}
+  }]) {
+    assert.throws(()=>requireObservedSourceStreams(observed),
+      /SOURCE_PROBE_EMPTY_STREAMS/,
+      'a parseable empty probe is not a successful track observation');
+  }
+  const normal={
+    streams:[{index:0,codec_type:'video'},{index:1,codec_type:'audio'}],
+    format:{format_name:'matroska,webm'}
+  };
+  assert.equal(requireObservedSourceStreams(normal),normal,
+    'normal scanned streams must retain the existing probe object unmodified');
+  const attachmentOnly={streams:[{index:0,codec_type:'attachment'}]};
+  assert.equal(requireObservedSourceStreams(attachmentOnly),attachmentOnly,
+    'read-only attachment inventory must not be silently reclassified as video');
 });
