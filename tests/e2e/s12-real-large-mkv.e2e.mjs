@@ -74,7 +74,37 @@ function sampleMemory(){
     Math.round(process.memoryUsage().rss/1024));
  }catch{}
 }
-let sampler,browser,context,page;
+let sampler,browser,context,page,progressSampler;
+let progressBusy=false;
+const inspectBrowserProgress=async()=>{
+ if(progressBusy||!page||page.isClosed())return;
+ progressBusy=true;
+ try{
+  const live=await Promise.race([
+   page.evaluate(()=>{
+    const status=document.querySelector('#status')?.textContent||'';
+    const log=document.querySelector('#log')?.textContent||
+     document.querySelector('#logEl')?.textContent||'';
+    const progress=document.querySelector('#progressBar')?.style?.width||'';
+    return {status,progress,logTail:log.slice(-2200),
+     heap:performance.memory?.usedJSHeapSize??null};
+   }).catch(err=>({error:String(err)})),
+   new Promise(resolve=>setTimeout(()=>resolve({pollTimedOut:true}),3500))
+  ]);
+  if(live?.pollTimedOut){manifest.browserPollTimeouts=(manifest.browserPollTimeouts||0)+1;return;}
+  if(live?.error){manifest.browserPollError=live.error;return;}
+  const changed=manifest.lastObservedBrowserStatus!==live.status;
+  manifest.lastObservedBrowserStatus=live.status;
+  manifest.lastObservedBrowserLogTail=live.logTail;
+  manifest.lastObservedBrowserProgress=live.progress;
+  manifest.lastObservedJsHeapBytes=live.heap;
+  if(changed)console.log('S12 browser progress',JSON.stringify({
+   tier,status:live.status,progress:live.progress,
+   browserRssKiB:memory.lastBrowserRssKiB,heapBytes:live.heap
+  }));
+  await persist();
+ }finally{progressBusy=false;}
+};
 try{
  await mark('source-identity');
  assert.ok(raw.sourceBytes>=raw.payloadBytes);
@@ -134,20 +164,33 @@ try{
   if(s.startsWith('轨道扫描失败')||s.startsWith('失败：'))throw Error(s);
   return false;
  },null,{timeout:360_000});
+ const scanStatus=await page.locator('#status').textContent();
+ const scannedCount=Number(scanStatus?.match(/轨道扫描完成：(\\d+) 个流/)?.[1]??0);
+ const selectedSource=await page.locator('#videoInput').evaluate(el=>({
+  bytes:el.files?.[0]?.size??0,name:el.files?.[0]?.name??null,
+ }));
+ manifest.scannedStreamCount=scannedCount;
+ manifest.sourceSelection=selectedSource;
  await mark('browser-source-probe-completed',{
-  status:await page.locator('#status').textContent(),
+  status:scanStatus,scannedStreamCount:scannedCount,
   preservationStatus:await page.locator('#preservationReadiness').getAttribute('data-status')
  });
+ assert.ok(scannedCount>=3,
+  'S12_SCAN_EMPTY_OR_INCOMPLETE: native valid video/audio/attachments yielded '+
+  scannedCount+' observed browser streams; must not treat text Scan complete as success');
  const forbidden=await page.locator('#muxBtn').isDisabled();
  assert.equal(forbidden,false,'S12 must inspect independent block rather than force a disabled mux');
  await mark('real-wasm-mux-start');
+ progressSampler=setInterval(()=>{void inspectBrowserProgress()},10_000);
  await page.locator('#muxBtn').click();
+ await inspectBrowserProgress();
  await page.waitForFunction(()=>{
   const s=document.querySelector('#status')?.textContent||'';
   if(s.startsWith('完成。'))return true;
   if(s.startsWith('失败：')||s.includes('没有生成可保存的成品'))throw Error(s);
   return false;
  },null,{timeout:480_000});
+ clearInterval(progressSampler);progressSampler=null;
  await mark('browser-mux-completed',{status:await page.locator('#status').textContent()});
  const [dl]=await Promise.all([
   page.waitForEvent('download',{timeout:120_000}),
@@ -222,6 +265,7 @@ try{
  console.error('S12 REAL SOURCE TEST FAILED at '+manifest.phase,manifest.error);
  process.exitCode=1;
 }finally{
+ clearInterval(progressSampler);
  clearInterval(sampler);
  sampleMemory();
  await persist();
