@@ -14,9 +14,12 @@ export const S12_REATTACH_RESEARCH_SCHEMA='s12-raw-attachments-seekhead-research
 const I=Object.freeze({
  ebml:0x1a45dfa3, docType:0x4282, segment:0x18538067,
  seekHead:0x114d9b74, seek:0x4dbb, seekId:0x53ab,
- seekPos:0x53ac, void:0xec, crc:0xbf, attachments:0x1941a469
+ seekPos:0x53ac, void:0xec, crc:0xbf, attachments:0x1941a469,
+ tags:0x1254c367,chapters:0x1043a770
 });
-const MAX_BYTES=60*1024*1024,MAX_ELEMENTS=5000,MAX_SEEK_BYTES=65536;
+// Research budget only: this is a Blob-backed range parser, never an
+// authorization to persist arbitrary ≥256MiB source Matroska.
+const MAX_BYTES=340*1024*1024,MAX_ELEMENTS=5000,MAX_SEEK_BYTES=65536;
 const reject=reason=>{throw Error('S12_REATTACH_'+reason)};
 const idBytes=id=>{
  const w=id>0xffffff?4:id>0xffff?3:id>0xff?2:1;
@@ -70,7 +73,7 @@ async function children(blob,from,to,budget=MAX_ELEMENTS){
 }
 async function segment(blob){
  if(!blob?.slice||!Number.isSafeInteger(blob.size)||blob.size<16||
-    blob.size>MAX_BYTES)reject('RESEARCH_SOURCE_OVER_60MIB');
+    blob.size>MAX_BYTES)reject('RESEARCH_SOURCE_OVER_340MIB');
  const ebml=await header(blob,0,blob.size);
  if(ebml.id!==I.ebml||ebml.end>65536)reject('EBML_HEADER');
  const ebmlChildren=await children(blob,ebml.dataStart,ebml.end,100);
@@ -106,6 +109,11 @@ function voidSameLength(total){
  */
 export async function prepareResearchSeekHeadReattachment({original,remuxed}={}){
  const a=await segment(original),b=await segment(remuxed);
+ // A remuxed output is not source metadata-identical: refuse original
+ // ChapterUID / TagAttachmentUID relationships entirely in this research
+ // class. No silent graph downgrade or universal preservation claim.
+ if(a.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
+  reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
  const originals=a.nodes.filter(x=>x.id===I.attachments);
  if(originals.length!==1||b.nodes.some(x=>x.id===I.attachments))
   reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
