@@ -180,6 +180,21 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # S09: two independent SHA-bound draft recovery paths on one real
+      # source across a full browser reload, with native finished-MKV audit.
+      - name: Upload S09 cross-reload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s09-cross-reload-two-draft-real-mkv
+          path: |
+            .e2e/output/s09-source-project-before-reload.json
+            .e2e/output/s09-external-checkpoint-before-reload.json
+            .e2e/output/s09-cross-reload-recovered.mkv
+            .e2e/output/s09-cross-reload-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # Production-facing release gate: rendered pixels from the finished
       # browser-generated MKV, with independently extracted unique font.
       # The JSON verdict and PNG controls are uploaded even on failure.
