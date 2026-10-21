@@ -1624,6 +1624,173 @@ async function scenarioExternalAssetDomainAuthority(browser) {
  * grants or confers authorization. Both have to be independently re-bound,
  * explicitly approved, and verified against the *same* final MKV.
  */
+
+/**
+ * S09 adversarial integration: exact File SHA is not a filename match or an
+ * authorization. Two existing source-domain objects must change atomically;
+ * a later user edit to EITHER one prohibits an entire inverse transaction.
+ * This test drives the actual modern source-tree Inspector and preserves
+ * the existing production transaction and fail-closed rules unchanged.
+ */
+async function scenarioS09CrossReloadConflictAtomicUndo(browser) {
+  console.log('S09 conflict: wrong source -> old-field collision -> mixed inverse CAS -> actual MKV');
+  const {context,page}=await openApp(browser,{modern:true});
+  const source=path.join(root,'source-with-attachments.mkv');
+  const wrong=path.join(root,'source-multitrack.mkv');
+  const sourceDraftFile=path.join(outDir,'s09-conflict-source-project.json');
+  const delivered=path.join(outDir,'s09-conflict-reapplied.mkv');
+  const sourceTitle='S09 Atomic Original Audio';
+  const attachmentTitle='s09-atomic-font.ttf';
+  const sha=async file=>createHash('sha256').update(await fs.readFile(file)).digest('hex');
+  const sourceSha=await sha(source);
+  const wrongSha=await sha(wrong);
+  const sourceInspector=page.locator('#assetInspectorHost .asset-tree-inspector');
+  const sourceAudio=()=>page.locator('#assetInventory .asset-container-tree [data-tree-group="audio"] [data-tree-select]').first();
+  const sourceFont=()=>page.locator('#assetInventory .asset-container-tree [data-tree-group="attachment"] [data-tree-select]').first();
+  const audioTitle=()=>sourceInspector.locator('[data-tree-track-field="title"]');
+  const fontName=()=>sourceInspector.locator('[data-tree-attachment-field="filename"]');
+  const openSourceTree=async()=>{
+    const tree=page.locator('#assetInventory .asset-container-tree').first();
+    await tree.waitFor({state:'visible'});
+    if(!await tree.evaluate(el=>el.open)) await tree.locator('summary').first().click();
+    if(await tree.locator('[data-tree-preserve-all]').isChecked())
+      await tree.locator('[data-tree-preserve-all]').uncheck();
+    return tree;
+  };
+  try {
+    await page.setViewportSize({width:1600,height:960});
+    await page.setInputFiles('#unifiedAssetInput',source);
+    await waitForStatus(page,'轨道扫描完成：');
+    await openSourceTree();
+    await sourceAudio().click();
+    const baselineAudio=await audioTitle().inputValue();
+    await audioTitle().fill(sourceTitle);
+    await sourceFont().click();
+    const baselineFont=await fontName().inputValue();
+    await fontName().fill(attachmentTitle);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Atomic Original Audio/);
+    if (!await page.locator('#sf14Recovery').evaluate(el=>el.open))
+      await page.locator('#sf14Recovery > summary').click();
+    await saveDownload(page,'#containerProjectExportBtn',sourceDraftFile);
+    const project=JSON.parse(await fs.readFile(sourceDraftFile,'utf8'));
+    assert.match(project.sources[0]?.sha256||'',/^[0-9a-f]{64}$/);
+    assert.ok(project.editIntents.some(e=>e.field==='title'&&e.to===sourceTitle));
+    assert.ok(project.editIntents.some(e=>e.field==='name'&&e.to===attachmentTitle));
+    assert.equal(await sha(source),sourceSha);
+
+    // First reload: deliberately bind the valid draft to the WRONG bytes.
+    // Invalid source proof must reject without attempting any user mutation.
+    await page.reload({waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    await page.setInputFiles('#containerProjectImportInput',sourceDraftFile);
+    await page.setInputFiles('#unifiedAssetInput',wrong);
+    await waitForStatus(page,'轨道扫描完成：');
+    assert.notEqual(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
+      path.basename(source));
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#containerProjectImportReview')?.dataset.state==='digest-mismatch',
+      null,{timeout:120_000});
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
+    assert.doesNotMatch(await page.locator('#muxPlan').textContent(),/S09 Atomic Original Audio/);
+    assert.equal(await sha(wrong),wrongSha);
+
+    // Second reload: re-select the correct real File, not an old browser
+    // File permission reconstructed from text. No prior proof may carry over.
+    await page.reload({waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    await page.setInputFiles('#containerProjectImportInput',sourceDraftFile);
+    assert.equal(await page.locator('#videoInput').evaluate(el=>el.files.length),0);
+    await page.setInputFiles('#unifiedAssetInput',source);
+    await waitForStatus(page,'轨道扫描完成：');
+    await openSourceTree();
+    await sourceAudio().click();
+    assert.equal(await audioTitle().inputValue(),baselineAudio);
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),baselineFont);
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#containerProjectImportReview')?.dataset.state==='digest-matches-draft',
+      null,{timeout:120_000});
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true,
+      'SHA match alone cannot authorize edits');
+
+    // A foreground user modification after import must be a real old-value
+    // conflict. Even if a different (attachment) edit could apply, none may.
+    await sourceAudio().click();
+    await audioTitle().fill('S09 competing user title');
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
+    assert.match(await page.locator('#containerProjectConflictList').textContent(),
+      /当前字段值与草稿修改前记录冲突/);
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),baselineFont,
+      'blocked mixed transaction must leave attachment untouched');
+    await sourceAudio().click();
+    await audioTitle().fill(baselineAudio);
+    await page.waitForFunction(()=>
+      document.querySelector('#containerProjectRestorePanel')?.dataset.ready==='true');
+    await page.locator('#containerProjectRestoreConfirm').check();
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),false);
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(),/一次应用到/);
+    assert.equal(await audioTitle().inputValue(),sourceTitle);
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),attachmentTitle);
+
+    // Adversarial inverse CAS: a user edits the attachment AFTER restore.
+    // The full inverse must refuse before touching the separately restored
+    // audio; there must be no partial rollback of the combined transaction.
+    await fontName().fill('s09-user-after-restore.ttf');
+    assert.equal(await page.locator('#containerProjectRestoreUndoBtn').isDisabled(),false);
+    await page.locator('#containerProjectRestoreUndoBtn').click();
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(),
+      /ATTACHMENT_REPLAY_UNDO_CONFLICT|撤销未执行/);
+    await sourceAudio().click();
+    assert.equal(await audioTitle().inputValue(),sourceTitle,
+      'failed mixed undo must not revert the audio half');
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),'s09-user-after-restore.ttf');
+    await fontName().fill(attachmentTitle);
+    await page.locator('#containerProjectRestoreUndoBtn').click();
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(),/已撤销本次恢复/);
+    await sourceAudio().click();
+    assert.equal(await audioTitle().inputValue(),baselineAudio);
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),baselineFont);
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true,
+      'the inverse does not silently authorize automatic redo');
+    await page.locator('#containerProjectRestoreConfirm').check();
+    await page.locator('#containerProjectRestoreBtn').click();
+    await sourceAudio().click();
+    assert.equal(await audioTitle().inputValue(),sourceTitle);
+    await sourceFont().click();
+    assert.equal(await fontName().inputValue(),attachmentTitle);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    await saveDownload(page,'#downloadLink',delivered);
+    const p=probe(delivered);
+    assert.ok(streams(p,'audio').some(a=>a.tags?.title===sourceTitle),
+      'native source audio tag must reflect explicitly reapproved replay');
+    assert.ok(streams(p,'attachment').some(a=>a.tags?.filename===attachmentTitle),
+      'native attachment name must reflect the same atomic restored plan');
+    assert.equal(await sha(source),sourceSha);
+    assert.equal(await sha(wrong),wrongSha);
+    await fs.writeFile(path.join(outDir,'s09-conflict-atomic-undo-evidence.json'),
+      JSON.stringify({
+        schema:'softmux-s09-adversarial-recovery-v1',
+        source:path.basename(source),sourceSha256:sourceSha,
+        rejectedWrongSource:path.basename(wrong),wrongSourceSha256:wrongSha,
+        wrongSourceDigestRejected:true,oldValueConflictRejected:true,
+        conflictingMixedUndoRejectedWithoutPartialMutation:true,
+        explicitlyConfirmedInverseAndReplay:true,
+        delivered:path.basename(delivered),deliveredSha256:await sha(delivered),
+        nativeOracle:'ffprobe',scope:'current Chromium with actual source and attachment; not universal project undo/redo'
+      },null,2)+'\n');
+    console.log('S09 source/attachment conflicts and atomic inverse + real MKV PASS');
+  }finally{await context.close();}
+}
+
 async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
   console.log('S09: current workbench two draft types -> reload -> reselect -> approve -> real MKV');
   const {context,page} = await openApp(browser,{modern:true});
@@ -6979,6 +7146,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioGigabyteSourceAdvisory(browser);
+  await scenarioS09CrossReloadConflictAtomicUndo(browser);
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
   await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
