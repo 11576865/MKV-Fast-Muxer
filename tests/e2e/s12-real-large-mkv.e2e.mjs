@@ -27,6 +27,7 @@ const manifest={
  schema:'softmux-s12-real-browser-envelop-v1',tier,source:path.basename(source),
  sourceBytes:raw.sourceBytes,attachmentBytes:raw.payloadBytes,
  attachmentSha256:raw.payloadSha256,
+ attachmentCount:raw.attachmentCount,
  fixtureKind:raw.mediaNote,
  result:'IN_PROGRESS',phase:'boot',startedAt:new Date().toISOString(),
  linux:os.release(),architecture:process.arch,platform:process.platform,
@@ -173,17 +174,35 @@ try{
  await mark('native-finished-streams-validated',{kinds});
  const mkv=JSON.parse(execFileSync('mkvmerge',['-J',out],
    {encoding:'utf8',timeout:120_000,maxBuffer:5*1024*1024}));
- const att=mkv.attachments?.find(x=>x.file_name==='s12-actual-random-payload.bin');
- assert.ok(att&&Number.isSafeInteger(att.id),'native mkvmerge did not locate exact retained huge attachment');
- const extracted=path.join(dir,'s12-'+tier+'-output-attached-bytes.bin');
- execFileSync('mkvextract',['attachments',out,String(att.id)+':'+extracted],
-   {timeout:240_000,stdio:'ignore'});
- manifest.extractedPayloadBytes=(await fs.stat(extracted)).size;
- manifest.extractedPayloadSha256=await shaFile(extracted);
- assert.equal(manifest.extractedPayloadBytes,raw.payloadBytes,
-   'original large attached payload length changed');
+ const extractArgs=['attachments',out];
+ for(const part of raw.attachments){
+  const att=mkv.attachments?.find(x=>x.file_name===part.name);
+  assert.ok(att&&Number.isSafeInteger(att.id),
+   'native mkvmerge did not locate preserved attachment '+part.name);
+  extractArgs.push(String(att.id)+':'+path.join(dir,'s12-extracted-'+part.name));
+ }
+ // Extract all original attachments in ONE pass. Restarting mkvextract for
+ // every 64 MiB element would rescan the full 1.2 GB input many times.
+ execFileSync('mkvextract',extractArgs,{timeout:240_000,stdio:'ignore'});
+ const joined=createHash('sha256');
+ let total=0;
+ manifest.extractedAttachmentChecks=[];
+ for(const part of raw.attachments){
+  const file=path.join(dir,'s12-extracted-'+part.name);
+  const size=(await fs.stat(file)).size;
+  const digest=await shaFile(file);
+  assert.equal(size,part.bytes,'large source attachment byte length drift '+part.name);
+  assert.equal(digest,part.sha256,'large source attachment SHA drift '+part.name);
+  const input=createReadStream(file);
+  for await(const bytes of input)joined.update(bytes);
+  total+=size;
+  manifest.extractedAttachmentChecks.push({name:part.name,bytes:size,sha256:digest});
+ }
+ manifest.extractedPayloadBytes=total;
+ manifest.extractedPayloadSha256=joined.digest('hex');
+ assert.equal(total,raw.payloadBytes,'combined original payload byte length changed');
  assert.equal(manifest.extractedPayloadSha256,raw.payloadSha256,
-   'original large attached payload content changed');
+   'ordered aggregate original payload SHA-256 changed');
  await mark('native-extracted-attachment-full-sha256-pass');
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
