@@ -105,11 +105,10 @@ try{
  assert.equal(result.evidence.authorization,'NONE_RESEARCH_ONLY');
  assert.equal(result.evidence.sourceType,'[object File]');
  assert.equal(result.evidence.sourceBytes,fixture.actualSourceBytes);
- assert.equal(result.execArgs.filter(x=>x==='-map').length,3);
- assert.ok(result.execArgs.includes('0:a:0'));
- assert.ok(result.execArgs.includes('1:s:0'));
- assert.equal(result.execArgs.some(x=>/0:t:|attachment/.test(x)),false,
-  'the real FFmpeg.wasm command must NOT map source original attachment streams');
+ const actualMappings=result.execArgs.flatMap((arg,index,args)=>
+  arg==='-map'?[args[index+1]]:[]);
+ assert.deepEqual(actualMappings,['0:v:0','0:a:0','1:s:0'],
+  'the real FFmpeg.wasm output must map exactly A/V and new SRT, never any original attachment stream');
  const dl=await dlPromise;
  await dl.saveAs(output);
  report.outputBytes=(await fs.stat(output)).size;
