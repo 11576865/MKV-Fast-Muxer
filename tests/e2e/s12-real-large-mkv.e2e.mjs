@@ -198,8 +198,25 @@ try{
   'S12_SCAN_EMPTY_OR_INCOMPLETE: native valid '+kind+' source should have at least '+
   minExpectedStreams+' observed browser streams; got '+scannedCount+
   '. Must not treat an incomplete ffprobe inventory as a successful scan');
+ // The content-bound preservation preflight runs asynchronously after the
+ // source scanner. Even a 1 GB File can report "2 streams" while the
+ // independent structure/attachment gate is still checking. Never bypass it
+ // or count that transient disabled control as a product hard size limit.
+ await page.waitForFunction(()=>{
+   const gate=document.querySelector('#preservationReadiness')?.getAttribute('data-status');
+   const btn=document.querySelector('#muxBtn');
+   const status=document.querySelector('#status')?.textContent||'';
+   if(status.startsWith('失败：')||status.includes('当前任务没有完成'))
+     throw Error('S12_PRESERVATION_PREVIEW_TERMINAL_FAILURE: '+status);
+   if(gate==='blocked')return true;
+   return (gate==='warning'||gate==='clear') && !!btn && !btn.disabled;
+ },null,{timeout:180_000});
+ const gateStatus=await page.locator('#preservationReadiness').getAttribute('data-status');
  const forbidden=await page.locator('#muxBtn').isDisabled();
- assert.equal(forbidden,false,'S12 must inspect independent block rather than force a disabled mux');
+ manifest.preservationGateAtMuxStart=gateStatus;
+ await mark('preservation-gate-settled',{gateStatus,muxDisabled:forbidden});
+ assert.equal(forbidden,false,
+   'S12_PRESERVATION_GATE_BLOCK: tested source must pass actual independent safety gate, never force a disabled mux');
  await mark('real-wasm-mux-start');
  progressSampler=setInterval(()=>{void inspectBrowserProgress()},10_000);
  await page.locator('#muxBtn').click();
