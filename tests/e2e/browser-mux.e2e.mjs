@@ -1633,8 +1633,8 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
   const externalJson=path.join(outDir,'s09-external-checkpoint-before-reload.json');
   const sourceTitle='S09 Recovered Original Audio';
   const externalTitle='S09 Recovered External FLAC';
-  const originalHash=file=>createHash('sha256').update(readFileSync(file)).digest('hex');
-  const before={source:originalHash(source),external:originalHash(external)};
+  const originalHash=async file=>createHash('sha256').update(await fs.readFile(file)).digest('hex');
+  const before={source:await originalHash(source),external:await originalHash(external)};
   try {
     await page.setViewportSize({width:1600,height:960});
     await page.setInputFiles('#unifiedAssetInput',[source,external]);
@@ -1723,8 +1723,8 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
       'original authored audio title must survive reload, consent and real mux');
     assert.ok(audios.some(a=>a.tags?.title===externalTitle),
       'external authored FLAC title must survive reload, consent and real mux');
-    assert.equal(originalHash(source),before.source);
-    assert.equal(originalHash(external),before.external);
+    assert.equal(await originalHash(source),before.source);
+    assert.equal(await originalHash(external),before.external);
     await fs.writeFile(path.join(outDir,'s09-cross-reload-evidence.json'),
       JSON.stringify({
         schema:'softmux-s09-cross-reload-recovery-v1',
@@ -1736,7 +1736,7 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
         twoIndependentReviewsRequired:true,
         sourceTitle,externalTitle,
         actualOutput:path.basename(resultPath),
-        actualOutputSha256:originalHash(resultPath),
+        actualOutputSha256:await originalHash(resultPath),
         nativeOracle:'ffprobe',platform:'CI Chromium',
         limitation:'Two explicitly reviewed draft types, not one atomic all-objects checkpoint; no general undo/redo or user-device guarantee.'
       },null,2)+'\n');
