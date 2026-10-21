@@ -1651,6 +1651,10 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     // after its asset entry receives the user-facing Edit action. Merely
     // opening the shared Inspector drawer leaves the current source filter.
     await page.locator('#assetInventory .asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
+    // Desktop keeps optional editor tools collapsed even after object focus;
+    // unlike phone mode, the user explicitly expands the shared drawer.
+    if (!await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open))
+      await page.locator('#sf14OptionsDrawer > summary').click();
     assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
     assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').first().isVisible(),true);
     await page.locator('#newAudioList [data-new-audio-field="title"]').first().fill(externalTitle);
