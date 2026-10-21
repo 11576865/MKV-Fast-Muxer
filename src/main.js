@@ -14,6 +14,7 @@ import { focusUpdatedInventoryItem } from './inventory-focus.js';
 import { setupObjectEditor } from './object-editor.js';
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
+import { stageBrowserPrimarySource } from './ffmpeg-browser-source-staging.js';
 import { auditMuxProbe, chapterAuditExpectation } from './mux-audit.js';
 import { auditProducedFontAttachments } from './output-font-payload-audit.js';
 import { auditProducedAssEvents } from './ass-event-output-audit.js';
@@ -4690,7 +4691,8 @@ async function scanSourceContainer({ automatic = false } = {}) {
   bar.style.width = '4%';
 
   const prefix = taskPrefix();
-  const videoPath = `${prefix}-scan.mkv`;
+  let videoPath = `${prefix}-scan.mkv`;
+  let stagedVideoSource = null;
   const probePath = `${prefix}-tracks.json`;
 
   try {
@@ -4702,7 +4704,12 @@ async function scanSourceContainer({ automatic = false } = {}) {
     ) return;
 
     status.textContent = automatic ? '正在读取 MKV 容器内容……' : '正在重新扫描 MKV 容器……';
-    await ffmpeg.writeFile(videoPath, await fetchFile(video));
+    stagedVideoSource=await stageBrowserPrimarySource({
+      ffmpeg,file:video,prefix,fallbackPath:videoPath,
+      workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,
+    });
+    videoPath=stagedVideoSource.path;
+    logEl.textContent += 'INFO: 来源扫描输入策略：'+stagedVideoSource.kind+'。\n';
     const probe = await probeInput(videoPath, probePath);
     if (
       cancelRequested ||
@@ -4802,7 +4809,8 @@ async function scanSourceContainer({ automatic = false } = {}) {
     bar.style.width = '0%';
   } finally {
     if (loaded) {
-      await removeQuietly(videoPath);
+      if(stagedVideoSource) await stagedVideoSource.cleanup();
+      else await removeQuietly(videoPath);
       await removeQuietly(probePath);
     }
     scanning = false;
@@ -5133,7 +5141,8 @@ async function executeCurrentMuxTask(explicit = null) {
   bar.style.width = '4%';
 
   const prefix = taskPrefix();
-  const videoPath = `${prefix}-input${sourceVirtualSuffix(headerVideoIdentity)}`;
+  let videoPath = `${prefix}-input${sourceVirtualSuffix(headerVideoIdentity)}`;
+  let stagedVideoSource = null;
   const outputPath = `${prefix}-output.mkv`;
   const probePath = `${prefix}-probe.json`;
   const auditPath = `${prefix}-audit.json`;
@@ -5293,7 +5302,12 @@ async function executeCurrentMuxTask(explicit = null) {
     status.textContent = '正在把文件载入浏览器内存……';
     bar.style.width = '20%';
 
-    await ffmpeg.writeFile(videoPath, await fetchFile(video));
+    stagedVideoSource=await stageBrowserPrimarySource({
+      ffmpeg,file:video,prefix,fallbackPath:videoPath,
+      workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,
+    });
+    videoPath=stagedVideoSource.path;
+    logEl.textContent += 'INFO: 正式封装输入策略：'+stagedVideoSource.kind+'。\n';
 
     for (let index = 0; index < externalAudioTracks.length; index += 1) {
       const track = externalAudioTracks[index];
@@ -6021,7 +6035,8 @@ async function executeCurrentMuxTask(explicit = null) {
     }
   } finally {
     if (loaded) {
-      await removeQuietly(videoPath);
+      if(stagedVideoSource) await stagedVideoSource.cleanup();
+      else await removeQuietly(videoPath);
       for (const path of audioPaths) await removeQuietly(path);
       for (const path of subtitlePaths) await removeQuietly(path);
       for (const path of fontPaths) await removeQuietly(path);
