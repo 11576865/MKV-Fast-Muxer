@@ -1617,6 +1617,141 @@ async function scenarioExternalAssetDomainAuthority(browser) {
   }
 }
 
+/**
+ * S09 release-contract slice: one real user workbench across an actual page
+ * reload. Source-scanned edit intents and external-resource metadata are
+ * separate, currently supported portable drafts; neither JSON retains File
+ * grants or confers authorization. Both have to be independently re-bound,
+ * explicitly approved, and verified against the *same* final MKV.
+ */
+async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
+  console.log('S09: current workbench two draft types -> reload -> reselect -> approve -> real MKV');
+  const {context,page} = await openApp(browser,{modern:true});
+  const source=path.join(root,'source-with-attachments.mkv');
+  const external=path.join(root,'external.flac');
+  const projectJson=path.join(outDir,'s09-source-project-before-reload.json');
+  const externalJson=path.join(outDir,'s09-external-checkpoint-before-reload.json');
+  const sourceTitle='S09 Recovered Original Audio';
+  const externalTitle='S09 Recovered External FLAC';
+  const originalHash=async file=>createHash('sha256').update(await fs.readFile(file)).digest('hex');
+  const before={source:await originalHash(source),external:await originalHash(external)};
+  try {
+    await page.setViewportSize({width:1600,height:960});
+    await page.setInputFiles('#unifiedAssetInput',[source,external]);
+    await waitForStatus(page,'轨道扫描完成：');
+    assert.equal(await page.locator('#videoInput').evaluate(el=>el.files?.[0]?.name),
+      'source-with-attachments.mkv');
+    const tree=page.locator('#assetInventory .asset-container-tree').first();
+    if (!await tree.evaluate(el=>el.open)) await tree.locator('summary').first().click();
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    await tree.locator('[data-tree-group="audio"] [data-tree-select]').first().click();
+    const sourceEditor=page.locator('#assetInspectorHost [data-tree-track-field="title"]');
+    await sourceEditor.fill(sourceTitle);
+    // The real object workbench only exposes the external title editor
+    // after its asset entry receives the user-facing Edit action. Merely
+    // opening the shared Inspector drawer leaves the current source filter.
+    await page.locator('#assetInventory .asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
+    // Desktop keeps optional editor tools collapsed even after object focus;
+    // unlike phone mode, the user explicitly expands the shared drawer.
+    if (!await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open))
+      await page.locator('#sf14OptionsDrawer > summary').click();
+    assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').first().isVisible(),true);
+    await page.locator('#newAudioList [data-new-audio-field="title"]').first().fill(externalTitle);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered Original Audio/);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered External FLAC/);
+
+    if (!await page.locator('#sf14Recovery').evaluate(el=>el.open))
+      await page.locator('#sf14Recovery > summary').click();
+    await saveDownload(page,'#containerProjectExportBtn',projectJson);
+    await saveDownload(page,'#externalCheckpointExportBtn',externalJson);
+    const sourceDraft=JSON.parse(await fs.readFile(projectJson,'utf8'));
+    const externalDraft=JSON.parse(await fs.readFile(externalJson,'utf8'));
+    assert.match(sourceDraft.sources[0]?.sha256||'',/^[0-9a-f]{64}$/);
+    assert.ok(sourceDraft.editIntents.some(e=>e.field==='title'&&e.to===sourceTitle),
+      'exported source checkpoint must carry the actual authored intent');
+    assert.match(JSON.stringify(externalDraft),/S09 Recovered External FLAC/);
+    assert.equal(await originalHash(source),before.source);
+
+    // Reload destroys browser File grants and all ephemeral confirmation.
+    await page.reload({waitUntil:'networkidle'});
+    await page.locator('#sf14Root').waitFor();
+    assert.equal(await page.locator('#videoInput').evaluate(el=>el.files.length),0);
+    assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+    await page.setInputFiles('#containerProjectImportInput',projectJson);
+    await page.setInputFiles('#externalCheckpointImportInput',externalJson);
+    assert.equal(await page.locator('#videoInput').evaluate(el=>el.files.length),0,
+      'imported text may never recreate browser file permissions');
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+
+    // Re-import the real files via the PUBLIC current-workbench intake.
+    await page.setInputFiles('#unifiedAssetInput',[source,external]);
+    await waitForStatus(page,'轨道扫描完成：');
+    const secondTree=page.locator('#assetInventory .asset-container-tree').first();
+    if (!await secondTree.evaluate(el=>el.open))
+      await secondTree.locator('summary').first().click();
+    await secondTree.locator('[data-tree-preserve-all]').uncheck();
+    assert.doesNotMatch(await page.locator('#muxPlan').textContent(),
+      /S09 Recovered Original Audio|S09 Recovered External FLAC/,
+      're-selection does not silently apply imported draft instructions');
+    await page.locator('#containerProjectVerifySourceBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#containerProjectImportReview')?.dataset.state==='digest-matches-draft',
+      null,{timeout:120_000});
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true,
+      'verified SHA alone does not imply user authorization');
+    await page.locator('#containerProjectRestoreConfirm').check();
+    await page.locator('#containerProjectRestoreBtn').click();
+    assert.match(await page.locator('#containerProjectRestoreStatus').textContent(),/已将/);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered Original Audio/);
+    assert.doesNotMatch(await page.locator('#muxPlan').textContent(),/S09 Recovered External FLAC/);
+
+    await page.locator('#externalCheckpointPrepareBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#externalCheckpointConfirm')?.disabled===false,
+      null,{timeout:120_000});
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true,
+      'external SHA authorization must be separate from the source checkpoint');
+    await page.locator('#externalCheckpointConfirm').check();
+    await page.locator('#externalCheckpointApplyBtn').click();
+    assert.match(await page.locator('#externalCheckpointStatus').textContent(),/已明确应用/);
+    const plan=await page.locator('#muxPlan').textContent();
+    assert.match(plan,/S09 Recovered Original Audio/);
+    assert.match(plan,/S09 Recovered External FLAC/);
+
+    await page.locator('#muxBtn').click();
+    await waitForStatus(page,'完成。');
+    const resultPath=path.join(outDir,'s09-cross-reload-recovered.mkv');
+    await saveDownload(page,'#downloadLink',resultPath);
+    const audios=streams(probe(resultPath),'audio');
+    assert.ok(audios.some(a=>a.tags?.title===sourceTitle),
+      'original authored audio title must survive reload, consent and real mux');
+    assert.ok(audios.some(a=>a.tags?.title===externalTitle),
+      'external authored FLAC title must survive reload, consent and real mux');
+    assert.equal(await originalHash(source),before.source);
+    assert.equal(await originalHash(external),before.external);
+    await fs.writeFile(path.join(outDir,'s09-cross-reload-evidence.json'),
+      JSON.stringify({
+        schema:'softmux-s09-cross-reload-recovery-v1',
+        source:path.basename(source),sourceSha256:before.source,
+        external:path.basename(external),externalSha256:before.external,
+        sourceDraft:path.basename(projectJson),
+        externalDraft:path.basename(externalJson),
+        sourcePermissionRestoredAutomatically:false,
+        twoIndependentReviewsRequired:true,
+        sourceTitle,externalTitle,
+        actualOutput:path.basename(resultPath),
+        actualOutputSha256:await originalHash(resultPath),
+        nativeOracle:'ffprobe',platform:'CI Chromium',
+        limitation:'Two explicitly reviewed draft types, not one atomic all-objects checkpoint; no general undo/redo or user-device guarantee.'
+      },null,2)+'\n');
+    console.log('S09 real reload + two explicit consent paths + ffprobe PASS');
+  } finally {await context.close();}
+}
+
 async function scenarioExternalCheckpointRecoveryRealMux(browser) {
   console.log('E2E P1 ROUND3: external JSON checkpoint -> SHA rebind -> consent -> undo -> apply -> actual MKV');
   const {context,page}=await openApp(browser);
@@ -6844,6 +6979,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioGigabyteSourceAdvisory(browser);
+  await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
   await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
   // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic

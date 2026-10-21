@@ -232,6 +232,10 @@ export function mountSoftmux1014Workbench(doc = document) {
   const recoverySummary = doc.createElement('summary');
   recoverySummary.textContent = '工程草稿 · 核验与恢复';
   recovery.appendChild(recoverySummary);
+  const scopeNote = doc.createElement('p');
+  scopeNote.className = 'sf14-recovery-scope';
+  scopeNote.textContent = '目前分为两份独立草稿：来源轨道／附件与外部音频／字幕元数据。页面刷新后需重新选择真实文件，分别核验 SHA-256 并明确确认。导入不会恢复浏览器文件权限、执行历史或自动封装；本入口不承诺所有编辑类型的统一撤销／重做。';
+  recovery.appendChild(scopeNote);
   const recoveryNodes = [
     '.composition-header-tools',
     '.container-project-intent-review:not([id])',
