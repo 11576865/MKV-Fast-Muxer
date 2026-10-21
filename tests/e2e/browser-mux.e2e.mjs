@@ -1669,6 +1669,8 @@ async function scenarioS09CrossReloadConflictAtomicUndo(browser) {
     const baselineFont=await fontName().inputValue();
     await fontName().fill(attachmentTitle);
     assert.match(await page.locator('#muxPlan').textContent(),/S09 Atomic Original Audio/);
+    if (!await page.locator('#sf14Recovery').evaluate(el=>el.open))
+      await page.locator('#sf14Recovery > summary').click();
     await saveDownload(page,'#containerProjectExportBtn',sourceDraftFile);
     const project=JSON.parse(await fs.readFile(sourceDraftFile,'utf8'));
     assert.match(project.sources[0]?.sha256||'',/^[0-9a-f]{64}$/);
