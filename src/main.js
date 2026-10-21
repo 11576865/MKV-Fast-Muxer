@@ -21,7 +21,7 @@ import { auditProducedAssStyles } from './ass-style-output-audit.js';
 import { auditProducedSubripCues } from './subrip-output-audit.js';
 import { auditPreservedOriginalAttachmentData } from './original-attachment-payload-audit.js';
 import { auditSourceAttachmentDelivery } from './source-attachment-delivery-evidence.js';
-import { buildProbeArgs } from './probe-policy.js';
+import { buildProbeArgs, requireObservedSourceStreams } from './probe-policy.js';
 import {
   audioIdentityFromProbe,
   identityMismatchMessage,
@@ -4709,6 +4709,20 @@ async function scanSourceContainer({ automatic = false } = {}) {
       scanGeneration !== containerScanGeneration ||
       fileKey(videoInput.files[0]) !== sourceKey
     ) return;
+
+    // ffprobe can output parseable JSON with a missing/empty streams array
+    // under an actual large-source runtime failure. Never create an
+    // authoritative trackState or display "scan complete: 0 streams".
+    // Suppress the automatic retry loop for this exact input generation.
+    // Explicit user retry clears this suppression; a new File resets it.
+    if (!Array.isArray(probe?.streams) || !probe.streams.length) {
+      containerAutoScanSuppressedKey = sourceKey;
+      // A user-invoked rescan can start from an earlier valid trackState.
+      // An empty new observation must invalidate that cached source editor,
+      // never leave historical track metadata executable as if revalidated.
+      if (scannedSourceFile === video) resetTrackState();
+      requireObservedSourceStreams(probe);
+    }
 
     const headerIdentity = selectedVideoHeaderIdentity(video) || sniffedVideoIdentity(video, {});
     const verifiedIdentity = videoIdentityFromProbe(video, probe, headerIdentity);

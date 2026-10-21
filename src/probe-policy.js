@@ -41,3 +41,22 @@ export function buildProbeArgs(inputPath, outputPath, { decodeStreams = false } 
   );
   return args;
 }
+
+/**
+ * A syntactically valid ffprobe JSON envelope can have no observed streams
+ * (including after a nonzero ffprobe return code). It is not evidence that
+ * a valid media source has zero tracks. Keep the source-track editor detached
+ * rather than converting missing observations into approved empty plans.
+ *
+ * Does not affect the separate bounded, read-only Matroska attachment reader.
+ */
+export function requireObservedSourceStreams(probe) {
+  if (!Array.isArray(probe?.streams) || probe.streams.length===0) {
+    throw new Error(
+      'SOURCE_PROBE_EMPTY_STREAMS: ffprobe 没有确认任何实际轨道，' +
+      '不能把空流清单当作已完成的来源扫描。请手动重试；' +
+      '仅附件结构可在独立只读检查器中查看。'
+    );
+  }
+  return probe;
+}
