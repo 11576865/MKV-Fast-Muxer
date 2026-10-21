@@ -1647,8 +1647,12 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     await tree.locator('[data-tree-group="audio"] [data-tree-select]').first().click();
     const sourceEditor=page.locator('#assetInspectorHost [data-tree-track-field="title"]');
     await sourceEditor.fill(sourceTitle);
-    if (!await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open))
-      await page.locator('#sf14OptionsDrawer > summary').click();
+    // The real object workbench only exposes the external title editor
+    // after its asset entry receives the user-facing Edit action. Merely
+    // opening the shared Inspector drawer leaves the current source filter.
+    await page.locator('#assetInventory .asset-entry[data-kind="audio"] [data-asset-focus-key]').click();
+    assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+    assert.equal(await page.locator('#newAudioList [data-new-audio-field="title"]').first().isVisible(),true);
     await page.locator('#newAudioList [data-new-audio-field="title"]').first().fill(externalTitle);
     assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered Original Audio/);
     assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered External FLAC/);
