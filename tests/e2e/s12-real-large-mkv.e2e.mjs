@@ -1,0 +1,211 @@
+/**
+ * S12 actual Chromium + ffmpeg.wasm source/output envelope.
+ * Never substitutes a sparse/truncated file, a declared size or a mock.
+ * This is a DIAGNOSTIC execution whose real failure is reported as FAIL,
+ * rather than silently re-labelled an accepted performance result.
+ */
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+import { chromium } from 'playwright';
+
+const dir=path.resolve(process.env.S12_DIR||'.e2e/s12');
+const tier=process.env.S12_TIER||'512m';
+const manifestPath=path.join(dir,'s12-run-receipt.json');
+const raw=JSON.parse(await fs.readFile(path.join(dir,'s12-fixture-receipt.json'),'utf8'));
+const source=path.join(dir,raw.source);
+const out=path.join(dir,'s12-'+tier+'-finished.mkv');
+const reportPath=path.join(dir,'s12-'+tier+'-mux-report.json');
+const memory={samples:0,maxChromiumRssKiB:0,maxHostNodeRssKiB:0,
+ maxObservedTotalBrowserProcesses:0,lastBrowserRssKiB:0};
+const manifest={
+ schema:'softmux-s12-real-browser-envelop-v1',tier,source:path.basename(source),
+ sourceBytes:raw.sourceBytes,attachmentBytes:raw.payloadBytes,
+ attachmentSha256:raw.payloadSha256,
+ fixtureKind:raw.mediaNote,
+ result:'IN_PROGRESS',phase:'boot',startedAt:new Date().toISOString(),
+ linux:os.release(),architecture:process.arch,platform:process.platform,
+ nodeVersion:process.version,chromiumVersion:null,userAgent:null,
+ stages:[],peakResourceObservation:memory,
+ claimsNotMade:[
+  'No claim about long high-bitrate media packets; this valid large MKV is predominantly real binary attachment bytes',
+  'No claim about actual tablet hardware or user machine memory',
+  'No arbitrary 1 GB output size or engine success guarantee',
+  'Browser process RSS samples are approximate, not hardware peak allocation',
+  'No post-restart browser File grants are expected',
+ ],error:null
+};
+const persist=async()=>fs.writeFile(manifestPath,JSON.stringify(manifest,null,2)+'\n');
+const mark=async (phase,extra={})=>{
+  manifest.phase=phase;
+  manifest.stages.push({phase,timestamp:new Date().toISOString(),...extra});
+  await persist();
+  console.log('S12 stage '+phase,JSON.stringify(extra));
+};
+async function shaFile(file){
+ const h=createHash('sha256');
+ for await(const chunk of createReadStream(file))h.update(chunk);
+ return h.digest('hex');
+}
+function probe(file) {
+ return JSON.parse(execFileSync('ffprobe',[
+ '-v','error','-show_streams','-show_format','-of','json',file
+ ],{encoding:'utf8',timeout:120000,maxBuffer:5*1024*1024}));
+}
+function sampleMemory(){
+ try{
+  const table=execFileSync('ps',['-eo','comm=,rss='],{encoding:'utf8',timeout:5000});
+  let rss=0,processes=0;
+  for(const row of table.split('\n')){
+   const m=row.trim().match(/^(\S+)\s+(\d+)$/);
+   if(m && /(?:chrom|chrome|headless_shell)/i.test(m[1])) {rss+=Number(m[2]);processes++;}
+  }
+  memory.samples++;
+  memory.lastBrowserRssKiB=rss;
+  memory.maxChromiumRssKiB=Math.max(memory.maxChromiumRssKiB,rss);
+  memory.maxObservedTotalBrowserProcesses=Math.max(memory.maxObservedTotalBrowserProcesses,processes);
+  memory.maxHostNodeRssKiB=Math.max(memory.maxHostNodeRssKiB,
+    Math.round(process.memoryUsage().rss/1024));
+ }catch{}
+}
+let sampler,browser,context,page;
+try{
+ await mark('source-identity');
+ assert.ok(raw.sourceBytes>=raw.payloadBytes);
+ assert.equal((await fs.stat(source)).size,raw.sourceBytes);
+ manifest.inputSha256=await shaFile(source);
+ const input=probe(source);
+ assert.ok(input.streams.some(s=>s.codec_type==='video'));
+ assert.ok(input.streams.some(s=>s.codec_type==='audio'));
+ assert.ok(input.streams.some(s=>s.codec_type==='attachment'));
+ await mark('native-input-validated',{streamKinds:input.streams.map(s=>s.codec_type)});
+ sampler=setInterval(sampleMemory,2500);
+ browser=await chromium.launch({
+   headless:true,
+   ...(process.env.E2E_BROWSER_EXECUTABLE ?
+    {executablePath:process.env.E2E_BROWSER_EXECUTABLE}:{})
+ });
+ manifest.chromiumVersion=browser.version();
+ context=await browser.newContext({acceptDownloads:true});
+ page=await context.newPage();
+ page.setDefaultTimeout(120_000);
+ page.on('crash',()=>{manifest.crashObserved=true;console.error('S12_BROWSER_RENDERER_CRASH');});
+ page.on('pageerror',err=>{manifest.lastPageError=String(err);});
+ const url=new URL(process.env.E2E_BASE_URL||'http://127.0.0.1:4173/');
+ url.searchParams.delete('ui');
+ await page.goto(url.toString(),{waitUntil:'networkidle',timeout:120_000});
+ manifest.userAgent=await page.evaluate(()=>navigator.userAgent);
+ await page.locator('#sf14Root').waitFor();
+ const ass=path.join(dir,'s12-test-subtitle.ass');
+ await fs.writeFile(ass,[
+  '[Script Info]','ScriptType: v4.00+','PlayResX: 640','PlayResY: 360',
+  '[V4+ Styles]',
+  'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+  'Style: Default,Arial,26,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,20,20,20,1',
+  '[Events]',
+  'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+  'Dialogue: 0,0:00:00.10,0:00:01.50,Default,,0,0,0,,S12 REAL BYTES',
+ ].join('\n')+'\n');
+ await mark('browser-real-source-intake');
+ await page.setInputFiles('#unifiedAssetInput',[source,ass],{timeout:120_000});
+ await page.waitForFunction(expected=>document.querySelector('#videoInput')?.files?.[0]?.size===expected,
+  raw.sourceBytes,{timeout:120_000});
+ const expectedWarning=raw.sourceBytes>1_000_000_000;
+ const warn=page.locator('#sf14SourceSizeWarning [data-source-size-warning]');
+ await page.waitForFunction(flag=>Boolean(document.querySelector('#sf14SourceSizeWarning [data-source-size-warning]'))===flag,
+  expectedWarning,{timeout:120_000});
+ assert.equal(await warn.count(),expectedWarning?1:0);
+ if(expectedWarning){
+  await warn.locator('summary').click();
+  assert.match(await warn.textContent(),/允许继续尝试封装/);
+ }
+ await mark('source-advisory-checked',{warned:expectedWarning});
+ // Real source probe is part of the claimed path: do not skip the memory
+ // cost and do not force-enable a blocked executor.
+ await page.waitForFunction(()=>{
+  const s=document.querySelector('#status')?.textContent||'';
+  if(s.startsWith('轨道扫描完成：'))return true;
+  if(s.startsWith('轨道扫描失败')||s.startsWith('失败：'))throw Error(s);
+  return false;
+ },null,{timeout:360_000});
+ await mark('browser-source-probe-completed',{
+  status:await page.locator('#status').textContent(),
+  preservationStatus:await page.locator('#preservationReadiness').getAttribute('data-status')
+ });
+ const forbidden=await page.locator('#muxBtn').isDisabled();
+ assert.equal(forbidden,false,'S12 must inspect independent block rather than force a disabled mux');
+ await mark('real-wasm-mux-start');
+ await page.locator('#muxBtn').click();
+ await page.waitForFunction(()=>{
+  const s=document.querySelector('#status')?.textContent||'';
+  if(s.startsWith('完成。'))return true;
+  if(s.startsWith('失败：')||s.includes('没有生成可保存的成品'))throw Error(s);
+  return false;
+ },null,{timeout:480_000});
+ await mark('browser-mux-completed',{status:await page.locator('#status').textContent()});
+ const [dl]=await Promise.all([
+  page.waitForEvent('download',{timeout:120_000}),
+  page.locator('#downloadLink').click({timeout:120_000})
+ ]);
+ await dl.saveAs(out);
+ assert.ok((await fs.stat(out)).size>0);
+ manifest.outputBytes=(await fs.stat(out)).size;
+ manifest.outputSha256=await shaFile(out);
+ await mark('browser-output-downloaded',{outputBytes:manifest.outputBytes});
+ const report=page.locator('#reportLink');
+ if(await report.isVisible()){
+  const [r]=await Promise.all([page.waitForEvent('download'),report.click()]);
+  await r.saveAs(reportPath);
+  manifest.reportFile=path.basename(reportPath);
+ }
+ const output=probe(out);
+ const kinds=output.streams.map(s=>s.codec_type);
+ assert.ok(kinds.includes('video'),'native final video missing');
+ assert.ok(kinds.includes('audio'),'native final audio missing');
+ assert.ok(kinds.includes('subtitle'),'new subtitle not delivered');
+ const attachments=output.streams.filter(s=>s.codec_type==='attachment');
+ assert.ok(attachments.length>=1,'native output has lost the huge original Matroska attachment');
+ await mark('native-finished-streams-validated',{kinds});
+ const mkv=JSON.parse(execFileSync('mkvmerge',['-J',out],
+   {encoding:'utf8',timeout:120_000,maxBuffer:5*1024*1024}));
+ const att=mkv.attachments?.find(x=>x.file_name==='s12-actual-random-payload.bin');
+ assert.ok(att&&Number.isSafeInteger(att.id),'native mkvmerge did not locate exact retained huge attachment');
+ const extracted=path.join(dir,'s12-'+tier+'-output-attached-bytes.bin');
+ execFileSync('mkvextract',['attachments',out,String(att.id)+':'+extracted],
+   {timeout:240_000,stdio:'ignore'});
+ manifest.extractedPayloadBytes=(await fs.stat(extracted)).size;
+ manifest.extractedPayloadSha256=await shaFile(extracted);
+ assert.equal(manifest.extractedPayloadBytes,raw.payloadBytes,
+   'original large attached payload length changed');
+ assert.equal(manifest.extractedPayloadSha256,raw.payloadSha256,
+   'original large attached payload content changed');
+ await mark('native-extracted-attachment-full-sha256-pass');
+ assert.equal(await shaFile(source),manifest.inputSha256,
+   'original large source must remain byte-identical');
+ manifest.result='PASS_THIS_TIER';
+ manifest.endedAt=new Date().toISOString();
+ await mark('done');
+ console.log('S12 REAL SOURCE + OUTPUT + NATIVE BYTES PASS '+tier);
+}catch(error){
+ manifest.result='FAIL_THIS_TIER';
+ manifest.error={message:error?.message||String(error),stack:String(error?.stack||'')?.slice(0,5000)};
+ manifest.lastBrowserStatus=page?
+   await page.locator('#status').textContent().catch(()=>'(status inaccessible)'):null;
+ manifest.lastPreservationStatus=page?
+   await page.locator('#preservationReadinessDescription').textContent().catch(()=>null):null;
+ manifest.endedAt=new Date().toISOString();
+ await persist();
+ console.error('S12 REAL SOURCE TEST FAILED at '+manifest.phase,manifest.error);
+ process.exitCode=1;
+}finally{
+ clearInterval(sampler);
+ sampleMemory();
+ await persist();
+ await context?.close().catch(()=>{});
+ await browser?.close().catch(()=>{});
+}
