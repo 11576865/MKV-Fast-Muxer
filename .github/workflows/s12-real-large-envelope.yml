@@ -101,6 +101,7 @@ jobs:
           exit 1
 
       - name: Execute REAL browser scan/mux/download/native SHA
+        id: real_mux
         shell: bash
         run: |
           set -euo pipefail
@@ -108,6 +109,39 @@ jobs:
           # failed, not silently marked PASS or allowed to consume all CI.
           timeout --signal=TERM --kill-after=15s 15m \
             node tests/e2e/s12-real-large-mkv.e2e.mjs
+
+      - name: Finalize interrupted browser receipt without claiming success
+        if: always()
+        env:
+          STEP_RESULT: ${{ steps.real_mux.outcome }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const dir=path.resolve('.e2e/s12');
+          fs.mkdirSync(dir,{recursive:true});
+          const file=path.join(dir,'s12-run-receipt.json');
+          let data;
+          try{data=JSON.parse(fs.readFileSync(file,'utf8'));}
+          catch{
+            data={schema:'softmux-s12-real-browser-envelop-v1',tier:process.env.S12_TIER,
+              phase:'fixture-or-runtime-setup',result:'NOT_RUN_OR_SETUP_FAILED'};
+          }
+          if(data.result==='IN_PROGRESS'){
+            data.result='INTERRUPTED_OR_TIMEOUT';
+            data.error=data.error||{
+              message:'Browser job exited before writing a terminal result; inspect the exact workflow logs for OOM/timeout/process termination.',
+              runnerStepOutcome:process.env.STEP_RESULT
+            };
+          }
+          data.workflowStepOutcome=process.env.STEP_RESULT||'not-executed';
+          data.finalizedAt=new Date().toISOString();
+          fs.writeFileSync(file,JSON.stringify(data,null,2)+'\n');
+          console.log('S12 terminal receipt:',JSON.stringify({
+            tier:data.tier,result:data.result,phase:data.phase,step:data.workflowStepOutcome,
+          }));
+          NODE
 
       - name: Archive bounded receipts, not huge data
         if: always()
