@@ -7,7 +7,7 @@
  * The exact File object is mounted. A filename/size/mtime tuple is never
  * accepted as a different File's content identity.
  */
-export const SOURCE_WORKERFS_MIN_BYTES=128*1024*1024;
+export const SOURCE_WORKERFS_MIN_BYTES=64*1024*1024;
 
 export async function stageBrowserPrimarySource({
   ffmpeg, file, prefix, fallbackPath, workerFsType, loadBytes,
