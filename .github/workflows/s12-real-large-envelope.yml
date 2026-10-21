@@ -21,6 +21,14 @@ on:
           - 512m
           - 1000m
           - 1200m
+      kind:
+        description: 'Which true-data geometry to run (not a fake File size)'
+        required: true
+        default: attachment
+        type: choice
+        options:
+          - attachment
+          - pcm
 
 permissions:
   contents: read
@@ -31,19 +39,18 @@ concurrency:
 
 jobs:
   source-output-real-bytes:
-    name: "S12 actual MKV / ${{ matrix.tier }}"
+    name: "S12 actual MKV / ${{ matrix.tier }} / ${{ matrix.kind }}"
     strategy:
       fail-fast: false
       matrix:
-        # Pull requests locate the breakpoint with 64/128/256/512MiB real files.
-        # Previously observed 1GB and 1.2GB failures stay available via manual
-        # workflow_dispatch, avoiding repeated multi-GB runs during diagnosis.
-        # Failed tiers remain red; no inferred pass from size warnings.
-        tier: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.tier) || '["64m","128m","256m","512m"]') }}
+        # Differentiate EBML attachment bulk from actual media packet bulk.
+        # Prior >1GB negative tiers remain manually dispatchable.
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}"}}]', inputs.tier, inputs.kind) || '[{"tier":"64m","kind":"attachment"},{"tier":"128m","kind":"attachment"},{"tier":"256m","kind":"attachment"},{"tier":"512m","kind":"attachment"},{"tier":"256m","kind":"pcm"}]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
       S12_TIER: ${{ matrix.tier }}
+      S12_KIND: ${{ matrix.kind }}
       S12_DIR: .e2e/s12
       E2E_BASE_URL: http://127.0.0.1:4173/
     steps:
@@ -152,7 +159,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: s12-genuine-mkv-${{ matrix.tier }}-receipt
+          name: s12-genuine-mkv-${{ matrix.tier }}-${{ matrix.kind }}-receipt
           path: |
             .e2e/s12/s12-fixture-receipt.json
             .e2e/s12/s12-run-receipt.json
@@ -163,8 +170,8 @@ jobs:
       - name: Final scope declaration
         if: always()
         run: |
-          echo "S12 tier: ${S12_TIER}"
+          echo "S12 tier: ${S12_TIER}, kind: ${S12_KIND}"
           echo "Actual generated MKV and actual browser download are ephemeral runner files."
           echo "Uploaded receipt is NOT a substitute for a independently re-downloadable output."
-          echo "This attachment-heavy fixture tests byte-volume pressure, not realistic 1GB video packets."
+          echo "Attachment case tests EBML FileData; PCM case tests timed media packets; neither implies typical 1GB compressed-film success."
           echo "A red tier is a failed/blocked acceptance, never proof that the engine has a 1GB hard limit."
