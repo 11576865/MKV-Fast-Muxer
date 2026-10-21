@@ -88,6 +88,27 @@ async function segment(blob){
  if(nodes.some(x=>x.id===I.crc))reject('SEGMENT_CRC_UNSUPPORTED');
  return {seg,nodes};
 }
+/**
+ * Preflight an actual original File BEFORE loading FFmpeg.wasm. This is only
+ * the narrow source-layout guard for the research route: one Attachments
+ * master, no source Tags/Chapters, finite exact Segment and no Segment CRC.
+ * Full remuxed output validation is independently repeated later.
+ */
+export async function preflightResearchOriginalAttachments(original){
+ const source=await segment(original);
+ const attachments=source.nodes.filter(x=>x.id===I.attachments);
+ if(attachments.length!==1)
+  reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
+ if(source.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
+  reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
+ return Object.freeze({
+  sourceBytes:original.size,
+  attachmentMasterBytes:attachments[0].end-attachments[0].offset,
+  sourceSegmentFinite:true,
+  authorization:'NONE_RESEARCH_ONLY'
+ });
+}
+
 function voidSameLength(total){
  for(let width=1;width<=8;width++){
   const len=total-1-width;
