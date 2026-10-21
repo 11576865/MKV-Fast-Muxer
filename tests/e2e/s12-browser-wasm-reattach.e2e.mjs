@@ -121,6 +121,37 @@ try{
  ],180_000));
  for(const kind of ['video','audio','subtitle'])
   assert.ok(nativeOutput.streams.some(x=>x.codec_type===kind),'missing '+kind);
+ // Exact encoded packet byte-content parity is stronger than mere stream
+ // inventory. Compare independently recomputed native ffprobe hashes in
+ // packet order for both copied A/V tracks; timestamp rewriting may differ,
+ // but -c copy must not silently transcode, omit or alter these packets.
+ const sourceProbe=JSON.parse(native('ffprobe',[
+  '-v','error','-show_streams','-of','json',source
+ ],180_000));
+ for(const kind of ['video','audio']){
+  const from=sourceProbe.streams.find(x=>x.codec_type===kind);
+  const delivered=nativeOutput.streams.find(x=>x.codec_type===kind);
+  assert.equal(delivered.codec_name,from.codec_name,
+   'copied '+kind+' codec identity changed');
+ }
+ const packetHashes=(file,selector)=>JSON.parse(native('ffprobe',[
+  '-v','error','-select_streams',selector,
+  '-show_packets','-show_data_hash','sha256',
+  '-show_entries','packet=data_hash','-of','json',file
+ ],180_000)).packets?.map(x=>x.data_hash)||[];
+ report.avPacketSHA256Parity={};
+ for(const [kind,selector] of [['video','v:0'],['audio','a:0']]){
+  const sourceHashes=packetHashes(source,selector);
+  const outputHashes=packetHashes(output,selector);
+  assert.ok(sourceHashes.length>2&&sourceHashes.every(x=>typeof x==='string'&&x.startsWith('SHA256:')),
+   'source '+kind+' independent packet hash oracle did not produce usable SHA256');
+  assert.deepEqual(outputHashes,sourceHashes,
+   'actual encoded '+kind+' packet bytes lost/changed across WASM and Blob output');
+  report.avPacketSHA256Parity[kind]={
+   codec:sourceProbe.streams.find(x=>x.codec_type===kind).codec_name,
+   packets:sourceHashes.length,allOrderedSHA256Equal:true
+  };
+ }
  assert.equal(nativeOutput.streams.filter(x=>x.codec_type==='attachment').length,
   fixture.attachmentParts.length,'lost/duplicate attachment');
  const mkv=JSON.parse(native('mkvmerge',['-J',output],180_000));
