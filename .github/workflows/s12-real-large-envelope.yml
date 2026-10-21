@@ -45,7 +45,7 @@ jobs:
       matrix:
         # Differentiate EBML attachment bulk from actual media packet bulk.
         # Prior >1GB negative tiers remain manually dispatchable.
-        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}"}}]', inputs.tier, inputs.kind) || '[{"tier":"64m","kind":"attachment"},{"tier":"128m","kind":"attachment"},{"tier":"256m","kind":"attachment"},{"tier":"512m","kind":"attachment"},{"tier":"256m","kind":"pcm"}]') }}
+        include: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('[{{"tier":"{0}","kind":"{1}"}}]', inputs.tier, inputs.kind) || '[{"tier":"64m","kind":"attachment"},{"tier":"128m","kind":"attachment"},{"tier":"256m","kind":"attachment"},{"tier":"512m","kind":"attachment"},{"tier":"256m","kind":"pcm"},{"tier":"512m","kind":"pcm"},{"tier":"1000m","kind":"pcm"}]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
