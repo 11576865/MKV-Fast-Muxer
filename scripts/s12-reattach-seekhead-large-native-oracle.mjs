@@ -100,7 +100,10 @@ try{
   '--attachment-name',part.name,
   '--attachment-mime-type','application/octet-stream',
   '--attach-file',part.file);
- mkvArgs.push(clip);
+ // The 2-second MP4 can supply track/global tags even when mkvmerge
+ // statistics tags are disabled. They are explicitly excluded ONLY from this
+ // bounded fixture; the research writer must keep refusing real source Tags.
+ mkvArgs.push('--no-global-tags','--no-track-tags','--no-chapters',clip);
  native('mkvmerge',mkvArgs,240_000);
  receipt.actualSourceBytes=(await fs.stat(source)).size;
  receipt.sourceSha256=await sha(source);
