@@ -170,6 +170,44 @@ try{
  }
  assert.equal(await sha(source),fixture.sourceSha256,
   'original MKV was changed by the browser experiment');
+ // Strong negative branch: construct a REAL tagged Matroska copy with
+ // native mkvpropedit, select it through Chromium File input, and prove the
+ // bounded source preflight rejects before even starting FFmpeg.wasm.
+ // A successful prior output must not authorize a later edited source.
+ if(tier==='128m'){
+  await stage('real-tagged-source-refused-before-wasm');
+  const tagged=f('negative-source-with-real-tags.mkv');
+  const xml=f('negative-source-tags.xml');
+  await fs.copyFile(source,tagged);
+  await fs.writeFile(xml,[
+   '<?xml version="1.0" encoding="utf-8"?>',
+   '<Tags><Tag><Targets/><Simple>',
+   '<Name>S12_TAGGED_SOURCE_UNSUPPORTED</Name>',
+   '<String>Should be rejected before wasm loads</String>',
+   '</Simple></Tag></Tags>'
+  ].join(''));
+  native('mkvpropedit',[tagged,'--tags','global:'+xml],180_000);
+  await page.locator('#source').setInputFiles(tagged,{timeout:180_000});
+  await page.locator('#execute').click();
+  await page.waitForFunction(()=>window.__s12WasmReattach?.phase==='failed',
+   null,{timeout:45_000});
+  const refused=await page.evaluate(()=>({
+   error:window.__s12WasmReattach.error,
+   wasmExitCode:window.__s12WasmReattach.wasmExitCode,
+   evidence:window.__s12WasmReattach.evidence,
+   preflight:window.__s12WasmReattach.preflight
+  }));
+  assert.match(refused.error||'',/SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE/,
+   'actual tagged source must fail closed, not silently lose Tags');
+  assert.equal(refused.wasmExitCode,null,
+   'unsupported source metadata must reject before FFmpeg.wasm exec');
+  assert.equal(refused.evidence,null,
+   'old downloaded output evidence cannot transfer to a newly rejected File');
+  assert.equal(refused.preflight,null);
+  report.realTaggedSourceNegative={status:'REJECTED_BEFORE_WASM_EXEC',
+   reason:refused.error,realOriginalTags:true};
+  await fs.rm(tagged);
+ }
  report.sourceSha256=fixture.sourceSha256;
  report.outputSha256=await sha(output);
  report.nativeFinalStreamKinds=nativeOutput.streams.map(x=>x.codec_type);
