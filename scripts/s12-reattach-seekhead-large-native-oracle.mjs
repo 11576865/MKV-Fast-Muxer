@@ -125,6 +125,15 @@ try{
  assert.equal(base.streams.filter(s=>s.codec_type==='attachment').length,0);
  assert.ok(base.streams.some(s=>s.codec_type==='subtitle'));
  receipt.baseRemuxBytes=(await fs.stat(clean)).size;
+ if(process.env.S12_REATTACH_FIXTURE_ONLY==='1'){
+  // The real browser File/Blob test will perform the reattachment and the
+  // independent native final-output audit in a separate process. This is
+  // ONLY successful fixture construction, never a proof of final output.
+  receipt.status='FIXTURE_READY_ONLY_NOT_ACCEPTED';
+  receipt.success=false;
+  await phase('fixture-ready-for-real-browser');
+  console.log('S12 REAL LARGE SOURCE + CLEAN BASELINE READY (NOT OUTPUT PASS)');
+ }else{
  await phase('apply-Blob-backed-byte-range-reinsertion');
  // openAsBlob creates a lazily readable file-backed Blob in Node 22. Never
  // fs.readFile the 128/256 MiB Matroska or its original FileData.
@@ -168,6 +177,7 @@ try{
  console.log('S12 LARGE ORIGINAL ATTACHMENTS REINSERT NATIVE SHA PASS',JSON.stringify({
   tier,chunkMiB,attachmentCount:parts.length,outputBytes:receipt.outputBytes
  }));
+ }
 }catch(error){
  receipt.status='FAIL_NATIVE_LARGE_RESEARCH';
  receipt.error={message:String(error?.message||error),stack:String(error?.stack||'').slice(0,4500)};
