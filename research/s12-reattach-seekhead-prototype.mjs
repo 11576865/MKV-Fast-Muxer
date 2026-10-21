@@ -109,14 +109,14 @@ function voidSameLength(total){
  */
 export async function prepareResearchSeekHeadReattachment({original,remuxed}={}){
  const a=await segment(original),b=await segment(remuxed);
- // A remuxed output is not source metadata-identical: refuse original
- // ChapterUID / TagAttachmentUID relationships entirely in this research
- // class. No silent graph downgrade or universal preservation claim.
- if(a.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
-  reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
  const originals=a.nodes.filter(x=>x.id===I.attachments);
  if(originals.length!==1||b.nodes.some(x=>x.id===I.attachments))
   reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
+ // Once the source/output attachment shape is established, reject actual
+ // source tag and chapter graph metadata. This is a validation-order-only
+ // change: both kinds of unsafe input still reject before any Blob output.
+ if(a.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
+  reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
  const [seek,voidItem]=b.nodes;
  if(seek?.id!==I.seekHead||voidItem?.id!==I.void||
     seek.end!==voidItem.offset||voidItem.end-seek.offset>MAX_SEEK_BYTES)
