@@ -187,7 +187,9 @@ try{
  await page.waitForFunction(()=>{
   const s=document.querySelector('#status')?.textContent||'';
   if(s.startsWith('完成。'))return true;
-  if(s.startsWith('失败：')||s.includes('没有生成可保存的成品'))throw Error(s);
+  if(s.startsWith('失败：')||s.startsWith('媒体结构探测失败')||
+     s.includes('当前任务没有完成')||s.includes('没有生成可保存的成品'))
+    throw Error('S12_MUX_EXPLICIT_FAILURE: '+s);
   return false;
  },null,{timeout:480_000});
  clearInterval(progressSampler);progressSampler=null;
@@ -258,6 +260,8 @@ try{
  manifest.error={message:error?.message||String(error),stack:String(error?.stack||'')?.slice(0,5000)};
  manifest.lastBrowserStatus=page?
    await page.locator('#status').textContent().catch(()=>'(status inaccessible)'):null;
+ manifest.lastBrowserLogTail=page?
+   await page.locator('#log').textContent().then(s=>s?.slice(-4000)).catch(()=>'(log inaccessible)'):null;
  manifest.lastPreservationStatus=page?
    await page.locator('#preservationReadinessDescription').textContent().catch(()=>null):null;
  manifest.endedAt=new Date().toISOString();
