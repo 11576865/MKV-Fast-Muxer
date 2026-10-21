@@ -6979,6 +6979,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioGigabyteSourceAdvisory(browser);
+  await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
   await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
   // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic
@@ -7029,7 +7030,6 @@ try {
   await scenarioBulkTrackMetadata(browser);
   await scenarioExternalAssetDomainAuthority(browser);
   // R2 already exercised above during joint-integration regression diagnosis.
-  await scenarioS09CrossReloadTwoDraftRecovery(browser);
   await scenarioExternalCheckpointRecoveryRealMux(browser);
   await scenarioWorkbenchEfficiency(browser);
   await scenarioLiveSourceAttachmentDomainMux(browser);
