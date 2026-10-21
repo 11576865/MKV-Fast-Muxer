@@ -19,12 +19,14 @@ const tier=process.env.S12_TIER||'512m';
 const manifestPath=path.join(dir,'s12-run-receipt.json');
 const raw=JSON.parse(await fs.readFile(path.join(dir,'s12-fixture-receipt.json'),'utf8'));
 const source=path.join(dir,raw.source);
+const kind=raw.kind||'attachment';
+if(!['attachment','pcm'].includes(kind))throw Error('S12_UNKNOWN_FIXTURE_KIND:'+kind);
 const out=path.join(dir,'s12-'+tier+'-finished.mkv');
 const reportPath=path.join(dir,'s12-'+tier+'-mux-report.json');
 const memory={samples:0,maxChromiumRssKiB:0,maxHostNodeRssKiB:0,
  maxObservedTotalBrowserProcesses:0,lastBrowserRssKiB:0};
 const manifest={
- schema:'softmux-s12-real-browser-envelop-v1',tier,source:path.basename(source),
+ schema:'softmux-s12-real-browser-envelop-v1',tier,kind,source:path.basename(source),
  sourceBytes:raw.sourceBytes,attachmentBytes:raw.payloadBytes,
  attachmentSha256:raw.payloadSha256,
  attachmentCount:raw.attachmentCount,
@@ -34,7 +36,7 @@ const manifest={
  nodeVersion:process.version,chromiumVersion:null,userAgent:null,
  stages:[],peakResourceObservation:memory,
  claimsNotMade:[
-  'No claim about long high-bitrate media packets; this valid large MKV is predominantly real binary attachment bytes',
+  'The attachment case stresses EBML FileData; the PCM case stresses real timed media packets; neither resembles typical compressed film bitrate/content',
   'No claim about actual tablet hardware or user machine memory',
   'No arbitrary 1 GB output size or engine success guarantee',
   'Browser process RSS samples are approximate, not hardware peak allocation',
@@ -113,8 +115,16 @@ try{
  const input=probe(source);
  assert.ok(input.streams.some(s=>s.codec_type==='video'));
  assert.ok(input.streams.some(s=>s.codec_type==='audio'));
- assert.ok(input.streams.some(s=>s.codec_type==='attachment'));
- await mark('native-input-validated',{streamKinds:input.streams.map(s=>s.codec_type)});
+ if(kind==='attachment')
+   assert.ok(input.streams.some(s=>s.codec_type==='attachment'));
+ else {
+   assert.ok(input.streams.some(s=>s.codec_type==='audio'&&s.codec_name===raw.expectedAudioCodec),
+     'long PCM control must contain the actual declared multichannel media codec');
+   manifest.nativeOriginalDurationSeconds=Number(input.format?.duration);
+   assert.ok(manifest.nativeOriginalDurationSeconds>=raw.mediaDurationSeconds-2,
+     'genuine timed PCM source unexpectedly short');
+ }
+ await mark('native-input-validated',{streamKinds:input.streams.map(s=>s.codec_type),kind});
  sampler=setInterval(sampleMemory,2500);
  browser=await chromium.launch({
    headless:true,
@@ -223,8 +233,19 @@ try{
  assert.ok(kinds.includes('audio'),'native final audio missing');
  assert.ok(kinds.includes('subtitle'),'new subtitle not delivered');
  const attachments=output.streams.filter(s=>s.codec_type==='attachment');
- assert.ok(attachments.length>=1,'native output has lost the huge original Matroska attachment');
- await mark('native-finished-streams-validated',{kinds});
+ if(kind==='attachment')assert.ok(attachments.length>=raw.attachmentCount,
+   'native output has lost a genuine original Matroska attachment');
+ if(kind==='pcm'){
+   assert.ok(output.streams.some(s=>s.codec_type==='audio'&&s.codec_name===raw.expectedAudioCodec),
+     'timed PCM audio codec was not delivered');
+   manifest.nativeOutputDurationSeconds=Number(output.format?.duration);
+   assert.ok(manifest.nativeOutputDurationSeconds>=raw.mediaDurationSeconds-2,
+     'finished output lost a significant part of the true timed audio packets');
+ }
+ await mark('native-finished-streams-validated',{kinds,kind,
+   inputDuration:manifest.nativeOriginalDurationSeconds,
+   outputDuration:manifest.nativeOutputDurationSeconds});
+ if(kind==='attachment'){
  const mkv=JSON.parse(execFileSync('mkvmerge',['-J',out],
    {encoding:'utf8',timeout:120_000,maxBuffer:5*1024*1024}));
  const extractArgs=['attachments',out];
@@ -257,6 +278,7 @@ try{
  assert.equal(manifest.extractedPayloadSha256,raw.payloadSha256,
    'ordered aggregate original payload SHA-256 changed');
  await mark('native-extracted-attachment-full-sha256-pass');
+ }
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
  manifest.result='PASS_THIS_TIER';
