@@ -165,7 +165,7 @@ try{
   return false;
  },null,{timeout:360_000});
  const scanStatus=await page.locator('#status').textContent();
- const scannedCount=Number(scanStatus?.match(/轨道扫描完成：(\\d+) 个流/)?.[1]??0);
+ const scannedCount=Number(scanStatus?.match(/轨道扫描完成：(\d+) 个流/)?.[1]??0);
  const selectedSource=await page.locator('#videoInput').evaluate(el=>({
   bytes:el.files?.[0]?.size??0,name:el.files?.[0]?.name??null,
  }));
