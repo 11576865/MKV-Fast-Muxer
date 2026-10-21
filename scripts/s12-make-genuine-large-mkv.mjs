@@ -17,6 +17,8 @@ import process from 'node:process';
 const TIER = process.env.S12_TIER || '512m';
 const tiers=Object.freeze({
   '64m': 64*1024*1024,
+  '128m': 128*1024*1024,
+  '256m': 256*1024*1024,
   '512m': 512*1024*1024,
   '1000m': 1_000_000_128,
   '1200m': 1_200_000_000,
