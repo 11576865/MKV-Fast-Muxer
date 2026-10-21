@@ -43,7 +43,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: s12-real-envelope-${{ github.ref }}-${{ github.event_name }}
+  group: s12-attachment-cardinality-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
