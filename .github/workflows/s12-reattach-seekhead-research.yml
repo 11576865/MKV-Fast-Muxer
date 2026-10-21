@@ -6,6 +6,7 @@ on:
     paths:
       - 'research/s12-reattach-seekhead-prototype.mjs'
       - 'scripts/s12-reattach-seekhead-native-oracle.mjs'
+      - 'scripts/s12-reattach-seekhead-large-native-oracle.mjs'
       - '.github/workflows/s12-reattach-seekhead-research.yml'
   workflow_dispatch:
 
@@ -70,3 +71,72 @@ jobs:
           echo "Research-only native test, not browser FFmpeg.wasm."
           echo "No general Matroska graph/CRC/UID/tag/chapters/Cues authority."
           echo "No 256 MiB original attachment acceptance or production feature release."
+
+  genuine-large-original-byte-lane:
+    name: "S12 real original attachments / ${{ matrix.tier }} / ${{ matrix.chunk_mib }}MiB per element"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tier: 128m
+            chunk_mib: 64
+          - tier: 256m
+            chunk_mib: 128
+          - tier: 256m
+            chunk_mib: 64
+    env:
+      S12_REATTACH_TIER: ${{ matrix.tier }}
+      S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_DIR: .e2e/s12-reattach-large
+    steps:
+      - name: Checkout exact independent research head
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22 for disk-backed Blob API
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native source and audit tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=()
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          node --version
+          ffmpeg -version | head -n 1
+          mkvmerge --version
+          df -h .
+          free -m
+
+      - name: Generate physical attachments and native FFmpeg remux, reattach with Blob views, native SHA audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s 18m \
+            node scripts/s12-reattach-seekhead-large-native-oracle.mjs
+          df -h .
+
+      - name: Upload bounded receipts without huge media or original private bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-reattach-native-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-receipt
+          path: |
+            .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Scope disclaimer
+        if: always()
+        run: |
+          echo "Native-only physical 128/256MiB original attachments, not browser ffmpeg.wasm."
+          echo "All full media files remain ephemeral on the GitHub runner."
+          echo "No Chapters/Tags/UID graph/Cues or user-save acceptance grant."
