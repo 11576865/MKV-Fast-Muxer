@@ -245,7 +245,7 @@ jobs:
           echo "This does not authorize a product feature or prove all Tags/Chapters/Cues."
 
   actual-browser-wasm-media-only-and-reinsert:
-    name: "S12 Chromium FFmpeg.wasm media-only + original attachment Blob / ${{ matrix.tier }}"
+    name: "S12 Chromium FFmpeg.wasm media-only + original Blob / ${{ matrix.tier }} / shadow=${{ matrix.shadow }}"
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -254,13 +254,20 @@ jobs:
         include:
           - tier: 128m
             chunk_mib: 64
+            shadow: false
           - tier: 256m
             chunk_mib: 64
+            shadow: false
+          - tier: 128m
+            chunk_mib: 64
+            shadow: true
           - tier: 512m
             chunk_mib: 64
+            shadow: true
     env:
       S12_REATTACH_TIER: ${{ matrix.tier }}
       S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_SHADOW: ${{ matrix.shadow }}
       S12_REATTACH_FIXTURE_ONLY: "1"
       S12_REATTACH_DIR: .e2e/s12-reattach-large
       S12_REATTACH_BASE_URL: http://127.0.0.1:4179
@@ -295,7 +302,7 @@ jobs:
             sudo apt-get install -y "${packages[@]}"
           fi
 
-      - name: Create genuine 128/256/512MiB original source and native fixture evidence only
+      - name: Construct real source for direct and temporary-Void shadow inputs
         shell: bash
         run: |
           set -euo pipefail
@@ -325,7 +332,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: s12-wasm-reattach-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-receipts
+          name: s12-wasm-reattach-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-shadow-${{ matrix.shadow }}-receipts
           path: |
             .e2e/s12-reattach-large/s12-large-reattach-receipt.json
             .e2e/s12-reattach-large/s12-browser-wasm-reattach-receipt.json
