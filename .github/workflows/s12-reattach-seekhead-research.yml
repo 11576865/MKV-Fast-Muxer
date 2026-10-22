@@ -256,6 +256,8 @@ jobs:
             chunk_mib: 64
           - tier: 256m
             chunk_mib: 64
+          - tier: 512m
+            chunk_mib: 64
     env:
       S12_REATTACH_TIER: ${{ matrix.tier }}
       S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
@@ -293,7 +295,7 @@ jobs:
             sudo apt-get install -y "${packages[@]}"
           fi
 
-      - name: Create genuine 128 or 256MiB original source and native fixture evidence only
+      - name: Create genuine 128/256/512MiB original source and native fixture evidence only
         shell: bash
         run: |
           set -euo pipefail
