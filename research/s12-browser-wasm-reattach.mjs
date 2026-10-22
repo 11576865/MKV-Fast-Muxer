@@ -8,7 +8,7 @@ const execute=document.querySelector('#execute');
 const status=document.querySelector('#status');
 const log=document.querySelector('#log');
 const state={phase:'idle',error:null,evidence:null,preflight:null,wasmExitCode:null,
-  wasmLogTail:[],sourceKind:null};
+  wasmLogTail:[],sourceKind:null,downloadable:false};
 window.__s12WasmReattach=state;
 let busy=false,outputUrl=null,sourceEpoch=0;
 function assertCurrentSource(file,epoch){
@@ -21,6 +21,7 @@ function clearPreviousResult(){
  state.wasmExitCode=null;
  state.execArgs=null;
  if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null;}
+ state.downloadable=false;
 }
 function update(phase){
  state.phase=phase;
@@ -124,12 +125,16 @@ execute.addEventListener('click',async()=>{
   update('dispatch-real-browser-download');
   if(outputUrl)URL.revokeObjectURL(outputUrl);
   outputUrl=URL.createObjectURL(completed.blob);
+  state.downloadable=true;
   const a=document.createElement('a');
   a.href=outputUrl;a.download='s12-wasm-research-reattached.mkv';
   document.body.appendChild(a);a.click();a.remove();
   update('download-dispatched');
  }catch(error){
-  clearPreviousResult();
+  // Preserve the failing FFmpeg exit/log for diagnosis; only previously
+  // downloadable result authority must be invalidated.
+  state.evidence=null;state.downloadable=false;
+  if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null;}
   state.error=String(error?.message||error);
   update('failed');
   console.error('S12_WASM_REATTACH_REJECTED',error);
