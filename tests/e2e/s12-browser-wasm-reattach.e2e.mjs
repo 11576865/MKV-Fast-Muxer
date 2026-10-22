@@ -264,6 +264,57 @@ try{
    actualNativeChapterAtoms:chapterInventory.chapters.length,
    reason:chapterRefusal.error,
   };
+
+  // Deterministic IN-FLIGHT source identity check with a *real completed*
+  // ffmpeg.wasm media-only mux: pause exactly after its exec resolves and
+  // before the output is authorized, select a different real File, and
+  // prove the old task cannot emit a candidate for the new source.
+  await stage('post-real-wasm-inflight-source-swap-refused');
+  await page.evaluate(()=>{
+   window.__s12ResearchAfterExecBarrier=()=>new Promise(resolve=>{
+    window.__s12ResearchReleaseAfterExec=resolve;
+   });
+  });
+  await page.locator('#source').setInputFiles(source,{timeout:180_000});
+  let unauthorizedDownloads=0;
+  const trackUnauthorized=()=>{unauthorizedDownloads++};
+  page.on('download',trackUnauthorized);
+  await page.locator('#execute').click();
+  await page.waitForFunction(()=>window.__s12WasmReattach?.researchBarrierReached===true,
+   null,{timeout:180_000});
+  const wasExecuted=await page.evaluate(()=>window.__s12WasmReattach?.execArgs);
+  assert.deepEqual(wasExecuted.flatMap((arg,i,args)=>arg==='-map'?[args[i+1]]:[]),
+   ['0:v:0','0:a:0','1:s:0']);
+  await page.locator('#source').setInputFiles(chaptered,{timeout:180_000});
+  const changedWhileHeld=await page.evaluate(()=>window.__s12WasmReattach);
+  assert.equal(changedWhileHeld.evidence,null);
+  assert.equal(changedWhileHeld.downloadable,false);
+  await page.evaluate(()=>window.__s12ResearchReleaseAfterExec?.());
+  await page.waitForFunction(()=>window.__s12WasmReattach?.phase==='failed',
+   null,{timeout:45_000});
+  const staleRefusal=await page.evaluate(()=>({
+   reason:window.__s12WasmReattach.error,
+   evidence:window.__s12WasmReattach.evidence,
+   downloadable:window.__s12WasmReattach.downloadable,
+   wasmExitCode:window.__s12WasmReattach.wasmExitCode,
+  }));
+  assert.match(staleRefusal.reason||'',/S12_SOURCE_FILE_CHANGED_DURING_EXECUTION/);
+  assert.equal(staleRefusal.evidence,null);
+  assert.equal(staleRefusal.downloadable,false);
+  assert.equal(staleRefusal.wasmExitCode,null,
+   'completed FFmpeg.wasm output may not be accepted after a source File change');
+  assert.equal(unauthorizedDownloads,0,
+   'in-flight old-source mux must dispatch no download after a File change');
+  page.off('download',trackUnauthorized);
+  await page.evaluate(()=>{
+   delete window.__s12ResearchAfterExecBarrier;
+   delete window.__s12ResearchReleaseAfterExec;
+  });
+  report.inFlightSourceReplacement={
+   status:'REJECTED_AFTER_REAL_WASM_EXEC_BEFORE_OUTPUT',
+   oldMediaMuxExecuted:true,downloadCount:unauthorizedDownloads,
+   exactFileEpochGuard:true,reason:staleRefusal.reason,
+  };
   await fs.rm(chaptered);
  }
  report.sourceSha256=fixture.sourceSha256;
