@@ -1,13 +1,14 @@
 import { FFmpeg, FFFSType } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
 import { stageBrowserPrimarySource } from '../src/ffmpeg-browser-source-staging.js';
-import { prepareResearchSeekHeadReattachment, preflightResearchOriginalAttachments } from './s12-reattach-seekhead-prototype.mjs';
+import { prepareResearchSeekHeadReattachment, preflightResearchOriginalAttachments, prepareResearchMediaOnlyShadow } from './s12-reattach-seekhead-prototype.mjs';
 
 const source=document.querySelector('#source');
 const execute=document.querySelector('#execute');
 const status=document.querySelector('#status');
 const log=document.querySelector('#log');
-const state={phase:'idle',error:null,evidence:null,preflight:null,wasmExitCode:null,
+const shadowMode=new URLSearchParams(location.search).get('media-shadow')==='1';
+const state={phase:'idle',error:null,evidence:null,preflight:null,shadowEvidence:null,inputMode:null,wasmExitCode:null,
   wasmLogTail:[],sourceKind:null,downloadable:false,researchBarrierReached:false};
 window.__s12WasmReattach=state;
 let busy=false,outputUrl=null,sourceEpoch=0;
@@ -18,6 +19,8 @@ function assertCurrentSource(file,epoch){
 function clearPreviousResult(){
  state.evidence=null;
  state.preflight=null;
+ state.shadowEvidence=null;
+ state.inputMode=null;
  state.wasmExitCode=null;
  state.execArgs=null;
  if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null;}
@@ -43,6 +46,7 @@ execute.addEventListener('click',async()=>{
  if(busy||!source.files?.[0])return;
  busy=true;state.error=null;state.evidence=null;
  state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;state.preflight=null;
+ state.shadowEvidence=null;state.inputMode=null;
  state.researchBarrierReached=false;
  const original=source.files[0];
  const boundEpoch=sourceEpoch;
@@ -73,9 +77,22 @@ execute.addEventListener('click',async()=>{
    classWorkerURL:worker,
   });
   checkSource();
-  update('stage-original-with-workerfs');
+  // Explicit test-only split. The direct control mounts the original File;
+  // shadow mode mounts a temporary same-size File backed by views of original
+  // bytes, substituting only the Attachments master header with EBML Void.
+  // The real original File stays bound for ALL final attachment reinsertion.
+  let mediaInput=original;
+  if(shadowMode){
+   update('prepare-temporary-original-attachments-void-shadow');
+   const shadow=await prepareResearchMediaOnlyShadow(original);
+   checkSource();
+   mediaInput=shadow.file;
+   state.shadowEvidence=shadow.evidence;
+  }
+  state.inputMode=shadowMode?'temporary-void-shadow':'original-direct';
+  update('stage-media-view-with-workerfs');
   mounted=await stageBrowserPrimarySource({
-   ffmpeg,file:original,prefix:'s12-byte-lane',
+   ffmpeg,file:mediaInput,prefix:'s12-byte-lane',
    fallbackPath:'/s12-full-original-should-not-be-written.mkv',
    workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile
   });
@@ -126,6 +143,7 @@ execute.addEventListener('click',async()=>{
    throw Error('S12_RESEARCH_HAS_UNEXPECTED_WRITE_AUTHORITY');
   state.evidence={...completed.evidence,
    sourceBytes:original.size,wasmBaselineBytes:baseline.size,
+   inputMode:state.inputMode,shadowEvidence:state.shadowEvidence,
    sourceType:Object.prototype.toString.call(original),
    wasmExitCode:code,
    resultBytes:completed.blob.size,
