@@ -188,6 +188,13 @@ try{
   ].join(''));
   native('mkvpropedit',[tagged,'--tags','global:'+xml],180_000);
   await page.locator('#source').setInputFiles(tagged,{timeout:180_000});
+  const sourceSwitch=await page.evaluate(()=>window.__s12WasmReattach);
+  assert.equal(sourceSwitch.evidence,null,
+   'selecting a different File must synchronously revoke stale success evidence');
+  assert.equal(sourceSwitch.downloadable,false,
+   'the previous original source download URL must be revoked after reselect');
+  assert.equal(sourceSwitch.wasmExitCode,null,
+   'a selected new File has not executed FFmpeg.wasm');
   await page.locator('#execute').click();
   await page.waitForFunction(()=>window.__s12WasmReattach?.phase==='failed',
    null,{timeout:45_000});
@@ -207,6 +214,57 @@ try{
   report.realTaggedSourceNegative={status:'REJECTED_BEFORE_WASM_EXEC',
    reason:refused.error,realOriginalTags:true};
   await fs.rm(tagged);
+
+  // A genuine source Chapters master is an independent graph hazard.
+  // Editing these objects into a native original MKV must fail CLOSED before
+  // the research wasm executor, not silently flatten ChapterUID semantics.
+  await stage('real-chaptered-source-refused-before-wasm');
+  const chaptered=f('negative-source-with-real-chapters.mkv');
+  const chaptersXml=f('negative-source-chapters.xml');
+  await fs.copyFile(source,chaptered);
+  await fs.writeFile(chaptersXml,[
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<Chapters><EditionEntry><ChapterAtom>',
+    '<ChapterUID>987654321</ChapterUID>',
+    '<ChapterTimeStart>00:00:00.000000000</ChapterTimeStart>',
+    '<ChapterDisplay><ChapterString>S12 chapter graph must be refused</ChapterString>',
+    '<ChapterLanguage>eng</ChapterLanguage></ChapterDisplay>',
+    '</ChapterAtom></EditionEntry></Chapters>'
+  ].join(''));
+  native('mkvpropedit',[chaptered,'--chapters',chaptersXml],180_000);
+  const chapterInventory=JSON.parse(native('ffprobe',[
+   '-v','error','-show_chapters','-of','json',chaptered
+  ],180_000));
+  assert.ok(chapterInventory.chapters?.length>=1,
+   'native chapter negative fixture must contain an actual ChapterAtom');
+  await page.locator('#source').setInputFiles(chaptered,{timeout:180_000});
+  const chapterSwitch=await page.evaluate(()=>window.__s12WasmReattach);
+  assert.equal(chapterSwitch.evidence,null);
+  assert.equal(chapterSwitch.downloadable,false);
+  assert.equal(chapterSwitch.wasmExitCode,null);
+  await page.locator('#execute').click();
+  await page.waitForFunction(()=>window.__s12WasmReattach?.phase==='failed',
+   null,{timeout:45_000});
+  const chapterRefusal=await page.evaluate(()=>({
+   error:window.__s12WasmReattach.error,
+   wasmExitCode:window.__s12WasmReattach.wasmExitCode,
+   evidence:window.__s12WasmReattach.evidence,
+   preflight:window.__s12WasmReattach.preflight,
+   downloadable:window.__s12WasmReattach.downloadable,
+  }));
+  assert.match(chapterRefusal.error||'',/SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE/);
+  assert.equal(chapterRefusal.wasmExitCode,null,
+   'real source Chapters must fail before FFmpeg.wasm execution');
+  assert.equal(chapterRefusal.evidence,null);
+  assert.equal(chapterRefusal.preflight,null);
+  assert.equal(chapterRefusal.downloadable,false,
+   'chapter refusal must not preserve a prior source download URL');
+  report.realChapteredSourceNegative={
+   status:'REJECTED_BEFORE_WASM_EXEC',
+   actualNativeChapterAtoms:chapterInventory.chapters.length,
+   reason:chapterRefusal.error,
+  };
+  await fs.rm(chaptered);
  }
  report.sourceSha256=fixture.sourceSha256;
  report.outputSha256=await sha(output);
