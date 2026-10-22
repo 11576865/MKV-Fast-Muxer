@@ -12,7 +12,7 @@ import {pipeline} from 'node:stream/promises';
 import {createHash,randomBytes} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
-import {prepareResearchSeekHeadReattachment} from '../research/s12-reattach-seekhead-prototype.mjs';
+import {prepareResearchSeekHeadReattachment,inspectResearchOriginalSeekHead,preflightResearchOriginalAttachments} from '../research/s12-reattach-seekhead-prototype.mjs';
 
 const root=path.resolve(process.env.S12_PROTOTYPE_OUT||'.e2e/s12-raw-reattach');
 await fs.mkdir(root,{recursive:true});
@@ -75,6 +75,18 @@ assert.ok(base.streams.some(s=>s.codec_type==='subtitle'));
 const sourceSha=await sha(realSource);
 const originalBytes=await fs.readFile(realSource);
 const remuxBytes=await fs.readFile(remuxed);
+const indexed=await inspectResearchOriginalSeekHead(new Blob([originalBytes]));
+assert.equal(indexed.authority,'RESEARCH_ONLY');
+assert.ok(indexed.checkedEntries>=1,'actual native SeekHead entries must be audited');
+assert.equal(indexed.attachmentReferences,1);
+assert.ok(Number.isSafeInteger(indexed.attachmentSeekPositionByteOffset));
+const altered=Uint8Array.from(originalBytes);
+// Corrupt only one real SeekPosition payload byte in the source SeekHead.
+// No Tag/Chapter graph changes, no spoofed filename/size, no synthetic MKV.
+altered[indexed.attachmentSeekPositionByteOffset]^=1;
+await assert.rejects(preflightResearchOriginalAttachments(new Blob([altered])),
+ /S12_REATTACH_SOURCE_SEEKHEAD_(TARGET_MISMATCH|CRC_INVALID)/,
+ 'original source SeekHead pointing away from Attachments must refuse before Wasm');
 const res=await prepareResearchSeekHeadReattachment({
  original:new Blob([originalBytes]),remuxed:new Blob([remuxBytes])
 });
@@ -132,6 +144,8 @@ await assert.rejects(prepareResearchSeekHeadReattachment({
 const receipt={
  schema:'s12-native-seekhead-reattach-prototype-v1',
  status:'PASS_NATIVE_SMALL_SCOPE_ONLY',
+ originalSeekHeadValidated:{entries:indexed.checkedEntries,attachmentReferences:indexed.attachmentReferences,crcValidated:indexed.crcValidated},
+ negativeCorruptSeekPosition:'REJECTED_BEFORE_WASM',
  source:path.basename(realSource),sourceSha256:sourceSha,
  detachedRemux:path.basename(remuxed),
  candidate:path.basename(output),candidateBytes:(await fs.stat(output)).size,
