@@ -20,7 +20,7 @@ import { prepareResearchSeekHeadReattachment } from '../research/s12-reattach-se
 
 const tier=process.env.S12_REATTACH_TIER||'128m';
 const chunkMiB=Number(process.env.S12_REATTACH_CHUNK_MIB||64);
-const totalMap=Object.freeze({'128m':128*1024*1024,'256m':256*1024*1024,'512m':512*1024*1024});
+const totalMap=Object.freeze({'128m':128*1024*1024,'256m':256*1024*1024,'512m':512*1024*1024,'1024m':1024*1024*1024});
 if(!Object.hasOwn(totalMap,tier)||![32,64,128].includes(chunkMiB))
  throw Error('S12_REATTACH_LARGE_TIER_OR_CHUNK_INVALID');
 const attachmentBytes=totalMap[tier];
