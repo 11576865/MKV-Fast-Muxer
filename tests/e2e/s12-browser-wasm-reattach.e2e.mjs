@@ -27,6 +27,8 @@ const receiptPath=f('s12-browser-wasm-reattach-receipt.json');
 const fixture=JSON.parse(await fs.readFile(f('s12-large-reattach-receipt.json'),'utf8'));
 assert.equal(fixture.status,'FIXTURE_READY_ONLY_NOT_ACCEPTED');
 assert.equal(fixture.tier,tier);assert.equal(fixture.chunkMiB,chunkMiB);
+if(tier==='1024m')assert.ok(fixture.actualSourceBytes>1_000_000_000,
+ 'S12_1GIB_RESEARCH_MUST_HAVE_TRUE_PHYSICAL_GT_1GB_INPUT');
 const native=(tool,args,timeout=120_000)=>execFileSync(tool,args,{
  encoding:'utf8',timeout,maxBuffer:10*1024*1024
 });
