@@ -264,6 +264,9 @@ jobs:
           - tier: 512m
             chunk_mib: 64
             shadow: true
+          - tier: 1024m
+            chunk_mib: 64
+            shadow: true
     env:
       S12_REATTACH_TIER: ${{ matrix.tier }}
       S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
