@@ -89,6 +89,86 @@ async function segment(blob){
  return {seg,nodes};
 }
 /**
+ * RESEARCH-ONLY bounded source index audit.
+ *
+ * A same-span Void input intentionally invalidates the ORIGINAL source
+ * Attachments SeekHead target. Before constructing that transient view we
+ * must independently prove that the untouched File's existing index points
+ * to its real on-disk master, and any source SeekHead CRC is valid.
+ *
+ * This checks top-level index pointers only; it does NOT validate Cues
+ * references, ChapterUID, TagAttachmentUID, or any general EBML graph.
+ */
+async function validateResearchOriginalSeekHead(original,parsed){
+ const {seg,nodes}=parsed;
+ const heads=nodes.filter(x=>x.id===I.seekHead);
+ if(heads.length!==1)reject('SOURCE_SEEKHEAD_UNIQUE_REQUIRED');
+ const byOffset=new Map(nodes.map(x=>[x.offset,x]));
+ let checked=0,attachmentRefs=0,crcChecked=0;
+ let attachmentSeekPositionByteOffset=null;
+ for(const head of heads){
+  if(head.size>MAX_SEEK_BYTES)reject('SOURCE_SEEKHEAD_BUDGET');
+  const entries=await children(original,head.dataStart,head.end,96);
+  let crc=entries.find(x=>x.id===I.crc);
+  if(crc){
+   if(entries[0]!==crc||entries.filter(x=>x.id===I.crc).length!==1||
+       crc.end-crc.dataStart!==4)
+    reject('SOURCE_SEEKHEAD_CRC_LAYOUT');
+   const rest=new Uint8Array(await original.slice(crc.end,head.end).arrayBuffer());
+   const stored=new Uint8Array(await original.slice(crc.dataStart,crc.end).arrayBuffer());
+   const expected=ebmlCrc32LE(crc32IEEE(rest));
+   if(stored.some((v,i)=>v!==expected[i]))reject('SOURCE_SEEKHEAD_CRC_INVALID');
+   crcChecked++;
+  }
+  for(const entry of entries){
+   if(entry.id===I.crc)continue;
+   if(entry.id!==I.seek)reject('SOURCE_SEEKHEAD_UNEXPECTED_CHILD');
+   const fields=await children(original,entry.dataStart,entry.end,6);
+   const ids=fields.filter(x=>x.id===I.seekId);
+   const positions=fields.filter(x=>x.id===I.seekPos);
+   if(fields.length!==2||ids.length!==1||positions.length!==1||
+       ids[0].size<1||ids[0].size>4||
+       positions[0].size<1||positions[0].size>8)
+    reject('SOURCE_SEEKHEAD_ENTRY_LAYOUT');
+   const rawId=new Uint8Array(await original.slice(ids[0].dataStart,ids[0].end).arrayBuffer());
+   let targetId=0;
+   for(const byte of rawId)targetId=targetId*256+byte;
+   const rawPosition=new Uint8Array(await original.slice(
+      positions[0].dataStart,positions[0].end).arrayBuffer());
+   let relative=0n;
+   for(const byte of rawPosition)relative=(relative<<8n)+BigInt(byte);
+   if(relative>BigInt(Number.MAX_SAFE_INTEGER))
+    reject('SOURCE_SEEKHEAD_POSITION_OVERFLOW');
+   const absolute=seg.dataStart+Number(relative);
+   const target=byOffset.get(absolute);
+   if(!target||target.id!==targetId)
+    reject('SOURCE_SEEKHEAD_TARGET_MISMATCH');
+   checked++;
+   if(targetId===I.attachments){
+    attachmentRefs++;
+    attachmentSeekPositionByteOffset=positions[0].end-1;
+   }
+  }
+ }
+ if(attachmentRefs!==1)reject('SOURCE_ATTACHMENTS_SEEK_INDEX_REQUIRED');
+ return Object.freeze({
+  seekHeadCount:heads.length,checkedEntries:checked,
+  attachmentReferences:attachmentRefs,crcValidated:crcChecked,
+  // Diagnostic locator only for native negative tests: never output write
+  // authorization or a dynamic browser patch/override capability.
+  attachmentSeekPositionByteOffset,
+  authority:'RESEARCH_ONLY'
+ });
+}
+
+export async function inspectResearchOriginalSeekHead(original){
+ const parsed=await segment(original);
+ const attachments=parsed.nodes.filter(x=>x.id===I.attachments);
+ if(attachments.length!==1)reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
+ return validateResearchOriginalSeekHead(original,parsed);
+}
+
+/**
  * Preflight an actual original File BEFORE loading FFmpeg.wasm. This is only
  * the narrow source-layout guard for the research route: one Attachments
  * master, no source Tags/Chapters, finite exact Segment and no Segment CRC.
@@ -101,8 +181,12 @@ export async function preflightResearchOriginalAttachments(original){
   reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
  if(source.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
   reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
+ const seekIndex=await validateResearchOriginalSeekHead(original,source);
  return Object.freeze({
   sourceBytes:original.size,
+  seekIndex:Object.freeze({entries:seekIndex.checkedEntries,
+    attachmentReferences:seekIndex.attachmentReferences,
+    crcValidated:seekIndex.crcValidated}),
   attachmentMasterBytes:attachments[0].end-attachments[0].offset,
   sourceSegmentFinite:true,
   authorization:'NONE_RESEARCH_ONLY'
@@ -131,6 +215,10 @@ export async function prepareResearchMediaOnlyShadow(original){
   reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
  if(source.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
   reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
+ // Temporary Void deliberately leaves this index stale. Verify the
+ // original's real index FIRST, then only the transient media view may
+ // carry the stale pointer; never dispatch that shadow as a final file.
+ await validateResearchOriginalSeekHead(original,source);
  const master=masters[0];
  const total=master.end-master.offset;
  // 1-byte EBML Void ID + 8-byte VINT size. A same-size substitution
@@ -194,6 +282,7 @@ export async function prepareResearchSeekHeadReattachment({original,remuxed}={})
  // change: both kinds of unsafe input still reject before any Blob output.
  if(a.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
   reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
+ await validateResearchOriginalSeekHead(original,a);
  const [seek,voidItem]=b.nodes;
  if(seek?.id!==I.seekHead||voidItem?.id!==I.void||
     seek.end!==voidItem.offset||voidItem.end-seek.offset>MAX_SEEK_BYTES)
