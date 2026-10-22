@@ -109,6 +109,62 @@ export async function preflightResearchOriginalAttachments(original){
  });
 }
 
+
+/**
+ * RESEARCH-ONLY temporary FFmpeg input view, NEVER an archival output.
+ *
+ * Swap exactly one original Attachments master for an equally long EBML
+ * Void using a nine-byte header and original bytes as the ignored Void
+ * payload. Segment size and every other offset stay unchanged. This
+ * prevents the Wasm demuxer from creating original attached-file streams,
+ * while the real original File remains available for later exact reinsert.
+ *
+ * The temporary input can retain a source SeekHead entry that points to
+ * what is now a Void rather than an Attachments element. That alone is
+ * why this cannot be reused as a general MKV output/preservation API.
+ * Only genuine A/V stream parity tests may accept the experiment.
+ */
+export async function prepareResearchMediaOnlyShadow(original){
+ const source=await segment(original);
+ const masters=source.nodes.filter(x=>x.id===I.attachments);
+ if(masters.length!==1)
+  reject('EXACTLY_ONE_SOURCE_ATTACHMENTS_AND_ZERO_OUTPUT_REQUIRED');
+ if(source.nodes.some(x=>x.id===I.tags||x.id===I.chapters))
+  reject('SOURCE_TAGS_OR_CHAPTERS_NOT_REATTACHABLE');
+ const master=masters[0];
+ const total=master.end-master.offset;
+ // 1-byte EBML Void ID + 8-byte VINT size. A same-size substitution
+ // requires no Seeker/Cluster/Cues position shifts and no whole FileData
+ // materialization. All other source bytes are Blob views.
+ if(total<=9)reject('SHADOW_ATTACHMENTS_TOO_SHORT');
+ const emptyHeader=joined(Uint8Array.of(I.void),vint(total-9,8));
+ if(emptyHeader.length!==9)reject('SHADOW_VINT_LAYOUT');
+ const file=new File([
+  original.slice(0,master.offset),
+  emptyHeader,
+  original.slice(master.offset+emptyHeader.length,master.end),
+  original.slice(master.end)
+ ],'s12-research-media-input.mkv',{
+  type:'video/x-matroska',
+  lastModified:original.lastModified||0
+ });
+ if(file.size!==original.size)reject('SHADOW_CHANGES_BYTE_LENGTH');
+ return Object.freeze({
+  file,
+  evidence:Object.freeze({
+   schema:'s12-temporary-attachments-void-shadow-v0',
+   originalBytes:original.size,shadowBytes:file.size,
+   attachmentsRange:Object.freeze({offset:master.offset,length:total}),
+   unchangedElementOffsets:true,
+   noOriginalLargeFileDataArrayBuffer:true,
+   sourceReadMode:'browser Blob.slice + nine-byte Void header',
+   seekHeadOriginalAttachmentsIndexMayBeStale:true,
+   archivalValidity:'UNVERIFIED_TEMPORARY_FFMPEG_INPUT_ONLY',
+   authorization:'NONE_RESEARCH_ONLY'
+  })
+ });
+}
+
 function voidSameLength(total){
  for(let width=1;width<=8;width++){
   const len=total-1-width;
