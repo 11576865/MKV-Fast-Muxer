@@ -1,0 +1,347 @@
+name: S12 native original Attachments SeekHead byte-lane research
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/s12-reattach-seekhead-prototype.mjs'
+      - 'scripts/s12-reattach-seekhead-native-oracle.mjs'
+      - 'scripts/s12-reattach-seekhead-large-native-oracle.mjs'
+      - 'research/s12-browser-byte-lane.html'
+      - 'research/s12-browser-byte-lane.mjs'
+      - 'tests/e2e/s12-browser-reattach-byte-lane.e2e.mjs'
+      - 'research/s12-browser-wasm-reattach.html'
+      - 'research/s12-browser-wasm-reattach.mjs'
+      - 'tests/e2e/s12-browser-wasm-reattach.e2e.mjs'
+      - '.github/workflows/s12-reattach-seekhead-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: s12-reattach-seekhead-native-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  native-reattach-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact research commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native independent Matroska tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y mkvtoolnix
+          fi
+          ffmpeg -version | head -n 1
+          mkvmerge --version
+
+      - name: Execute real dual-attachment source/FFmpeg subtitle mux/SeekHead CRC splice/native byte oracle
+        run: node scripts/s12-reattach-seekhead-native-oracle.mjs
+
+      - name: Retain bounded independent witness for any result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-native-seekhead-reattach-small-two-attachment-proof
+          path: |
+            .e2e/s12-raw-reattach/native-prototype-receipt.json
+            .e2e/s12-raw-reattach/native-original-two-attachments.mkv
+            .e2e/s12-raw-reattach/native-remux-with-subtitle-no-attachments.mkv
+            .e2e/s12-raw-reattach/candidate-original-attachments-reattached.mkv
+            .e2e/s12-raw-reattach/first-original.bin
+            .e2e/s12-raw-reattach/second-original.bin
+            .e2e/s12-raw-reattach/extracted-first-original.bin
+            .e2e/s12-raw-reattach/extracted-second-original.bin
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Explicitly restrict scope
+        if: always()
+        run: |
+          echo "Research-only native test, not browser FFmpeg.wasm."
+          echo "No general Matroska graph/CRC/UID/tag/chapters/Cues authority."
+          echo "No 256 MiB original attachment acceptance or production feature release."
+
+  genuine-large-original-byte-lane:
+    name: "S12 real original attachments / ${{ matrix.tier }} / ${{ matrix.chunk_mib }}MiB per element"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tier: 128m
+            chunk_mib: 64
+          - tier: 256m
+            chunk_mib: 128
+          - tier: 256m
+            chunk_mib: 64
+    env:
+      S12_REATTACH_TIER: ${{ matrix.tier }}
+      S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_DIR: .e2e/s12-reattach-large
+    steps:
+      - name: Checkout exact independent research head
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22 for disk-backed Blob API
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native source and audit tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=()
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          node --version
+          ffmpeg -version | head -n 1
+          mkvmerge --version
+          df -h .
+          free -m
+
+      - name: Generate physical attachments and native FFmpeg remux, reattach with Blob views, native SHA audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s 18m \
+            node scripts/s12-reattach-seekhead-large-native-oracle.mjs
+          df -h .
+
+      - name: Upload bounded receipts without huge media or original private bytes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-reattach-native-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-receipt
+          path: |
+            .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Scope disclaimer
+        if: always()
+        run: |
+          echo "Native-only physical 128/256MiB original attachments, not browser ffmpeg.wasm."
+          echo "All full media files remain ephemeral on the GitHub runner."
+          echo "No Chapters/Tags/UID graph/Cues or user-save acceptance grant."
+
+  actual-browser-file-byte-lane:
+    name: "S12 actual Chromium File+Blob original attachments / ${{ matrix.tier }} / ${{ matrix.chunk_mib }}MiB"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tier: 128m
+            chunk_mib: 64
+          - tier: 256m
+            chunk_mib: 64
+    env:
+      S12_REATTACH_TIER: ${{ matrix.tier }}
+      S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_FIXTURE_ONLY: "1"
+      S12_REATTACH_DIR: .e2e/s12-reattach-large
+      S12_REATTACH_BASE_URL: http://127.0.0.1:4179
+    steps:
+      - name: Checkout exact research commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install repository and actual browser + independent native tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install
+          if command -v google-chrome >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          packages=()
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          node --version
+          mkvmerge --version
+
+      - name: Construct real original MKV and native no-attachments FFmpeg baseline ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-reattach-seekhead-large-native-oracle.mjs
+          test -f .e2e/s12-reattach-large/remux-without-original-attachments.mkv
+
+      - name: Start standalone browser research fixture (not production UI)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 4179 --strictPort >/tmp/s12-byte-lane-vite.log 2>&1 &
+          for i in {1..80}; do
+            if curl --fail --silent http://127.0.0.1:4179/research/s12-browser-byte-lane.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/s12-byte-lane-vite.log
+          exit 1
+
+      - name: Real Chromium File upload, byte-view composition, MKV download and independent extraction SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s 18m \
+            node tests/e2e/s12-browser-reattach-byte-lane.e2e.mjs
+
+      - name: Upload small machine receipts, not hundreds of MiB of actual media
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-browser-byte-lane-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-receipts
+          path: |
+            .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+            .e2e/s12-reattach-large/s12-browser-reattach-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Explicit limitation
+        if: always()
+        run: |
+          echo "This exercises browser File / Blob.slice / download for a true large source."
+          echo "The baseline no-attachment media remux was native FFmpeg, NOT ffmpeg.wasm."
+          echo "This does not authorize a product feature or prove all Tags/Chapters/Cues."
+
+  actual-browser-wasm-media-only-and-reinsert:
+    name: "S12 Chromium FFmpeg.wasm media-only + original Blob / ${{ matrix.tier }} / shadow=${{ matrix.shadow }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tier: 128m
+            chunk_mib: 64
+            shadow: false
+          - tier: 256m
+            chunk_mib: 64
+            shadow: false
+          - tier: 128m
+            chunk_mib: 64
+            shadow: true
+          - tier: 512m
+            chunk_mib: 64
+            shadow: true
+    env:
+      S12_REATTACH_TIER: ${{ matrix.tier }}
+      S12_REATTACH_CHUNK_MIB: ${{ matrix.chunk_mib }}
+      S12_REATTACH_SHADOW: ${{ matrix.shadow }}
+      S12_REATTACH_FIXTURE_ONLY: "1"
+      S12_REATTACH_DIR: .e2e/s12-reattach-large
+      S12_REATTACH_BASE_URL: http://127.0.0.1:4179
+    steps:
+      - name: Checkout exact research commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vite/FFmpeg.wasm, real Chromium, native independent MKV tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install
+          if command -v google-chrome >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          packages=()
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then packages+=(ffmpeg); fi
+          if ! command -v mkvmerge >/dev/null || ! command -v mkvextract >/dev/null; then packages+=(mkvtoolnix); fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+
+      - name: Construct real source for direct and temporary-Void shadow inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-reattach-seekhead-large-native-oracle.mjs
+          test -s .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+
+      - name: Start isolated Vite research page with real wasm worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 4179 --strictPort >/tmp/s12-wasm-reattach-vite.log 2>&1 &
+          for i in {1..80}; do
+            if curl --fail --silent http://127.0.0.1:4179/research/s12-browser-wasm-reattach.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/s12-wasm-reattach-vite.log
+          exit 1
+
+      - name: Chromium ffmpeg.wasm maps ONLY A/V and SRT then Blob reinserts original data and independent native SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=15s 16m \
+            node tests/e2e/s12-browser-wasm-reattach.e2e.mjs
+
+      - name: Always archive bounded stage/real wasm logs and native output SHA receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s12-wasm-reattach-${{ matrix.tier }}-${{ matrix.chunk_mib }}m-shadow-${{ matrix.shadow }}-receipts
+          path: |
+            .e2e/s12-reattach-large/s12-large-reattach-receipt.json
+            .e2e/s12-reattach-large/s12-browser-wasm-reattach-receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Explicitly bound the acceptance
+        if: always()
+        run: |
+          echo "FFmpeg.wasm is real in this job and must produce the A/V+SRT base; zero attachment streams are mapped."
+          echo "The browser then runs Blob.slice on the real original MKV and downloads a real candidate."
+          echo "Even PASS does not preserve arbitrary Tags/Chapters/UID/Cues or authorize production 1.0."
