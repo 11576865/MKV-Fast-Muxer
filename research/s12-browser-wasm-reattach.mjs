@@ -8,7 +8,7 @@ const execute=document.querySelector('#execute');
 const status=document.querySelector('#status');
 const log=document.querySelector('#log');
 const state={phase:'idle',error:null,evidence:null,preflight:null,wasmExitCode:null,
-  wasmLogTail:[],sourceKind:null,downloadable:false};
+  wasmLogTail:[],sourceKind:null,downloadable:false,researchBarrierReached:false};
 window.__s12WasmReattach=state;
 let busy=false,outputUrl=null,sourceEpoch=0;
 function assertCurrentSource(file,epoch){
@@ -43,6 +43,7 @@ execute.addEventListener('click',async()=>{
  if(busy||!source.files?.[0])return;
  busy=true;state.error=null;state.evidence=null;
  state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;state.preflight=null;
+ state.researchBarrierReached=false;
  const original=source.files[0];
  const boundEpoch=sourceEpoch;
  const checkSource=()=>assertCurrentSource(original,boundEpoch);
@@ -98,6 +99,14 @@ execute.addEventListener('click',async()=>{
   ];
   state.execArgs=args.slice();
   const code=await ffmpeg.exec(args,180000);
+  // Research-only deterministic async boundary: the real FFmpeg.wasm job
+  // HAS completed, but its result has not yet been authorized for a File.
+  // The test may replace the selected source while this promise is paused.
+  const researchGate=window.__s12ResearchAfterExecBarrier;
+  if(typeof researchGate==='function'){
+   state.researchBarrierReached=true;
+   await researchGate();
+  }
   checkSource();
   state.wasmExitCode=code;
   if(code!==0)throw Error('S12_WASM_MEDIA_ONLY_MUX_FAILED_EXIT_'+code);
