@@ -19,7 +19,7 @@ const I=Object.freeze({
 });
 // Research budget only: this is a Blob-backed range parser, never an
 // authorization to persist arbitrary ≥256MiB source Matroska.
-const MAX_BYTES=640*1024*1024,MAX_ELEMENTS=5000,MAX_SEEK_BYTES=65536;
+const MAX_BYTES=1280*1024*1024,MAX_ELEMENTS=5000,MAX_SEEK_BYTES=65536;
 const reject=reason=>{throw Error('S12_REATTACH_'+reason)};
 const idBytes=id=>{
  const w=id>0xffffff?4:id>0xffff?3:id>0xff?2:1;
@@ -73,7 +73,7 @@ async function children(blob,from,to,budget=MAX_ELEMENTS){
 }
 async function segment(blob){
  if(!blob?.slice||!Number.isSafeInteger(blob.size)||blob.size<16||
-    blob.size>MAX_BYTES)reject('RESEARCH_SOURCE_OVER_640MIB');
+    blob.size>MAX_BYTES)reject('RESEARCH_SOURCE_OVER_1280MIB');
  const ebml=await header(blob,0,blob.size);
  if(ebml.id!==I.ebml||ebml.end>65536)reject('EBML_HEADER');
  const ebmlChildren=await children(blob,ebml.dataStart,ebml.end,100);
