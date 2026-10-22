@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 const tier=process.env.S12_REATTACH_TIER||'128m';
 const chunkMiB=Number(process.env.S12_REATTACH_CHUNK_MIB||64);
+const shadowMode=process.env.S12_REATTACH_SHADOW==='true';
 const dir=path.resolve(process.env.S12_REATTACH_DIR||'.e2e/s12-reattach-large');
 const f=name=>path.join(dir,name);
 const source=f('source-'+tier+'-'+chunkMiB+'m.mkv');
@@ -36,7 +37,7 @@ const sha=async file=>{
 };
 const report={
  schema:'softmux-s12-browser-FFmpegWasm-media-only-Blob-original-attachments-v1',
- tier,chunkMiB,attachmentBytes:fixture.attachmentBytes,
+ tier,chunkMiB,shadowMode,attachmentBytes:fixture.attachmentBytes,
  actualSourceBytes:fixture.actualSourceBytes,
  status:'PENDING',phase:'init',startedAt:new Date().toISOString(),
  notProven:[
@@ -68,7 +69,7 @@ try{
  page.on('crash',()=>{report.browserCrashed=true});
  page.on('pageerror',e=>{report.pageError=String(e)});
  const url=(process.env.S12_REATTACH_BASE_URL||'http://127.0.0.1:4179')+
-  '/research/s12-browser-wasm-reattach.html';
+  '/research/s12-browser-wasm-reattach.html'+(shadowMode?'?media-shadow=1':'');
  await page.goto(url,{waitUntil:'networkidle',timeout:60_000});
  assert.equal(await page.locator('#execute').isDisabled(),true);
  await stage('select-real-browser-File-original');
@@ -99,6 +100,16 @@ try{
   throw Error('S12_BROWSER_WASM_REATTACH_REJECTED: '+result.error);
  }
  report.browserEvidence=result.evidence;
+ report.sourceStagingMode=result.inputMode;
+ report.shadowEvidence=result.shadowEvidence;
+ assert.equal(result.inputMode,shadowMode?'temporary-void-shadow':'original-direct');
+ if(shadowMode){
+  assert.equal(result.shadowEvidence?.authorization,'NONE_RESEARCH_ONLY');
+  assert.equal(result.shadowEvidence?.originalBytes,fixture.actualSourceBytes);
+  assert.equal(result.shadowEvidence?.shadowBytes,fixture.actualSourceBytes);
+  assert.equal(result.shadowEvidence?.unchangedElementOffsets,true);
+  assert.equal(result.shadowEvidence?.seekHeadOriginalAttachmentsIndexMayBeStale,true);
+ }else assert.equal(result.shadowEvidence,null);
  assert.equal(result.wasmExitCode,0,
   'real browser FFmpeg.wasm must execute the media-only mux command');
  assert.equal(result.evidence.wasmExitCode,0);
@@ -324,7 +335,7 @@ try{
  report.completedAt=new Date().toISOString();
  await stage('done');
  console.log('S12 BROWSER TRUE FFMPEG WASM + ORIGINAL ATTACHMENT BLOB SHA PASS',JSON.stringify({
-  tier,chunkMiB,outputBytes:report.outputBytes,attachments:fixture.attachmentParts.length
+  tier,chunkMiB,shadowMode,outputBytes:report.outputBytes,attachments:fixture.attachmentParts.length
  }));
 }catch(error){
  report.status='FAIL_BROWSER_FFMPEG_WASM_BYTE_LANE_RESEARCH';
