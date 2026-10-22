@@ -10,18 +10,41 @@ const log=document.querySelector('#log');
 const state={phase:'idle',error:null,evidence:null,preflight:null,wasmExitCode:null,
   wasmLogTail:[],sourceKind:null};
 window.__s12WasmReattach=state;
-let busy=false,outputUrl=null;
+let busy=false,outputUrl=null,sourceEpoch=0;
+function assertCurrentSource(file,epoch){
+ if(sourceEpoch!==epoch||source.files?.[0]!==file)
+  throw Error('S12_SOURCE_FILE_CHANGED_DURING_EXECUTION');
+}
+function clearPreviousResult(){
+ state.evidence=null;
+ state.preflight=null;
+ state.wasmExitCode=null;
+ state.execArgs=null;
+ if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null;}
+}
 function update(phase){
  state.phase=phase;
  status.textContent=state.error?phase+': '+state.error:phase;
  execute.disabled=busy||!source.files?.[0];
 }
-source.addEventListener('change',()=>update('source-selected'));
+source.addEventListener('change',()=>{
+ sourceEpoch+=1;
+ clearPreviousResult();
+ if(busy){
+  state.error='S12_SOURCE_FILE_CHANGED_DURING_EXECUTION';
+  update('source-changed-during-running');
+ }else{
+  state.error=null;
+  update('source-selected');
+ }
+});
 execute.addEventListener('click',async()=>{
  if(busy||!source.files?.[0])return;
  busy=true;state.error=null;state.evidence=null;
  state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;state.preflight=null;
  const original=source.files[0];
+ const boundEpoch=sourceEpoch;
+ const checkSource=()=>assertCurrentSource(original,boundEpoch);
  const ffmpeg=new FFmpeg();
  const pushLog=value=>{
   const line=String(value||'').slice(0,1500);
@@ -38,6 +61,7 @@ execute.addEventListener('click',async()=>{
   update('preflight-original-source-tags-chapters-and-attachment-master');
   // Reject unsupported source graph BEFORE loading the Wasm engine.
   state.preflight=await preflightResearchOriginalAttachments(original);
+  checkSource();
   update('load-local-ffmpeg-wasm');
   const base=new URL('ffmpeg-core/',window.location.origin+'/').href;
   const worker=new URL('ffmpeg-class-worker/worker.js',window.location.origin+'/').href;
@@ -46,12 +70,14 @@ execute.addEventListener('click',async()=>{
    wasmURL:base+'ffmpeg-core.wasm',
    classWorkerURL:worker,
   });
+  checkSource();
   update('stage-original-with-workerfs');
   mounted=await stageBrowserPrimarySource({
    ffmpeg,file:original,prefix:'s12-byte-lane',
    fallbackPath:'/s12-full-original-should-not-be-written.mkv',
    workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile
   });
+  checkSource();
   if(mounted.kind!=='workerfs')
    throw Error('S12_WASM_REATTACH_NOT_WORKERFS');
   state.sourceKind=mounted.kind;
@@ -71,10 +97,12 @@ execute.addEventListener('click',async()=>{
   ];
   state.execArgs=args.slice();
   const code=await ffmpeg.exec(args,180000);
+  checkSource();
   state.wasmExitCode=code;
   if(code!==0)throw Error('S12_WASM_MEDIA_ONLY_MUX_FAILED_EXIT_'+code);
   update('read-FFmpeg-wasm-small-media-output');
   const data=await ffmpeg.readFile('/s12-media-without-original-attachments.mkv');
+  checkSource();
   if(!(data instanceof Uint8Array)||data.length<1000||
       data.length>32*1024*1024)
    throw Error('S12_WASM_BASELINE_NOT_BOUNDED');
@@ -83,6 +111,7 @@ execute.addEventListener('click',async()=>{
   const completed=await prepareResearchSeekHeadReattachment({
    original,remuxed:baseline
   });
+  checkSource();
   if(completed.evidence.authorization!=='NONE_RESEARCH_ONLY')
    throw Error('S12_RESEARCH_HAS_UNEXPECTED_WRITE_AUTHORITY');
   state.evidence={...completed.evidence,
@@ -91,6 +120,7 @@ execute.addEventListener('click',async()=>{
    wasmExitCode:code,
    resultBytes:completed.blob.size,
   };
+  checkSource();
   update('dispatch-real-browser-download');
   if(outputUrl)URL.revokeObjectURL(outputUrl);
   outputUrl=URL.createObjectURL(completed.blob);
@@ -99,6 +129,7 @@ execute.addEventListener('click',async()=>{
   document.body.appendChild(a);a.click();a.remove();
   update('download-dispatched');
  }catch(error){
+  clearPreviousResult();
   state.error=String(error?.message||error);
   update('failed');
   console.error('S12_WASM_REATTACH_REJECTED',error);
