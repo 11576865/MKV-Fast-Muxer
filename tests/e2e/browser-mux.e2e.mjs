@@ -7190,12 +7190,16 @@ async function scenarioS13SameMetadataCompositionSelection(browser) {
       selectedComposition: [...document.querySelectorAll('#compositionTracks [aria-pressed="true"]')]
         .map(el => el.dataset.compositionId),
     }))));
-    assert.equal(await page.locator('#newSubtitleList [data-index="1"][data-new-sub-field="title"]')
-      .evaluate(el => el === document.activeElement), true,
-    'selecting second equal-metadata row must focus the second external subtitle editor');
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#newSubtitleList [data-index="1"][data-new-sub-field="title"]');
+      return field && field === document.activeElement;
+    }, null, { timeout: 6000 });
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
     await page.locator(rowSelector).first().click();
-    assert.equal(await page.locator('#newSubtitleList [data-index="0"][data-new-sub-field="title"]')
-      .evaluate(el => el === document.activeElement), true);
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#newSubtitleList [data-index="0"][data-new-sub-field="title"]');
+      return field && field === document.activeElement;
+    }, null, { timeout: 6000 });
     assert.equal(await page.locator('#subInput').evaluate(input => input.files.length), 2);
     console.log('S13 equal-metadata external subtitle composition routing PASS');
   } finally {
