@@ -1833,7 +1833,9 @@ function renderActualOutputEvidence() {
         ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
         : '新字体附件字节验证：无新增字体',
     model.originalAttachmentPayload?.status === 'pass'
-      ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
+      ? model.originalAttachmentPayload.evidence === 'source-vs-final-mkv-ebml-filedata-byte-compare-v2'
+        ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 或完整分块逐字节比较一致（部分附件无 SHA-256；不含 UID 关联）`
+        : `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
       : model.originalAttachmentPayload && model.originalAttachmentPayload.status !== 'not-requested'
         ? `原附件字节验证：待复核（${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total}）`
         : '原附件字节验证：未请求保留原附件',
@@ -1844,8 +1846,15 @@ function renderActualOutputEvidence() {
   outputEvidenceRevision.textContent = model.revisionNotice;
   const delivery = model.sourceAttachmentDelivery;
   if (delivery?.entries?.length) {
-    const addition = '逐附件审计：' + delivery.verifiedFileData +
-      ' 项 FileData SHA-256 通过 · ' + delivery.observedAbsent +
+    const byteCompared = delivery.entries.filter(item =>
+      item.status === 'filedata-verified' &&
+      item.proofMethod === 'exact-byte-compare').length;
+    const hashed = delivery.verifiedFileData - byteCompared;
+    const proofLabel = byteCompared
+      ? hashed + ' 项 FileData SHA-256 通过、' +
+        byteCompared + ' 项 FileData 完整逐字节比较通过'
+      : delivery.verifiedFileData + ' 项 FileData SHA-256 通过';
+    const addition = '逐附件审计：' + proofLabel + ' · ' + delivery.observedAbsent +
       ' 项 ffprobe 清单未出现 · ' + delivery.unresolved +
       ' 项未确认（均不含 UID/保存证据）';
     outputEvidenceFacts.textContent += ' | ' + addition;
