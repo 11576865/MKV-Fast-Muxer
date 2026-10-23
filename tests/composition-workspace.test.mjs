@@ -42,3 +42,10 @@ test('invalid input and ambiguous main source must expand secondary source evide
   assert.match(main, /status === ASSET_STATUS\.UNSUPPORTED/);
   assert.match(main, /compositionIssues\.textContent = model\.diagnostics/);
 });
+
+test('unified intake rebinding is gated by exact File reference rather than equivalent metadata', async () => {
+  const main = await source('src/main.js');
+  assert.match(main, /const oldFiles = Array\.from\(input\.files \|\| \[\]\)/);
+  assert.match(main, /oldFiles\.every\(\(file, index\) => file === files\[index\]\)/);
+  assert.doesNotMatch(main, /oldKeys\.every\(\(key, index\) => key === newKeys\[index\]\)/);
+});
