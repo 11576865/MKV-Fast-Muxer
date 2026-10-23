@@ -5,14 +5,16 @@ export const ATTACHMENT_BYTE_COMPARE_EVIDENCE = 'source-vs-final-mkv-ebml-fileda
 
 // Read only bounded chunks from each Blob; no incremental SHA-256 is claimed.
 // Byte-for-byte equality covers the full FileData byte range when completed.
-async function compareAttachmentBlobs(sourceBlob, targetBlob, chunkBytes) {
+async function compareAttachmentBlobs(sourceBlob, targetBlob, chunkBytes, interrupted) {
   if (sourceBlob.size !== targetBlob.size) return false;
   for (let offset = 0; offset < sourceBlob.size; offset += chunkBytes) {
+    interrupted();
     const end = Math.min(offset + chunkBytes, sourceBlob.size);
     const [a, b] = await Promise.all([
       sourceBlob.slice(offset, end).arrayBuffer(),
       targetBlob.slice(offset, end).arrayBuffer(),
     ]);
+    interrupted();
     const left = new Uint8Array(a), right = new Uint8Array(b);
     if (left.length !== right.length) return false;
     for (let i = 0; i < left.length; i++) {
@@ -39,8 +41,15 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
   // Opt-in budget for genuinely large original FileData. This performs a
   // complete bytewise comparison, not a cryptographic hash or UID proof.
   chunkCompare = null,
+  // An operation may be cancelled while a 1 GiB audit is reading chunks.
+  // This callback provides cooperative cancellation; the caller is still
+  // responsible for discarding the cancelled output before publication.
+  shouldCancel = null,
 } = {}) {
   const claims = Array.from(expected || []);
+  const interrupted = () => {
+    if (shouldCancel?.()) throw new Error('ATTACHMENT_AUDIT_CANCELLED');
+  };
   const compareEnabled = chunkCompare != null;
   const compareLimitsValid = !compareEnabled || (
     Number.isSafeInteger(chunkCompare.maxFileBytes) && chunkCompare.maxFileBytes > 0 &&
@@ -67,9 +76,11 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
   try {
     const sourceReader = createMatroskaAttachmentReader(source);
     const outputReader = createMatroskaAttachmentReader(output);
+    interrupted();
     const [before, after] = await Promise.all([
       sourceReader.inspect(), outputReader.inspect(),
     ]);
+    interrupted();
     if (before.state !== 'inspected' || after.state !== 'inspected') {
       return result('unavailable', 0, [
         '源或目标 MKV 附件 EBML 库存无法独立检查：' +
@@ -82,6 +93,7 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
     let shaBytes = 0;
     let comparedBytes = 0;
     for (const item of claims) {
+      interrupted();
       const sourceName = String(item?.sourceFilename || '');
       const outputName = String(item?.outputFilename || sourceName);
       if (!sourceName || !outputName) {
@@ -129,6 +141,7 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
     let verified = 0;
     const observations = [];
     for (const { a, b, sourceName, outputName, proofMethod } of matched) {
+      interrupted();
       const sourceBlob = sourceReader.openAttachment(a.id).data;
       const targetBlob = outputReader.openAttachment(b.id).data;
       let sha256 = null;
@@ -136,10 +149,12 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
         const [src, dst] = await Promise.all([
           sourceBlob.arrayBuffer(), targetBlob.arrayBuffer(),
         ]);
+        interrupted();
         const [sourceDigest, outputDigest] = await Promise.all([
           crypto.subtle.digest('SHA-256', src),
           crypto.subtle.digest('SHA-256', dst),
         ]);
+        interrupted();
         const toHex = buf => Array.from(new Uint8Array(buf),
           n => n.toString(16).padStart(2, '0')).join('');
         sha256 = toHex(sourceDigest);
@@ -147,10 +162,11 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
           issues.push('原附件“' + sourceName + '”的实际 FileData SHA-256 与输出不一致');
           continue;
         }
-      } else if (!await compareAttachmentBlobs(sourceBlob, targetBlob, chunkCompare.chunkBytes)) {
+      } else if (!await compareAttachmentBlobs(sourceBlob, targetBlob, chunkCompare.chunkBytes, interrupted)) {
         issues.push('原附件“' + sourceName + '”的实际 FileData 分块逐字节比较不一致');
         continue;
       }
+      interrupted();
       verified++;
       observations.push(Object.freeze({
         sourceFilename: sourceName, outputFilename: outputName,
@@ -159,6 +175,7 @@ export async function auditPreservedOriginalAttachmentData(source, output, expec
         uidRetained: a.fileUid === b.fileUid,
       }));
     }
+    interrupted();
     return result(issues.length ? 'warning' : 'pass',
       verified, issues, observations);
   } catch (error) {
