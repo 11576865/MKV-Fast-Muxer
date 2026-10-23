@@ -7221,11 +7221,57 @@ async function scenarioS13UnifiedIntakeIdentityCollision(browser) {
   }
 }
 
+
+/** S13: transition from a legacy picker to the unified inventory cannot
+ * keep a previous File merely because its display metadata is identical. */
+async function scenarioS13UnifiedAdapterExactFileRebind(browser) {
+  console.log('S13 unified adapter: equal metadata must rebind to the newly authorized bytes');
+  const originalBytes = [...await fs.readFile(path.join(root, 'zh.ass'))];
+  const {context,page} = await openApp(browser,{modern:true});
+  try {
+    await page.evaluate(bytes => {
+      const original = Uint8Array.from(bytes);
+      const replacement = original.slice();
+      replacement[replacement.length-1] ^= 1;
+      const props = {lastModified:1700000000000,type:'text/plain'};
+      const oldFile = new File([original],'adapter-same-metadata.ass',props);
+      const newFile = new File([replacement],'adapter-same-metadata.ass',props);
+      if (oldFile === newFile || oldFile.size !== newFile.size) throw Error('S13_INVALID_ADAPTER_FIXTURE');
+      window.__s13Replacement = replacement[replacement.length - 1];
+      const oldList = new DataTransfer();
+      oldList.items.add(oldFile);
+      const oldInput = document.querySelector('#subInput');
+      oldInput.files = oldList.files;
+      oldInput.dispatchEvent(new Event('change',{bubbles:true}));
+      const transfer = new DataTransfer();
+      transfer.items.add(newFile);
+      const intake = document.querySelector('#unifiedAssetInput');
+      intake.files = transfer.files;
+      intake.dispatchEvent(new Event('change',{bubbles:true}));
+    },originalBytes);
+    await page.waitForFunction(() =>
+      document.querySelectorAll('#assetInventory .asset-entry[data-kind="subtitle"]').length === 1,
+      null, {timeout:120000});
+    await page.waitForFunction(async () => {
+      const file = document.querySelector('#subInput')?.files?.[0];
+      if (!file) return false;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      return bytes.at(-1) === window.__s13Replacement;
+    },null,{timeout:120000});
+    assert.equal(await page.locator('#assetInventory .asset-entry[data-kind="unknown"]').count(),0);
+    assert.equal(await page.locator('#subInput').evaluate(input => input.files.length),1);
+    console.log('S13 same-metadata legacy-to-unified exact File rebind PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioS13UnifiedAdapterExactFileRebind(browser);
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
