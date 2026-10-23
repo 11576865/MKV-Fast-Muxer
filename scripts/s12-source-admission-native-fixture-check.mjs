@@ -29,8 +29,8 @@ const reader=createMatroskaAttachmentReader(source);
 const inventory=await reader.inspect();
 assert.equal(inventory.state,'inspected',
   'actual native MKV attachment inspection failed: '+inventory.diagnostic?.code);
-assert.equal(inventory.structure.segmentFiniteExact,true,
-  'real native fixture unexpectedly has nonfinite or trailing Segment');
+// An actual encoder may use an unknown-size Segment. That is a real
+// source-class refusal reason, not a fixture failure or a write entitlement.
 assert.equal(inventory.structure.topLevelCount,
   inventory.structure.topLevelElements.reduce((n,x)=>n+x.count,0));
 assert.equal(inventory.scanning.fileDataBytesRead,0);
@@ -52,6 +52,11 @@ assert.equal(admission.sourceClassCandidate,
 assert.ok(['SOURCE_CLASS_CANDIDATE','BLOCKED'].includes(admission.status));
 const indexIds=new Set([0x114d9b74,0x1c53bb6b,0x1254c367,0x1043a770,0xbf]);
 const indexed=inventory.structure.topLevelElements.filter(item=>indexIds.has(item.id));
+if(!inventory.structure.segmentFiniteExact){
+  assert.equal(admission.status,'BLOCKED',
+    'unknown-sized/trailing source Segment must fail closed');
+  assert.ok(admission.reasons.includes('SOURCE_SINGLE_FINITE_EXACT_SEGMENT_REQUIRED'));
+}
 if(indexed.length){
   assert.equal(admission.status,'BLOCKED',
     'a real source with SeekHead/Cues/Tag/Chapter/CRC must not qualify');
