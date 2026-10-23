@@ -189,3 +189,13 @@ test('S12: a chunk compare budget refusal never upgrades output authority', asyn
   });
   assert.equal(invalid.status, 'unavailable');
 });
+
+test('S12: visible finished-output evidence never describes chunk-comparison proof as a SHA-256 digest', () => {
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /originalAttachmentPayload\.evidence === 'source-vs-final-mkv-ebml-filedata-byte-compare-v2'/);
+  assert.match(main, /部分附件无 SHA-256；不含 UID 关联/);
+  assert.match(main, /proofMethod === 'exact-byte-compare'/);
+  assert.match(main, /项 FileData 完整逐字节比较通过/);
+  assert.match(main, /: delivery\.verifiedFileData \+ ' 项 FileData SHA-256 通过'/,
+    'legacy all-SHA browser acceptance text remains unchanged');
+});
