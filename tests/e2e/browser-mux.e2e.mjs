@@ -1050,6 +1050,14 @@ async function scenarioInvalidAudioRecovery(browser) {
     const failedStatus = await page.locator('#status').textContent();
     assert.match(failedStatus, /外部音频/);
     assert.match(failedStatus, /换用|移除/);
+    // The catch publishes the user-visible error before the asynchronous
+    // ffmpeg/WORKERFS cleanup finishes. Wait for finally/updateUI to release
+    // execution ownership; do not mistake that intermediate disabled button
+    // for a permanently blocked recovery task.
+    await page.waitForFunction(() =>
+      !document.querySelector('#muxBtn')?.disabled &&
+      document.querySelector('#cancelBtn')?.disabled,
+      null, { timeout: 30000 });
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
 
