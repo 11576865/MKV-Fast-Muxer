@@ -17,6 +17,40 @@ const fromParts = async (fileOne = Buffer.from('original A'),
   });
   return (await executeMultiAttachmentOnlyCandidate(plan)).output;
 };
+
+/**
+ * Large reader-only Matroska: compose valid finite EBML Segment and FileData
+ * Blob parts without using the 16 MiB-limit experimental writer or eagerly
+ * cloning the entire attachment payload for metadata headers.
+ */
+const largeMkvFixture = (firstData, secondData = Buffer.from('original B')) => {
+  const el = (hex, body) => {
+    const blob = body instanceof Blob ? body : new Blob([body]);
+    let remaining = BigInt(blob.size);
+    const vint = new Uint8Array(8);
+    vint[0] = 0x01; // 8-byte finite EBML size, top bit of first octet is marker
+    for (let i = 7; i >= 1; i--) {
+      vint[i] = Number(remaining & 0xffn);
+      remaining >>= 8n;
+    }
+    assert.equal(remaining, 0n, 'test EBML size must fit 56 data bits');
+    return new Blob([Buffer.from(hex, 'hex'), vint, blob]);
+  };
+  const attachment = (filename, mimeType, uid, data) => el('61a7', new Blob([
+    el('466e', Buffer.from(filename)),
+    el('4660', Buffer.from(mimeType)),
+    el('46ae', Uint8Array.of(uid)),
+    el('465c', data),
+  ]));
+  return new Blob([
+    el('1a45dfa3', el('4282', Buffer.from('matroska'))),
+    el('18538067', el('1941a469', new Blob([
+      attachment('first.ttf', 'font/ttf', 1, firstData),
+      attachment('notes.txt', 'text/plain', 2, secondData),
+    ]))),
+  ]);
+};
+
 const claims = () => [
   { sourceFilename: 'first.ttf', outputFilename: 'first.ttf',
     sourceMimeType: 'font/ttf', outputMimeType: 'font/ttf' },
@@ -92,9 +126,111 @@ test('no original attachments requested is explicitly not-requested', async () =
 test('real shared mux, batch status and output UI use single evidence source', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const model = readFileSync(new URL('../src/container-workbench-evidence.js', import.meta.url), 'utf8');
-  assert.match(main, /auditPreservedOriginalAttachmentData\(\s*video, outputBlob, originalAttachmentClaims\)/);
+  assert.match(main, /auditPreservedOriginalAttachmentData\(\s*video, outputBlob, originalAttachmentClaims, \{/);
+  assert.match(main, /maxTotalBytes: 1024 \* 1024 \* 1024/);
   assert.match(main, /finalAudit\.originalAttachmentPayloadAudit = originalPayloadAudit/);
   assert.match(main, /if \(finalAudit\.status === 'pass'\) finalAudit\.status = 'warning'/);
   assert.match(model, /originalAttachmentPayload: report\.audit\?\.originalAttachmentPayloadAudit \|\| null/);
   assert.match(main, /原附件字节验证：/);
+});
+
+test('S12: 64 MiB original FileData is verified by bounded full-range byte comparison, not fake SHA', async () => {
+  const bytes = Buffer.alloc(64 * 1024 * 1024, 0x5a);
+  bytes[0] = 0x11;
+  bytes[bytes.length - 1] = 0x99;
+  const source = largeMkvFixture(bytes);
+  const output = largeMkvFixture(Buffer.from(bytes));
+  const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    chunkCompare: { maxFileBytes: 128 * 1024 * 1024,
+      maxTotalBytes: 1024 * 1024 * 1024, chunkBytes: 1024 * 1024 },
+  });
+  assert.equal(audit.status, 'pass', audit.issues.join('; '));
+  assert.equal(audit.verified, 2);
+  assert.match(audit.evidence, /byte-compare-v2/);
+  const proof = audit.observations.find(item => item.sourceFilename === 'first.ttf');
+  assert.equal(proof.byteLength, bytes.length);
+  assert.equal(proof.comparedBytes, bytes.length);
+  assert.equal(proof.proofMethod, 'exact-byte-compare');
+  assert.equal(proof.sha256, null, 'byte comparison must not invent a SHA-256 digest');
+  assert.equal(audit.uidRelationsVerified, false);
+  assert.equal(audit.observations.find(item => item.sourceFilename === 'notes.txt').proofMethod, 'sha256');
+});
+
+test('S12: one changed byte in the final chunk is detected without an all-file hash', async () => {
+  const first = Buffer.alloc(1024 * 1024 + 11, 0x21);
+  const changed = Buffer.from(first);
+  changed[changed.length - 1] ^= 0x80;
+  const source = largeMkvFixture(first);
+  const output = largeMkvFixture(changed);
+  const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    maxFileBytes: 2048, maxTotalBytes: 4096,
+    chunkCompare: { maxFileBytes: 4 * 1024 * 1024,
+      maxTotalBytes: 4 * 1024 * 1024, chunkBytes: 65536 },
+  });
+  assert.equal(audit.status, 'warning');
+  assert.equal(audit.verified, 1, 'only the unchanged second small FileData is proven');
+  assert.match(audit.issues.join(';'), /逐字节比较不一致/);
+  assert.ok(audit.observations.every(item => item.sourceFilename !== 'first.ttf'));
+});
+
+test('S12: a chunk compare budget refusal never upgrades output authority', async () => {
+  const big = Buffer.alloc(1024 * 1024 + 1, 0x21);
+  const source = largeMkvFixture(big);
+  const output = largeMkvFixture(big);
+  const options = { maxFileBytes: 1024, maxTotalBytes: 2048,
+    chunkCompare: { maxFileBytes: 1024 * 1024,
+      maxTotalBytes: 1024 * 1024, chunkBytes: 65536 } };
+  const refusal = await auditPreservedOriginalAttachmentData(source, output, claims(), options);
+  assert.equal(refusal.status, 'unavailable');
+  assert.equal(refusal.verified, 0);
+  assert.match(refusal.issues.join(';'), /超出独立核验预算/);
+  const invalid = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    chunkCompare: {maxFileBytes: 2000000, maxTotalBytes: 2000000, chunkBytes: 1},
+  });
+  assert.equal(invalid.status, 'unavailable');
+});
+
+test('S12: visible finished-output evidence never describes chunk-comparison proof as a SHA-256 digest', () => {
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /originalAttachmentPayload\.evidence === 'source-vs-final-mkv-ebml-filedata-byte-compare-v2'/);
+  assert.match(main, /部分附件无 SHA-256；不含 UID 关联/);
+  assert.match(main, /proofMethod === 'exact-byte-compare'/);
+  assert.match(main, /项 FileData 完整逐字节比较通过/);
+  assert.match(main, /: delivery\.verifiedFileData \+ ' 项 FileData SHA-256 通过'/,
+    'legacy all-SHA browser acceptance text remains unchanged');
+});
+
+test('S12: cancellation during whole FileData byte comparison never reports a completed receipt', async () => {
+  const payload = Buffer.alloc(1024 * 1024 + 55, 0x34);
+  const before = largeMkvFixture(payload);
+  const after = largeMkvFixture(payload);
+  let checks = 0;
+  const audit = await auditPreservedOriginalAttachmentData(before, after, claims(), {
+    maxFileBytes:1024,maxTotalBytes:2048,
+    chunkCompare:{maxFileBytes:4*1024*1024,maxTotalBytes:4*1024*1024,chunkBytes:65536},
+    shouldCancel:()=>++checks>13,
+  });
+  assert.equal(audit.status,'unavailable');
+  assert.equal(audit.verified,0);
+  assert.equal(audit.observations.length,0);
+  assert.match(audit.issues.join(';'),/ATTACHMENT_AUDIT_CANCELLED/);
+  assert.ok(checks>13,'cancellation was checked inside the chunk-reading loop');
+});
+
+test('S12: a pre-cancelled audit returns no byte evidence', async () => {
+  const source = largeMkvFixture(Buffer.alloc(1024*1024+1,0x5a));
+  const outcome = await auditPreservedOriginalAttachmentData(source,source,claims(),{
+    shouldCancel:()=>true,
+    chunkCompare:{maxFileBytes:2*1024*1024,maxTotalBytes:2*1024*1024,chunkBytes:65536},
+  });
+  assert.equal(outcome.status,'unavailable');
+  assert.equal(outcome.verified,0);
+  assert.deepEqual(outcome.observations,[]);
+  assert.match(outcome.issues.join(';'),/ATTACHMENT_AUDIT_CANCELLED/);
+});
+
+test('S12: production cancellation forbids delivery after large attachment audit is interrupted', () => {
+  const main = readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.match(main,/shouldCancel: \(\) => cancelRequested \|\| \(independent && batchCancelRequested\)/);
+  assert.match(main,/if \(cancelRequested \|\| \(independent && batchCancelRequested\)\) \{\s*throw new Error\('ATTACHMENT_AUDIT_CANCELLED'\)/);
 });

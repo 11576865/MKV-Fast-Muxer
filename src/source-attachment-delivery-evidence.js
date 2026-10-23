@@ -1,3 +1,7 @@
+import {
+  ATTACHMENT_HASH_EVIDENCE, ATTACHMENT_BYTE_COMPARE_EVIDENCE,
+} from './original-attachment-payload-audit.js';
+
 /**
  * Read-only per-source-attachment outcome projection for a FINISHED MKV.
  * FileData SHA-256, ffprobe inventory and a user-saved download are
@@ -19,8 +23,9 @@ export function auditSourceAttachmentDelivery({
   // Only the actual finished-MKV EBML FileData reader may authorize a digest
   // claim. An imported report carrying a truthy hash or an unrelated ffprobe
   // result is NOT evidence of a source-to-output byte comparison.
+  const acceptedEvidence = [ATTACHMENT_HASH_EVIDENCE, ATTACHMENT_BYTE_COMPARE_EVIDENCE];
   const payloadProvenanceValid = ['pass','warning'].includes(payloadAudit?.status) &&
-    payloadAudit?.evidence === 'source-vs-final-mkv-ebml-filedata-sha256-v1' &&
+    acceptedEvidence.includes(payloadAudit?.evidence) &&
     payloadAudit?.scope === 'original-attachment-filedata-only' &&
     Number.isSafeInteger(payloadAudit?.verified) &&
     Number.isSafeInteger(payloadAudit?.total) &&
@@ -29,8 +34,17 @@ export function auditSourceAttachmentDelivery({
     observations.every(item =>
       typeof item?.sourceFilename === 'string' &&
       typeof item?.outputFilename === 'string' &&
-      /^[a-f0-9]{64}$/i.test(item?.sha256 || '') &&
-      Number.isSafeInteger(item?.byteLength) && item.byteLength > 0);
+      Number.isSafeInteger(item?.byteLength) && item.byteLength > 0 &&
+      (payloadAudit.evidence === ATTACHMENT_HASH_EVIDENCE
+        ? /^[a-f0-9]{64}$/i.test(item?.sha256 || '')
+        : (item?.proofMethod === 'sha256'
+            ? /^[a-f0-9]{64}$/i.test(item?.sha256 || '')
+            : item?.proofMethod === 'exact-byte-compare' &&
+              item?.sha256 == null &&
+              Number.isSafeInteger(item?.comparedBytes) &&
+              item.comparedBytes === item.byteLength))) &&
+    (payloadAudit.evidence !== ATTACHMENT_BYTE_COMPARE_EVIDENCE ||
+      observations.some(item => item.proofMethod === 'exact-byte-compare'));
   const count = (items, key, value) => items.filter(row => row?.[key] === value).length;
   const name = x => String(x || '');
   const outputName = x => name(x?.tags?.filename);
@@ -84,16 +98,19 @@ export function auditSourceAttachmentDelivery({
           (actualMime || '未提供') + '”，与草稿“' + intendedMime + '”不符');
       if (!payloadProvenanceValid)
         return unresolved('FILEDATA_AUDIT_UNTRUSTED',
-          '已观察到最终附件，但缺少具有正确证据类型、完整 SHA-256 和一致核验计数的独立 FileData 审计');
+          '已观察到最终附件，但缺少可信 SHA-256 或完整逐字节核验及一致的审计计数');
       const matched = observations.filter(o =>
         o.sourceFilename === originalName && o.outputFilename === intendedName);
       if (matched.length !== 1)
         return unresolved('FILEDATA_MATCH_UNAVAILABLE',
           '无法从实际 FileData 审计中唯一对应此来源与拟输出附件');
       return Object.freeze({ ...base, status:'filedata-verified',
-        evidence:'source-vs-final-mkv-ebml-filedata-sha256-v1',
+        evidence:payloadAudit.evidence,
         reasonCode:'VERIFIED_FILEDATA',
-        message:'最终 MKV 中该附件的名称、MIME 与 FileData SHA-256 已独立核对；UID/引用与实际保存未验证',
+        message:matched[0].proofMethod === 'exact-byte-compare'
+          ? '最终 MKV 附件名称、MIME 与全部 FileData 字节已分块逐字节核对；未生成 SHA-256，UID/引用和实际保存未验证'
+          : '最终 MKV 中该附件的名称、MIME 与 FileData SHA-256 已独立核对；UID/引用与实际保存未验证',
+        proofMethod:matched[0].proofMethod || 'sha256',
         sha256:matched[0].sha256, byteLength:matched[0].byteLength });
     }
     // Absence is verified only within the COMPLETE ffprobe attachment inventory.

@@ -1833,7 +1833,9 @@ function renderActualOutputEvidence() {
         ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
         : '新字体附件字节验证：无新增字体',
     model.originalAttachmentPayload?.status === 'pass'
-      ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
+      ? model.originalAttachmentPayload.evidence === 'source-vs-final-mkv-ebml-filedata-byte-compare-v2'
+        ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 或完整分块逐字节比较一致（部分附件无 SHA-256；不含 UID 关联）`
+        : `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 一致（不含 UID 关联）`
       : model.originalAttachmentPayload && model.originalAttachmentPayload.status !== 'not-requested'
         ? `原附件字节验证：待复核（${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total}）`
         : '原附件字节验证：未请求保留原附件',
@@ -1844,8 +1846,15 @@ function renderActualOutputEvidence() {
   outputEvidenceRevision.textContent = model.revisionNotice;
   const delivery = model.sourceAttachmentDelivery;
   if (delivery?.entries?.length) {
-    const addition = '逐附件审计：' + delivery.verifiedFileData +
-      ' 项 FileData SHA-256 通过 · ' + delivery.observedAbsent +
+    const byteCompared = delivery.entries.filter(item =>
+      item.status === 'filedata-verified' &&
+      item.proofMethod === 'exact-byte-compare').length;
+    const hashed = delivery.verifiedFileData - byteCompared;
+    const proofLabel = byteCompared
+      ? hashed + ' 项 FileData SHA-256 通过、' +
+        byteCompared + ' 项 FileData 完整逐字节比较通过'
+      : delivery.verifiedFileData + ' 项 FileData SHA-256 通过';
+    const addition = '逐附件审计：' + proofLabel + ' · ' + delivery.observedAbsent +
       ' 项 ffprobe 清单未出现 · ' + delivery.unresolved +
       ' 项未确认（均不含 UID/保存证据）';
     outputEvidenceFacts.textContent += ' | ' + addition;
@@ -5740,9 +5749,24 @@ async function executeCurrentMuxTask(explicit = null) {
           }))
         : [];
     const originalPayloadAudit = await auditPreservedOriginalAttachmentData(
-      video, outputBlob, originalAttachmentClaims);
+      video, outputBlob, originalAttachmentClaims, {
+        // Explicit bounded fallback for original MKV attachments larger than
+        // the 32 MiB single-Blob SHA limit. Compare ALL bytes by chunks, not
+        // hashes of chunks. No UID/Tag preservation or writer permission.
+        chunkCompare: {
+          maxFileBytes: 128 * 1024 * 1024,
+          maxTotalBytes: 1024 * 1024 * 1024,
+          chunkBytes: 1024 * 1024,
+        },
+        shouldCancel: () => cancelRequested || (independent && batchCancelRequested),
+      });
+    // A cancelled audit can return "unavailable", but a user cancellation
+    // must never publish an MKV under the ordinary "audit warning" policy.
+    if (cancelRequested || (independent && batchCancelRequested)) {
+      throw new Error('ATTACHMENT_AUDIT_CANCELLED');
+    }
     if (originalPayloadAudit.status === 'pass') {
-      logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件的实际 FileData SHA-256 与源文件一致。UID 与引用关系不包含在此结论内。\n`;
+      logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件实际 FileData 已通过 SHA-256 或完整分块逐字节核对。UID 与引用关系不包含在此结论内。\n`;
     } else if (originalPayloadAudit.status !== 'not-requested') {
       const detail = originalPayloadAudit.issues.join('；') || '原附件验证未完成';
       logEl.textContent += `AUDIT WARNING: 原 MKV 附件源/成品字节核验待复核：${detail}\n`;
