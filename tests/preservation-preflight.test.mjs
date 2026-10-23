@@ -125,3 +125,42 @@ test('P0 cannot claim no known hazard after an unchecked finite Segment tail', a
   });
   assert.equal(trailingCheck.state, 'BLOCKED_UNKNOWN');
 });
+
+test('S08: a flat chapter referring to another SegmentUUID is blocked before ordinary remux', async () => {
+  const externalSegment = e(0x6e67, Uint8Array.from({length:16}, (_, i) => i + 1));
+  const check = await inspectMatroskaPreservation(source(chapters(chapter(externalSegment))));
+  assert.equal(check.state, 'BLOCKED_RISK');
+  assert.deepEqual(check.reasons, ['章节引用外部 SegmentUUID']);
+  assert.match(preservationBlockMessage('linked.mkv', check), /章节引用外部 SegmentUUID/);
+  assert.doesNotMatch(check.reasons.join(';'), /嵌套章节|有序章节版本/,
+    'the single flat chapter must be independently refused');
+});
+
+test('S08: linked edition reference alone refuses even a non-ordered single edition', async () => {
+  const externalEdition = e(0x6ebc, Uint8Array.of(42));
+  const check = await inspectMatroskaPreservation(source(chapters(chapter(externalEdition))));
+  assert.equal(check.state, 'BLOCKED_RISK');
+  assert.ok(check.reasons.includes('章节引用外部 Segment 的 EditionUID'));
+  assert.equal(check.reasons.includes('嵌套章节'), false);
+});
+
+test('S08: actual multi-level linked chapters retain both independently explainable refusal reasons', async () => {
+  const externalSegment = e(0x6e67, new Uint8Array(16));
+  const externalEdition = e(0x6ebc, Uint8Array.of(2));
+  const check = await inspectMatroskaPreservation(source(chapters(
+    chapter(chapter(e(0x6e67, new Uint8Array(16)))),
+    chapter(externalEdition),
+    chapter(externalSegment),
+  )));
+  assert.equal(check.state, 'BLOCKED_RISK');
+  assert.ok(check.reasons.includes('嵌套章节'));
+  assert.ok(check.reasons.includes('章节引用外部 SegmentUUID'));
+  assert.ok(check.reasons.includes('章节引用外部 Segment 的 EditionUID'));
+});
+
+test('S08: unrelated flat chapter metadata and presentation do not trigger linked-segment refusal', async () => {
+  const ordinary = chapters(chapter(e(0x63c3, Uint8Array.of(60))));
+  const check = await inspectMatroskaPreservation(source(ordinary));
+  assert.equal(check.state, 'NO_KNOWN_HAZARD');
+  assert.equal(check.reasons.length, 0);
+});
