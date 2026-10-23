@@ -2164,10 +2164,14 @@ function activateCompositionTrack(item) {
     '#assetInspectorHost [data-tree-track-field="title"]:not(:disabled), #assetInspectorHost button:not(:disabled)' :
     target.type === 'font' ? '#fontMode' :
     `[data-index="${matched}"][data-new-${target.kind === 'subtitle' ? 'sub' : 'audio'}-field="title"]`;
+  // Repaint can replace the selected composition control and indirectly
+  // refresh the external editor markup. Focusing BEFORE that repaint can
+  // strand keyboard focus on <body> even when the live row index is correct.
+  // Complete the projection first, then focus the re-resolved live control.
+  renderOutputComposition();
   const first = document.querySelector(selector);
   first?.focus({ preventScroll: true });
   first?.scrollIntoView({ block: 'nearest' });
-  renderOutputComposition();
 }
 // R1 bounded navigation: ffprobe flat Chapter / format Tag observations are
 // never themselves EBML writer targets. Explicitly rebind only the EXACT
