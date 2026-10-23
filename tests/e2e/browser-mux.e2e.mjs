@@ -7183,7 +7183,7 @@ async function scenarioS13UnifiedIntakeIdentityCollision(browser) {
       'the first subtitle is preserved as a distinct admitted grant');
     assert.equal(await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"]').count(),1,
       'the second same-metadata File must remain visible but non-executable');
-    assert.match(await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"]').text(),
+    assert.match(await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"]').textContent(),
       /文件身份冲突/);
     assert.equal(await single.page.locator('#muxBtn').isDisabled(),true,
       'unresolved identity ambiguity blocks source-to-output mux');
