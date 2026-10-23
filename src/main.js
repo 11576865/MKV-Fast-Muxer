@@ -1620,9 +1620,12 @@ function bindNewTrackEditor(container, selector, getState, kind) {
 // Imported assets always remain visible, including unsupported/unknown ones.
 function setAdapterFiles(input, files) {
   if (!input) return;
-  const oldKeys = Array.from(input.files || []).map(assetIntakeKey);
-  const newKeys = files.map(assetIntakeKey);
-  if (oldKeys.length === newKeys.length && oldKeys.every((key, index) => key === newKeys[index])) return;
+  // A same-metadata File can contain different bytes. The actual legacy
+  // executor input must be rebound to the exact selected browser File, not
+  // incorrectly retained merely because path/size/mtime look unchanged.
+  const oldFiles = Array.from(input.files || []);
+  if (oldFiles.length === files.length &&
+      oldFiles.every((file, index) => file === files[index])) return;
   const transfer = new DataTransfer();
   for (const file of files) transfer.items.add(file);
   input.files = transfer.files;
