@@ -123,7 +123,9 @@ try {
   },null,{timeout:1_200_000});
   const terminal=await page.locator('#batchStatus').textContent();
   manifest.batchTerminal=terminal;
-  assert.match(terminal,/成功 20，失败 0/);
+  assert.match(terminal,/已生成 20，审计通过 20，待复核 0，执行失败 0/);
+  assert.doesNotMatch(terminal,/完整写入目录/,
+    'download-only results do not prove filesystem persistence');
   assert.doesNotMatch(terminal,/审计存在差异|审计.*不可用|未完整写入目录/);
   assert.equal(await page.locator('#batchResults .new-track-row').count(),20);
   assert.equal(await page.locator('#batchResults a.download').count(),20);
