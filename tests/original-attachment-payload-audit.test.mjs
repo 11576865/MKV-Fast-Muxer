@@ -98,3 +98,59 @@ test('real shared mux, batch status and output UI use single evidence source', (
   assert.match(model, /originalAttachmentPayload: report\.audit\?\.originalAttachmentPayloadAudit \|\| null/);
   assert.match(main, /原附件字节验证：/);
 });
+
+test('S12: 64 MiB original FileData is verified by bounded full-range byte comparison, not fake SHA', async () => {
+  const bytes = Buffer.alloc(64 * 1024 * 1024, 0x5a);
+  bytes[0] = 0x11;
+  bytes[bytes.length - 1] = 0x99;
+  const source = await fromParts(bytes, Buffer.from('original B'));
+  const output = await fromParts(Buffer.from(bytes), Buffer.from('original B'));
+  const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    chunkCompare: { maxFileBytes: 128 * 1024 * 1024,
+      maxTotalBytes: 1024 * 1024 * 1024, chunkBytes: 1024 * 1024 },
+  });
+  assert.equal(audit.status, 'pass', audit.issues.join('; '));
+  assert.equal(audit.verified, 2);
+  assert.match(audit.evidence, /byte-compare-v2/);
+  const proof = audit.observations.find(item => item.sourceFilename === 'first.ttf');
+  assert.equal(proof.byteLength, bytes.length);
+  assert.equal(proof.comparedBytes, bytes.length);
+  assert.equal(proof.proofMethod, 'exact-byte-compare');
+  assert.equal(proof.sha256, null, 'byte comparison must not invent a SHA-256 digest');
+  assert.equal(audit.uidRelationsVerified, false);
+  assert.equal(audit.observations.find(item => item.sourceFilename === 'notes.txt').proofMethod, 'sha256');
+});
+
+test('S12: one changed byte in the final chunk is detected without an all-file hash', async () => {
+  const first = Buffer.alloc(1024 * 1024 + 11, 0x21);
+  const changed = Buffer.from(first);
+  changed[changed.length - 1] ^= 0x80;
+  const source = await fromParts(first);
+  const output = await fromParts(changed);
+  const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    maxFileBytes: 2048, maxTotalBytes: 4096,
+    chunkCompare: { maxFileBytes: 4 * 1024 * 1024,
+      maxTotalBytes: 4 * 1024 * 1024, chunkBytes: 65536 },
+  });
+  assert.equal(audit.status, 'warning');
+  assert.equal(audit.verified, 1, 'only the unchanged second small FileData is proven');
+  assert.match(audit.issues.join(';'), /逐字节比较不一致/);
+  assert.ok(audit.observations.every(item => item.sourceFilename !== 'first.ttf'));
+});
+
+test('S12: a chunk compare budget refusal never upgrades output authority', async () => {
+  const big = Buffer.alloc(1024 * 1024 + 1, 0x21);
+  const source = await fromParts(big);
+  const output = await fromParts(big);
+  const options = { maxFileBytes: 1024, maxTotalBytes: 2048,
+    chunkCompare: { maxFileBytes: 1024 * 1024,
+      maxTotalBytes: 1024 * 1024, chunkBytes: 65536 } };
+  const refusal = await auditPreservedOriginalAttachmentData(source, output, claims(), options);
+  assert.equal(refusal.status, 'unavailable');
+  assert.equal(refusal.verified, 0);
+  assert.match(refusal.issues.join(';'), /超出独立核验预算/);
+  const invalid = await auditPreservedOriginalAttachmentData(source, output, claims(), {
+    chunkCompare: {maxFileBytes: 2000000, maxTotalBytes: 2000000, chunkBytes: 1},
+  });
+  assert.equal(invalid.status, 'unavailable');
+});
