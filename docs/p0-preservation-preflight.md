@@ -12,6 +12,7 @@ The real browser writer successfully remuxed a file created by MKVToolNix but ch
 
 The gate refuses:
 - nested chapters (including the independently reproduced case);
+- any `ChapterSegmentUUID` (`0x6E67`) or `ChapterSegmentEditionUID` (`0x6EBC`) inside a ChapterAtom, even a *single flat chapter* without ordered editions; these form cross-Segment playback references whose retention by ordinary FFmpeg/Wasm remux is not established;
 - ordered/multiple chapter editions and chapter-processing elements, which have not been proven safe;
 - Tags targeting a *nonzero* EditionUID or ChapterUID (known structural association risk);
 - structures it cannot safely inspect: malformed EBML, unknown-size segment children, excessively large metadata, invalid/unsupported DocType, missing segment or unreadable source.
@@ -46,3 +47,9 @@ References:
 - https://github.com/11576865/MKV-Fast-Muxer/pull/76
 - https://www.rfc-editor.org/rfc/rfc9559
 - https://www.matroska.org/technical/elements.html
+
+## 2026-10-23 S08 linked-Segment gate extension (scoped proposal)
+
+The original gate did not recognize `ChapterSegmentUUID (0x6E67)` or `ChapterSegmentEditionUID (0x6EBC)` in a single, non-ordered `ChapterAtom`. Under RFC 9559 §5.1.7 and §17.2, either element can express external Segment playback linkage. Unlike an ordinary chapter title or physical equivalence, losing this reference changes playback semantics. The proposed extension refuses by **element presence**, independently of nesting, an ordered edition flag, or UID-targeted Tags; the client does not try to load external referenced Segments. Unit tests include both isolated flat cases, nested mixed cases and an unrelated allowed simple-chapter control. The same existing `inspectMatroskaPreservation` gate is consumed by single and batch execution; no separate permission or writer path is introduced.
+
+Evidence scope: source inspection + submitted test fixtures only until exact SHA CI and real-browser rerun pass. This is not a full RFC 9559 structural validator, nor a guarantee that all unrecognized metadata is retained. Reference: https://www.rfc-editor.org/rfc/rfc9559.html#section-17.2 .
