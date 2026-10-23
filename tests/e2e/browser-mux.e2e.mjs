@@ -2650,7 +2650,7 @@ async function scenarioUnifiedBatchContentIntake(browser) {
       const value = document.querySelector('#batchStatus')?.textContent || '';
       return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
     }, null, { timeout: 360_000 });
-    assert.match(await page.locator('#batchStatus').textContent(), /成功 1，失败 0/);
+    assert.match(await page.locator('#batchStatus').textContent(), /已生成 1，审计通过 1，待复核 0，执行失败 0/);
     assert.equal(await page.locator('#batchResults a.download').count(), 1);
     const resultPath = path.join(outDir, 'unified-batch-content-first.mkv');
     const link = page.locator('#batchResults a.download').first();
@@ -2843,7 +2843,7 @@ async function scenarioBatchReportSavePartialPersistence(browser) {
       return text.startsWith('批量完成：') || text.startsWith('批量中断：');
     }, null, { timeout: 360_000 });
     const summary = await page.locator('#batchStatus').textContent();
-    assert.match(summary, /成功 1，失败 0/);
+    assert.match(summary, /已生成 1，审计通过 1，待复核 0，执行失败 0/);
     assert.match(summary, /其中 1 项 MKV 已写入目录，但审计报告尚未写入/);
     const result = await page.locator('#batchResults').textContent();
     assert.match(result, /MKV 已写入目录，但报告写入失败/);
@@ -2945,7 +2945,7 @@ async function scenarioBatchDirectorySaveFallback(browser) {
     }, null, { timeout: 360_000 });
 
     const status = await page.locator('#batchStatus').textContent();
-    assert.match(status, /成功 1，失败 0/);
+    assert.match(status, /已生成 1，审计通过 1，待复核 0，执行失败 0/);
     assert.match(status, /其中 1 项未完整写入目录/);
     assert.match(await page.locator('#batchResults').textContent(), /simulated quota exceeded/);
     assert.equal(await page.locator('#batchResults a.download').count(), 1);
@@ -3017,7 +3017,7 @@ async function scenarioBatchRecipeV2PerOutputRealMux(browser) {
     await page.waitForFunction(()=>
       (document.querySelector('#batchStatus')?.textContent||'')
         .startsWith('批量完成：'),null,{timeout:360000});
-    assert.match(await page.locator('#batchStatus').textContent(),/成功 2，失败 0/);
+    assert.match(await page.locator('#batchStatus').textContent(),/已生成 2，审计通过 2，待复核 0，执行失败 0/);
     const rows=page.locator('#batchResults .new-track-row');
     assert.equal(await rows.count(),2);
     const first=path.join(outDir,'batch-recipe-v2-first.mkv');
@@ -3090,7 +3090,7 @@ async function scenarioBatchFailedJobRetry(browser) {
     await page.setInputFiles('#batchSubtitleInput', [path.join(root,'Batch S01E01.zh-Hans.ass'), path.join(root,'Batch S01E02.en.srt')]);
     await page.waitForFunction(() => !document.querySelector('#batchStartBtn').disabled);
     await page.locator('#batchStartBtn').click();
-    await page.waitForFunction(() => /批量完成：成功 1，失败 1/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    await page.waitForFunction(() => /批量完成：已生成 1，审计通过 1，待复核 0，执行失败 1/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
     const originalUrl = await page.locator('#batchResults a.download').getAttribute('href');
     const firstPath = path.join(outDir,'r7-retry-retained-first.mkv');
     await saveDownload(page, '#batchResults a.download', firstPath);
@@ -3099,7 +3099,7 @@ async function scenarioBatchFailedJobRetry(browser) {
     // Live batch input/policy edits must not replace frozen failed-job choices.
     await page.setInputFiles('#batchSubtitleInput', path.join(root,'Batch S01E01.zh-Hans.ass'));
     await page.locator('[data-batch-job-retry]').click();
-    await page.waitForFunction(() => /批量完成：成功 2，失败 0/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
+    await page.waitForFunction(() => /批量完成：已生成 2，审计通过 2，待复核 0，执行失败 0/.test(document.querySelector('#batchStatus').textContent), null, {timeout:360_000});
     assert.equal(await page.evaluate(()=>window.__batchMuxAttempts),3,'only the failed task is muxed again');
     assert.equal(await page.locator('#batchResults .new-track-row:first-child a.download').getAttribute('href'), originalUrl);
     assert.equal(await page.locator('[data-batch-job-retry]').count(),0);
@@ -3196,7 +3196,7 @@ async function scenarioBatchQueue(browser) {
     }, null, { timeout: 360_000 });
 
     const batchStatus = await page.locator('#batchStatus').textContent();
-    assert.match(batchStatus, /成功 2，失败 0/);
+    assert.match(batchStatus, /已生成 2，审计通过 2，待复核 0，执行失败 0/);
     const resultRows = page.locator('#batchResults .new-track-row');
     assert.equal(await resultRows.count(), 2);
     assert.equal(await page.locator('#batchResults a.download').count(), 2);
@@ -3315,7 +3315,7 @@ async function scenarioBatchGroupSubsetPreparationFailure(browser) {
 
     const message = await page.locator('#batchStatus').textContent();
     assert.match(message, /批量中断：simulated group subtitle read failure/);
-    assert.match(message, /已完成 0，单项失败 0/);
+    assert.match(message, /已生成 0，审计通过 0，待复核 0，执行失败 0/);
     assert.doesNotMatch(message, /批量完成/);
     assert.equal(await page.locator('#batchResults a.download').count(), 0);
     await page.waitForFunction(() => {
@@ -3363,7 +3363,7 @@ async function scenarioBatchGroupSubset(browser) {
       return value.startsWith('批量完成：');
     }, null, { timeout: 360_000 });
 
-    assert.match(await page.locator('#batchStatus').textContent(), /成功 2，失败 0/);
+    assert.match(await page.locator('#batchStatus').textContent(), /已生成 2，审计通过 2，待复核 0，执行失败 0/);
     const first = path.join(outDir, 'batch-group-subset-first.mkv');
     const firstLink = page.locator('#batchResults a.download').first();
     const [download] = await Promise.all([
@@ -4320,7 +4320,7 @@ async function scenarioBatchResultUrlLifetime(browser) {
         const value = document.querySelector('#batchStatus')?.textContent || '';
         return value.startsWith('批量完成：') || value.startsWith('批量已取消：');
       }, null, { timeout: 360_000 });
-      assert.match(await page.locator('#batchStatus').textContent(), /成功 1，失败 0/);
+      assert.match(await page.locator('#batchStatus').textContent(), /已生成 1，审计通过 1，待复核 0，执行失败 0/);
     }
 
     await waitReady();
@@ -4420,7 +4420,7 @@ async function scenarioBatchContentIdentity(browser) {
       return value.startsWith('批量完成：');
     }, null, { timeout: 360_000 });
 
-    assert.match(await page.locator('#batchStatus').textContent(), /成功 2，失败 0/);
+    assert.match(await page.locator('#batchStatus').textContent(), /已生成 2，审计通过 2，待复核 0，执行失败 0/);
 
     const links = page.locator('#batchResults a.download');
     assert.equal(await links.count(), 2);
