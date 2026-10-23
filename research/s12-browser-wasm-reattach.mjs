@@ -8,7 +8,7 @@ const execute=document.querySelector('#execute');
 const status=document.querySelector('#status');
 const log=document.querySelector('#log');
 const state={phase:'idle',error:null,evidence:null,wasmExitCode:null,
-  wasmLogTail:[],sourceKind:null};
+  wasmLogTail:[],sourceKind:null,execArgs:null};
 window.__s12WasmReattach=state;
 let busy=false,outputUrl=null;
 function update(phase){
@@ -21,6 +21,7 @@ execute.addEventListener('click',async()=>{
  if(busy||!source.files?.[0])return;
  busy=true;state.error=null;state.evidence=null;
  state.wasmExitCode=null;state.wasmLogTail=[];state.sourceKind=null;
+ state.execArgs=null;
  const original=source.files[0];
  const ffmpeg=new FFmpeg();
  const pushLog=value=>{
@@ -66,7 +67,10 @@ execute.addEventListener('click',async()=>{
    '-map_metadata','-1','-map_chapters','-1',
    '-c','copy','-c:s','srt','/s12-media-without-original-attachments.mkv'
   ];
-  state.execArgs=args.slice();
+  state.execArgs=Array.from(args);
+  if(state.execArgs.filter(x=>x==='-map').length!==3 ||
+     state.execArgs.some(x=>/0:t:|attachment/.test(x)))
+    throw Error('S12_WASM_MEDIA_ONLY_COMMAND_MAPPING_INVALID');
   const code=await ffmpeg.exec(args,180000);
   state.wasmExitCode=code;
   if(code!==0)throw Error('S12_WASM_MEDIA_ONLY_MUX_FAILED_EXIT_'+code);
