@@ -16,6 +16,51 @@ export function assetIntakeKey(file) {
   return `${path}|${file?.size ?? 0}|${file?.lastModified ?? 0}`;
 }
 
+/**
+ * Plan a user-selected import without equating display metadata with File
+ * identity. A distinct File reference with the same path/size/mtime remains a
+ * visible, non-executable conflict instead of disappearing before sniffing.
+ * The first grant stays owned by the existing inventory until explicitly
+ * removed. Re-selecting the exact same File instance is idempotent.
+ */
+export function planIncomingAssetIntake(files, existingEntries = []) {
+  const owners = new Map();
+  const reserved = new Set();
+  for (const entry of existingEntries) {
+    if (!entry?.file) continue;
+    if (entry.key) reserved.add(entry.key);
+    const metadataKey = assetIntakeKey(entry.file);
+    if (!owners.has(metadataKey)) owners.set(metadataKey, entry.file);
+  }
+  const selections = [];
+  let collisionNumber = 0;
+  for (const file of files || []) {
+    if (!file) continue;
+    const metadataKey = assetIntakeKey(file);
+    const previous = owners.get(metadataKey);
+    if (!previous) {
+      owners.set(metadataKey, file);
+      selections.push({ file, conflict: null });
+      continue;
+    }
+    if (previous === file) continue;
+    let key;
+    do {
+      key = 'intake-conflict:' + (++collisionNumber);
+    } while (reserved.has(key));
+    reserved.add(key);
+    selections.push({
+      file,
+      conflict: {
+        file, key, kind: 'unknown', status: ASSET_STATUS.UNSUPPORTED,
+        label: '文件身份冲突', evidence: 'metadata-identity-collision',
+        detail: '该文件与已选资源的路径、大小和修改时间完全相同，但 File 引用不同；无法证明是同一文件。已拒绝参与封装，请移除冲突项，分别重命名或重新选择后导入。',
+      },
+    });
+  }
+  return selections;
+}
+
 function audioHeader(bytes) {
   const ascii = (from, to) => String.fromCharCode(...bytes.subarray(from, to));
   if (bytes.length >= 4 && ascii(0, 4) === 'fLaC') return 'FLAC';
