@@ -17,6 +17,40 @@ const fromParts = async (fileOne = Buffer.from('original A'),
   });
   return (await executeMultiAttachmentOnlyCandidate(plan)).output;
 };
+
+/**
+ * Large reader-only Matroska: compose valid finite EBML Segment and FileData
+ * Blob parts without using the 16 MiB-limit experimental writer or eagerly
+ * cloning the entire attachment payload for metadata headers.
+ */
+const largeMkvFixture = (firstData, secondData = Buffer.from('original B')) => {
+  const el = (hex, body) => {
+    const blob = body instanceof Blob ? body : new Blob([body]);
+    let remaining = BigInt(blob.size);
+    const vint = new Uint8Array(8);
+    vint[0] = 0x01; // 8-byte finite EBML size, top bit of first octet is marker
+    for (let i = 7; i >= 1; i--) {
+      vint[i] = Number(remaining & 0xffn);
+      remaining >>= 8n;
+    }
+    assert.equal(remaining, 0n, 'test EBML size must fit 56 data bits');
+    return new Blob([Buffer.from(hex, 'hex'), vint, blob]);
+  };
+  const attachment = (filename, mimeType, uid, data) => el('61a7', new Blob([
+    el('466e', Buffer.from(filename)),
+    el('4660', Buffer.from(mimeType)),
+    el('46ae', Uint8Array.of(uid)),
+    el('465c', data),
+  ]));
+  return new Blob([
+    el('1a45dfa3', el('4282', Buffer.from('matroska'))),
+    el('18538067', el('1941a469', new Blob([
+      attachment('first.ttf', 'font/ttf', 1, firstData),
+      attachment('notes.txt', 'text/plain', 2, secondData),
+    ]))),
+  ]);
+};
+
 const claims = () => [
   { sourceFilename: 'first.ttf', outputFilename: 'first.ttf',
     sourceMimeType: 'font/ttf', outputMimeType: 'font/ttf' },
@@ -92,7 +126,8 @@ test('no original attachments requested is explicitly not-requested', async () =
 test('real shared mux, batch status and output UI use single evidence source', () => {
   const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const model = readFileSync(new URL('../src/container-workbench-evidence.js', import.meta.url), 'utf8');
-  assert.match(main, /auditPreservedOriginalAttachmentData\(\s*video, outputBlob, originalAttachmentClaims\)/);
+  assert.match(main, /auditPreservedOriginalAttachmentData\(\s*video, outputBlob, originalAttachmentClaims, \{/);
+  assert.match(main, /maxTotalBytes: 1024 \* 1024 \* 1024/);
   assert.match(main, /finalAudit\.originalAttachmentPayloadAudit = originalPayloadAudit/);
   assert.match(main, /if \(finalAudit\.status === 'pass'\) finalAudit\.status = 'warning'/);
   assert.match(model, /originalAttachmentPayload: report\.audit\?\.originalAttachmentPayloadAudit \|\| null/);
@@ -103,8 +138,8 @@ test('S12: 64 MiB original FileData is verified by bounded full-range byte compa
   const bytes = Buffer.alloc(64 * 1024 * 1024, 0x5a);
   bytes[0] = 0x11;
   bytes[bytes.length - 1] = 0x99;
-  const source = await fromParts(bytes, Buffer.from('original B'));
-  const output = await fromParts(Buffer.from(bytes), Buffer.from('original B'));
+  const source = largeMkvFixture(bytes);
+  const output = largeMkvFixture(Buffer.from(bytes));
   const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
     chunkCompare: { maxFileBytes: 128 * 1024 * 1024,
       maxTotalBytes: 1024 * 1024 * 1024, chunkBytes: 1024 * 1024 },
@@ -125,8 +160,8 @@ test('S12: one changed byte in the final chunk is detected without an all-file h
   const first = Buffer.alloc(1024 * 1024 + 11, 0x21);
   const changed = Buffer.from(first);
   changed[changed.length - 1] ^= 0x80;
-  const source = await fromParts(first);
-  const output = await fromParts(changed);
+  const source = largeMkvFixture(first);
+  const output = largeMkvFixture(changed);
   const audit = await auditPreservedOriginalAttachmentData(source, output, claims(), {
     maxFileBytes: 2048, maxTotalBytes: 4096,
     chunkCompare: { maxFileBytes: 4 * 1024 * 1024,
@@ -140,8 +175,8 @@ test('S12: one changed byte in the final chunk is detected without an all-file h
 
 test('S12: a chunk compare budget refusal never upgrades output authority', async () => {
   const big = Buffer.alloc(1024 * 1024 + 1, 0x21);
-  const source = await fromParts(big);
-  const output = await fromParts(big);
+  const source = largeMkvFixture(big);
+  const output = largeMkvFixture(big);
   const options = { maxFileBytes: 1024, maxTotalBytes: 2048,
     chunkCompare: { maxFileBytes: 1024 * 1024,
       maxTotalBytes: 1024 * 1024, chunkBytes: 65536 } };
