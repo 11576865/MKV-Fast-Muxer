@@ -41,6 +41,7 @@ assert.ok(reads.every(x=>Number.isSafeInteger(x.length)&&x.length>=0&&x.length<=
 const explicitIntent=inventory.attachments.map(row=>({
   ordinal:row.ordinal,fileUid:row.fileUid,include:true,
   filename:row.filename,mimeType:row.mimeType,
+  description:row.description||'',
 }));
 const admission=await inspectS12OriginalAttachmentSource({
   source,reader,intent:explicitIntent,
