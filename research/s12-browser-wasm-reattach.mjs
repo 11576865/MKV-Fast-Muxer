@@ -68,8 +68,10 @@ execute.addEventListener('click',async()=>{
    '-c','copy','-c:s','srt','/s12-media-without-original-attachments.mkv'
   ];
   state.execArgs=Array.from(args);
-  if(state.execArgs.filter(x=>x==='-map').length!==3 ||
-     state.execArgs.some(x=>/0:t:|attachment/.test(x)))
+  const mappedSelectors=state.execArgs.flatMap((arg,i)=>
+    arg==='-map'?[state.execArgs[i+1]]:[]);
+  if(mappedSelectors.join('|')!=='0:v:0|0:a:0|1:s:0' ||
+     mappedSelectors.some(x=>/:t:|attachment/.test(String(x))))
     throw Error('S12_WASM_MEDIA_ONLY_COMMAND_MAPPING_INVALID');
   const code=await ffmpeg.exec(args,180000);
   state.wasmExitCode=code;
