@@ -7,7 +7,8 @@
 const E = {
   ebml: 0x1a45dfa3, docType: 0x4282, segment: 0x18538067,
   chapters: 0x1043a770, edition: 0x45b9, atom: 0xb6, process: 0x6944,
-  ordered: 0x45dd, tags: 0x1254c367, tag: 0x7373, targets: 0x63c0,
+  ordered: 0x45dd, linkedSegment: 0x6e67, linkedEdition: 0x6ebc,
+  tags: 0x1254c367, tag: 0x7373, targets: 0x63c0,
 };
 const uidTargets = new Map([
   [0x63c4, { name: '章节', blocking: true }],
@@ -72,6 +73,12 @@ function chapters(bytes, issues) {
         walk(bytes, el.dataStart, el.end, (child) => {
           if (child.id === E.atom) atom(child, depth + 1);
           if (child.id === E.process) issues.add('章节处理指令');
+          // Even an ordinary flat ChapterAtom can play an external Segment.
+          // FFmpeg remux has no proof of preserving the Segment/Edition link.
+          // Element presence alone is enough; never interpret a zero-filled
+          // 16-byte SegmentUUID as permission to discard the reference.
+          if (child.id === E.linkedSegment) issues.add('章节引用外部 SegmentUUID');
+          if (child.id === E.linkedEdition) issues.add('章节引用外部 Segment 的 EditionUID');
         });
       }
       atom(item, 1);
