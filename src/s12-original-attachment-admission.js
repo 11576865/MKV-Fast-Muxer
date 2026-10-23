@@ -23,7 +23,7 @@ const result = (status,reasons,attachments=[])=>Object.freeze({
   reasons:Object.freeze(Array.from(new Set(reasons))),
   attachments:Object.freeze(attachments.map(item=>Object.freeze({
     ordinal:item.ordinal,filename:item.filename,mimeType:item.mimeType,
-    fileUid:item.fileUid,byteLength:item.byteLength,
+    description:item.description||'',fileUid:item.fileUid,byteLength:item.byteLength,
   }))),
   evidence:'seeked-original-file-ebml-headers-and-exact-browser-File-reference',
   limitation:'只识别未来受限路径的来源与未编辑原附件意图；未核验 SeekHead/Cues/嵌套 CRC、媒体包、输出写入或用户保存，绝不授权执行。',
@@ -110,7 +110,10 @@ export async function inspectS12OriginalAttachmentSource({
         string(edit.fileUid)!==original.fileUid ||
         edit.include!==true ||
         string(edit.filename)!==original.filename ||
-        string(edit.mimeType)!==original.mimeType)
+        string(edit.mimeType)!==original.mimeType ||
+        !Object.hasOwn(edit,'description') ||
+        string(edit.description)!==string(original.description||'') ||
+        Object.keys(edit).some(key=>!['ordinal','fileUid','include','filename','mimeType','description'].includes(key)))
       issues.push('ORIGINAL_ATTACHMENT_EDIT_OR_REORDER_NOT_ADMITTED:'+i);
   }
   if(!reader.isCurrentSourceFile(source)||!reader.isCurrentInspection(inventory))
