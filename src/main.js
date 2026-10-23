@@ -60,7 +60,7 @@ import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
 import { formatBatchTerminalStatus, combineBatchRetryTerminal } from './batch-status.js';
 import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
-import { identifyImportedAsset, assetIntakeKey, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
+import { identifyImportedAsset, assetIntakeKey, planIncomingAssetIntake, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
@@ -1620,9 +1620,12 @@ function bindNewTrackEditor(container, selector, getState, kind) {
 // Imported assets always remain visible, including unsupported/unknown ones.
 function setAdapterFiles(input, files) {
   if (!input) return;
-  const oldKeys = Array.from(input.files || []).map(assetIntakeKey);
-  const newKeys = files.map(assetIntakeKey);
-  if (oldKeys.length === newKeys.length && oldKeys.every((key, index) => key === newKeys[index])) return;
+  // A same-metadata File can contain different bytes. The actual legacy
+  // executor input must be rebound to the exact selected browser File, not
+  // incorrectly retained merely because path/size/mtime look unchanged.
+  const oldFiles = Array.from(input.files || []);
+  if (oldFiles.length === files.length &&
+      oldFiles.every((file, index) => file === files[index])) return;
   const transfer = new DataTransfer();
   for (const file of files) transfer.items.add(file);
   input.files = transfer.files;
@@ -2670,11 +2673,13 @@ function renderImportedAssetInventory() {
       roles.needsSourceChoice || roles.unknown.length || focusedSourceRadio
     );
   }
+  const identityCollisions = entries.filter(entry =>
+    entry.evidence === 'metadata-identity-collision').length;
   assetImportStatus.textContent = importInProgress
     ? `正在按内容识别 ${importPendingCount} 个文件…`
     : !entries.length
       ? '尚未导入文件'
-      : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
+      : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${identityCollisions ? ` · ${identityCollisions} 项文件身份冲突` : ''}${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
   if (!entries.length) {
     assetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     if (assetInspectorHost) {
@@ -2743,14 +2748,10 @@ function renderImportedAssetInventory() {
 
 async function importUnifiedAssets(files) {
   if (isBusy() || batchRunning || importInProgress) return;
-  const existing = new Set(importedAssetEntries.map((entry) => entry.key));
-  const incoming = Array.from(files || []).filter((file) => {
-    const key = assetIntakeKey(file);
-    if (!key || existing.has(key)) return false;
-    existing.add(key);
-    return true;
-  });
-  if (!incoming.length) return;
+  const selections = planIncomingAssetIntake(files, importedAssetEntries);
+  const incoming = selections.filter(item => !item.conflict).map(item => item.file);
+  const conflicts = selections.filter(item => item.conflict).map(item => item.conflict);
+  if (!incoming.length && !conflicts.length) return;
   importInProgress = true;
   importPendingCount = incoming.length;
   updateUI();
@@ -2762,7 +2763,7 @@ async function importUnifiedAssets(files) {
         identifyImportedAsset(file)
       )));
     }
-    importedAssetEntries = [...importedAssetEntries, ...identified];
+    importedAssetEntries = [...importedAssetEntries, ...identified, ...conflicts];
     applyImportedAssetRoles();
   } finally {
     importInProgress = false;
@@ -6087,10 +6088,12 @@ function renderBatchAssetInventory() {
   const entries = batchImportEntries;
   const roles = resolveBatchImportedAssets(entries);
   const blocked = roles.unsupported.length;
+  const identityCollisions = entries.filter(entry =>
+    entry.evidence === 'metadata-identity-collision').length;
   batchAssetStatus.textContent = batchImportInProgress
     ? '识别中…'
     : !entries.length ? '0 文件'
-    : `${entries.length} 文件 · ${roles.containers.length} 容器 · ${roles.subtitles.length} 字幕 · ${roles.fonts.length} 字体${blocked ? ` · ${blocked} 不可用` : ''}`;
+    : `${entries.length} 文件 · ${roles.containers.length} 容器 · ${roles.subtitles.length} 字幕 · ${roles.fonts.length} 字体${blocked ? ` · ${blocked} 不可用` : ''}${identityCollisions ? ` · ${identityCollisions} 项文件身份冲突` : ''}`;
   if (!entries.length) {
     batchAssetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     return;
@@ -6147,14 +6150,10 @@ function replaceBatchAdapterFiles() {
 
 async function importBatchUnifiedAssets(files) {
   if (batchImportInProgress || batchRunning || isBusy()) return;
-  const existing = new Set(batchImportEntries.map((entry) => entry.key));
-  const incoming = Array.from(files || []).filter((file) => {
-    const key = assetIntakeKey(file);
-    if (!key || existing.has(key)) return false;
-    existing.add(key);
-    return true;
-  });
-  if (!incoming.length) return;
+  const selections = planIncomingAssetIntake(files, batchImportEntries);
+  const incoming = selections.filter(item => !item.conflict).map(item => item.file);
+  const conflicts = selections.filter(item => item.conflict).map(item => item.conflict);
+  if (!incoming.length && !conflicts.length) return;
   batchImportInProgress = true;
   batchStartBtn.disabled = true;
   ++batchPlanGeneration; // Stale preflight results may not re-enable execution.
@@ -6165,7 +6164,7 @@ async function importBatchUnifiedAssets(files) {
       identified.push(...await Promise.all(incoming.slice(start, start + 4)
         .map((file) => identifyImportedAsset(file))));
     }
-    batchImportEntries = [...batchImportEntries, ...identified];
+    batchImportEntries = [...batchImportEntries, ...identified, ...conflicts];
     batchUnifiedMode = true;
   } finally {
     batchImportInProgress = false;
