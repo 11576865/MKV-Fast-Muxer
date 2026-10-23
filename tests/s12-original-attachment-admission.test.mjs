@@ -140,3 +140,15 @@ test('S12: a structurally accepted source is still NOT authorized for research B
   assert.equal(out.publicationAuthorized,false);
   assert.match(out.limitation,/绝不授权执行/);
 });
+
+test('S12: malformed EBML returns a precise inventory refusal, not a false different-File diagnosis',async()=>{
+  const blob=new Blob([Buffer.from('invalid not matroska')]);
+  const file={name:'malformed.mkv',size:blob.size,lastModified:55,
+    slice:(from,to,type)=>blob.slice(from,to,type)};
+  const reader=createMatroskaAttachmentReader(file);
+  const check=await inspectS12OriginalAttachmentSource({reader,source:file,intent:[]});
+  assert.equal(check.status,'BLOCKED');
+  assert.ok(check.reasons.some(reason=>reason.startsWith('ATTACHMENT_INVENTORY_UNVERIFIED:')),
+    check.reasons.join(';'));
+  assert.ok(check.reasons.every(reason=>!reason.startsWith('SOURCE_CHANGED_DURING_INSPECTION')));
+});
