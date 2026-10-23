@@ -33,6 +33,16 @@ export function buildOutputComposition({
   unsupportedAssets = [],
 } = {}) {
   const items = [];
+  // A metadata key is a display hint, not an exact File identity. Two
+  // deliberately selected tracks or fonts may share all metadata fields.
+  // Keep the first legacy ID, disambiguate additional occurrences and route
+  // each external editor by its position in the current live list.
+  const idOccurrences = new Map();
+  const occurrenceId = base => {
+    const count = idOccurrences.get(base) || 0;
+    idOccurrences.set(base, count + 1);
+    return count ? base + ':duplicate:' + count : base;
+  };
   const sourceScanned = Boolean(video && trackState &&
     (!trackState.fileKey || trackState.fileKey === `${video.name}|${video.size}|${video.lastModified}`));
   if (video && !sourceScanned) {
@@ -79,29 +89,31 @@ export function buildOutputComposition({
   }
 
   for (const [kind, rows] of [['audio', externalAudio], ['subtitle', newSubtitles]]) {
-    for (const item of rows || []) {
+    for (const [index, item] of (rows || []).entries()) {
       if (!item.file) continue;
+      const fileKey = outputCompositionFileKey(item.file);
       items.push({
-        id: `external:${kind}:${outputCompositionFileKey(item.file)}`,
+        id: occurrenceId(`external:${kind}:${fileKey}`),
         kind, title: label(item.title, item.displayName || item.file.name),
         detail: [
           kind === 'subtitle' ? label(item.format?.label, '字幕') : '外部音频',
           flagSummary(item),
         ].filter(Boolean).join(' · '),
         status: 'add', included: true,
-        target: { type: 'external', kind, fileKey: outputCompositionFileKey(item.file) },
+        target: { type: 'external', kind, fileKey, index },
       });
     }
   }
 
   const subtitleNeedsFonts = (newSubtitles || []).some(track => track.format?.assLike);
   const attachedFonts = fontMode === 'force' && subtitleNeedsFonts ? (fonts || []).slice(0, 1) : (fonts || []);
-  for (const font of attachedFonts) {
+  for (const [index, font] of attachedFonts.entries()) {
+    const fileKey = outputCompositionFileKey(font);
     items.push({
-      id: `font:${outputCompositionFileKey(font)}`, kind: 'font',
+      id: occurrenceId(`font:${fileKey}`), kind: 'font',
       title: font.name, detail: '字体附件',
       status: 'add', included: true,
-      target: { type: 'font', fileKey: outputCompositionFileKey(font) },
+      target: { type: 'font', fileKey, index },
     });
   }
 
