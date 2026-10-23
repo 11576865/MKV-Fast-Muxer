@@ -112,8 +112,10 @@ try{
  assert.equal(auditedCommand.filter(x=>x==='-map').length,3);
  assert.ok(auditedCommand.includes('0:a:0'));
  assert.ok(auditedCommand.includes('1:s:0'));
- assert.equal(auditedCommand.some(x=>/0:t:|attachment/.test(x)),false,
-  'the real FFmpeg.wasm command must NOT map source original attachment streams');
+ const mappedSelectors=auditedCommand.flatMap((arg,i)=>
+  arg==='-map'?[auditedCommand[i+1]]:[]);
+ assert.deepEqual(mappedSelectors,['0:v:0','0:a:0','1:s:0'],
+  'Wasm must map only original video/audio and new subtitle, no attachment');
  const dl=await dlPromise;
  await dl.saveAs(output);
  report.outputBytes=(await fs.stat(output)).size;
