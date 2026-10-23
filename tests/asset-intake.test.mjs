@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assetIntakeKey, classifyAssetBytes, identifyImportedAsset, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from '../src/asset-intake.js';
+import { assetIntakeKey, classifyAssetBytes, identifyImportedAsset, planIncomingAssetIntake, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from '../src/asset-intake.js';
 
 const bytes = (text) => new TextEncoder().encode(text);
 const fixture = (name, data, lastModified = 1) => ({
@@ -106,4 +106,48 @@ test('batch role mapping does not mutate original inventory or auto-promote audi
   assert.deepEqual(result.containers, []);
   assert.equal(result.unsupported.length, 1);
   assert.deepEqual(entries.map(x => x.kind), before);
+});
+
+test('S13: separate File instances with identical metadata become visible, blocked intake conflicts', () => {
+  const data = bytes('[Script Info]\\nTitle: Test\\n[V4+ Styles]\\n');
+  const first = fixture('same.ass', data, 77);
+  const second = fixture('same.ass', new Uint8Array(data), 77);
+  assert.notStrictEqual(first, second);
+  assert.equal(assetIntakeKey(first), assetIntakeKey(second));
+  const selected = planIncomingAssetIntake([first, second]);
+  assert.equal(selected.length, 2);
+  assert.equal(selected[0].file, first);
+  assert.equal(selected[0].conflict, null);
+  assert.equal(selected[1].file, second);
+  assert.equal(selected[1].conflict.status, ASSET_STATUS.UNSUPPORTED);
+  assert.equal(selected[1].conflict.kind, 'unknown');
+  assert.equal(selected[1].conflict.evidence, 'metadata-identity-collision');
+  assert.match(selected[1].conflict.detail, /File 引用不同/);
+  assert.equal(resolveImportedRoles([
+    classifyAssetBytes(first, data), selected[1].conflict,
+  ]).unknown.length, 1);
+  assert.equal(resolveBatchImportedAssets([
+    classifyAssetBytes(first, data), selected[1].conflict,
+  ]).unsupported.length, 1);
+});
+test('S13: an already present same-metadata File never silently replaces the first source grant', () => {
+  const first = fixture('existing.ass', bytes('[Script Info]'), 88);
+  const replacement = fixture('existing.ass', bytes('[Script Info]'), 88);
+  const existing = [{key: assetIntakeKey(first), kind: 'subtitle', file: first}];
+  const selected = planIncomingAssetIntake([replacement], existing);
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].conflict.file, replacement);
+  assert.notEqual(selected[0].conflict.key, existing[0].key);
+  assert.deepEqual(planIncomingAssetIntake([first], existing), [],
+    'reselecting exact live File reference is idempotent');
+});
+test('S13: multiple incoming collisions preserve one removable record per user-selected distinct File', () => {
+  const data = bytes('same');
+  const files = [fixture('same.ass', data), fixture('same.ass', data), fixture('same.ass', data)];
+  const selected = planIncomingAssetIntake(files, []);
+  assert.equal(selected.length, 3);
+  const failures = selected.slice(1).map(item => item.conflict);
+  assert.equal(new Set(failures.map(item => item.key)).size, 2);
+  assert.equal(new Set(failures.map(item => item.file)).size, 2);
+  assert.equal(planIncomingAssetIntake([files[0],files[0]]).length, 1);
 });
