@@ -42,7 +42,7 @@ const build=async file=>{
   assert.equal(inventory.state,'inspected');
   const intent=inventory.attachments.map(row=>({
     ordinal:row.ordinal,fileUid:row.fileUid,include:true,
-    filename:row.filename,mimeType:row.mimeType,
+    filename:row.filename,mimeType:row.mimeType,description:row.description||'',
   }));
   return {reader,intent};
 };
@@ -85,6 +85,8 @@ test('S12: explicit source attachment edits, reorder and missing declarations ar
     [{...intent[0],include:false},intent[1]],
     [{...intent[0],filename:'renamed.ttf'},intent[1]],
     [{...intent[0],mimeType:'application/x-new'},intent[1]],
+    [{...intent[0],description:'unauthorized changed description'},intent[1]],
+    [{...intent[0],opaqueMetadataMutation:'not authorized'},intent[1]],
     [intent[1],intent[0]],
     [intent[0]],
     [],
