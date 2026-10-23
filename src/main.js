@@ -5740,9 +5740,18 @@ async function executeCurrentMuxTask(explicit = null) {
           }))
         : [];
     const originalPayloadAudit = await auditPreservedOriginalAttachmentData(
-      video, outputBlob, originalAttachmentClaims);
+      video, outputBlob, originalAttachmentClaims, {
+        // Explicit bounded fallback for original MKV attachments larger than
+        // the 32 MiB single-Blob SHA limit. Compare ALL bytes by chunks, not
+        // hashes of chunks. No UID/Tag preservation or writer permission.
+        chunkCompare: {
+          maxFileBytes: 128 * 1024 * 1024,
+          maxTotalBytes: 1024 * 1024 * 1024,
+          chunkBytes: 1024 * 1024,
+        },
+      });
     if (originalPayloadAudit.status === 'pass') {
-      logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件的实际 FileData SHA-256 与源文件一致。UID 与引用关系不包含在此结论内。\n`;
+      logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件实际 FileData 已通过 SHA-256 或完整分块逐字节核对。UID 与引用关系不包含在此结论内。\n`;
     } else if (originalPayloadAudit.status !== 'not-requested') {
       const detail = originalPayloadAudit.issues.join('；') || '原附件验证未完成';
       logEl.textContent += `AUDIT WARNING: 原 MKV 附件源/成品字节核验待复核：${detail}\n`;
