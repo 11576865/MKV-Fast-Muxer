@@ -2164,14 +2164,26 @@ function activateCompositionTrack(item) {
     '#assetInspectorHost [data-tree-track-field="title"]:not(:disabled), #assetInspectorHost button:not(:disabled)' :
     target.type === 'font' ? '#fontMode' :
     `[data-index="${matched}"][data-new-${target.kind === 'subtitle' ? 'sub' : 'audio'}-field="title"]`;
-  // Repaint can replace the selected composition control and indirectly
-  // refresh the external editor markup. Focusing BEFORE that repaint can
-  // strand keyboard focus on <body> even when the live row index is correct.
-  // Complete the projection first, then focus the re-resolved live control.
+  // A click can detach its own composition button during the repaint.
+  // Browser default focus finalization may then leave focus on <body>
+  // AFTER our synchronous focus call. Reinstate the exact live editor on the
+  // next animation frame, but only while the same object and File grant remain.
+  const selection = item.id;
+  const selectedFile = target.type === 'external' ? targetRows[matched].file : null;
   renderOutputComposition();
-  const first = document.querySelector(selector);
-  first?.focus({ preventScroll: true });
-  first?.scrollIntoView({ block: 'nearest' });
+  const focusLiveTarget = () => {
+    if (selectedCompositionId !== selection) return;
+    if (target.type === 'external') {
+      const current = target.kind === 'subtitle' ? newSubtitleState : externalAudioState;
+      if (current[matched]?.file !== selectedFile ||
+          outputCompositionFileKey(selectedFile) !== target.fileKey) return;
+    }
+    const first = document.querySelector(selector);
+    if (first && document.activeElement !== first) first.focus({ preventScroll: true });
+    first?.scrollIntoView({ block: 'nearest' });
+  };
+  focusLiveTarget();
+  requestAnimationFrame(focusLiveTarget);
 }
 // R1 bounded navigation: ffprobe flat Chapter / format Tag observations are
 // never themselves EBML writer targets. Explicitly rebind only the EXACT
