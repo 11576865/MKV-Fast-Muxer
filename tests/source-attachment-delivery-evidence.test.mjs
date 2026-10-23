@@ -135,3 +135,37 @@ test('failure reasons discriminate stale inventory, ambiguous attachment and fai
   assert.equal(inspect({outputProbe:probe(['renamed.ttf','notes.txt'])}).entries[1].reasonCode,
     'EXCLUDED_IDENTITY_AMBIGUOUS');
 });
+
+test('S12: complete byte-compare v2 authorizes scoped FileData only, never a fabricated SHA/UID/save claim', () => {
+  const valid = {
+    status:'pass', verified:1, total:1,
+    evidence:'source-vs-final-mkv-ebml-filedata-byte-compare-v2',
+    scope:'original-attachment-filedata-only',
+    observations:[{
+      sourceFilename:'original.ttf', outputFilename:'renamed.ttf',
+      proofMethod:'exact-byte-compare', sha256:null,
+      comparedBytes:64 * 1024 * 1024, byteLength:64 * 1024 * 1024,
+      uidRetained:false,
+    }],
+  };
+  const got = inspect({payloadAudit:valid});
+  assert.equal(got.entries[0].status,'filedata-verified');
+  assert.equal(got.entries[0].proofMethod,'exact-byte-compare');
+  assert.equal(got.entries[0].sha256,null);
+  assert.equal(got.entries[0].uidRelationsVerified,false);
+  assert.equal(got.entries[0].savedToDiskVerified,false);
+  assert.match(got.entries[0].message,/逐字节核对/);
+  assert.equal(got.entries[1].status,'absent-in-probe');
+  for (const invalid of [
+    {...valid,evidence:'source-vs-final-mkv-ebml-filedata-sha256-v1'},
+    {...valid,observations:[{...valid.observations[0],comparedBytes:1000}]},
+    {...valid,observations:[{...valid.observations[0],sha256:'a'.repeat(64)}]},
+    {...valid,observations:[{...valid.observations[0],proofMethod:'sha256'}]},
+    {...valid,verified:2},
+    {...valid,total:0},
+  ]) {
+    const result=inspect({payloadAudit:invalid});
+    assert.equal(result.entries[0].reasonCode,'FILEDATA_AUDIT_UNTRUSTED',
+      'wrong method/count/claimed digest cannot impersonate exact byte evidence');
+  }
+});
