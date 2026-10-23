@@ -5758,7 +5758,13 @@ async function executeCurrentMuxTask(explicit = null) {
           maxTotalBytes: 1024 * 1024 * 1024,
           chunkBytes: 1024 * 1024,
         },
+        shouldCancel: () => cancelRequested || (independent && batchCancelRequested),
       });
+    // A cancelled audit can return "unavailable", but a user cancellation
+    // must never publish an MKV under the ordinary "audit warning" policy.
+    if (cancelRequested || (independent && batchCancelRequested)) {
+      throw new Error('ATTACHMENT_AUDIT_CANCELLED');
+    }
     if (originalPayloadAudit.status === 'pass') {
       logEl.textContent += `AUDIT: ${originalPayloadAudit.verified}/${originalPayloadAudit.total} 个原 MKV 附件实际 FileData 已通过 SHA-256 或完整分块逐字节核对。UID 与引用关系不包含在此结论内。\n`;
     } else if (originalPayloadAudit.status !== 'not-requested') {
