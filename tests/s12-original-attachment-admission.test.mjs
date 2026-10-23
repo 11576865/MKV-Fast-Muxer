@@ -152,3 +152,17 @@ test('S12: malformed EBML returns a precise inventory refusal, not a false diffe
     check.reasons.join(';'));
   assert.ok(check.reasons.every(reason=>!reason.startsWith('SOURCE_CHANGED_DURING_INSPECTION')));
 });
+
+test('S12: S08 broad refusal and exact structural element denial are both retained',async()=>{
+  // Plain Chapters/Tags can trigger the S08 gate before the S12 whitelist.
+  // Do not mask Cues/SeekHead with a generic preflight verdict.
+  const file=make([e('1254c367',new Blob([])),e('114d9b74',new Blob([]))]);
+  const out=await examine(file);
+  assert.equal(out.status,'BLOCKED');
+  assert.ok(out.reasons.includes('SOURCE_SEEKHEAD_GRAPH_PROOF_REQUIRED'));
+  assert.ok(out.reasons.includes('SOURCE_TAGS_OR_CHAPTERS_NOT_PRESERVABLE'));
+  assert.ok(out.reasons.some(x=>x.startsWith('SOURCE_PRESERVATION_NOT_CLEAR:')) ||
+    out.reasons.some(x=>x.startsWith('SOURCE_TOP_LEVEL_NOT_ADMITTED:')),
+    'generic S08 refusal may or may not fire on empty Tags; S12 exact geometry must remain');
+  assert.equal(out.writerAuthorized,false);
+});
