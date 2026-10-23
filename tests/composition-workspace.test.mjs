@@ -26,7 +26,9 @@ test('one output track routes to its existing stream or external editor; export 
   const [html, main] = await Promise.all([source('index.html'), source('src/main.js')]);
   assert.match(main, /containerTreeSelectedItem\.set\(roles\.sourceKey, target\.key\)/);
   assert.match(main, /\[data-editor-filter="source"\]/);
-  assert.match(main, /outputCompositionFileKey\(row\.file\) === target\.fileKey/);
+  assert.match(main, /outputCompositionFileKey\(targetRows\[index\]\.file\) === target\.fileKey/);
+  assert.match(main, /entry\.file === targetRows\[matched\]\.file/);
+  assert.doesNotMatch(main, /\.findIndex\(row =>\s*outputCompositionFileKey\(row\.file\)/);
   assert.match(main, /compositionMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) void executeCurrentMuxTask\(\); \}\)/);
   assert.match(main, /editorMuxBtn\?\.addEventListener\('click', \(\) => \{ if \(!muxBtn\.disabled\) void executeCurrentMuxTask\(\); \}\)/);
   for (const id of ['videoInput', 'subInput', 'audioInput', 'fontInput',

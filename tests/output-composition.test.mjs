@@ -138,3 +138,46 @@ test('render projection does not mutate the scanned authoring state', () => {
   buildOutputComposition(props);
   assert.equal(JSON.stringify(source), before);
 });
+
+test('same-metadata external File objects receive distinct composition IDs and exact live row routes', () => {
+  const one = file('same.ass');
+  const two = file('same.ass');
+  assert.notStrictEqual(one, two);
+  const subtitleRows = [
+    { file: one, title: 'First', format: { label: 'ASS', assLike: true } },
+    { file: two, title: 'Second', format: { label: 'ASS', assLike: true } },
+  ];
+  const audioRows = [
+    { file: file('same.opus'), title: 'Audio one' },
+    { file: file('same.opus'), title: 'Audio two' },
+  ];
+  const fontRows = [file('same.ttf'), file('same.ttf')];
+  const props = { video, newSubtitles: subtitleRows, externalAudio: audioRows, fonts: fontRows };
+  const actual = buildOutputComposition(props);
+  assert.equal(new Set(actual.items.map(row => row.id)).size, actual.items.length);
+  const subtitles = actual.items.filter(row => row.kind === 'subtitle');
+  assert.deepEqual(subtitles.map(row => row.target.index), [0, 1]);
+  assert.equal(subtitles[0].target.fileKey, subtitles[1].target.fileKey);
+  assert.notEqual(subtitles[0].id, subtitles[1].id);
+  assert.deepEqual(subtitles.map(row => row.title), ['First', 'Second']);
+  assert.deepEqual(actual.items.filter(row => row.kind === 'audio').map(row => row.target.index), [0, 1]);
+  const fonts = actual.items.filter(row => row.kind === 'font');
+  assert.deepEqual(fonts.map(row => row.target.index), [0, 1]);
+  assert.notEqual(fonts[0].id, fonts[1].id);
+  // Repainting the same actual File inventory must not change the row keys.
+  assert.deepEqual(buildOutputComposition(props).items.map(row => row.id), actual.items.map(row => row.id));
+  // A new file with equivalent metadata does not acquire a persistent byte identity.
+  assert.equal(actual.items.find(row => row.title === 'First').target.fileKey,
+    actual.items.find(row => row.title === 'Second').target.fileKey);
+});
+
+test('deliberately adding the same subtitle File twice preserves two editable occurrences', () => {
+  const ass = file('reused.ass');
+  const result = buildOutputComposition({ newSubtitles: [
+    { file: ass, title: 'Primary' },
+    { file: ass, title: 'Alternate' },
+  ] });
+  assert.equal(result.counts.subtitle, 2);
+  assert.equal(new Set(result.items.map(item => item.id)).size, 2);
+  assert.deepEqual(result.items.map(item => item.target.index), [0, 1]);
+});

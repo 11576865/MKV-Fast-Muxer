@@ -1050,6 +1050,14 @@ async function scenarioInvalidAudioRecovery(browser) {
     const failedStatus = await page.locator('#status').textContent();
     assert.match(failedStatus, /外部音频/);
     assert.match(failedStatus, /换用|移除/);
+    // The catch publishes the user-visible error before the asynchronous
+    // ffmpeg/WORKERFS cleanup finishes. Wait for finally/updateUI to release
+    // execution ownership; do not mistake that intermediate disabled button
+    // for a permanently blocked recovery task.
+    await page.waitForFunction(() =>
+      !document.querySelector('#muxBtn')?.disabled &&
+      document.querySelector('#cancelBtn')?.disabled,
+      null, { timeout: 30000 });
     assert.equal(await page.locator('#muxBtn').isDisabled(), false);
     assert.equal(await page.locator('#downloadLink').isVisible(), false);
 
@@ -7140,11 +7148,79 @@ async function scenarioGigabyteSourceAdvisory(browser) {
   console.log('Softmux decimal 1 GB boundary advisory browser UI PASS');
 }
 
+
+/**
+ * S13: two distinct browser File grants may share filename/length/mtime.
+ * Their output-composition rows and editor actions must remain distinct.
+ * This is UI-routing evidence, not authorization for a second writer or a
+ * claim that metadata equality proves file-byte identity.
+ */
+async function scenarioS13SameMetadataCompositionSelection(browser) {
+  console.log('S13 real Chromium: equal-metadata subtitle rows route to exact editable occurrence');
+  const { context, page } = await openApp(browser, { modern: true });
+  try {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setInputFiles('#videoInput', path.join(root, 'base.mp4'));
+    const assBytes = [...await fs.readFile(path.join(root, 'zh.ass'))];
+    await page.evaluate(bytes => {
+      const source = new Uint8Array(bytes);
+      const first = new File([source], 'same-metadata.ass', { type: 'text/plain', lastModified: 1700000000000 });
+      const second = new File([source.slice()], 'same-metadata.ass', { type: 'text/plain', lastModified: 1700000000000 });
+      assertBrowserFilesDistinct(first, second);
+      const transfer = new DataTransfer();
+      transfer.items.add(first);
+      transfer.items.add(second);
+      const input = document.querySelector('#subInput');
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      function assertBrowserFilesDistinct(a, b) {
+        if (a === b || a.name !== b.name || a.size !== b.size ||
+            a.lastModified !== b.lastModified) throw Error('S13_FIXTURE_NOT_EQUAL_METADATA');
+      }
+    }, assBytes);
+    const rowSelector = '#compositionTracks .composition-select[data-composition-id^="external:subtitle:"]';
+    await page.waitForFunction(selector => {
+      const buttons = [...document.querySelectorAll(selector)];
+      const rows = [...document.querySelectorAll('#newSubtitleList [data-new-sub-field="title"]')];
+      return buttons.length === 2 && rows.length === 2;
+    }, rowSelector, { timeout: 120_000 });
+    const ids = await page.locator(rowSelector).evaluateAll(buttons =>
+      buttons.map(button => button.dataset.compositionId));
+    assert.equal(new Set(ids).size, 2, 'equal-metadata rows cannot share a composition selection ID');
+    await page.locator(rowSelector).nth(1).click();
+    console.log('S13 equal-metadata click focus diagnostics:', JSON.stringify(await page.evaluate(() => ({
+      active: document.activeElement?.outerHTML?.slice(0, 400) || '',
+      editorFocus: document.querySelector('.editor-grid')?.dataset.editorFocus || '',
+      fields: [...document.querySelectorAll('#newSubtitleList [data-new-sub-field="title"]')].map(el => ({
+        index: el.dataset.index, focused: el === document.activeElement,
+        visible: el.getClientRects().length > 0, disabled: el.disabled,
+      })),
+      selectedComposition: [...document.querySelectorAll('#compositionTracks [aria-pressed="true"]')]
+        .map(el => el.dataset.compositionId),
+    }))));
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#newSubtitleList [data-index="1"][data-new-sub-field="title"]');
+      return field && field === document.activeElement;
+    }, null, { timeout: 6000 });
+    assert.equal(await page.locator('.editor-grid').getAttribute('data-editor-focus'), 'subtitle');
+    await page.locator(rowSelector).first().click();
+    await page.waitForFunction(() => {
+      const field = document.querySelector('#newSubtitleList [data-index="0"][data-new-sub-field="title"]');
+      return field && field === document.activeElement;
+    }, null, { timeout: 6000 });
+    assert.equal(await page.locator('#subInput').evaluate(input => input.files.length), 2);
+    console.log('S13 equal-metadata external subtitle composition routing PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioS13SameMetadataCompositionSelection(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
