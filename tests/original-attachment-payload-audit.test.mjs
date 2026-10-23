@@ -199,3 +199,38 @@ test('S12: visible finished-output evidence never describes chunk-comparison pro
   assert.match(main, /: delivery\.verifiedFileData \+ ' 项 FileData SHA-256 通过'/,
     'legacy all-SHA browser acceptance text remains unchanged');
 });
+
+test('S12: cancellation during whole FileData byte comparison never reports a completed receipt', async () => {
+  const payload = Buffer.alloc(1024 * 1024 + 55, 0x34);
+  const before = largeMkvFixture(payload);
+  const after = largeMkvFixture(payload);
+  let checks = 0;
+  const audit = await auditPreservedOriginalAttachmentData(before, after, claims(), {
+    maxFileBytes:1024,maxTotalBytes:2048,
+    chunkCompare:{maxFileBytes:4*1024*1024,maxTotalBytes:4*1024*1024,chunkBytes:65536},
+    shouldCancel:()=>++checks>13,
+  });
+  assert.equal(audit.status,'unavailable');
+  assert.equal(audit.verified,0);
+  assert.equal(audit.observations.length,0);
+  assert.match(audit.issues.join(';'),/ATTACHMENT_AUDIT_CANCELLED/);
+  assert.ok(checks>13,'cancellation was checked inside the chunk-reading loop');
+});
+
+test('S12: a pre-cancelled audit returns no byte evidence', async () => {
+  const source = largeMkvFixture(Buffer.alloc(1024*1024+1,0x5a));
+  const outcome = await auditPreservedOriginalAttachmentData(source,source,claims(),{
+    shouldCancel:()=>true,
+    chunkCompare:{maxFileBytes:2*1024*1024,maxTotalBytes:2*1024*1024,chunkBytes:65536},
+  });
+  assert.equal(outcome.status,'unavailable');
+  assert.equal(outcome.verified,0);
+  assert.deepEqual(outcome.observations,[]);
+  assert.match(outcome.issues.join(';'),/ATTACHMENT_AUDIT_CANCELLED/);
+});
+
+test('S12: production cancellation forbids delivery after large attachment audit is interrupted', () => {
+  const main = readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.match(main,/shouldCancel: \(\) => cancelRequested \|\| \(independent && batchCancelRequested\)/);
+  assert.match(main,/if \(cancelRequested \|\| \(independent && batchCancelRequested\)\) \{\s*throw new Error\('ATTACHMENT_AUDIT_CANCELLED'\)/);
+});
