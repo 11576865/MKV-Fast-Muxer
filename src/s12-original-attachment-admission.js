@@ -51,11 +51,16 @@ export async function inspectS12OriginalAttachmentSource({
   let inventory;
   try{
     inventory=await reader.inspect();
-    if(!reader.isCurrentSourceFile(source) || !reader.isCurrentInspection(inventory))
+    if(!reader.isCurrentSourceFile(source))
       return refusal('SOURCE_CHANGED_DURING_INSPECTION');
+    // A failed read-only scan resets the reader's current inventory; that
+    // must report the actual EBML diagnostic rather than falsely claiming a
+    // different File object was selected.
     if(inventory.state!=='inspected')
       return refusal('ATTACHMENT_INVENTORY_UNVERIFIED:'+
         string(inventory.diagnostic?.code||'UNKNOWN'));
+    if(!reader.isCurrentInspection(inventory))
+      return refusal('SOURCE_CHANGED_DURING_INSPECTION');
     const preservation=await reader.inspectPreservation();
     if(!reader.isCurrentSourceFile(source)||!reader.isCurrentInspection(inventory))
       return refusal('SOURCE_CHANGED_DURING_PRESERVATION_SCAN');
