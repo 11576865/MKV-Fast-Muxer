@@ -105,10 +105,14 @@ try{
  assert.equal(result.evidence.authorization,'NONE_RESEARCH_ONLY');
  assert.equal(result.evidence.sourceType,'[object File]');
  assert.equal(result.evidence.sourceBytes,fixture.actualSourceBytes);
- assert.equal(result.execArgs.filter(x=>x==='-map').length,3);
- assert.ok(result.execArgs.includes('0:a:0'));
- assert.ok(result.execArgs.includes('1:s:0'));
- assert.equal(result.execArgs.some(x=>/0:t:|attachment/.test(x)),false,
+ const auditedCommand=result.evidence.mappedCommand;
+ assert.ok(Array.isArray(auditedCommand),
+   'Wasm must provide actual executed argv inside completed output witness');
+ report.wasmExecArgs=auditedCommand;
+ assert.equal(auditedCommand.filter(x=>x==='-map').length,3);
+ assert.ok(auditedCommand.includes('0:a:0'));
+ assert.ok(auditedCommand.includes('1:s:0'));
+ assert.equal(auditedCommand.some(x=>/0:t:|attachment/.test(x)),false,
   'the real FFmpeg.wasm command must NOT map source original attachment streams');
  const dl=await dlPromise;
  await dl.saveAs(output);
