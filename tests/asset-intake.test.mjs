@@ -109,7 +109,7 @@ test('batch role mapping does not mutate original inventory or auto-promote audi
 });
 
 test('S13: separate File instances with identical metadata become visible, blocked intake conflicts', () => {
-  const data = bytes('[Script Info]\\nTitle: Test\\n[V4+ Styles]\\n');
+  const data = bytes('[Script Info]\nTitle: Test\n[V4+ Styles]\n');
   const first = fixture('same.ass', data, 77);
   const second = fixture('same.ass', new Uint8Array(data), 77);
   assert.notStrictEqual(first, second);
