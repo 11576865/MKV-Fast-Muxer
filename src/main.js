@@ -2127,8 +2127,22 @@ function renderOutputComposition() {
 
 function activateCompositionTrack(item) {
   if (!item?.target) return;
-  selectedCompositionId = item.id;
   const target = item.target;
+  const targetRows = target.type === 'external'
+    ? (target.kind === 'subtitle' ? newSubtitleState : externalAudioState) : [];
+  const index = target.index;
+  // Never route a duplicated external object by the first metadata match:
+  // two distinct File grants can share name, length and lastModified.
+  const matched = target.type === 'external' &&
+    Number.isSafeInteger(index) && index >= 0 && index < targetRows.length &&
+    targetRows[index]?.file &&
+    outputCompositionFileKey(targetRows[index].file) === target.fileKey ? index : -1;
+  if (target.type === 'external' && matched < 0) {
+    selectedCompositionId = '';
+    renderOutputComposition();
+    return;
+  }
+  selectedCompositionId = item.id;
   if (target.type === 'source') {
     const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
     if (!roles.sourceKey) return;
@@ -2137,7 +2151,7 @@ function activateCompositionTrack(item) {
     document.querySelector('[data-editor-filter="source"]')?.click();
   } else if (target.type === 'external') {
     const entry = importedAssetEntries.find(entry => entry.kind === target.kind &&
-      outputCompositionFileKey(entry.file) === target.fileKey);
+      entry.file === targetRows[matched].file);
     focusedImportedAssetKey = entry?.key || '';
     document.querySelector(`[data-editor-filter="${target.kind}"]`)?.click();
   } else if (target.type === 'font') {
@@ -2146,9 +2160,6 @@ function activateCompositionTrack(item) {
   if (matchMedia('(max-width: 600px)').matches) {
     document.querySelector('.workbench-jump-nav a[href="#workbench-editor-title"]')?.click();
   }
-  const matched = target.type === 'external' ?
-    (target.kind === 'subtitle' ? newSubtitleState : externalAudioState).findIndex(row =>
-      outputCompositionFileKey(row.file) === target.fileKey) : -1;
   const selector = target.type === 'source' ?
     '#assetInspectorHost [data-tree-track-field="title"]:not(:disabled), #assetInspectorHost button:not(:disabled)' :
     target.type === 'font' ? '#fontMode' :
