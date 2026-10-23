@@ -90,6 +90,7 @@ execute.addEventListener('click',async()=>{
    sourceBytes:original.size,wasmBaselineBytes:baseline.size,
    sourceType:Object.prototype.toString.call(original),
    wasmExitCode:code,
+   mappedCommand:Array.from(args),
    resultBytes:completed.blob.size,
   };
   update('dispatch-real-browser-download');
