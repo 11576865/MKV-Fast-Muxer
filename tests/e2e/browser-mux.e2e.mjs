@@ -7140,11 +7140,93 @@ async function scenarioGigabyteSourceAdvisory(browser) {
   console.log('Softmux decimal 1 GB boundary advisory browser UI PASS');
 }
 
+
+/** S13: unified single and batch intake must visibly reject same-metadata
+ * distinct browser File grants instead of silently treating them as one.
+ * A metadata collision never authorizes classification or mux execution. */
+async function scenarioS13UnifiedIntakeIdentityCollision(browser) {
+  console.log('S13 unified intake: same metadata, distinct bytes must block without silent loss');
+  const subtitleBytes = [...await fs.readFile(path.join(root, 'zh.ass'))];
+  const insertCollision = async (page, selector) => {
+    await page.evaluate(({ selector, bytes }) => {
+      const firstBytes = Uint8Array.from(bytes);
+      const secondBytes = firstBytes.slice();
+      secondBytes[secondBytes.length - 1] ^= 1;
+      const properties = {type: 'text/plain', lastModified: 1700000000000};
+      const first = new File([firstBytes], 'same-metadata-collision.ass', properties);
+      const second = new File([secondBytes], 'same-metadata-collision.ass', properties);
+      if (first === second || first.name !== second.name ||
+        first.size !== second.size || first.lastModified !== second.lastModified)
+        throw Error('S13_INVALID_EQUAL_METADATA_FIXTURE');
+      const transfer = new DataTransfer();
+      transfer.items.add(first);
+      transfer.items.add(second);
+      const input = document.querySelector(selector);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+    }, {selector, bytes:subtitleBytes});
+  };
+
+  const single = await openApp(browser, {modern:true});
+  try {
+    await single.page.setViewportSize({width:1440,height:900});
+    await single.page.setInputFiles('#unifiedAssetInput', path.join(root, 'base.mp4'));
+    await single.page.waitForFunction(() =>
+      document.querySelectorAll('#assetInventory .asset-entry[data-kind="container"]').length===1,
+      null, {timeout:120000});
+    await insertCollision(single.page, '#unifiedAssetInput');
+    await single.page.waitForFunction(() =>
+      document.querySelectorAll('#assetInventory .asset-entry').length===3 &&
+      (document.querySelector('#assetImportStatus')?.textContent||'').includes('1 项文件身份冲突'),
+      null,{timeout:120000});
+    assert.equal(await single.page.locator('#assetInventory .asset-entry[data-kind="subtitle"]').count(),1,
+      'the first subtitle is preserved as a distinct admitted grant');
+    assert.equal(await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"]').count(),1,
+      'the second same-metadata File must remain visible but non-executable');
+    assert.match(await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"]').text(),
+      /文件身份冲突/);
+    assert.equal(await single.page.locator('#muxBtn').isDisabled(),true,
+      'unresolved identity ambiguity blocks source-to-output mux');
+    await single.page.locator('#assetInventory .asset-entry[data-kind="unknown"] [data-asset-remove]').click();
+    await single.page.waitForFunction(() =>
+      document.querySelectorAll('#assetInventory .asset-entry[data-kind="unknown"]').length===0);
+    assert.equal(await single.page.locator('#assetInventory .asset-entry[data-kind="subtitle"]').count(),1);
+  } finally {
+    await single.context.close();
+  }
+
+  const batch = await openApp(browser, {modern:true});
+  try {
+    await batch.page.setViewportSize({width:1440,height:900});
+    await batch.page.locator('[data-sf-view="batch"]').click();
+    await batch.page.setInputFiles('#batchUnifiedInput',path.join(root,'Batch S01E01.mp4'));
+    await batch.page.waitForFunction(() =>
+      document.querySelectorAll('#batchAssetInventory .asset-entry[data-kind="container"]').length===1,
+      null,{timeout:120000});
+    await insertCollision(batch.page,'#batchUnifiedInput');
+    await batch.page.waitForFunction(() =>
+      document.querySelectorAll('#batchAssetInventory .asset-entry').length===3 &&
+      (document.querySelector('#batchAssetStatus')?.textContent||'').includes('1 项文件身份冲突'),
+      null,{timeout:120000});
+    assert.equal(await batch.page.locator('#batchAssetInventory .asset-entry[data-kind="subtitle"]').count(),1);
+    assert.equal(await batch.page.locator('#batchAssetInventory .asset-entry[data-kind="unknown"]').count(),1);
+    assert.equal(await batch.page.locator('#batchStartBtn').isDisabled(),true,
+      'ambiguous File grants cannot become frozen batch input');
+    await batch.page.locator('#batchAssetInventory [data-batch-asset-remove]').last().click();
+    await batch.page.waitForFunction(() =>
+      document.querySelectorAll('#batchAssetInventory .asset-entry[data-kind="unknown"]').length===0);
+    console.log('S13 single and batch File metadata conflict fail-closed PASS');
+  } finally {
+    await batch.context.close();
+  }
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
