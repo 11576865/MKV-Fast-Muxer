@@ -99,11 +99,26 @@ test('an inspectable resource-only composition does not imply existing writer su
   assert.equal(doc.execution.supportsResourceOnlyOutput, false);
 });
 
-test('metadata-derived identity collisions are diagnosed, never claimed universally unique', () => {
-  const external = file('copy.opus');
+test('same-metadata external objects use distinct occurrence IDs without upgrading File identity', () => {
+  const firstFile = file('copy.opus');
+  const secondFile = file('copy.opus');
+  assert.notStrictEqual(firstFile, secondFile);
   const doc = buildContainerDocument({
-    externalAudio: [{ file: external, title: 'A' }, { file: external, title: 'B' }],
+    externalAudio: [
+      { file: firstFile, title: 'A' },
+      { file: secondFile, title: 'B' },
+      { file: firstFile, title: 'Repeated A' },
+    ],
   });
-  assert.equal(doc.identityDiagnostics.length, 1);
-  assert.equal(doc.identityDiagnostics[0].code, 'DUPLICATE_PROJECTION_ID');
+  const rows = doc.composition.items.filter(item => item.kind === 'audio');
+  assert.deepEqual(rows.map(row => row.title), ['A', 'B', 'Repeated A']);
+  assert.deepEqual(rows.map(row => row.target.index), [0, 1, 2]);
+  assert.equal(new Set(rows.map(row => row.id)).size, rows.length);
+  assert.equal(new Set(rows.map(row => row.target.fileKey)).size, 1,
+    'display metadata remains ambiguous despite unique UI occurrences');
+  assert.equal(new Set(doc.objects.map(object => object.id)).size, doc.objects.length);
+  assert.deepEqual(doc.identityDiagnostics, [],
+    'DUPLICATE_PROJECTION_ID describes colliding IDs, not ambiguous File bytes');
+  assert.equal(doc.source, null);
+  assert.equal(doc.execution.supportsResourceOnlyOutput, false);
 });
