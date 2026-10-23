@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S12 browser FFmpeg.wasm original attachment reattachment — research only</title></head>
+<body>
+<h1>S12 browser FFmpeg.wasm media-only mux + source attachment Blob reattachment</h1>
+<p>Experimental standalone fixture; not a production feature, authorization, or universal Matroska writer.</p>
+<label>Real original Matroska <input type="file" id="source" accept=".mkv"></label>
+<button type="button" id="execute" disabled>Run real browser FFmpeg.wasm then restore original attachment bytes</button>
+<output id="status" aria-live="polite">Select a source file.</output>
+<pre id="log" aria-label="Wasm execution logs"></pre>
+<script type="module" src="./s12-browser-wasm-reattach.mjs"></script>
+</body></html>
