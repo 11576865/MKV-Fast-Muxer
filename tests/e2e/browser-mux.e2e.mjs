@@ -7180,6 +7180,16 @@ async function scenarioS13SameMetadataCompositionSelection(browser) {
       buttons.map(button => button.dataset.compositionId));
     assert.equal(new Set(ids).size, 2, 'equal-metadata rows cannot share a composition selection ID');
     await page.locator(rowSelector).nth(1).click();
+    console.log('S13 equal-metadata click focus diagnostics:', JSON.stringify(await page.evaluate(() => ({
+      active: document.activeElement?.outerHTML?.slice(0, 400) || '',
+      editorFocus: document.querySelector('.editor-grid')?.dataset.editorFocus || '',
+      fields: [...document.querySelectorAll('#newSubtitleList [data-new-sub-field="title"]')].map(el => ({
+        index: el.dataset.index, focused: el === document.activeElement,
+        visible: el.getClientRects().length > 0, disabled: el.disabled,
+      })),
+      selectedComposition: [...document.querySelectorAll('#compositionTracks [aria-pressed="true"]')]
+        .map(el => el.dataset.compositionId),
+    }))));
     assert.equal(await page.locator('#newSubtitleList [data-index="1"][data-new-sub-field="title"]')
       .evaluate(el => el === document.activeElement), true,
     'selecting second equal-metadata row must focus the second external subtitle editor');
