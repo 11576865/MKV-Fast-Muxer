@@ -49,6 +49,7 @@ export async function inspectS12OriginalAttachmentSource({
   if(!Array.isArray(intent))return refusal('EXPLICIT_ORIGINAL_ATTACHMENT_INTENT_REQUIRED');
 
   let inventory;
+  let preservationState = 'UNKNOWN';
   try{
     inventory=await reader.inspect();
     if(!reader.isCurrentSourceFile(source))
@@ -64,10 +65,10 @@ export async function inspectS12OriginalAttachmentSource({
     const preservation=await reader.inspectPreservation();
     if(!reader.isCurrentSourceFile(source)||!reader.isCurrentInspection(inventory))
       return refusal('SOURCE_CHANGED_DURING_PRESERVATION_SCAN');
-    // NO_KNOWN_HAZARD does not grant write authority: only continue to a
-    // separate much narrower positive structural whitelist below.
-    if(preservation.state!=='NO_KNOWN_HAZARD')
-      return refusal('SOURCE_PRESERVATION_NOT_CLEAR:'+preservation.state);
+    // Accumulate the independent broad S08 result and the narrower source
+    // topology refusal. S08's early BLOCKED verdict cannot suppress the
+    // precise SeekHead/Cues/CRC or unknown-element denial.
+    preservationState=preservation.state;
   }catch(error){
     return refusal('READ_ONLY_SOURCE_INSPECTION_FAILED:'+
       string(error?.message||error));
@@ -77,6 +78,8 @@ export async function inspectS12OriginalAttachmentSource({
   const entries=Array.isArray(shape.topLevelElements)?shape.topLevelElements:[];
   const count=id=>entries.find(row=>row.id===id)?.count||0;
   const issues=[];
+  if(preservationState!=='NO_KNOWN_HAZARD')
+    issues.push('SOURCE_PRESERVATION_NOT_CLEAR:'+preservationState);
   if(!shape.segmentFiniteExact || !shape.segmentSizeKnown)
     issues.push('SOURCE_SINGLE_FINITE_EXACT_SEGMENT_REQUIRED');
   if(count(TOP.info)!==1||count(TOP.tracks)!==1||
