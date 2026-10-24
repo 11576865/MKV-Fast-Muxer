@@ -159,7 +159,7 @@ test('S12 SeekHead: malformed unknown-size root and invalid seek children fail c
 });
 
 test('S12 SeekHead: a real unseen top-level element also needs graph coverage',async()=>{
-  const r=await verify(make({extra:['4abc',element('4abc',Buffer.from('unknown'))]}));
+  const r=await verify(make({extra:['1abcdef0',element('1abcdef0',Buffer.from('unknown'))]}));
   assert.equal(r.status,'INDEX_REFERENCES_VERIFIED',
     'this module proves declared pointers only, not semantic compatibility');
   assert.equal(r.writerAuthorized,false);
