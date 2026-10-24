@@ -85,6 +85,7 @@ import {
 } from './portable-external-project-recovery.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
+import { auditS12WorkbenchStructure, formatS12WorkbenchStructure } from './s12-workbench-structure-audit.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
 import { setupExistingMkvLimitedAppendUI } from './existing-mkv-limited-append-ui.js';
@@ -275,6 +276,8 @@ const outputEvidenceName = $('outputEvidenceName');
 const outputEvidenceFacts = $('outputEvidenceFacts');
 const outputEvidenceIssues = $('outputEvidenceIssues');
 const outputEvidenceRevision = $('outputEvidenceRevision');
+const outputIndexInspectBtn = $('outputIndexInspectBtn');
+const outputIndexResult = $('outputIndexResult');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
 const containerProjectExportBtn = $('containerProjectExportBtn');
@@ -570,6 +573,9 @@ let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
+let lastOutputIndexAudit = null;
+let outputIndexAuditPending = false;
+let outputIndexAuditSequence = 0;
 let lastCompositionSourceKey = '';
 let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
@@ -1591,6 +1597,9 @@ function updateUI() {
   renderMuxPlan();
   renderImportedAssetInventory();
   if (!batchRunning) requestBatchPlanSync();
+  // FFmpeg completion clears running in a later finally block; refresh this
+  // action after every state change rather than leaving it disabled forever.
+  renderActualOutputEvidence();
 }
 
 function bindNewTrackEditor(container, selector, getState, kind) {
@@ -1796,6 +1805,27 @@ function renderActualOutputEvidence() {
   });
   outputEvidencePanel.hidden = !model;
   if (!model) return;
+  // The actual Blob belongs to this generation of the completed mux, and
+  // the exact File reference/plan must still match before an inspection can
+  // be started. No scanner result is ever promoted to a writer permission.
+  if (outputIndexInspectBtn) {
+    outputIndexInspectBtn.disabled = !model.current ||
+      !lastActualOutput?.outputBlob || running || batchRunning ||
+      outputIndexAuditPending;
+    outputIndexInspectBtn.textContent = outputIndexAuditPending
+      ? '正在独立检查来源与成品…' : '独立检查来源与成品索引';
+  }
+  if (outputIndexResult) {
+    const hasMatchingReceipt = lastOutputIndexAudit?.owner === lastActualOutput;
+    outputIndexResult.dataset.status = !model.current ? 'stale'
+      : outputIndexAuditPending ? 'running'
+      : hasMatchingReceipt ? lastOutputIndexAudit.status : 'not-run';
+    outputIndexResult.textContent = !model.current
+      ? '来源或拟输出计划已变化；旧成品的索引结果不得用于当前任务。'
+      : outputIndexAuditPending ? '正在只读扫描两个真实文件；不会修改任何来源或成品。'
+      : hasMatchingReceipt ? lastOutputIndexAudit.text
+      : '可主动核查当前来源与生成的 MKV；此项不会授权重封装或证明保存成功。';
+  }
   outputEvidencePanel.dataset.audit = model.status;
   outputEvidencePanel.dataset.current = String(model.current);
   outputEvidenceTitle.textContent = model.title;
@@ -1870,6 +1900,52 @@ function renderActualOutputEvidence() {
       sourceFile:scanned ? source : null,
     })));
 }
+
+outputIndexInspectBtn?.addEventListener('click', async () => {
+  const owner = lastActualOutput;
+  // Freshly evaluate the File reference and the current authored plan; a
+  // stale rendered button (or programmatic click) is never enough authority.
+  if (!owner?.sourceFile || !owner.outputBlob ||
+      owner.sourceFile !== (videoInput.files?.[0] || null) ||
+      JSON.stringify(buildMuxPlan()) !== JSON.stringify(owner.report?.plan) ||
+      running || batchRunning || outputIndexAuditPending) {
+    renderActualOutputEvidence();
+    return;
+  }
+  const inspectionSequence = ++outputIndexAuditSequence;
+  outputIndexAuditPending = true;
+  lastOutputIndexAudit = null;
+  renderActualOutputEvidence();
+  let inspected;
+  try {
+    inspected = await auditS12WorkbenchStructure({
+      source:owner.sourceFile,finished:owner.outputBlob,
+    });
+  } catch (error) {
+    inspected = {
+      status:'STRUCTURE_PROBE_FAILED',
+      message:'独立结构检查发生错误：'+(error?.message||String(error))+
+        '。没有修改任何文件；本次未取得结构保留证明。',
+    };
+  }
+  // Even when a scan began with valid sources, an asynchronous user edit,
+  // new mux or File rebind can supersede it. Keep results tied to the exact
+  // completed output without publishing stale evidence.
+  const stillCurrent = owner === lastActualOutput &&
+    owner.sourceFile === (videoInput.files?.[0] || null) &&
+    JSON.stringify(buildMuxPlan()) === JSON.stringify(owner.report?.plan);
+  // A later real mux may retire this output while its old scan is still
+  // running. Never clear the new output's pending flag or publish a stale scan.
+  if (inspectionSequence !== outputIndexAuditSequence) return;
+  outputIndexAuditPending = false;
+  if (stillCurrent) {
+    lastOutputIndexAudit = {
+      owner,status:inspected.status,
+      text:inspected.message || formatS12WorkbenchStructure(inspected),
+    };
+  }
+  renderActualOutputEvidence();
+});
 
 function renderOutputComposition() {
   if (!outputCompositionPanel || !compositionTracks) return;
@@ -5173,6 +5249,13 @@ async function executeCurrentMuxTask(explicit = null) {
       URL.revokeObjectURL(reportURL);
       reportURL = null;
     }
+    // The old download grants are now revoked. Retire its associated Blob and
+    // structure receipt, not just its visible link, before starting a new mux.
+    ++outputIndexAuditSequence;
+    outputIndexAuditPending = false;
+    lastActualOutput = null;
+    lastOutputIndexAudit = null;
+    renderActualOutputEvidence();
   }
   logEl.textContent = preservationInfo;
   bar.style.width = '4%';
@@ -6029,7 +6112,12 @@ async function executeCurrentMuxTask(explicit = null) {
 
     logEl.textContent += `REPORT: 输出 SHA-256 ${outputSha256}；封装报告已生成。\n`;
     if (!independent) {
-      lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video, report };
+      // Retain the exact downloaded-output bytes for explicit read-only
+      // structure inspection; the existing output object URL already retains
+      // these bytes until the next task clears it.
+      lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video,
+        outputBlob, report };
+      lastOutputIndexAudit = null;
       renderActualOutputEvidence();
     }
 

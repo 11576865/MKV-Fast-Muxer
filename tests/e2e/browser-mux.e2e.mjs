@@ -808,6 +808,24 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       assert.match(await absentRow.locator('.sf14-source-observation-status').textContent(),
         /成品清单未见原附件/);
 
+      // S12: user starts an independent audit on the EXACT browser-produced
+      // Blob, not a reconstructed test file or the source-only probe.
+      // Even an unsupported/non-Cues fixture must return an honest bounded
+      // incomplete verdict instead of a fabricated all-green badge.
+      await page.waitForFunction(() =>
+        document.querySelector('#outputIndexInspectBtn')?.disabled===false,
+        null,{timeout:15000});
+      await page.locator('#outputIndexInspectBtn').click();
+      await page.waitForFunction(() => {
+        const status=document.querySelector('#outputIndexResult')?.dataset.status;
+        return status && status!=='not-run' && status!=='running';
+      },null,{timeout:90000});
+      const inspectionText=await page.locator('#outputIndexResult').textContent();
+      assert.match(inspectionText,/真实来源[\s\S]*实际成品/);
+      assert.match(inspectionText,/SeekHead[\s\S]*Cues[\s\S]*Block[\s\S]*CueTime/);
+      assert.match(inspectionText,/不验证关键帧/);
+      assert.equal(await page.locator('#outputIndexInspectBtn').isEnabled(),true);
+
     } else {
       assert.equal(await page.locator('#sf14Root').count(),0,
         'legacy fallback is intentionally not the object-centred inspector');

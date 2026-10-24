@@ -1645,6 +1645,37 @@ body { background: var(--bg); }
   color: var(--muted);
 }
 
+.output-index-action {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-0);
+}
+.output-index-action > button {
+  justify-self: start;
+  min-height: 38px;
+  max-width: 100%;
+  font-size: .76rem;
+  white-space: normal;
+}
+.output-index-result {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .73rem;
+  line-height: 1.55;
+  max-height: 300px;
+  overflow-y: auto;
+  color: var(--muted);
+}
+.output-index-result[data-status="stale"] {
+  border-inline-start: 3px solid var(--warning);
+  padding-inline-start: 8px;
+}
+
 
 /* Round 5: a source-bound, advisory preflight result in the output workbench.
    Production mux and batch retain separate, mandatory preflight checks. */
