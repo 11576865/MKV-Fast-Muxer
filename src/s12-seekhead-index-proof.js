@@ -14,6 +14,7 @@ const ID=Object.freeze({
   cluster:0x1f43b675,crc:0xbf,void:0xec,
 });
 const MAX_HEADERS=100000,MAX_SEEK_ENTRIES=1024,MAX_EBML_HEADER=65536;
+const MAX_SEEK_CRC_BYTES=256*1024,CRC_CHUNK_BYTES=32;
 const REFUSAL='INDEX_UNVERIFIED';
 const receipt=(status,reasons=[],refs=[],topLevelCount=0)=>Object.freeze({
   schema:S12_SEEK_INDEX_SCHEMA,status,
@@ -86,12 +87,44 @@ async function indexEntry(file,seek,clock){
   if(id===null||pos===null)throw Error('INDEX_SEEK_ENTRY_INCOMPLETE');
   return {id,position:pos};
 }
+// The EBML CRC-32 child protects its parent Element Data except for the
+// CRC element itself (RFC 8794 §11.3.1). CRC bytes are little-endian, with
+// the reflected IEEE polynomial. Compare the ACTUAL computed value; simply
+// skipping an unknown 0xBF child would create false index-proof receipts.
+async function seekCrc(file,head,crc){
+  const expectedBytes=await read(file,crc.dataStart,4);
+  const expected=(expectedBytes[0]|expectedBytes[1]<<8|
+    expectedBytes[2]<<16|expectedBytes[3]<<24)>>>0;
+  let sum=0xffffffff;
+  const ranges=[[head.dataStart,crc.offset],[crc.end,head.end]];
+  let checked=0;
+  for(const [begin,end] of ranges){
+    for(let off=begin;off<end;off+=CRC_CHUNK_BYTES){
+      const data=await read(file,off,Math.min(CRC_CHUNK_BYTES,end-off));
+      checked+=data.length;
+      if(checked>MAX_SEEK_CRC_BYTES)throw Error('INDEX_SEEKHEAD_CRC_BUDGET');
+      for(const byte of data){
+        sum^=byte;
+        for(let i=0;i<8;i++)sum=(sum>>>1)^((sum&1)?0xedb88320:0);
+      }
+    }
+  }
+  if(((sum^0xffffffff)>>>0)!==expected)
+    throw Error('INDEX_SEEKHEAD_CRC_MISMATCH');
+}
 async function seekHeadEntries(file,head,clock){
-  const entries=[];
+  const entries=[];let crcSeen=false;let ordinal=0;
   await children(file,head.dataStart,head.end,clock,async el=>{
-    if(el.id!==ID.seek)throw Error('INDEX_SEEKHEAD_CHILD_UNRECOGNIZED:'+hex(el.id));
-    if(entries.length>=MAX_SEEK_ENTRIES)throw Error('INDEX_SEEK_ENTRIES_BUDGET');
-    entries.push(await indexEntry(file,el,clock));
+    if(el.id===ID.crc){
+      if(crcSeen||ordinal!==0||el.end-el.dataStart!==4)
+        throw Error('INDEX_SEEKHEAD_CRC_PLACEMENT_OR_WIDTH');
+      crcSeen=true;
+      await seekCrc(file,head,el);
+    }else if(el.id===ID.seek){
+      if(entries.length>=MAX_SEEK_ENTRIES)throw Error('INDEX_SEEK_ENTRIES_BUDGET');
+      entries.push(await indexEntry(file,el,clock));
+    }else throw Error('INDEX_SEEKHEAD_CHILD_UNRECOGNIZED:'+hex(el.id));
+    ordinal++;
   });
   if(!entries.length)throw Error('INDEX_EMPTY_SEEKHEAD');
   return entries;
