@@ -12,6 +12,7 @@
 - 每个 SeekPosition 相对于 **Segment 内容开始位置** 定位，而非文件起点；要求它恰好指向顶层元素头，并且元素 ID 符合 SeekID；
 - 拒绝重复索引、悬空/错位目标、缺少其他应被索引的顶层元素；
 - 第一个 SeekHead 必须为 Segment 的首个非 CRC 元素；如有第二个，它必须由第一个 SeekHead 指向，且第二个只引用 Cluster；
+- SeekHead 若含 `CRC-32 (0xBF)`，必须是首个有序子元素、载荷恰好 4 字节；核验器对完整 SeekHead 元素数据（不含 CRC 元素自身）按 IEEE CRC-32 分块计算，并按 EBML little-endian 存储比较。错误 CRC 直接拒绝索引证明。每次读取不超过 32 字节，CRC 累计校验上限 256 KiB；超限拒绝而非忽略；
 - 允许无 SeekHead 的来源返回 `NO_SEEKHEAD`，而不是误报“引用已校验”；有界解析异常保守返回 `INDEX_UNVERIFIED`；
 - 全部结果始终返回 `writerAuthorized=false` 和 `publicationAuthorized=false`。
 
