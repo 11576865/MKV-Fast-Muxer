@@ -23,6 +23,8 @@ class FakeDirectory {
     this.injectBeforeCreate = null;
     this.preserveOnAbort = false;
     this.failCreateWritable = false;
+    this.readbackFailures = new Set();
+    this.readbackReplacements = new Map();
   }
 
   async removeEntry(filename) {
@@ -46,6 +48,10 @@ class FakeDirectory {
     }
     const directory = this;
     return {
+      getFile: async () => {
+        if (directory.readbackFailures.has(filename)) throw new Error('readback denied');
+        return directory.files.get(filename);
+      },
       createWritable: async () => {
         if (directory.failCreateWritable) throw new Error('create writable failed');
         let pending = null;
@@ -54,7 +60,10 @@ class FakeDirectory {
             if (directory.writeFailures.has(filename)) throw new Error('disk write failed');
             pending = blob;
           },
-          close: async () => { directory.files.set(filename, pending); },
+          close: async () => {
+            directory.files.set(filename, directory.readbackReplacements.has(filename)
+              ? directory.readbackReplacements.get(filename) : pending);
+          },
           abort: async () => {
             directory.abortCount += 1;
             if (directory.preserveOnAbort) directory.files.set(filename, 'OTHER PROCESS');
@@ -256,3 +265,69 @@ test('same output and report filename is refused without any filesystem writes',
   }), /目标名称冲突/);
   assert.equal(dir.files.size, 0);
 });
+
+test('directory receipt requires complete readback across the 1 MiB slice boundary', async () => {
+  const dir = new FakeDirectory();
+  const bytes = new Uint8Array(1024 * 1024 + 19);
+  bytes.fill(0xa5);
+  bytes[1024 * 1024 + 18] = 0x63;
+  const artifact = new Blob([bytes]);
+  assert.equal(await writeNewBatchOutput(dir, 'large.mkv', artifact), true);
+  assert.equal(dir.files.get('large.mkv'), artifact);
+  assert.deepEqual(dir.removals, []);
+});
+
+test('same-length corruption after close is never recorded as successful save', async () => {
+  const dir = new FakeDirectory();
+  dir.readbackReplacements.set('changed.mkv', new Blob(['bit-X']));
+  await assert.rejects(
+    writeNewBatchOutput(dir, 'changed.mkv', new Blob(['bit-A'])),
+    /回读未能证明完整文件字节一致.*字节内容与待保存成品不一致/,
+  );
+  assert.equal(await dir.files.get('changed.mkv').text(), 'bit-X');
+  assert.deepEqual(dir.removals, [], 'finished but mismatched file must not be deleted');
+});
+
+test('truncated MKV blocks report publication and retains the suspicious file', async () => {
+  const dir = new FakeDirectory();
+  dir.readbackReplacements.set('truncated.mkv', new Blob(['short']));
+  const result = await writeNewBatchArtifactPair(dir, {
+    mkvName: 'truncated.mkv', mkvBlob: new Blob(['long valid bytes']),
+    reportName: 'truncated.mux-report.json', reportBlob: new Blob(['report']),
+  });
+  assert.equal(result.mkvSavedToDirectory, false);
+  assert.equal(result.reportSavedToDirectory, false);
+  assert.equal(result.savedToDirectory, false);
+  assert.match(result.mkvSaveError, /文件长度与待保存成品不一致/);
+  assert.equal(dir.files.has('truncated.mux-report.json'), false);
+  assert.equal(await dir.files.get('truncated.mkv').text(), 'short');
+  assert.deepEqual(dir.removals, []);
+});
+
+test('unreadable directory file after close cannot create a success receipt', async () => {
+  const dir = new FakeDirectory();
+  dir.readbackFailures.add('cannot-read.mkv');
+  await assert.rejects(
+    writeNewBatchOutput(dir, 'cannot-read.mkv', new Blob(['valid bytes'])),
+    /回读未能证明完整文件字节一致.*readback denied/,
+  );
+  assert.equal(dir.files.has('cannot-read.mkv'), true);
+  assert.deepEqual(dir.removals, []);
+});
+
+test('report readback corruption preserves verified MKV with a partial-save state', async () => {
+  const dir = new FakeDirectory();
+  const mkv = new Blob(['verified MKV']);
+  dir.readbackReplacements.set('ep.mux-report.json', new Blob(['bad report']));
+  const result = await writeNewBatchArtifactPair(dir, {
+    mkvName: 'ep.mkv', mkvBlob: mkv,
+    reportName: 'ep.mux-report.json', reportBlob: new Blob(['correct report']),
+  });
+  assert.equal(result.mkvSavedToDirectory, true);
+  assert.equal(result.reportSavedToDirectory, false);
+  assert.equal(result.savedToDirectory, false);
+  assert.match(result.reportSaveError, /回读未能证明完整文件字节一致/);
+  assert.equal(dir.files.get('ep.mkv'), mkv);
+  assert.deepEqual(dir.removals, []);
+});
+
