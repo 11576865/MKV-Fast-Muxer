@@ -688,6 +688,147 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
     assert.equal(delivery.savedToDiskVerified,false,
       'initiating download does not prove user-side durable save');
     if (modern) {
+      // S11: exercise the PUBLIC single-workbench File System Access route
+      // using the real completed mux bytes and a deterministic in-memory
+      // directory handle. The production writer performs actual readback.
+      await page.evaluate(() => {
+        window.__singleSavedFiles = new Map();
+        window.__singleSavedWrites = new Map();
+        Object.defineProperty(window,'showDirectoryPicker',{
+          configurable:true,
+          value:async () => {
+            if(window.__singlePickerCancelled){
+              window.__singlePickerCancelled=false;
+              throw new DOMException('User cancelled directory picker','AbortError');
+            }
+            const files=window.__singleSavedFiles;
+            const writes=window.__singleSavedWrites;
+            return {
+              name:'playwright-s11-destination',
+              requestPermission:async()=> 'granted',
+              async *entries(){for(const key of files.keys())yield [key,{kind:'file'}];},
+              async getFileHandle(name,{create=false}={}){
+                if(create&&name.endsWith('.mux-report.json')&&
+                    window.__singleReportCreateDenied)
+                  throw new DOMException('Report permission revoked','NotAllowedError');
+                if(!files.has(name)){
+                  if(!create)throw new DOMException('Not found','NotFoundError');
+                  files.set(name,new Blob([]));
+                }
+                return {
+                  getFile:async()=>files.get(name),
+                  createWritable:async()=>{
+                    let pending;
+                    return {
+                      write:async blob=>{pending=blob;},
+                      close:async()=>{
+                        files.set(name,pending);
+                        writes.set(name,(writes.get(name)||0)+1);
+                      },
+                      abort:async()=>{},
+                    };
+                  },
+                };
+              },
+            };
+          },
+        });
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('均已逐字节回读一致'),null,{timeout:90000});
+      const saved=await page.evaluate(async()=>{
+        const files=window.__singleSavedFiles;
+        const mkvName=[...files.keys()].find(name=>name.endsWith('.mkv'));
+        const jsonName=[...files.keys()].find(name=>name.endsWith('.mux-report.json'));
+        const mkv=files.get(mkvName);
+        const digest=Array.from(new Uint8Array(await crypto.subtle.digest(
+          'SHA-256',await mkv.arrayBuffer())))
+          .map(x=>x.toString(16).padStart(2,'0')).join('');
+        return {mkvName,jsonName,mkvSize:mkv.size,digest,
+          mkvWrites:window.__singleSavedWrites.get(mkvName),
+          reportWrites:window.__singleSavedWrites.get(jsonName)};
+      });
+      assert.equal(saved.digest,report.output.sha256,
+        'single directory saved EXACTLY the real generated MKV');
+      assert.equal(saved.mkvSize,report.output.sizeBytes);
+      assert.equal(saved.mkvWrites,1);
+      assert.equal(saved.reportWrites,1);
+      assert.equal(await page.locator('#singleRetryDirectoryBtn').isVisible(),false,
+        'fully saved pair does not need retry');
+      assert.equal(await page.locator('#downloadLink').isVisible(),true,
+        'normal browser fallback remains available after directory save');
+      const previousVerifiedSaveStatus=await page.locator('#singleDirectorySaveStatus').textContent();
+      await page.evaluate(()=>{window.__singlePickerCancelled=true;});
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        document.querySelector('#singleChooseDirectoryBtn')?.disabled===false,
+        null,{timeout:15000});
+      assert.equal(await page.locator('#singleDirectorySaveStatus').textContent(),
+        previousVerifiedSaveStatus,
+        'cancelled picker must preserve previous successful directory receipt');
+
+      // Second user-selected directory: real MKV persists, report permission
+      // fails before create; save-only retry must NOT remux or rewrite MKV.
+      await page.evaluate(()=>{
+        window.__singleSavedFiles=new Map();
+        window.__singleSavedWrites=new Map();
+        window.__singleReportCreateDenied=true;
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('报告未保存'),null,{timeout:90000});
+      assert.equal(await page.locator('#singleRetryDirectoryBtn').isVisible(),true);
+      const firstPartial=await page.evaluate(() => ({
+        mkvWrites: [...window.__singleSavedWrites.entries()]
+          .filter(([name])=>name.endsWith('.mkv')).map(([,count])=>count),
+        reportFiles: [...window.__singleSavedFiles.keys()]
+          .filter(name=>name.endsWith('.mux-report.json')),
+      }));
+      assert.deepEqual(firstPartial.mkvWrites,[1]);
+      assert.deepEqual(firstPartial.reportFiles,[]);
+      await page.evaluate(()=>{window.__singleReportCreateDenied=false;});
+      await page.locator('#singleRetryDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('均已逐字节回读一致'),null,{timeout:90000});
+      const retryWrites=await page.evaluate(() =>
+        Object.fromEntries(window.__singleSavedWrites));
+      assert.equal(retryWrites[saved.mkvName],1,
+        'save-only retry must not write already verified MKV again');
+      assert.equal(retryWrites[saved.jsonName],1,
+        'retry writes only the missing JSON report');
+
+      // Third destination: a previously verified MKV subsequently changes on
+      // disk. Retrying the report must reject the now-stale MKV receipt rather
+      // than emitting an all-saved confirmation or clobbering that MKV.
+      await page.evaluate(()=>{
+        window.__singleSavedFiles=new Map();
+        window.__singleSavedWrites=new Map();
+        window.__singleReportCreateDenied=true;
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('报告未保存'),null,{timeout:90000});
+      await page.evaluate(()=>{
+        window.__singleReportCreateDenied=false;
+        const name=[...window.__singleSavedFiles.keys()]
+          .find(key=>key.endsWith('.mkv'));
+        window.__singleSavedFiles.set(name,new Blob(['external tampering']));
+      });
+      await page.locator('#singleRetryDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('此前已保存的文件发生变化'),null,{timeout:90000});
+      assert.equal(await page.evaluate(()=>{
+        return [...window.__singleSavedWrites.values()].reduce((a,b)=>a+b,0);
+      }),1,'stale-file refusal must not create a report or rewrite the changed MKV');
+      assert.equal(await page.locator('#downloadLink').isVisible(),true,
+        'download remains available after partial save or tamper detection');
+
       // WU-03 F-A: one public mixed-source task, independently verified from
       // the REAL downloaded MKV rather than the same JS report that created it.
       // Input is a real chapter/tag/2-attachment MKV; new ASS and font were

@@ -620,6 +620,11 @@
 
               <a id="downloadLink" class="download icon-link hidden" href="#" download aria-label="保存生成的 MKV 到本机" title="保存成品"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 20h14v-2H5v2Zm7-18v10.17l3.59-3.58L17 10l-5 5-5-5 1.41-1.41L11 12.17V2h1Z"/></svg><span>下载 MKV</span></a>
               <a id="reportLink" class="report-download icon-link hidden" href="#" download aria-label="保存本次封装的 JSON 审计报告" title="保存封装报告"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v-2H8v2Zm0 4h8v-2H8v2Zm0 4h6v-2H8v2Z"/></svg><span>下载报告</span></a>
+              <div class="single-directory-actions" id="singleDirectoryActions" hidden>
+                <button type="button" id="singleChooseDirectoryBtn">MKV 与报告保存到目录…</button>
+                <button type="button" id="singleRetryDirectoryBtn" hidden>仅重试保存（不重新封装）</button>
+                <p id="singleDirectorySaveStatus" role="status" aria-live="polite">尚未保存到已核验目录；浏览器下载链接可独立使用。</p>
+              </div>
               <div id="auditResult" class="audit-result hidden"></div>
               <section id="outputEvidencePanel" class="output-evidence-panel" aria-label="最近一次实际成品的验证证据" hidden>
                 <div class="output-evidence-heading">
