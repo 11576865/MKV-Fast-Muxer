@@ -688,6 +688,70 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
     assert.equal(delivery.savedToDiskVerified,false,
       'initiating download does not prove user-side durable save');
     if (modern) {
+      // S11: exercise the PUBLIC single-workbench File System Access route
+      // using the real completed mux bytes and a deterministic in-memory
+      // directory handle. The production writer performs actual readback.
+      await page.evaluate(() => {
+        window.__singleSavedFiles = new Map();
+        window.__singleSavedWrites = new Map();
+        Object.defineProperty(window,'showDirectoryPicker',{
+          configurable:true,
+          value:async () => {
+            const files=window.__singleSavedFiles;
+            const writes=window.__singleSavedWrites;
+            return {
+              name:'playwright-s11-destination',
+              requestPermission:async()=> 'granted',
+              async *entries(){for(const key of files.keys())yield [key,{kind:'file'}];},
+              async getFileHandle(name,{create=false}={}){
+                if(!files.has(name)){
+                  if(!create)throw new DOMException('Not found','NotFoundError');
+                  files.set(name,new Blob([]));
+                }
+                return {
+                  getFile:async()=>files.get(name),
+                  createWritable:async()=>{
+                    let pending;
+                    return {
+                      write:async blob=>{pending=blob;},
+                      close:async()=>{
+                        files.set(name,pending);
+                        writes.set(name,(writes.get(name)||0)+1);
+                      },
+                      abort:async()=>{},
+                    };
+                  },
+                };
+              },
+            };
+          },
+        });
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('均已逐字节回读一致'),null,{timeout:90000});
+      const saved=await page.evaluate(async()=>{
+        const files=window.__singleSavedFiles;
+        const mkvName=[...files.keys()].find(name=>name.endsWith('.mkv'));
+        const jsonName=[...files.keys()].find(name=>name.endsWith('.mux-report.json'));
+        const mkv=files.get(mkvName);
+        const digest=Array.from(new Uint8Array(await crypto.subtle.digest(
+          'SHA-256',await mkv.arrayBuffer())))
+          .map(x=>x.toString(16).padStart(2,'0')).join('');
+        return {mkvName,jsonName,mkvSize:mkv.size,digest,
+          mkvWrites:window.__singleSavedWrites.get(mkvName),
+          reportWrites:window.__singleSavedWrites.get(jsonName)};
+      });
+      assert.equal(saved.digest,report.output.sha256,
+        'single directory saved EXACTLY the real generated MKV');
+      assert.equal(saved.mkvSize,report.output.sizeBytes);
+      assert.equal(saved.mkvWrites,1);
+      assert.equal(saved.reportWrites,1);
+      assert.equal(await page.locator('#singleRetryDirectoryBtn').isVisible(),false,
+        'fully saved pair does not need retry');
+      assert.equal(await page.locator('#downloadLink').isVisible(),true,
+        'normal browser fallback remains available after directory save');
       // WU-03 F-A: one public mixed-source task, independently verified from
       // the REAL downloaded MKV rather than the same JS report that created it.
       // Input is a real chapter/tag/2-attachment MKV; new ASS and font were
