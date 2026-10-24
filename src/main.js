@@ -1829,6 +1829,7 @@ async function saveSingleCompletedOutput(chooseNewDirectory) {
   if (!owner || !singleDirectorySession.has(owner) ||
       isBusy() || batchRunning || batchStartPending) return;
   if (chooseNewDirectory && typeof window.showDirectoryPicker!=='function') return;
+  const statusBeforeAttempt=singleDirectoryStatusMessage;
   singleDirectorySaveBusy=true;
   singleDirectoryStatusMessage='';
   updateUI();
@@ -1856,7 +1857,11 @@ async function saveSingleCompletedOutput(chooseNewDirectory) {
         : '目录保存未完成：'+(receipt.directorySaveError || 'MKV 写入或回读未通过')+
           '；生成的 MKV 与报告仍可通过原链接下载。';
   } catch (error) {
-    if (error?.name!=='AbortError') {
+    if (error?.name==='AbortError') {
+      // Cancelling another picker is not a failed write; keep any already
+      // verified receipt visible instead of falsely saying it was never saved.
+      singleDirectoryStatusMessage=statusBeforeAttempt;
+    } else {
       singleDirectoryStatusMessage='目录保存未确认：'+
         (error?.message||String(error))+
         '；不会覆盖或删除既有文件。可重新选择目录或下载生成的成品。';
