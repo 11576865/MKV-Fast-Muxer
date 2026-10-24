@@ -2802,10 +2802,12 @@ workspaceBundleImportInput?.addEventListener('change',async()=>{
     const parsed=parsePortableWorkspaceBundle(await file.text());
     activeProjectHash?.controller.abort();
     importedProjectForReview=parsed.sourceDraft;
-    detachedSourceProof=null;lastProjectRestore=null;
+    detachedSourceProof=null;
+    // Import is inert: do not destroy undo receipts for edits that were
+    // already explicitly applied to the live workspace. Their own revision
+    // guards determine whether they remain usable.
     pendingExternalCheckpoint=parsed.externalCheckpoint;
     resetExternalCheckpointApproval();
-    externalCheckpointUndo=null;externalCheckpointControls.undo.disabled=true;
     externalCheckpointControls.prepare.disabled=!pendingExternalCheckpoint;
     if(containerProjectRestoreConfirm)containerProjectRestoreConfirm.checked=false;
     if(containerProjectRestoreStatus)containerProjectRestoreStatus.textContent='';
