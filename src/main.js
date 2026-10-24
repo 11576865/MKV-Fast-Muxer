@@ -5135,7 +5135,8 @@ function getScannedSelection(video) {
 }
 
 function cancelCurrentMuxTask() {
-  if (!isBusy()) return;
+  // Directory writes are not an ffmpeg task and must never terminate Wasm.
+  if (!(running || scanning || previewing)) return;
   cancelRequested = true;
   if (scanning) containerAutoScanSuppressedKey = fileKey(videoInput.files[0]);
   status.textContent = '正在取消当前操作……';
