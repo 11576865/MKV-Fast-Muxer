@@ -86,6 +86,7 @@ import {
 } from './portable-external-project-recovery.js';
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
+import { serializePortableWorkspaceBundle, parsePortableWorkspaceBundle, PORTABLE_WORKSPACE_BUNDLE_MAX_BYTES } from './portable-workspace-bundle.js';
 import { auditS12WorkbenchStructure, formatS12WorkbenchStructure } from './s12-workbench-structure-audit.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -286,6 +287,9 @@ const outputIndexResult = $('outputIndexResult');
 const sourceFilesDetails = $('sourceFilesDetails');
 const compositionMuxBtn = $('compositionMuxBtn');
 const containerProjectExportBtn = $('containerProjectExportBtn');
+const workspaceBundleExportBtn = $('workspaceBundleExportBtn');
+const workspaceBundleImportInput = $('workspaceBundleImportInput');
+const workspaceBundleStatus = $('workspaceBundleStatus');
 const containerProjectImportInput = $('containerProjectImportInput');
 const containerProjectImportReview = $('containerProjectImportReview');
 const containerProjectIntentReview = $('containerProjectIntentReview');
@@ -2731,6 +2735,91 @@ externalCheckpointControls.undo?.addEventListener('click',()=>{
     externalCheckpointUndo=null;
     externalCheckpointControls.undo.disabled=true;
   }
+});
+
+// Packaging combines existing independent recovery scopes; it never grants
+// either domain a File or writer permission and never atomically replays edits.
+let workspaceBundleBusy=false;
+workspaceBundleExportBtn?.addEventListener('click',async()=>{
+  const source=videoInput.files?.[0]||null;
+  const workspace=liveWorkspaceAuthority,generation=workspace?.generation??null;
+  const initialPlan=JSON.stringify(buildMuxPlan());
+  if(workspaceBundleBusy||projectDigestExportInProgress||
+      externalCheckpointBusy||activeProjectHash||isBusy()||batchRunning)return;
+  if(!source||currentProjectSourceFile!==source||!currentProjectSourceProjection){
+    workspaceBundleStatus.textContent='请先加载并检查真实来源。';return;
+  }
+  workspaceBundleBusy=true;projectDigestExportInProgress=true;
+  externalCheckpointBusy=true;workspaceBundleExportBtn.disabled=true;
+  try{
+    const digest=source.size<=PROJECT_SOURCE_HASH_MAX_BYTES
+      ?await runProjectHash(source,opts=>hashBoundedProjectSource(source,opts)):null;
+    const current=()=>videoInput.files?.[0]===source&&
+      currentProjectSourceFile===source&&liveWorkspaceAuthority===workspace&&
+      (workspace?.generation??null)===generation&&
+      JSON.stringify(buildMuxPlan())===initialPlan;
+    if(!current())throw Error('WORKSPACE_BUNDLE_SOURCE_OR_PLAN_CHANGED');
+    const latest=currentProjectSourceProjection;
+    if(!latest||latest.sourceKey!==outputCompositionFileKey(source))
+      throw Error('WORKSPACE_BUNDLE_SOURCE_PROJECTION_CHANGED');
+    let project=createEditedContainerProjectFromProjection(latest);
+    if(digest)project=attachContainerProjectSourceDigest(project,digest);
+    const withExternal=externalAudioState.length>0||newSubtitleState.length>0;
+    const externalJson=withExternal
+      ?await exportExternalMetadataCheckpoint(workspace,liveWorkspaceContext()):null;
+    if(!current())throw Error('WORKSPACE_BUNDLE_EXTERNAL_OR_PLAN_CHANGED');
+    const json=serializePortableWorkspaceBundle({
+      sourceDraftJson:serializeContainerProject(project),
+      externalCheckpointJson:externalJson,
+    });
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
+    const link=document.createElement('a');
+    link.href=url;link.download='softmux-workspace-metadata-bundle-v1.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    workspaceBundleStatus.textContent='已导出一个组合元数据草稿：'+
+      (digest?'来源完整 SHA-256 已记录；':'来源超过哈希限制，恢复必须拒绝；')+
+      (withExternal?'外部轨道及 sidecar 有独立 SHA-256。':'未包含外部轨道元数据。')+
+      ' 媒体字节、浏览器文件权限和一键原子恢复均不包含。';
+  }catch(error){
+    workspaceBundleStatus.textContent='组合草稿导出拒绝：'+
+      (error?.message||String(error))+'；未生成未经核验的文件。';
+  }finally{
+    workspaceBundleBusy=false;externalCheckpointBusy=false;
+    projectDigestExportInProgress=false;workspaceBundleExportBtn.disabled=false;
+    renderOutputComposition();
+  }
+});
+workspaceBundleImportInput?.addEventListener('change',async()=>{
+  const file=workspaceBundleImportInput.files?.[0]||null;
+  workspaceBundleImportInput.value='';
+  if(!file||workspaceBundleBusy||isBusy()||batchRunning)return;
+  workspaceBundleBusy=true;
+  try{
+    if(file.size>PORTABLE_WORKSPACE_BUNDLE_MAX_BYTES)
+      throw Error('WORKSPACE_BUNDLE_TOO_LARGE');
+    // Validate both imported schemas before mutating either draft slot.
+    const parsed=parsePortableWorkspaceBundle(await file.text());
+    activeProjectHash?.controller.abort();
+    importedProjectForReview=parsed.sourceDraft;
+    detachedSourceProof=null;lastProjectRestore=null;
+    pendingExternalCheckpoint=parsed.externalCheckpoint;
+    resetExternalCheckpointApproval();
+    externalCheckpointUndo=null;externalCheckpointControls.undo.disabled=true;
+    externalCheckpointControls.prepare.disabled=!pendingExternalCheckpoint;
+    if(containerProjectRestoreConfirm)containerProjectRestoreConfirm.checked=false;
+    if(containerProjectRestoreStatus)containerProjectRestoreStatus.textContent='';
+    externalCheckpointControls.status.textContent=pendingExternalCheckpoint
+      ?'组合草稿已读取；须重新选择外部音频/字幕/sidecar，再核对 SHA-256 并独立确认。'
+      :'组合草稿没有外部音频/字幕草稿，未恢复任何外部权限。';
+    workspaceBundleStatus.textContent='已同时读取两个相互独立的未授权草稿范围。'+
+      ' 来源与外部部分仍需分别验证和确认；未修改可执行工程或封装器。';
+    renderOutputComposition();
+  }catch(error){
+    workspaceBundleStatus.textContent='组合草稿无效，整包已拒绝：'+
+      (error?.message||String(error))+
+      '；此前的待审核草稿、媒体与执行方案未改变。';
+  }finally{workspaceBundleBusy=false;}
 });
 
 containerProjectExportBtn?.addEventListener('click', async () => {
