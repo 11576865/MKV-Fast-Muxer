@@ -127,7 +127,7 @@ test('composition workspace visibly integrates actual evidence without creating 
   }
   assert.match(main, /projectSourceStructureEvidence\(\{ source, trackState: scanned \}\)/);
   assert.match(main, /projectActualOutputEvidence\(lastActualOutput\.report,/);
-  assert.match(main, /lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video, report \}/);
+  assert.match(main, /lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video,\s*outputBlob, report \}/);
   assert.match(main, /renderActualOutputEvidence\(\)/);
   assert.match(css, /\.composition-evidence-row/);
   assert.match(main, /sourceAttachmentDeliveryAudit = auditSourceAttachmentDelivery/);
