@@ -164,3 +164,51 @@ test('S12 SeekHead: a real unseen top-level element also needs graph coverage',a
     'this module proves declared pointers only, not semantic compatibility');
   assert.equal(r.writerAuthorized,false);
 });
+
+const crc32Of=data=>{
+  let sum=0xffffffff;
+  for(const byte of data){
+    sum^=byte;
+    for(let i=0;i<8;i++)sum=(sum>>>1)^((sum&1)?0xedb88320:0);
+  }
+  return (sum^0xffffffff)>>>0;
+};
+async function withProtectedSeekHead({corrupt=false,order='first',width=4}={}){
+  const fields=plain();
+  const template=seekHead(fields.map(([id])=>[id,0]));
+  const crcTemplate=element('bf',new Uint8Array(width));
+  const firstHeadSize=template.size+crcTemplate.size;
+  const entries=[];let off=firstHeadSize;
+  for(const [id,blob] of fields){entries.push(entry(id,off));off+=blob.size;}
+  const entryBytes=Buffer.from(await new Blob(entries).arrayBuffer());
+  const checksum=crc32Of(entryBytes);
+  const crcBuffer=Buffer.alloc(width);
+  if(width===4)crcBuffer.writeUInt32LE((checksum^(corrupt?1:0))>>>0);
+  const crc=element('bf',crcBuffer);
+  const protectedHead=element('114d9b74',
+    new Blob(order==='first'?[crc,...entries]:[entries[0],crc,...entries.slice(1)]));
+  assert.equal(protectedHead.size,firstHeadSize);
+  return file(new Blob([protectedHead,...fields.map(x=>x[1])]));
+}
+test('S12 SeekHead: real CRC-32 protected index validates correctly, without hashing Cluster payload',async()=>{
+  const f=await withProtectedSeekHead();
+  const r=await verify(f);
+  assert.equal(r.status,'INDEX_REFERENCES_VERIFIED',r.reasons.join('; '));
+  assert.equal(r.references.length,4);
+  assert.ok(f.reads.every(n=>n<=32));
+});
+test('S12 SeekHead: CRC byte flip refuses even when every target offset and ID matches',async()=>{
+  const r=await verify(await withProtectedSeekHead({corrupt:true}));
+  assert.equal(r.status,'INDEX_UNVERIFIED');
+  assert.ok(r.reasons.some(x=>x.includes('INDEX_SEEKHEAD_CRC_MISMATCH')),r.reasons.join('; '));
+});
+test('S12 SeekHead: CRC after an index entry is invalid placement',async()=>{
+  const r=await verify(await withProtectedSeekHead({order:'late'}));
+  assert.equal(r.status,'INDEX_UNVERIFIED');
+  assert.ok(r.reasons.some(x=>x.includes('INDEX_SEEKHEAD_CRC_PLACEMENT_OR_WIDTH')));
+});
+test('S12 SeekHead: CRC payload must be four bytes, never silently ignored',async()=>{
+  const r=await verify(await withProtectedSeekHead({width:3}));
+  assert.equal(r.status,'INDEX_UNVERIFIED');
+  assert.ok(r.reasons.some(x=>x.includes('INDEX_SEEKHEAD_CRC_PLACEMENT_OR_WIDTH')));
+});
