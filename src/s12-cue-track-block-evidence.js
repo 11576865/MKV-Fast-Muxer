@@ -169,52 +169,58 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
     for(const [offset,refs] of byCluster){
       const cluster=clusters.get(offset);
       if(!cluster)throw Error('CUE_BLOCK_CLUSTER_LOST');
-      // Explicit relative targets: check exact Block/SimpleBlock header at
-      // Cluster element data start + CueRelativePosition. This does not
-      // blindly accept an offset somewhere within Cluster's byte range.
-      const pending=new Set();
+      // A CueRelativePosition must land on a REAL parsed Cluster child
+      // boundary. Reading at an arbitrary offset inside compressed payload
+      // can otherwise fabricate a Block-looking header.
+      const neededTracks=new Set();
+      const relativeTargets=new Map();
       for(const r of refs){
         if(!tracks.has(r.track)){
           errors.push('CUE_TRACK_NOT_IN_TRACKS:'+r.track);
           continue;
         }
-        if(r.relativePosition!==null){
-          const target=cluster.data+r.relativePosition;
-          if(target<cluster.data||target>=cluster.end){
+        if(r.relativePosition===null){
+          neededTracks.add(r.track);
+        }else{
+          const absolute=cluster.data+r.relativePosition;
+          if(absolute<cluster.data||absolute>=cluster.end){
             errors.push('CUE_RELATIVE_OUT_OF_CLUSTER:'+r.relativePosition);
-            continue;
+          }else{
+            if(!relativeTargets.has(absolute))relativeTargets.set(absolute,[]);
+            relativeTargets.get(absolute).push(r);
           }
-          const h=await element(file,target,cluster.end,ctx);
-          if(h.unknown)throw Error('CUE_BLOCK_UNKNOWN_RELATIVE_TARGET');
-          const blockTrack=await candidateBlock(file,h,ctx);
-          if(blockTrack!==r.track){
-            errors.push('CUE_RELATIVE_NOT_REFERENCED_TRACK_BLOCK:'+r.track);
-            continue;
-          }
-          checked++;
-        }else pending.add(r.track);
-      }
-      if(pending.size){
-        let visited=0;
-        for(let at=cluster.data;at<cluster.end&&pending.size;){
-          if(++visited>maxClusterChildren){
-            errors.push('CUE_CLUSTER_BLOCK_SCAN_BUDGET:'+offset);
-            break;
-          }
-          const h=await element(file,at,cluster.end,ctx);
-          if(h.unknown)throw Error('CUE_BLOCK_UNKNOWN_CLUSTER_CHILD');
-          if(h.id===E.simpleBlock||h.id===E.blockGroup){
-            const track=await candidateBlock(file,h,ctx);
-            if(track!==null)pending.delete(track);
-          }
-          at=h.end;
         }
-        for(const r of refs){
-          if(r.relativePosition===null&&tracks.has(r.track)&&!pending.has(r.track))
-            checked++;
-        }
-        for(const track of pending)errors.push('CUE_TRACK_NO_BLOCK_IN_CLUSTER:'+track);
       }
+      let visited=0,at=cluster.data;
+      while(at<cluster.end&&(neededTracks.size||relativeTargets.size)){
+        if(++visited>maxClusterChildren){
+          errors.push('CUE_CLUSTER_BLOCK_SCAN_BUDGET:'+offset);
+          break;
+        }
+        const h=await element(file,at,cluster.end,ctx);
+        if(h.unknown)throw Error('CUE_BLOCK_UNKNOWN_CLUSTER_CHILD');
+        const matchingRelative=relativeTargets.get(at)||[];
+        const interesting=matchingRelative.length||
+          ((h.id===E.simpleBlock||h.id===E.blockGroup)&&neededTracks.size);
+        const blockTrack=interesting?await candidateBlock(file,h,ctx):null;
+        if(blockTrack!==null)neededTracks.delete(blockTrack);
+        for(const r of matchingRelative){
+          if(blockTrack!==r.track)errors.push(
+            'CUE_RELATIVE_NOT_REFERENCED_TRACK_BLOCK:'+r.track);
+          else checked++;
+        }
+        relativeTargets.delete(at);
+        at=h.end;
+      }
+      for(const r of refs){
+        if(r.relativePosition===null&&tracks.has(r.track)&&
+          !neededTracks.has(r.track))checked++;
+      }
+      for(const track of neededTracks)
+        errors.push('CUE_TRACK_NO_BLOCK_IN_CLUSTER:'+track);
+      for(const [pos] of relativeTargets)
+        errors.push('CUE_RELATIVE_NOT_BLOCK_BOUNDARY:'+pos);
+
     }
     return receipt(errors.length?'CUE_BLOCK_EVIDENCE_UNVERIFIED':
       'CUE_TRACK_BLOCK_HEADERS_VERIFIED',errors,checked,total,
