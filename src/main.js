@@ -575,6 +575,7 @@ let selectedCompositionId = '';
 let lastActualOutput = null;
 let lastOutputIndexAudit = null;
 let outputIndexAuditPending = false;
+let outputIndexAuditSequence = 0;
 let lastCompositionSourceKey = '';
 let currentProjectSourceProjection = null;
 let currentProjectSourceFile = null;
@@ -1596,6 +1597,9 @@ function updateUI() {
   renderMuxPlan();
   renderImportedAssetInventory();
   if (!batchRunning) requestBatchPlanSync();
+  // FFmpeg completion clears running in a later finally block; refresh this
+  // action after every state change rather than leaving it disabled forever.
+  renderActualOutputEvidence();
 }
 
 function bindNewTrackEditor(container, selector, getState, kind) {
@@ -1908,6 +1912,7 @@ outputIndexInspectBtn?.addEventListener('click', async () => {
     renderActualOutputEvidence();
     return;
   }
+  const inspectionSequence = ++outputIndexAuditSequence;
   outputIndexAuditPending = true;
   lastOutputIndexAudit = null;
   renderActualOutputEvidence();
@@ -1929,6 +1934,9 @@ outputIndexInspectBtn?.addEventListener('click', async () => {
   const stillCurrent = owner === lastActualOutput &&
     owner.sourceFile === (videoInput.files?.[0] || null) &&
     JSON.stringify(buildMuxPlan()) === JSON.stringify(owner.report?.plan);
+  // A later real mux may retire this output while its old scan is still
+  // running. Never clear the new output's pending flag or publish a stale scan.
+  if (inspectionSequence !== outputIndexAuditSequence) return;
   outputIndexAuditPending = false;
   if (stillCurrent) {
     lastOutputIndexAudit = {
@@ -5241,6 +5249,13 @@ async function executeCurrentMuxTask(explicit = null) {
       URL.revokeObjectURL(reportURL);
       reportURL = null;
     }
+    // The old download grants are now revoked. Retire its associated Blob and
+    // structure receipt, not just its visible link, before starting a new mux.
+    ++outputIndexAuditSequence;
+    outputIndexAuditPending = false;
+    lastActualOutput = null;
+    lastOutputIndexAudit = null;
+    renderActualOutputEvidence();
   }
   logEl.textContent = preservationInfo;
   bar.style.width = '4%';
