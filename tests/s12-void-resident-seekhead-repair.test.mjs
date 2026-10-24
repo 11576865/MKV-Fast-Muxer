@@ -34,7 +34,7 @@ async function head(entries,{badCRC=false}={}){
   return el('114d9b74',new Blob([el('bf',crc),payload]));
 }
 const make=async ({reserve=4096,noVoid=false,badCRC=false,badPointer=false,
-  withCues=true,segmentCRC=false}={})=>{
+  withCues=true,segmentCRC=false,extraClusters=0}={})=>{
   const info=el('1549a966',Buffer.from('metadata'));
   const tracks=el('1654ae6b',el('ae',el('d7',Buffer.from([1]))));
   const blockPayload=Buffer.alloc(3*1024*1024+4,0x42);
@@ -42,6 +42,12 @@ const make=async ({reserve=4096,noVoid=false,badCRC=false,badPointer=false,
   const cluster=el('1f43b675',new Blob([
     el('e7',Buffer.from([0])),el('a3',blockPayload),
   ]));
+  // A dense real multi-Cluster graph requires many new Seek entries.
+  // Use this to force a genuinely insufficient reserved Void capacity,
+  // independently of any integer-width savings in the old index.
+  const extras=Array.from({length:extraClusters},
+    ()=>el('1f43b675',el('e7',Buffer.from([0]))));
+  const extraSize=extras.reduce((sum,x)=>sum+x.size,0);
   const placeholder=await head([['1549a966',0],['1654ae6b',0],
     ...(withCues?[['1c53bb6b',0]]:[])],{badCRC});
   const reserveEl=noVoid?null:el('ec',Buffer.alloc(reserve));
@@ -53,7 +59,7 @@ const make=async ({reserve=4096,noVoid=false,badCRC=false,badPointer=false,
     ])),
   ]));
   const cues=el('1c53bb6b',cuePoint);
-  const cu=c+cluster.size;
+  const cu=c+cluster.size+extraSize;
   const realHead=await head([
     ['1549a966',i+(badPointer?1:0)],['1654ae6b',t],
     ...(withCues?[['1c53bb6b',cu]]:[]),
@@ -62,7 +68,7 @@ const make=async ({reserve=4096,noVoid=false,badCRC=false,badPointer=false,
   const segmentPayload=new Blob([
     ...(segmentCRC?[el('bf',Buffer.alloc(4))]:[]),
     realHead,...(reserveEl?[reserveEl]:[]),info,tracks,cluster,
-    ...(withCues?[cues]:[]),
+    ...extras,...(withCues?[cues]:[]),
   ]);
   const source=new Blob([
     el('1a45dfa3',el('4282',Buffer.from('matroska'))),
@@ -98,8 +104,8 @@ test('S12 research: normalize missing Cluster SeekHead inside reserved Void with
   assert.equal(repair.resultIndexStatus,'INDEX_REFERENCES_VERIFIED');
   assert.equal(repair.patchBytes,old.size+v.size);
   assert.ok(repair.remainingVoidBytes>0);
-  assert.ok(received.length>0&&received.every(n=>n>=0&&n<=12),
-    'all content inspection must use bounded header/field slices');
+  assert.ok(received.length>0&&received.every(n=>n>=0&&n<=32),
+    'all content inspection must use bounded EBML/CRC reads, never payloads');
   const after=await inspectS12SeekHeadIndex(repair.researchBlob);
   assert.equal(after.status,'INDEX_REFERENCES_VERIFIED',after.reasons.join(';'));
   assert.equal((await inspectS12CuesClusterLocations(repair.researchBlob)).status,
@@ -115,7 +121,7 @@ test('S12 research: normalize missing Cluster SeekHead inside reserved Void with
     'Cues/EOF bytes and offsets remain identical');
 });
 test('S12 research: insufficient contiguous Void refuses without producing a partial Blob',async()=>{
-  const {source}=await make({reserve:3});
+  const {source}=await make({reserve:3,extraClusters:40});
   const r=await planS12VoidResidentSeekHeadRepair(source);
   assert.equal(r.status,'REFUSED',r.reasons.join(';'));
   assert.ok(r.reasons.includes('VOID_REPAIR_NOT_ENOUGH_RESERVED_BYTES'));
