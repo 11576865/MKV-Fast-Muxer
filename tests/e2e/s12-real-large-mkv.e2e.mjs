@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createReadStream, openAsBlob } from 'node:fs';
 import { auditS12FinishedIndexEvidence } from '../../src/s12-finished-index-evidence.js';
+import { inspectS12CueTrackBlockEvidence } from '../../src/s12-cue-track-block-evidence.js';
+import { planS12VoidResidentSeekHeadRepair } from '../../research/s12-void-resident-seekhead-repair.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
@@ -343,6 +345,89 @@ try{
  assert.notEqual(finishedIndexes.status,'NOT_RUN_INVALID_FILE_AUTHORITY');
  assert.equal(finishedIndexes.writerAuthorized,false);
  assert.equal(finishedIndexes.publicationAuthorized,false);
+
+ // RFC 9559: a CueTrack pointing to the right Cluster is not yet proof
+ // that the referenced TrackNumber exists or that the Cluster has a Block
+ // for it. Run an additional bounded, header-only oracle on the ORIGINAL
+ // and the ACTUAL browser-downloaded file, with independent observations.
+ const [sourceBlocks,outputBlocks]=await Promise.all([
+   inspectS12CueTrackBlockEvidence(nativeInputBlob),
+   inspectS12CueTrackBlockEvidence(nativeFinishedBlob),
+ ]);
+ const narrow=report=>({
+   status:report.status,checked:report.checkedReferences,
+   total:report.totalReferences,clusters:report.distinctReferencedClusters,
+   tracks:report.trackNumbers,
+   reasonCount:report.reasons.length,reasons:report.reasons.slice(0,8),
+   writerAuthorized:report.writerAuthorized,
+   actualPacketPayloadVerified:report.actualPacketPayloadVerified,
+ });
+ manifest.independentCueTrackBlockEvidence={
+   source:narrow(sourceBlocks),finished:narrow(outputBlocks),
+   cueTimeVerified:false,packetPayloadVerified:false,
+ };
+ await mark('native-cue-track-block-headers-audited',{
+   source:manifest.independentCueTrackBlockEvidence.source,
+   finished:manifest.independentCueTrackBlockEvidence.finished,
+ });
+ assert.equal(sourceBlocks.writerAuthorized,false);
+ assert.equal(outputBlocks.writerAuthorized,false);
+ assert.equal(sourceBlocks.actualPacketPayloadVerified,false);
+ assert.equal(outputBlocks.actualPacketPayloadVerified,false);
+ // These three specified genuine positive fixture classes must prove actual
+ // CueTrack -> Tracks -> Cluster Block headers, not just index pointers.
+ // Unknown or budget-limited results FAIL the scoped acceptance without
+ // implying general Matroska corruption or a writer hard size limit.
+ assert.equal(sourceBlocks.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',
+   'S12_SOURCE_CUE_TRACK_BLOCK_UNVERIFIED: '+sourceBlocks.reasons.join(';'));
+ assert.equal(outputBlocks.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',
+   'S12_FINISHED_CUE_TRACK_BLOCK_UNVERIFIED: '+outputBlocks.reasons.join(';'));
+ assert.equal(sourceBlocks.checkedReferences,sourceBlocks.totalReferences);
+ assert.equal(outputBlocks.checkedReferences,outputBlocks.totalReferences);
+
+ // RESEARCH-ONLY feasibility check. Refusal must NOT be mislabeled as a
+ // successful repair, and a successful zero-relocation Blob must NEVER be
+ // published or substituted for the actual user's downloaded MKV.
+ // The repairer itself proves CRC and SeekHead coverage, unchanged Cues
+ // locations, and an exactly equal total file size.
+ const [sourceRepair,finishedRepair]=await Promise.all([
+   planS12VoidResidentSeekHeadRepair(nativeInputBlob),
+   planS12VoidResidentSeekHeadRepair(nativeFinishedBlob),
+ ]);
+ const boundedRepair=r=>({
+   status:r.status,
+   reasonCodes:r.reasons.slice(0,8),
+   refusalReasonCount:r.reasons.length,
+   reservedBytes:r.reservedBytes??null,
+   requiredBytes:r.requiredBytes??null,
+   missingBytes:r.missingBytes??null,
+   remainingVoidBytes:r.remainingVoidBytes??null,
+   indexedElementCount:r.indexedElementCount??null,
+   sourceIndexStatus:r.sourceIndexStatus??null,
+   resultIndexStatus:r.resultIndexStatus??null,
+   writerAuthorized:r.writerAuthorized,
+   publicationAuthorized:r.publicationAuthorized,
+ });
+ manifest.seekHeadVoidOnlyResearch={
+   source:boundedRepair(sourceRepair),
+   finished:boundedRepair(finishedRepair),
+   noFileWasReplaced:true,
+   noResearchBlobWasDownloaded:true,
+ };
+ await mark('native-void-resident-seekhead-repair-feasibility-observed',
+   manifest.seekHeadVoidOnlyResearch);
+ for(const r of [sourceRepair,finishedRepair]){
+   assert.ok(['REFUSED','NOT_NEEDED','RESEARCH_BLOB_SCOPED_VALIDATED']
+     .includes(r.status),'S12_RESEARCH_REPAIR_INVALID_STATUS: '+r.status);
+   assert.equal(r.writerAuthorized,false);
+   assert.equal(r.publicationAuthorized,false);
+   if(r.status==='RESEARCH_BLOB_SCOPED_VALIDATED'){
+     assert.equal(r.sourceSize,r.resultSize);
+     assert.equal(r.resultIndexStatus,'INDEX_REFERENCES_VERIFIED');
+     assert.ok(r.reservedBytes>=r.newHeadBytes);
+     assert.ok(r.researchBlob instanceof Blob);
+   }
+ }
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
  manifest.result='PASS_THIS_TIER';
