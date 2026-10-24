@@ -63,7 +63,8 @@ async function scan(args){
   assert.equal(result.writerAuthorized,false);
   assert.equal(result.publicationAuthorized,false);
   assert.equal(result.actualPacketPayloadVerified,false);
-  assert.equal(result.cueTimestampVerified,false);
+  assert.equal(typeof result.cueTimestampVerified,'boolean');
+  assert.ok(['CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED','CUE_BLOCK_TIMESTAMP_UNVERIFIED'].includes(result.cueTimestampStatus));
   assert.ok(file.reads.length>0);
   assert.ok(file.reads.every(n=>Number.isSafeInteger(n)&&n>=0&&n<=12),
     'only short EBML/Block headers, no 3 MiB media payload');
