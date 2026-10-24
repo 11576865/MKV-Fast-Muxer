@@ -87,3 +87,29 @@ test('a second directory grant for the same entry preserves the report-only path
   assert.equal((await registry.retry('job',alias)).savedToDirectory,true);
   assert.deepEqual(old.writes,['ep.mux-report.json']);
 });
+
+test('save-only retry never counts an unreadable or altered file as saved', async () => {
+  const registry = api.createBatchSaveRetryRegistry(), a = await artifact();
+  const dir = directory();
+  const ordinaryHandle = dir.getFileHandle.bind(dir);
+  dir.getFileHandle = async (name, options) => {
+    const handle = await ordinaryHandle(name, options);
+    return {
+      ...handle,
+      getFile: async () => name === a.outputName
+        ? new Blob(['damaged MKV!!'])
+        : handle.getFile(),
+    };
+  };
+  registry.retain('job', a, {}, null);
+  const result = await registry.retry('job', dir);
+  assert.equal(result.mkvSavedToDirectory, false);
+  assert.equal(result.reportSavedToDirectory, false);
+  assert.equal(result.savedToDirectory, false);
+  assert.match(result.directorySaveError, /回读未能证明完整文件字节一致/);
+  assert.deepEqual(dir.writes, ['ep.mkv']);
+  assert.equal(dir.files.has('ep.mux-report.json'), false);
+  // A failed readback is not permission to replace/delete the suspect entry.
+  await assert.rejects(registry.retry('job', dir), /已存在文件或失败残留/);
+  assert.deepEqual(dir.writes, ['ep.mkv']);
+});

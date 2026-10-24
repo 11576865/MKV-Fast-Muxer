@@ -49,6 +49,43 @@ export async function findExistingBatchOutputs(directory, jobs = []) {
   return findExistingNamedOutputs(directory, plannedBatchFilenames(jobs));
 }
 
+// File System Access close() acknowledges the write operation; it does not
+// prove the resulting on-disk bytes are identical to the generated artifact.
+// Verify both length and contents through the granted handle before issuing a
+// successful directory-save receipt. Each pair of reads is <= 2 MiB in total.
+const BATCH_SAVE_READBACK_CHUNK_BYTES = 1024 * 1024;
+async function verifyBatchSaveReadback(handle, intended) {
+  if (!handle || typeof handle.getFile !== 'function') {
+    throw new Error('目录授权不支持重新读取刚保存的文件');
+  }
+  if (!(intended instanceof Blob) || !Number.isSafeInteger(intended.size)) {
+    throw new Error('待保存成品没有可信字节长度');
+  }
+  const actual = await handle.getFile();
+  if (!actual || !Number.isSafeInteger(actual.size) || actual.size !== intended.size) {
+    throw new Error('目录回读文件长度与待保存成品不一致');
+  }
+  for (let offset = 0; offset < intended.size; offset += BATCH_SAVE_READBACK_CHUNK_BYTES) {
+    const end = Math.min(intended.size, offset + BATCH_SAVE_READBACK_CHUNK_BYTES);
+    const [expectedBytes, savedBytes] = await Promise.all([
+      intended.slice(offset, end).arrayBuffer(),
+      actual.slice(offset, end).arrayBuffer(),
+    ]);
+    if (expectedBytes.byteLength !== end - offset ||
+        savedBytes.byteLength !== end - offset) {
+      throw new Error('目录回读区块长度发生变化');
+    }
+    const expected = new Uint8Array(expectedBytes);
+    const saved = new Uint8Array(savedBytes);
+    for (let index = 0; index < expected.length; index += 1) {
+      if (expected[index] !== saved[index]) {
+        throw new Error('目录回读字节内容与待保存成品不一致（偏移 ' +
+          (offset + index) + '）');
+      }
+    }
+  }
+}
+
 export async function writeNewBatchOutput(directory, filename, blob) {
   if (!directory || !blob) throw new Error('缺少批量输出目录或成品。');
   if ((await findExistingNamedOutputs(directory, [filename])).length) {
@@ -70,6 +107,16 @@ export async function writeNewBatchOutput(directory, filename, blob) {
     // Abort may roll back content, but cannot guarantee removal of the name.
     throw new Error(
       `${error?.message || error}；写入已中止，未删除任何目录文件。目标“${filename}”可能留有空文件或其他进程的数据，请检查后再重试。`,
+      { cause: error }
+    );
+  }
+  // Do not conflate close() with verified output. A failed readback leaves the
+  // file untouched; the caller must retain browser-download/save-only fallbacks.
+  try {
+    await verifyBatchSaveReadback(handle, blob);
+  } catch (error) {
+    throw new Error(
+      `目标“${filename}”已关闭写入，但回读未能证明完整文件字节一致：${error?.message || error}。未删除或覆盖任何目录文件；请检查该文件并更换保存位置后重试。`,
       { cause: error }
     );
   }
