@@ -56,6 +56,7 @@ import { createMuxReport, reportFilename, serializeMuxReport } from './mux-repor
 import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-output.js';
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { createBatchSaveRetryRegistry } from './batch-save-retry.js';
+import { createSingleOutputDirectorySaveSession } from './single-output-directory-save.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
 import { formatBatchTerminalStatus, combineBatchRetryTerminal } from './batch-status.js';
@@ -270,6 +271,10 @@ const compositionSourceEvidence = $('compositionSourceEvidence');
 const compositionSourceSummary = $('compositionSourceSummary');
 const compositionSourceEvidenceList = $('compositionSourceEvidenceList');
 const outputEvidencePanel = $('outputEvidencePanel');
+const singleDirectoryActions = $('singleDirectoryActions');
+const singleChooseDirectoryBtn = $('singleChooseDirectoryBtn');
+const singleRetryDirectoryBtn = $('singleRetryDirectoryBtn');
+const singleDirectorySaveStatus = $('singleDirectorySaveStatus');
 const outputEvidenceTitle = $('outputEvidenceTitle');
 const outputEvidenceScopeState = $('outputEvidenceScopeState');
 const outputEvidenceName = $('outputEvidenceName');
@@ -573,6 +578,11 @@ let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
+// The only save authority is the exact currently retained generated pair.
+const singleDirectorySession=createSingleOutputDirectorySaveSession();
+let singleDirectoryHandle=null;
+let singleDirectorySaveBusy=false;
+let singleDirectoryStatusMessage='';
 let lastOutputIndexAudit = null;
 let outputIndexAuditPending = false;
 let outputIndexAuditSequence = 0;
@@ -1250,13 +1260,13 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning || previewing || batchSaveRetryBusy;
+  return running || scanning || previewing || batchSaveRetryBusy || singleDirectorySaveBusy;
 }
 
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy || singleDirectorySaveBusy;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -1570,7 +1580,7 @@ function updateUI() {
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0 ||
     currentPreservationReadiness().blocking;
-  cancelBtn.disabled = !isBusy();
+  cancelBtn.disabled = !(running || scanning || previewing);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
@@ -1795,7 +1805,76 @@ const compositionKindNames = {
   attachment: '附件', font: '字体', source: '来源',
 };
 
+function renderSingleDirectorySave() {
+  if (!singleDirectoryActions) return;
+  const active=lastActualOutput && singleDirectorySession.has(lastActualOutput);
+  singleDirectoryActions.hidden=!active;
+  if (!active) return;
+  const available=typeof window.showDirectoryPicker==='function';
+  const busy=isBusy() || batchRunning || batchStartPending;
+  singleChooseDirectoryBtn.disabled=!available || busy;
+  singleRetryDirectoryBtn.hidden=!singleDirectoryHandle ||
+    singleDirectorySession.receipt?.savedToDirectory === true;
+  singleRetryDirectoryBtn.disabled=busy || !singleDirectoryHandle;
+  singleDirectorySaveStatus.textContent=singleDirectorySaveBusy
+    ? '正在保存现有 MKV 与报告并回读全部字节（不重新封装）…'
+    : singleDirectoryStatusMessage ||
+      (available
+        ? '尚未证明成品保存到目录；可以选择新目录。浏览器下载链接始终可用。'
+        : '当前浏览器没有目录保存 API；请使用现有 MKV 与报告下载链接。');
+}
+
+async function saveSingleCompletedOutput(chooseNewDirectory) {
+  const owner=lastActualOutput;
+  if (!owner || !singleDirectorySession.has(owner) ||
+      isBusy() || batchRunning || batchStartPending) return;
+  if (chooseNewDirectory && typeof window.showDirectoryPicker!=='function') return;
+  singleDirectorySaveBusy=true;
+  singleDirectoryStatusMessage='';
+  updateUI();
+  try {
+    let directory=singleDirectoryHandle;
+    if (chooseNewDirectory || !directory) {
+      // Must be initiated by a genuine user click for File System Access.
+      directory=await window.showDirectoryPicker({mode:'readwrite'});
+      const permission=await directory.requestPermission?.({mode:'readwrite'});
+      if (permission && permission!=='granted')
+        throw Error('浏览器未授予目标目录写入权限');
+    }
+    if (lastActualOutput!==owner || !singleDirectorySession.has(owner))
+      throw Error('生成成品已更换；旧目录选择不再授权任何写入');
+    singleDirectoryHandle=directory;
+    // Registry verifies every persisted byte after close(), and checks
+    // previously saved members again before a save-only partial retry.
+    const receipt=await singleDirectorySession.save(owner,directory);
+    singleDirectoryStatusMessage=receipt.savedToDirectory
+      ? '目录“'+receipt.destinationName+'”：MKV 与 JSON 报告均已逐字节回读一致（不等于断电持久性）。'
+      : receipt.mkvSavedToDirectory
+        ? 'MKV 已完成目录回读，但报告未保存：'+
+          (receipt.reportSaveError || receipt.directorySaveError) +
+          '；可仅重试保存报告或使用浏览器下载。'
+        : '目录保存未完成：'+(receipt.directorySaveError || 'MKV 写入或回读未通过')+
+          '；生成的 MKV 与报告仍可通过原链接下载。';
+  } catch (error) {
+    if (error?.name!=='AbortError') {
+      singleDirectoryStatusMessage='目录保存未确认：'+
+        (error?.message||String(error))+
+        '；不会覆盖或删除既有文件。可重新选择目录或下载生成的成品。';
+    }
+  } finally {
+    singleDirectorySaveBusy=false;
+    updateUI();
+  }
+}
+singleChooseDirectoryBtn?.addEventListener('click', () => {
+  void saveSingleCompletedOutput(true);
+});
+singleRetryDirectoryBtn?.addEventListener('click', () => {
+  void saveSingleCompletedOutput(false);
+});
+
 function renderActualOutputEvidence() {
+  renderSingleDirectorySave();
   if (!outputEvidencePanel) return;
   const model = lastActualOutput && projectActualOutputEvidence(lastActualOutput.report, {
     currentSourceKey: outputCompositionFileKey(videoInput.files?.[0] || null),
@@ -5255,6 +5334,9 @@ async function executeCurrentMuxTask(explicit = null) {
     outputIndexAuditPending = false;
     lastActualOutput = null;
     lastOutputIndexAudit = null;
+    singleDirectorySession.release();
+    singleDirectoryHandle=null;
+    singleDirectoryStatusMessage='';
     renderActualOutputEvidence();
   }
   logEl.textContent = preservationInfo;
@@ -6117,6 +6199,12 @@ async function executeCurrentMuxTask(explicit = null) {
       // these bytes until the next task clears it.
       lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video,
         outputBlob, report };
+      singleDirectorySession.replace(lastActualOutput,{
+        blob:outputBlob,outputName,reportBlob,
+        reportName:reportFilename(outputName),outputSha256,
+      });
+      singleDirectoryHandle=null;
+      singleDirectoryStatusMessage='';
       lastOutputIndexAudit = null;
       renderActualOutputEvidence();
     }
