@@ -11,6 +11,9 @@ on:
       - 'scripts/s12-make-genuine-large-mkv.mjs'
       - 'tests/e2e/s12-real-large-mkv.e2e.mjs'
       - 'scripts/s12-source-admission-native-fixture-check.mjs'
+      - 'scripts/s12-seekhead-native-source-check.mjs'
+      - 'src/s12-seekhead-index-proof.js'
+      - 'tests/s12-seekhead-index-proof.test.mjs'
       - 'src/s12-original-attachment-admission.js'
       - 'src/matroska-attachment-reader.js'
       - '.github/workflows/s12-scoped-real-media.yml'
@@ -112,6 +115,12 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/s12-source-admission-native-fixture-check.mjs
+
+      - name: S12 native SeekHead index read-only pointer proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-seekhead-native-source-check.mjs
 
       - name: Serve exact candidate build
         shell: bash
