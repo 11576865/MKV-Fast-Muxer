@@ -6,7 +6,8 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
+import { createReadStream, openAsBlob } from 'node:fs';
+import { auditS12FinishedIndexEvidence } from '../../src/s12-finished-index-evidence.js';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
@@ -298,6 +299,50 @@ try{
    'ordered aggregate original payload SHA-256 changed');
  await mark('native-extracted-attachment-full-sha256-pass');
  }
+ // Independent on-disk structure validation observes actual downloaded MKV,
+ // not the worker's in-memory Blob, and does not equate two relocated offsets.
+ // Only a proven contradictory pointer or CRC is a hard failure; a missing
+ // index / incomplete index remains explicitly UNVERIFIED and never becomes
+ // a writer, packet, UID or durable-save certification.
+ const [nativeInputBlob,nativeFinishedBlob]=await Promise.all([
+   openAsBlob(source,{type:'video/x-matroska'}),
+   openAsBlob(out,{type:'video/x-matroska'}),
+ ]);
+ const finishedIndexes=await auditS12FinishedIndexEvidence({
+   source:nativeInputBlob,finished:nativeFinishedBlob,
+ });
+ const small=(e)=>e && ({
+   seekStatus:e.seekStatus,cuesStatus:e.cuesStatus,
+   seekReferences:e.seekReferences,seekMatched:e.seekMatched,
+   cueReferences:e.cueReferences,cueMatched:e.cueMatched,
+   seekComplete:e.seekComplete,cuesComplete:e.cuesComplete,
+   seekReasonsCount:e.seekReasons.length,seekReasonsSample:e.seekReasons.slice(0,6),
+   cueReasonsCount:e.cueReasons.length,cueReasonsSample:e.cueReasons.slice(0,6),
+ });
+ manifest.independentFinishedIndexEvidence={
+   schema:finishedIndexes.schema,status:finishedIndexes.status,
+   source:small(finishedIndexes.source),finished:small(finishedIndexes.finished),
+   errors:finishedIndexes.errors,
+   writerAuthorized:finishedIndexes.writerAuthorized,
+   publicationAuthorized:finishedIndexes.publicationAuthorized,
+   remuxEquivalenceProven:finishedIndexes.remuxEquivalenceProven,
+   savedFileVerified:finishedIndexes.savedFileVerified,
+ };
+ await mark('native-finished-index-structure-audited',{
+   status:finishedIndexes.status,
+   sourceSeek:finishedIndexes.source?.seekStatus,
+   finishedSeek:finishedIndexes.finished?.seekStatus,
+   sourceCues:finishedIndexes.source?.cuesStatus,
+   finishedCues:finishedIndexes.finished?.cuesStatus,
+   finishedIndexErrors:finishedIndexes.errors,
+ });
+ assert.notEqual(finishedIndexes.status,'FINISHED_INDEX_CONTRADICTION',
+   'S12_FINISHED_INDEX_PROVEN_INVALID: '+finishedIndexes.errors.join('; '));
+ assert.notEqual(finishedIndexes.status,'FINISHED_INDEX_PROBE_FAILED',
+   'S12_FINISHED_INDEX_PROBE_FAILED: '+finishedIndexes.errors.join('; '));
+ assert.notEqual(finishedIndexes.status,'NOT_RUN_INVALID_FILE_AUTHORITY');
+ assert.equal(finishedIndexes.writerAuthorized,false);
+ assert.equal(finishedIndexes.publicationAuthorized,false);
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
  manifest.result='PASS_THIS_TIER';
