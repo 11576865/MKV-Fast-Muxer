@@ -360,6 +360,10 @@ try{
    reasonCount:report.reasons.length,reasons:report.reasons.slice(0,8),
    writerAuthorized:report.writerAuthorized,
    actualPacketPayloadVerified:report.actualPacketPayloadVerified,
+   cueTimestampStatus:report.cueTimestampStatus,
+   cueTimestampChecked:report.cueTimestampCheckedReferences,
+   cueTimestampVerified:report.cueTimestampVerified,
+   cueTimestampReasons:report.cueTimestampReasons?.slice(0,8)||[],
  });
  manifest.independentCueTrackBlockEvidence={
    source:narrow(sourceBlocks),finished:narrow(outputBlocks),
@@ -383,6 +387,15 @@ try{
    'S12_FINISHED_CUE_TRACK_BLOCK_UNVERIFIED: '+outputBlocks.reasons.join(';'));
  assert.equal(sourceBlocks.checkedReferences,sourceBlocks.totalReferences);
  assert.equal(outputBlocks.checkedReferences,outputBlocks.totalReferences);
+ // Distinct from previous Block existence proof: the genuine source and
+ // downloaded output must have every CueTime supported by the Cluster
+ // timestamp and actual signed Block relative presentation offset.
+ assert.equal(sourceBlocks.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED',
+   'S12_SOURCE_CUE_TIMESTAMP_UNVERIFIED: '+sourceBlocks.cueTimestampReasons.join(';'));
+ assert.equal(outputBlocks.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED',
+   'S12_FINISHED_CUE_TIMESTAMP_UNVERIFIED: '+outputBlocks.cueTimestampReasons.join(';'));
+ assert.equal(sourceBlocks.cueTimestampCheckedReferences,sourceBlocks.totalReferences);
+ assert.equal(outputBlocks.cueTimestampCheckedReferences,outputBlocks.totalReferences);
 
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
