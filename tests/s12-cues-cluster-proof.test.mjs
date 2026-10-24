@@ -39,7 +39,7 @@ const crc32=bytes=>{
 async function cues(payload,{withCrc=false,badCrc=false}={}){
   if(!withCrc)return e('1c53bb6b',payload);
   const bytes=Buffer.from(await payload.arrayBuffer());
-  const crc=Buffer.alloc(4);crc.writeUInt32LE(crc32(bytes)^(badCrc?1:0));
+  const crc=Buffer.alloc(4);crc.writeUInt32LE((crc32(bytes)^(badCrc?1:0))>>>0);
   return e('1c53bb6b',new Blob([e('bf',crc),payload]));
 }
 const actual=async ({cuePos=goodPosition,time=2,track=1,relative=null,
