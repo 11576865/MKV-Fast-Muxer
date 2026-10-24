@@ -821,8 +821,8 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
         return status && status!=='not-run' && status!=='running';
       },null,{timeout:90000});
       const inspectionText=await page.locator('#outputIndexResult').textContent();
-      assert.match(inspectionText,/真实来源[\\s\\S]*实际成品/);
-      assert.match(inspectionText,/SeekHead[\\s\\S]*Cues[\\s\\S]*Block[\\s\\S]*CueTime/);
+      assert.match(inspectionText,/真实来源[\s\S]*实际成品/);
+      assert.match(inspectionText,/SeekHead[\s\S]*Cues[\s\S]*Block[\s\S]*CueTime/);
       assert.match(inspectionText,/不验证关键帧/);
       assert.equal(await page.locator('#outputIndexInspectBtn').isEnabled(),true);
 
