@@ -12,6 +12,7 @@ class Directory {
     this.files=new Map();
     this.writes=new Map();
     this.failWrites=new Set();
+    this.failCreates=new Set();
     this.corruptReadback=new Map();
     this.failReadback=new Set();
   }
@@ -20,6 +21,7 @@ class Directory {
   }
   async isSameEntry(other) { return this===other; }
   async getFileHandle(filename,{create=false}={}) {
+    if(create&&this.failCreates.has(filename))throw fileError('NotAllowedError');
     if(!this.files.has(filename)){
       if(!create)throw fileError('NotFoundError');
       this.files.set(filename,new Blob([]));
@@ -70,19 +72,33 @@ test('single delivery: exact MKV and report are both persisted and byte-readback
 
 test('single delivery: report failure retains verified MKV and retries only report',async()=>{
   const s=createSingleOutputDirectorySaveSession(),owner={},dir=new Directory(),a=await fixture();
-  dir.failWrites.add(a.reportName);
+  dir.failCreates.add(a.reportName);
   s.replace(owner,a);
   const first=await s.save(owner,dir);
   assert.equal(first.mkvSavedToDirectory,true);
   assert.equal(first.reportSavedToDirectory,false);
   assert.equal(first.savedToDirectory,false);
-  assert.match(first.reportSaveError,/injected write failure/);
+  assert.match(first.reportSaveError,/NotAllowedError/);
   assert.equal(dir.writes.get(a.outputName),1);
-  dir.failWrites.delete(a.reportName);
+  dir.failCreates.delete(a.reportName);
   const second=await s.save(owner,dir);
   assert.equal(second.savedToDirectory,true,second.directorySaveError);
   assert.equal(dir.writes.get(a.outputName),1,'never remux or re-write successful MKV');
   assert.equal(dir.writes.get(a.reportName),1);
+});
+
+test('single delivery: report write failure with a leftover destination must not be overwritten',async()=>{
+  const s=createSingleOutputDirectorySaveSession(),owner={},dir=new Directory(),a=await fixture();
+  dir.failWrites.add(a.reportName);
+  s.replace(owner,a);
+  const receipt=await s.save(owner,dir);
+  assert.equal(receipt.mkvSavedToDirectory,true);
+  assert.equal(receipt.reportSavedToDirectory,false);
+  assert.equal(dir.files.has(a.reportName),true,'failed create/write can leave a name');
+  dir.failWrites.delete(a.reportName);
+  await assert.rejects(s.save(owner,dir),/已存在|残留/);
+  assert.equal(dir.writes.get(a.outputName),1);
+  assert.equal(dir.writes.get(a.reportName),undefined);
 });
 
 test('single delivery: normalized preexisting destination refuses overwrite',async()=>{
