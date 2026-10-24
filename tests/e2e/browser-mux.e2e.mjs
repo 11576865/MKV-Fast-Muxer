@@ -697,6 +697,10 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
         Object.defineProperty(window,'showDirectoryPicker',{
           configurable:true,
           value:async () => {
+            if(window.__singlePickerCancelled){
+              window.__singlePickerCancelled=false;
+              throw new DOMException('User cancelled directory picker','AbortError');
+            }
             const files=window.__singleSavedFiles;
             const writes=window.__singleSavedWrites;
             return {
@@ -755,6 +759,15 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
         'fully saved pair does not need retry');
       assert.equal(await page.locator('#downloadLink').isVisible(),true,
         'normal browser fallback remains available after directory save');
+      const previousVerifiedSaveStatus=await page.locator('#singleDirectorySaveStatus').textContent();
+      await page.evaluate(()=>{window.__singlePickerCancelled=true;});
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        document.querySelector('#singleChooseDirectoryBtn')?.disabled===false,
+        null,{timeout:15000});
+      assert.equal(await page.locator('#singleDirectorySaveStatus').textContent(),
+        previousVerifiedSaveStatus,
+        'cancelled picker must preserve previous successful directory receipt');
 
       // Second user-selected directory: real MKV persists, report permission
       // fails before create; save-only retry must NOT remux or rewrite MKV.
