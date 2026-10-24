@@ -82,7 +82,12 @@ test('S12 research: normalize missing Cluster SeekHead inside reserved Void with
   assert.equal(inputCues.status,'CUES_CLUSTER_POINTERS_VERIFIED');
   const received=[];
   const wrapped={size:source.size,type:source.type,slice(a,b,t){
-    received.push(b-a);return source.slice(a,b,t);
+    const part=source.slice(a,b,t);
+    // Large range slices are ZERO-COPY views. Instrument actual reads,
+    // not Blob.slice arguments used to compose the unchanged media tail.
+    const raw=part.arrayBuffer.bind(part);
+    part.arrayBuffer=async()=>{received.push(part.size);return raw();};
+    return part;
   }};
   const repair=await planS12VoidResidentSeekHeadRepair(wrapped);
   assert.equal(repair.status,'RESEARCH_BLOB_SCOPED_VALIDATED',repair.reasons.join('; '));
