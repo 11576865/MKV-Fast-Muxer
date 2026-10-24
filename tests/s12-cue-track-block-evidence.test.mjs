@@ -15,26 +15,32 @@ const uint=n=>{
   for(let i=7;i>=0;i--){b[i]=Number(x&255n);x>>=8n;}
   assert.equal(x,0n);return b;
 };
-const block=(track,valid=true)=>e('a3',new Blob([
-  Buffer.from([valid?(0x80|track):0,0,0,0x80]),
+const block=(track,valid=true,ticks=2)=>e('a3',new Blob([
+  Buffer.from([valid?(0x80|track):0,(ticks>>8)&0xff,ticks&0xff,0x80]),
   Buffer.alloc(3*1024*1024),
 ]));
-const group=(track)=>e('a0',e('a1',Buffer.from([0x80|track,0,0,0,0xfa])));
+const group=(track,ticks=2)=>e('a0',e('a1',Buffer.from([0x80|track,(ticks>>8)&0xff,ticks&0xff,0xfa])));
 const make=({
   cueTrack=1, declaredTracks=[1], blockTrack=1, blockGroup=false,
   relative='absent', noCues=false, validVint=true,
+  cueTime=2, clusterTime=0, blockTicks=2, nondefaultScale=false, codecDelay=0,
 }={})=>{
   const info=e('1549a966',e('2ad7b1',Buffer.from([0x0f,0x42,0x40])));
   const tracks=e('1654ae6b',new Blob(declaredTracks.map(n=>
-    e('ae',e('d7',uint(n))))));
-  const timestamp=e('e7',Buffer.from([0]));
-  const packet=blockGroup?group(blockTrack):block(blockTrack,validVint);
+    e('ae',new Blob([
+      e('d7',uint(n)),
+      ...(nondefaultScale?[e('23314f',Buffer.from([0x40,0x00,0x00,0x00]))]:[]),
+      ...(codecDelay?[e('56aa',uint(codecDelay))]:[]),
+    ])))));
+  const timestamp=e('e7',uint(clusterTime));
+  const packet=blockGroup?group(blockTrack,blockTicks):
+    block(blockTrack,validVint,blockTicks);
   const cluster=e('1f43b675',new Blob([timestamp,packet]));
   const offset=info.size+tracks.size;
   const rel=relative==='absent'?null:relative==='correct'?timestamp.size:
     relative==='timestamp'?0:relative==='inside'?timestamp.size+1:relative;
   const point=e('bb',new Blob([
-    e('b3',uint(2)),
+    e('b3',uint(cueTime)),
     e('b7',new Blob([
       e('f7',uint(cueTrack)),e('f1',uint(offset)),
       ...(rel===null?[]:[e('f0',uint(rel))]),
@@ -72,6 +78,9 @@ test('S12: real Tracks + SimpleBlock prove indexed track appears inside referenc
   assert.equal(result.totalReferences,1);
   assert.equal(result.checkedReferences,1);
   assert.equal(result.distinctReferencedClusters,1);
+  assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED');
+  assert.equal(result.cueTimestampCheckedReferences,1);
+  assert.equal(result.cueTimestampVerified,true);
   assert.ok(reads.length<80,'bounded reads skip large 3 MiB Block payload');
 });
 test('S12: existing Cluster cannot certify a CueTrack absent from Tracks',async()=>{
@@ -119,4 +128,39 @@ test('S12: no Cues is not a verified real track/block relationship',async()=>{
   assert.equal(missing.status,'CUE_BLOCK_EVIDENCE_UNVERIFIED');
   assert.equal(missing.totalReferences,0);
   assert.ok(missing.reasons.includes('NO_CUES'));
+});
+
+test('S12: CueTime must match Cluster Timestamp plus signed 16-bit Block time, not merely track existence',async()=>{
+  const good=(await scan({cueTime:37,clusterTime:40,blockTicks:-3})).result;
+  assert.equal(good.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+  assert.equal(good.cueTimestampVerified,true);
+  const wrong=(await scan({cueTime:38,clusterTime:40,blockTicks:-3})).result;
+  assert.equal(wrong.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',
+    'the prior track/Block existence proof remains independent');
+  assert.equal(wrong.cueTimestampVerified,false);
+  assert.equal(wrong.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+  assert.ok(wrong.cueTimestampReasons.includes('CUE_TIME_NO_MATCHING_BLOCK:1:38'));
+});
+test('S12: correct absolute CueTime but wrong CueRelativePosition cannot gain timing proof',async()=>{
+  const good=(await scan({relative:'correct'})).result;
+  assert.equal(good.cueTimestampVerified,true);
+  const wrong=(await scan({relative:'inside'})).result;
+  assert.equal(wrong.cueTimestampVerified,false);
+  assert.equal(wrong.status,'CUE_BLOCK_EVIDENCE_UNVERIFIED');
+});
+test('S12: non-default TrackTimestampScale and CodecDelay do not get a false exact-time receipt',async()=>{
+  for(const v of [{nondefaultScale:true},{codecDelay:15}]){
+    const out=(await scan(v)).result;
+    assert.equal(out.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+    assert.equal(out.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+    assert.equal(out.cueTimestampVerified,false);
+    assert.ok(out.cueTimestampReasons.some(x=>x.includes('NONDEFAULT_TRACK_SCALE_OR_DELAY')));
+  }
+});
+test('S12: a matching BlockGroup Block participates in timestamp proof',async()=>{
+  const good=(await scan({blockGroup:true,relative:'correct'})).result;
+  assert.equal(good.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED');
+  const bad=(await scan({blockGroup:true,relative:'correct',blockTicks:3})).result;
+  assert.equal(bad.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+  assert.equal(bad.cueTimestampVerified,false);
 });
