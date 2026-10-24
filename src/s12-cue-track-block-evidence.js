@@ -10,7 +10,9 @@ import { inspectS12CuesClusterLocations } from './s12-cues-cluster-proof.js';
 export const S12_CUE_BLOCK_SCHEMA='s12-cue-track-block-evidence-v0';
 const E=Object.freeze({ebml:0x1a45dfa3,docType:0x4282,segment:0x18538067,
   tracks:0x1654ae6b,trackEntry:0xae,trackNumber:0xd7,
-  cluster:0x1f43b675,simpleBlock:0xa3,blockGroup:0xa0,block:0xa1,
+  trackTimestampScale:0x23314f,codecDelay:0x56aa,
+  cluster:0x1f43b675,clusterTimestamp:0xe7,
+  simpleBlock:0xa3,blockGroup:0xa0,block:0xa1,
   void:0xec,crc:0xbf});
 const MAX_TOP=100000,MAX_TRACKS=256,MAX_CLUSTER_CHILDREN=4096;
 const MAX_VISITS=220000,MAX_REFERENCES=50000;
@@ -24,9 +26,16 @@ const receipt=(status,errors=[],checked=0,total=0,details={})=>Object.freeze({
   distinctReferencedClusters:details.clusters||0,
   maxReadBytes:12,
   writerAuthorized:false,publicationAuthorized:false,
-  actualPacketPayloadVerified:false,cueTimestampVerified:false,
+  actualPacketPayloadVerified:false,
+  cueTimestampVerified:status==='CUE_TRACK_BLOCK_HEADERS_VERIFIED' &&
+    total>0 && details.timedChecked===total,
+  cueTimestampStatus:status==='CUE_TRACK_BLOCK_HEADERS_VERIFIED' &&
+    total>0 && details.timedChecked===total
+    ? 'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED' : 'CUE_BLOCK_TIMESTAMP_UNVERIFIED',
+  cueTimestampCheckedReferences:details.timedChecked||0,
+  cueTimestampReasons:Object.freeze([...new Set(details.timingReasons||[])].slice(0,MAX_REASONS)),
   uidGraphVerified:false,savedFileVerified:false,
-  scope:'TrackNumber and Block header existence only; no Block payload, CueTime/ClusterTimestamp equality, codec frame integrity or remux preservation evidence',
+  scope:'Tracks and actual Block header with optional CueTime = Cluster Timestamp + signed Block ticks at TrackTimestampScale 1; no media payload, codec PTS or remux equivalence proof',
 });
 async function read(file,at,n){
   if(!Number.isSafeInteger(at)||at<0||!Number.isSafeInteger(n)||n<0||at+n>file.size||n>12)
@@ -63,41 +72,95 @@ async function walk(file,from,to,ctx,fn,max=MAX_TOP){
     at=e.end;
   }
 }
-async function number(file,e){
+async function unsigned(file,e,{allowZero=false}={}){
   const n=e.end-e.data;
   if(n<1||n>8)throw Error('CUE_BLOCK_INVALID_UINT_WIDTH');
   const v=await read(file,e.data,n);let out=0n;
   for(const b of v)out=(out<<8n)|BigInt(b);
-  if(out<1n||out>BigInt(Number.MAX_SAFE_INTEGER))
-    throw Error('CUE_BLOCK_INVALID_TRACK_NUMBER');
+  if((!allowZero&&out<1n)||out>BigInt(Number.MAX_SAFE_INTEGER))
+    throw Error('CUE_BLOCK_INVALID_UINT_VALUE');
   return Number(out);
 }
-async function blockNumber(file,e){
-  // EBML vint TrackNumber at the beginning of Block/SimpleBlock data.
+async function timingScale(file,e){
+  const n=e.end-e.data;
+  if(n!==4&&n!==8)throw Error('CUE_BLOCK_TRACK_SCALE_WIDTH');
+  const bytes=await read(file,e.data,n);
+  const view=new DataView(bytes.buffer,bytes.byteOffset,n);
+  const scale=n===4?view.getFloat32(0,false):view.getFloat64(0,false);
+  if(!Number.isFinite(scale)||scale<=0)throw Error('CUE_BLOCK_TRACK_SCALE_INVALID');
+  return scale;
+}
+async function blockHeader(file,e){
+  // EBML vint TrackNumber followed by signed 16-bit time offset and flags.
+  // Request only 11 header bytes at most; do NOT fetch the coded packet.
   if(e.end-e.data<4)throw Error('CUE_BLOCK_TOO_SHORT');
-  const a=await read(file,e.data,Math.min(8,e.end-e.data));
+  const a=await read(file,e.data,Math.min(11,e.end-e.data));
   let width=1;
   while(width<=8&&!(a[0]&(0x80>>(width-1))))width++;
-  if(width>8||width>a.length)throw Error('CUE_BLOCK_TRACK_VINT_INVALID');
+  if(width>8||width+3>a.length)throw Error('CUE_BLOCK_TRACK_VINT_INVALID');
   let n=BigInt(a[0]&((1<<(8-width))-1));
   for(let i=1;i<width;i++)n=(n<<8n)|BigInt(a[i]);
   if(n<1n||n>BigInt(Number.MAX_SAFE_INTEGER))
     throw Error('CUE_BLOCK_TRACK_VINT_UNADDRESSABLE');
-  return Number(n);
+  const raw=(a[width]<<8)|a[width+1];
+  const ticks=raw&0x8000?raw-0x10000:raw;
+  return {track:Number(n),ticks,flags:a[width+2]};
 }
 async function candidateBlock(file,el,ctx){
   if(el.id===E.simpleBlock||el.id===E.block)
-    return blockNumber(file,el);
+    return blockHeader(file,el);
   if(el.id!==E.blockGroup)return null;
   let found=null;
   await walk(file,el.data,el.end,ctx,async x=>{
     if(x.id===E.block){
       if(found!==null)throw Error('CUE_BLOCK_DUPLICATE_IN_GROUP');
-      found=await blockNumber(file,x);
+      found=await blockHeader(file,x);
     }
   },128);
   return found;
 }
+/**
+ * Timestamp-only scan, deliberately independent from the original Block
+ * header visit budget. Index one Cluster's actual direct child Block headers
+ * by (track, signed ticks) in O(B); resolve Cue references in O(R).
+ * A failed/unsupported timestamp scan must NEVER revoke header evidence.
+ */
+async function scanClusterTimestampProof(file,cluster,refs,ctx,maxClusterChildren){
+  const positionsByTrackTicks=new Map();
+  let clusterTimestamp=null,seenTimestamp=false,visited=0;
+  for(let at=cluster.data;at<cluster.end;){
+    if(++visited>maxClusterChildren)throw Error('CUE_TIMESTAMP_SCAN_BUDGET');
+    const h=await element(file,at,cluster.end,ctx);
+    if(h.unknown)throw Error('CUE_TIMESTAMP_UNKNOWN_CLUSTER_CHILD');
+    if(h.id===E.clusterTimestamp){
+      if(seenTimestamp)throw Error('CUE_TIMESTAMP_DUPLICATE_CLUSTER_TIMESTAMP');
+      seenTimestamp=true;
+      clusterTimestamp=await unsigned(file,h,{allowZero:true});
+    }
+    if(h.id===E.simpleBlock||h.id===E.blockGroup){
+      const info=await candidateBlock(file,h,ctx);
+      if(info){
+        const key=info.track+':'+info.ticks;
+        if(!positionsByTrackTicks.has(key))positionsByTrackTicks.set(key,new Set());
+        positionsByTrackTicks.get(key).add(at);
+      }
+    }
+    at=h.end;
+  }
+  if(!seenTimestamp)return {matched:new Set(),missingTimestamp:true};
+  const matched=new Set();
+  for(const ref of refs){
+    const ticks=ref.cueTime-clusterTimestamp;
+    if(!Number.isSafeInteger(ticks)||ticks<-32768||ticks>32767)continue;
+    const locations=positionsByTrackTicks.get(ref.track+':'+ticks);
+    if(!locations)continue;
+    const wanted=ref.relativePosition===null?null:cluster.data+ref.relativePosition;
+    if(wanted===null||(Number.isSafeInteger(wanted)&&locations.has(wanted)))
+      matched.add(ref);
+  }
+  return {matched,missingTimestamp:false};
+}
+
 export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=MAX_CLUSTER_CHILDREN}={}){
   if(!file||!Number.isSafeInteger(file.size)||file.size<1||typeof file.slice!=='function')
     return receipt('CUE_BLOCK_EVIDENCE_UNVERIFIED',['CUE_BLOCK_FILE_UNAVAILABLE']);
@@ -143,21 +206,33 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
       if(e.id===E.cluster)clusters.set(e.at,e);
     });
     if(!trackMaster)throw Error('CUE_BLOCK_TRACKS_ABSENT');
-    const tracks=new Set();
+    const tracks=new Set(),trackTimingEligible=new Map();
     await walk(file,trackMaster.data,trackMaster.end,ctx,async t=>{
       if(t.id===E.void||t.id===E.crc)return;
       if(t.id!==E.trackEntry)throw Error('CUE_BLOCK_UNKNOWN_TRACKS_CHILD');
       if(tracks.size>=MAX_TRACKS)throw Error('CUE_BLOCK_TRACKS_BUDGET');
-      let track=null;
+      let track=null,scale=1,codecDelay=0,scaleSeen=false,delaySeen=false;
       await walk(file,t.data,t.end,ctx,async field=>{
         if(field.id===E.trackNumber){
           if(track!==null)throw Error('CUE_BLOCK_DUPLICATE_TRACKNUMBER');
-          track=await number(file,field);
+          track=await unsigned(file,field);
+        }else if(field.id===E.trackTimestampScale){
+          if(scaleSeen)throw Error('CUE_BLOCK_DUPLICATE_TRACK_SCALE');
+          scaleSeen=true;
+          scale=await timingScale(file,field);
+        }else if(field.id===E.codecDelay){
+          if(delaySeen)throw Error('CUE_BLOCK_DUPLICATE_CODEC_DELAY');
+          delaySeen=true;
+          codecDelay=await unsigned(file,field,{allowZero:true});
         }
       },1024);
       if(track===null)throw Error('CUE_BLOCK_TRACKNUMBER_MISSING');
       if(tracks.has(track))throw Error('CUE_BLOCK_TRACKNUMBER_COLLISION');
       tracks.add(track);
+      // For the separate exact CueTime proof only: non-default per-track
+      // scaling or CodecDelay requires nanosecond/rounding semantics. Retain
+      // existing header proof but never award an incorrect time receipt.
+      trackTimingEligible.set(track,scale===1&&codecDelay===0);
     },MAX_TRACKS+8);
     const byCluster=new Map();
     for(const cue of cues.locations){
@@ -165,7 +240,11 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
         byCluster.set(cue.absoluteClusterOffset,[]);
       byCluster.get(cue.absoluteClusterOffset).push(cue);
     }
-    let checked=0;
+    let checked=0,timedChecked=0;
+    const timingReasons=[];
+    // This is a different evidence budget and failure domain from ctx.visits.
+    const timingCtx={visits:0};
+    let timingBudgetExhausted=false;
     for(const [offset,refs] of byCluster){
       const cluster=clusters.get(offset);
       if(!cluster)throw Error('CUE_BLOCK_CLUSTER_LOST');
@@ -174,6 +253,12 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
       // can otherwise fabricate a Block-looking header.
       const neededTracks=new Set();
       const relativeTargets=new Map();
+      const eligibleTimingRefs=refs.filter(r=>
+        tracks.has(r.track)&&trackTimingEligible.get(r.track));
+      for(const r of refs){
+        if(tracks.has(r.track)&&!trackTimingEligible.get(r.track))
+          timingReasons.push('CUE_TIMING_NONDEFAULT_TRACK_SCALE_OR_DELAY:'+r.track);
+      }
       for(const r of refs){
         if(!tracks.has(r.track)){
           errors.push('CUE_TRACK_NOT_IN_TRACKS:'+r.track);
@@ -192,6 +277,8 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
         }
       }
       let visited=0,at=cluster.data;
+      // First finish the original header proof. A CueTime request must not
+      // extend this scan or consume its global ctx.visits budget.
       while(at<cluster.end&&(neededTracks.size||relativeTargets.size)){
         if(++visited>maxClusterChildren){
           errors.push('CUE_CLUSTER_BLOCK_SCAN_BUDGET:'+offset);
@@ -202,15 +289,39 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
         const matchingRelative=relativeTargets.get(at)||[];
         const interesting=matchingRelative.length||
           ((h.id===E.simpleBlock||h.id===E.blockGroup)&&neededTracks.size);
-        const blockTrack=interesting?await candidateBlock(file,h,ctx):null;
-        if(blockTrack!==null)neededTracks.delete(blockTrack);
+        const info=interesting?await candidateBlock(file,h,ctx):null;
+        if(info!==null)neededTracks.delete(info.track);
         for(const r of matchingRelative){
-          if(blockTrack!==r.track)errors.push(
+          if(info?.track!==r.track)errors.push(
             'CUE_RELATIVE_NOT_REFERENCED_TRACK_BLOCK:'+r.track);
           else checked++;
         }
         relativeTargets.delete(at);
         at=h.end;
+      }
+      // Only eligible tracks need the exact timestamp scan. Its independent
+      // bounded failure becomes timing UNVERIFIED, not header UNVERIFIED.
+      if(eligibleTimingRefs.length){
+        if(timingBudgetExhausted){
+          timingReasons.push('CUE_TIMESTAMP_GLOBAL_BUDGET_EXHAUSTED');
+        }else{
+          try{
+            const proof=await scanClusterTimestampProof(
+              file,cluster,eligibleTimingRefs,timingCtx,maxClusterChildren);
+            timedChecked+=proof.matched.size;
+            for(const r of eligibleTimingRefs){
+              if(!proof.matched.has(r))
+                timingReasons.push(proof.missingTimestamp
+                  ? 'CUE_CLUSTER_TIMESTAMP_MISSING:'+offset
+                  : 'CUE_TIME_NO_MATCHING_BLOCK:'+r.track+':'+r.cueTime);
+            }
+          }catch(error){
+            const reason=error?.message||String(error);
+            timingReasons.push('CUE_TIMESTAMP_SCAN_FAILED:'+reason);
+            if(reason==='CUE_BLOCK_HEADER_VISIT_BUDGET')
+              timingBudgetExhausted=true;
+          }
+        }
       }
       for(const r of refs){
         if(r.relativePosition===null&&tracks.has(r.track)&&
@@ -224,7 +335,8 @@ export async function inspectS12CueTrackBlockEvidence(file,{maxClusterChildren=M
     }
     return receipt(errors.length?'CUE_BLOCK_EVIDENCE_UNVERIFIED':
       'CUE_TRACK_BLOCK_HEADERS_VERIFIED',errors,checked,total,
-      {tracks:[...tracks].sort((a,b)=>a-b),clusters:byCluster.size});
+      {tracks:[...tracks].sort((a,b)=>a-b),clusters:byCluster.size,
+       timedChecked,timingReasons});
   }catch(error){
     return receipt('CUE_BLOCK_EVIDENCE_UNVERIFIED',
       [...errors,'CUE_BLOCK_SCAN_FAILED:'+(error?.message||String(error))],

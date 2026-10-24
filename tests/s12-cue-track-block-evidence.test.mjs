@@ -15,32 +15,47 @@ const uint=n=>{
   for(let i=7;i>=0;i--){b[i]=Number(x&255n);x>>=8n;}
   assert.equal(x,0n);return b;
 };
-const block=(track,valid=true)=>e('a3',new Blob([
-  Buffer.from([valid?(0x80|track):0,0,0,0x80]),
+const block=(track,valid=true,ticks=2)=>e('a3',new Blob([
+  Buffer.from([valid?(0x80|track):0,(ticks>>8)&0xff,ticks&0xff,0x80]),
   Buffer.alloc(3*1024*1024),
 ]));
-const group=(track)=>e('a0',e('a1',Buffer.from([0x80|track,0,0,0,0xfa])));
+const group=(track,ticks=2)=>e('a0',e('a1',Buffer.from([0x80|track,(ticks>>8)&0xff,ticks&0xff,0xfa])));
 const make=({
   cueTrack=1, declaredTracks=[1], blockTrack=1, blockGroup=false,
   relative='absent', noCues=false, validVint=true,
+  cueTime=2, clusterTime=0, blockTicks=2, nondefaultScale=false, codecDelay=0,
+  extraBlocks=0, extraCueTimes=[],
 }={})=>{
   const info=e('1549a966',e('2ad7b1',Buffer.from([0x0f,0x42,0x40])));
   const tracks=e('1654ae6b',new Blob(declaredTracks.map(n=>
-    e('ae',e('d7',uint(n))))));
-  const timestamp=e('e7',Buffer.from([0]));
-  const packet=blockGroup?group(blockTrack):block(blockTrack,validVint);
-  const cluster=e('1f43b675',new Blob([timestamp,packet]));
+    e('ae',new Blob([
+      e('d7',uint(n)),
+      ...(nondefaultScale?[e('23314f',Buffer.from([0x40,0x00,0x00,0x00]))]:[]),
+      ...(codecDelay?[e('56aa',uint(codecDelay))]:[]),
+    ])))));
+  const timestamp=e('e7',uint(clusterTime));
+  const packet=blockGroup?group(blockTrack,blockTicks):
+    block(blockTrack,validVint,blockTicks);
+  // Extra blocks are tiny actual EBML Block headers; the primary media
+  // payload remains 3 MiB so short-read enforcement is still exercised.
+  const additionalBlocks=Array.from({length:extraBlocks},()=>
+    e('a3',Buffer.from([0x81,0,2,0x80,0x42])));
+  const cluster=e('1f43b675',new Blob([timestamp,packet,...additionalBlocks]));
   const offset=info.size+tracks.size;
   const rel=relative==='absent'?null:relative==='correct'?timestamp.size:
     relative==='timestamp'?0:relative==='inside'?timestamp.size+1:relative;
   const point=e('bb',new Blob([
-    e('b3',uint(2)),
+    e('b3',uint(cueTime)),
     e('b7',new Blob([
       e('f7',uint(cueTrack)),e('f1',uint(offset)),
       ...(rel===null?[]:[e('f0',uint(rel))]),
     ])),
   ]));
-  const cues=e('1c53bb6b',point);
+  const extraPoints=extraCueTimes.map(time=>e('bb',new Blob([
+    e('b3',uint(time)),
+    e('b7',new Blob([e('f7',uint(cueTrack)),e('f1',uint(offset))])),
+  ])));
+  const cues=e('1c53bb6b',new Blob([point,...extraPoints]));
   const bytes=new Blob([
     e('1a45dfa3',e('4282',Buffer.from('matroska'))),
     e('18538067',new Blob([info,tracks,cluster,...(noCues?[]:[cues])])),
@@ -57,7 +72,8 @@ async function scan(args){
   assert.equal(result.writerAuthorized,false);
   assert.equal(result.publicationAuthorized,false);
   assert.equal(result.actualPacketPayloadVerified,false);
-  assert.equal(result.cueTimestampVerified,false);
+  assert.equal(typeof result.cueTimestampVerified,'boolean');
+  assert.ok(['CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED','CUE_BLOCK_TIMESTAMP_UNVERIFIED'].includes(result.cueTimestampStatus));
   assert.ok(file.reads.length>0);
   assert.ok(file.reads.every(n=>Number.isSafeInteger(n)&&n>=0&&n<=12),
     'only short EBML/Block headers, no 3 MiB media payload');
@@ -72,6 +88,9 @@ test('S12: real Tracks + SimpleBlock prove indexed track appears inside referenc
   assert.equal(result.totalReferences,1);
   assert.equal(result.checkedReferences,1);
   assert.equal(result.distinctReferencedClusters,1);
+  assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED');
+  assert.equal(result.cueTimestampCheckedReferences,1);
+  assert.equal(result.cueTimestampVerified,true);
   assert.ok(reads.length<80,'bounded reads skip large 3 MiB Block payload');
 });
 test('S12: existing Cluster cannot certify a CueTrack absent from Tracks',async()=>{
@@ -119,4 +138,79 @@ test('S12: no Cues is not a verified real track/block relationship',async()=>{
   assert.equal(missing.status,'CUE_BLOCK_EVIDENCE_UNVERIFIED');
   assert.equal(missing.totalReferences,0);
   assert.ok(missing.reasons.includes('NO_CUES'));
+});
+
+test('S12: CueTime must match Cluster Timestamp plus signed 16-bit Block time, not merely track existence',async()=>{
+  const good=(await scan({cueTime:37,clusterTime:40,blockTicks:-3})).result;
+  assert.equal(good.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+  assert.equal(good.cueTimestampVerified,true);
+  const wrong=(await scan({cueTime:38,clusterTime:40,blockTicks:-3})).result;
+  assert.equal(wrong.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',
+    'the prior track/Block existence proof remains independent');
+  assert.equal(wrong.cueTimestampVerified,false);
+  assert.equal(wrong.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+  assert.ok(wrong.cueTimestampReasons.includes('CUE_TIME_NO_MATCHING_BLOCK:1:38'));
+});
+test('S12: correct absolute CueTime but wrong CueRelativePosition cannot gain timing proof',async()=>{
+  const good=(await scan({relative:'correct'})).result;
+  assert.equal(good.cueTimestampVerified,true);
+  const wrong=(await scan({relative:'inside'})).result;
+  assert.equal(wrong.cueTimestampVerified,false);
+  assert.equal(wrong.status,'CUE_BLOCK_EVIDENCE_UNVERIFIED');
+});
+test('S12: non-default TrackTimestampScale and CodecDelay do not get a false exact-time receipt',async()=>{
+  for(const v of [{nondefaultScale:true},{codecDelay:15}]){
+    const out=(await scan(v)).result;
+    assert.equal(out.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+    assert.equal(out.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+    assert.equal(out.cueTimestampVerified,false);
+    assert.ok(out.cueTimestampReasons.some(x=>x.includes('NONDEFAULT_TRACK_SCALE_OR_DELAY')));
+  }
+});
+test('S12: a matching BlockGroup Block participates in timestamp proof',async()=>{
+  const good=(await scan({blockGroup:true,relative:'correct'})).result;
+  assert.equal(good.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED');
+  const bad=(await scan({blockGroup:true,relative:'correct',blockTicks:3})).result;
+  assert.equal(bad.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
+  assert.equal(bad.cueTimestampVerified,false);
+});
+
+test('S12: timing-only child-budget exhaustion preserves already verified Block headers',async()=>{
+  const f=make({extraBlocks:5});
+  const result=await inspectS12CueTrackBlockEvidence(f,{maxClusterChildren:2});
+  assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+  assert.equal(result.checkedReferences,1);
+  assert.equal(result.cueTimestampVerified,false);
+  assert.equal(result.cueTimestampCheckedReferences,0);
+  assert.ok(result.cueTimestampReasons.some(reason=>
+    reason.includes('CUE_TIMESTAMP_SCAN_BUDGET')),result.cueTimestampReasons.join(';'));
+  assert.ok(f.reads.every(n=>n<=12));
+});
+
+test('S12: nondefault scale or CodecDelay never causes a timing-only full Cluster scan',async()=>{
+  for(const config of [{nondefaultScale:true},{codecDelay:1}]){
+    const f=make({...config,extraBlocks:5});
+    const result=await inspectS12CueTrackBlockEvidence(f,{maxClusterChildren:2});
+    assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+    assert.equal(result.checkedReferences,1);
+    assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+    assert.ok(result.cueTimestampReasons.includes('CUE_TIMING_NONDEFAULT_TRACK_SCALE_OR_DELAY:1'));
+    assert.ok(!result.cueTimestampReasons.some(r=>r.includes('BUDGET')));
+  }
+});
+
+test('S12: many unmatched cue times and genuine Blocks do bounded indexed comparisons',async()=>{
+  const f=make({
+    extraBlocks:256,
+    extraCueTimes:Array.from({length:256},(_,i)=>1000+i),
+  });
+  const result=await inspectS12CueTrackBlockEvidence(f);
+  assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+  assert.equal(result.checkedReferences,257);
+  assert.equal(result.totalReferences,257);
+  assert.equal(result.cueTimestampCheckedReferences,1);
+  assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+  assert.ok(result.cueTimestampReasons.some(reason=>reason.includes('CUE_TIME_NO_MATCHING_BLOCK')));
+  assert.ok(f.reads.length<20000,'header reads remain bounded across many Cue references');
+  assert.ok(f.reads.every(n=>n<=12),'payload is never accessed');
 });
