@@ -99,8 +99,8 @@
                 <div class="composition-header-tools">
                   <span id="compositionCount" class="composition-count" aria-live="polite"></span>
                   <button id="containerProjectExportBtn" type="button" class="button button-secondary" disabled title="导出不含源文件及权限的工程草稿">导出工程草稿</button>
-                  <button id="workspaceBundleExportBtn" type="button" class="button button-secondary" title="一个 JSON 包含来源和外部元数据草稿；不会保存媒体权限">导出完整工作台草稿</button>
-                  <label class="button button-secondary container-project-import-label">导入完整工作台草稿（只读）
+                  <button id="workspaceBundleExportBtn" type="button" class="button button-secondary" title="一个 JSON 包含来源和外部元数据草稿；不会保存媒体权限">导出组合元数据草稿</button>
+                  <label class="button button-secondary container-project-import-label">导入组合元数据草稿（只读）
                     <input id="workspaceBundleImportInput" type="file" accept=".json,application/json" aria-label="导入来源及外部元数据的组合草稿，分别核验后显式应用" />
                   </label>
                   <label class="button button-secondary container-project-import-label">检查工程草稿
@@ -108,7 +108,7 @@
                   </label>
                 </div>
               </header>
-              <p id="workspaceBundleStatus" role="status" aria-live="polite">完整工作台草稿包含两个独立恢复范围；导入不会自动写回、授权或封装。</p>
+              <p id="workspaceBundleStatus" role="status" aria-live="polite">组合草稿包含来源轨道/附件与外部音频/字幕的元数据；不包含媒体字节、字体授权或统一原子恢复；导入不会自动写回或封装。</p>
               <section class="container-project-intent-review" aria-label="外部轨道跨会话恢复">
                 <strong>外部音频／字幕元数据检查点</strong>
                 <button id="externalCheckpointExportBtn" type="button" class="button button-secondary">导出外部元数据草稿</button>
