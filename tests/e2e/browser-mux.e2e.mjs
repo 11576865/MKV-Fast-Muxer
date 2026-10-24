@@ -704,6 +704,9 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
               requestPermission:async()=> 'granted',
               async *entries(){for(const key of files.keys())yield [key,{kind:'file'}];},
               async getFileHandle(name,{create=false}={}){
+                if(create&&name.endsWith('.mux-report.json')&&
+                    window.__singleReportCreateDenied)
+                  throw new DOMException('Report permission revoked','NotAllowedError');
                 if(!files.has(name)){
                   if(!create)throw new DOMException('Not found','NotFoundError');
                   files.set(name,new Blob([]));
@@ -752,6 +755,67 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
         'fully saved pair does not need retry');
       assert.equal(await page.locator('#downloadLink').isVisible(),true,
         'normal browser fallback remains available after directory save');
+
+      // Second user-selected directory: real MKV persists, report permission
+      // fails before create; save-only retry must NOT remux or rewrite MKV.
+      await page.evaluate(()=>{
+        window.__singleSavedFiles=new Map();
+        window.__singleSavedWrites=new Map();
+        window.__singleReportCreateDenied=true;
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('报告未保存'),null,{timeout:90000});
+      assert.equal(await page.locator('#singleRetryDirectoryBtn').isVisible(),true);
+      const firstPartial=await page.evaluate(() => ({
+        mkvWrites: [...window.__singleSavedWrites.entries()]
+          .filter(([name])=>name.endsWith('.mkv')).map(([,count])=>count),
+        reportFiles: [...window.__singleSavedFiles.keys()]
+          .filter(name=>name.endsWith('.mux-report.json')),
+      }));
+      assert.deepEqual(firstPartial.mkvWrites,[1]);
+      assert.deepEqual(firstPartial.reportFiles,[]);
+      await page.evaluate(()=>{window.__singleReportCreateDenied=false;});
+      await page.locator('#singleRetryDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('均已逐字节回读一致'),null,{timeout:90000});
+      const retryWrites=await page.evaluate(() =>
+        Object.fromEntries(window.__singleSavedWrites));
+      assert.equal(retryWrites[saved.mkvName],1,
+        'save-only retry must not write already verified MKV again');
+      assert.equal(retryWrites[saved.jsonName],1,
+        'retry writes only the missing JSON report');
+
+      // Third destination: a previously verified MKV subsequently changes on
+      // disk. Retrying the report must reject the now-stale MKV receipt rather
+      // than emitting an all-saved confirmation or clobbering that MKV.
+      await page.evaluate(()=>{
+        window.__singleSavedFiles=new Map();
+        window.__singleSavedWrites=new Map();
+        window.__singleReportCreateDenied=true;
+      });
+      await page.locator('#singleChooseDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('报告未保存'),null,{timeout:90000});
+      await page.evaluate(()=>{
+        window.__singleReportCreateDenied=false;
+        const name=[...window.__singleSavedFiles.keys()]
+          .find(key=>key.endsWith('.mkv'));
+        window.__singleSavedFiles.set(name,new Blob(['external tampering']));
+      });
+      await page.locator('#singleRetryDirectoryBtn').click();
+      await page.waitForFunction(()=>
+        (document.querySelector('#singleDirectorySaveStatus')?.textContent||'')
+          .includes('此前已保存的文件发生变化'),null,{timeout:90000});
+      assert.equal(await page.evaluate(()=>{
+        return [...window.__singleSavedWrites.values()].reduce((a,b)=>a+b,0);
+      }),1,'stale-file refusal must not create a report or rewrite the changed MKV');
+      assert.equal(await page.locator('#downloadLink').isVisible(),true,
+        'download remains available after partial save or tamper detection');
+
       // WU-03 F-A: one public mixed-source task, independently verified from
       // the REAL downloaded MKV rather than the same JS report that created it.
       // Input is a real chapter/tag/2-attachment MKV; new ASS and font were
