@@ -12,6 +12,9 @@ on:
       - 'tests/e2e/s12-real-large-mkv.e2e.mjs'
       - 'scripts/s12-source-admission-native-fixture-check.mjs'
       - 'scripts/s12-seekhead-native-source-check.mjs'
+      - 'scripts/s12-cues-native-source-check.mjs'
+      - 'src/s12-cues-cluster-proof.js'
+      - 'tests/s12-cues-cluster-proof.test.mjs'
       - 'src/s12-seekhead-index-proof.js'
       - 'tests/s12-seekhead-index-proof.test.mjs'
       - 'src/s12-original-attachment-admission.js'
@@ -121,6 +124,12 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/s12-seekhead-native-source-check.mjs
+
+      - name: S12 native Cues-to-Cluster offset and CRC read-only proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/s12-cues-native-source-check.mjs
 
       - name: Serve exact candidate build
         shell: bash
