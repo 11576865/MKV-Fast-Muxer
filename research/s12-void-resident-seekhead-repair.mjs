@@ -10,8 +10,8 @@
  * Void. The source must have valid existing SeekHead pointers and CRC; only
  * missing top-level references are eligible. Never grant production writing.
  */
-import { inspectS12SeekHeadIndex } from './s12-seekhead-index-proof.js';
-import { inspectS12CuesClusterLocations } from './s12-cues-cluster-proof.js';
+import { inspectS12SeekHeadIndex } from '../src/s12-seekhead-index-proof.js';
+import { inspectS12CuesClusterLocations } from '../src/s12-cues-cluster-proof.js';
 
 export const S12_VOID_REPAIR_SCHEMA='s12-void-resident-seekhead-repair-research-v0';
 const ID={ebml:0x1a45dfa3,segment:0x18538067,head:0x114d9b74,
