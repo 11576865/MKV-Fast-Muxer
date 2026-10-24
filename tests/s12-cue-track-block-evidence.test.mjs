@@ -112,8 +112,7 @@ test('S12: malformed block track vint and deliberately restrictive budget fail c
   assert.ok(bad.reasons.some(x=>x.includes('CUE_BLOCK_SCAN_FAILED')));
   const tight=await inspectS12CueTrackBlockEvidence(make(),{maxClusterChildren:1});
   assert.equal(tight.status,'CUE_BLOCK_EVIDENCE_UNVERIFIED');
-  assert.ok(tight.reasons.includes('CUE_CLUSTER_BLOCK_SCAN_BUDGET:'+
-    (make()&&0))===false||tight.reasons.some(x=>x.startsWith('CUE_CLUSTER_BLOCK_SCAN_BUDGET:')));
+  assert.ok(tight.reasons.some(x=>x.startsWith('CUE_CLUSTER_BLOCK_SCAN_BUDGET:')));
 });
 test('S12: no Cues is not a verified real track/block relationship',async()=>{
   const missing=(await scan({noCues:true})).result;
