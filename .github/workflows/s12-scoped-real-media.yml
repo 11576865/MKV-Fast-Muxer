@@ -10,6 +10,8 @@ on:
       - 'package.json'
       - 'scripts/s12-make-genuine-large-mkv.mjs'
       - 'tests/e2e/s12-real-large-mkv.e2e.mjs'
+      - 'research/s12-void-resident-seekhead-repair.mjs'
+      - 'tests/s12-void-resident-seekhead-repair.test.mjs'
       - 'scripts/s12-source-admission-native-fixture-check.mjs'
       - 'scripts/s12-seekhead-native-source-check.mjs'
       - 'scripts/s12-cues-native-source-check.mjs'
