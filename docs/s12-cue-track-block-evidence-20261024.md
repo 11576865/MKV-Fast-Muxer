@@ -14,7 +14,17 @@
 - 对没有 CueRelativePosition 的引用，在严格子元素扫描预算内，必须找到该 Cluster 内至少一个属于 CueTrack 的真实 Block。不能证明时返回 `CUE_BLOCK_EVIDENCE_UNVERIFIED`，禁止假冒成功。
 - 单次 Blob.slice 读取最多 12 字节，Cluster 子元素最多 4096 次、全局元素头访问最多 220000 次，最多 50000 Cue 引用、最多 256 条轨道；超过任一预算为未验证，不引入下载或写入权限。
 
-仅当上述全部检查成功，才返回 `CUE_TRACK_BLOCK_HEADERS_VERIFIED`，仍明确 `writerAuthorized=false`、`publicationAuthorized=false`、`actualPacketPayloadVerified=false`、`cueTimestampVerified=false`、`uidGraphVerified=false`、`savedFileVerified=false`。
+仅当上述全部检查成功，才返回 `CUE_TRACK_BLOCK_HEADERS_VERIFIED`。这只证明 Track/Block **头部关联**，不自动推导 CueTime 成立。始终明确 `writerAuthorized=false`、`publicationAuthorized=false`、`actualPacketPayloadVerified=false`、`uidGraphVerified=false`、`savedFileVerified=false`。
+
+## 独立的 CueTime → Block 时间证明
+
+新证据字段与原头部证据严格分离：`cueTimestampStatus`、`cueTimestampCheckedReferences`、`cueTimestampReasons`；仅当每一条引用均在真实 Cluster 内找到同轨道、同 CueTime 的实际 Block，且原有头部证明也全部成立时，才返回 `CUE_BLOCK_TIMESTAMP_SCOPED_VERIFIED`。
+
+- 时间等式为 `CueTime = Cluster Timestamp + Block signed-16-bit relative timestamp`。仅接受 `TrackTimestampScale = 1` 且 `CodecDelay = 0` 的有限子集；不猜测非默认缩放或延迟的舍入/单位行为。
+- 有 `CueRelativePosition` 时，所匹配的时间与轨道还必须来自那个真实的直接 Cluster 子元素边界；否则只匹配同轨道的 Block 仍不足以证明 Cue。
+- **头部扫描和时间扫描分别计费**：头部扫描仅做到每条 CueTrack / 相对位置的实际 Block 证明；时间扫描在独立的 220000 次元素头预算及每 Cluster 4096 子元素限制内完成。非默认缩放/延迟的轨道直接标为时间不可证明，不无谓扫描整个 Cluster。
+- 每个 Cluster 只建立一次 `(TrackNumber, signed ticks) → Block 边界集合` 索引，以 O(B+R) 逻辑匹配该 Cluster 中的 B 个 Block 与 R 条 Cue 引用，不对每条 Cue 重扫已经读取的所有候选。
+- 时间预算耗尽、缺少 Cluster Timestamp 或时间不匹配时，只令时间证据 `UNVERIFIED`，**不能撤销独立已完成的 `CUE_TRACK_BLOCK_HEADERS_VERIFIED`**；所有媒体载荷仍保持只读、跳过。时间与轨道头部证明均不能替代 packet/关键帧/音视频解码与来源输出等价性审计。
 
 ## 工程验收
 
@@ -24,6 +34,6 @@ Node 真实 EBML Blob 回归包含 3 MiB 未读取 Block 载荷，以及：存�
 
 ## 严格的剩余边界
 
-仅通过 Block 头部存在性，**不能**推断 CueTime 等于实际媒体帧时间、Block 是否可解码、关键帧位置正确、来源与输出 packet 逐字节同一、任何加密或 Header Stripping 语义正确、嵌套 CRC/附件 UID/TagTarget、重封装安全及用户设备的持久保存。不得对未检查的 MKV 类型宣称可通用重封装。
+仅通过上述索引与受限时间等式，**不能**推断 Block 是否可解码、关键帧位置正确、来源与输出 packet 逐字节同一、任何加密或 Header Stripping 语义正确、嵌套 CRC/附件 UID/TagTarget、重封装安全及用户设备的持久保存。不得对未检查的 MKV 类型宣称可通用重封装。
 
 标准参考：[RFC 9559 第 5.1.5 节](https://www.rfc-editor.org/rfc/rfc9559.html#section-5.1.5)、[第 10/11 节 Cluster/Block 结构](https://www.rfc-editor.org/rfc/rfc9559.html)。
