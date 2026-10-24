@@ -24,6 +24,7 @@ const make=({
   cueTrack=1, declaredTracks=[1], blockTrack=1, blockGroup=false,
   relative='absent', noCues=false, validVint=true,
   cueTime=2, clusterTime=0, blockTicks=2, nondefaultScale=false, codecDelay=0,
+  extraBlocks=0, extraCueTimes=[],
 }={})=>{
   const info=e('1549a966',e('2ad7b1',Buffer.from([0x0f,0x42,0x40])));
   const tracks=e('1654ae6b',new Blob(declaredTracks.map(n=>
@@ -35,7 +36,11 @@ const make=({
   const timestamp=e('e7',uint(clusterTime));
   const packet=blockGroup?group(blockTrack,blockTicks):
     block(blockTrack,validVint,blockTicks);
-  const cluster=e('1f43b675',new Blob([timestamp,packet]));
+  // Extra blocks are tiny actual EBML Block headers; the primary media
+  // payload remains 3 MiB so short-read enforcement is still exercised.
+  const additionalBlocks=Array.from({length:extraBlocks},()=>
+    e('a3',Buffer.from([0x81,0,2,0x80,0x42])));
+  const cluster=e('1f43b675',new Blob([timestamp,packet,...additionalBlocks]));
   const offset=info.size+tracks.size;
   const rel=relative==='absent'?null:relative==='correct'?timestamp.size:
     relative==='timestamp'?0:relative==='inside'?timestamp.size+1:relative;
@@ -46,7 +51,11 @@ const make=({
       ...(rel===null?[]:[e('f0',uint(rel))]),
     ])),
   ]));
-  const cues=e('1c53bb6b',point);
+  const extraPoints=extraCueTimes.map(time=>e('bb',new Blob([
+    e('b3',uint(time)),
+    e('b7',new Blob([e('f7',uint(cueTrack)),e('f1',uint(offset))])),
+  ])));
+  const cues=e('1c53bb6b',new Blob([point,...extraPoints]));
   const bytes=new Blob([
     e('1a45dfa3',e('4282',Buffer.from('matroska'))),
     e('18538067',new Blob([info,tracks,cluster,...(noCues?[]:[cues])])),
@@ -164,4 +173,44 @@ test('S12: a matching BlockGroup Block participates in timestamp proof',async()=
   const bad=(await scan({blockGroup:true,relative:'correct',blockTicks:3})).result;
   assert.equal(bad.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED');
   assert.equal(bad.cueTimestampVerified,false);
+});
+
+test('S12: timing-only child-budget exhaustion preserves already verified Block headers',async()=>{
+  const f=make({extraBlocks:5});
+  const result=await inspectS12CueTrackBlockEvidence(f,{maxClusterChildren:2});
+  assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+  assert.equal(result.checkedReferences,1);
+  assert.equal(result.cueTimestampVerified,false);
+  assert.equal(result.cueTimestampCheckedReferences,0);
+  assert.ok(result.cueTimestampReasons.some(reason=>
+    reason.includes('CUE_TIMESTAMP_SCAN_BUDGET')),result.cueTimestampReasons.join(';'));
+  assert.ok(f.reads.every(n=>n<=12));
+});
+
+test('S12: nondefault scale or CodecDelay never causes a timing-only full Cluster scan',async()=>{
+  for(const config of [{nondefaultScale:true},{codecDelay:1}]){
+    const f=make({...config,extraBlocks:5});
+    const result=await inspectS12CueTrackBlockEvidence(f,{maxClusterChildren:2});
+    assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+    assert.equal(result.checkedReferences,1);
+    assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+    assert.ok(result.cueTimestampReasons.includes('CUE_TIMING_NONDEFAULT_TRACK_SCALE_OR_DELAY:1'));
+    assert.ok(!result.cueTimestampReasons.some(r=>r.includes('BUDGET')));
+  }
+});
+
+test('S12: many unmatched cue times and genuine Blocks do bounded indexed comparisons',async()=>{
+  const f=make({
+    extraBlocks:256,
+    extraCueTimes:Array.from({length:256},(_,i)=>1000+i),
+  });
+  const result=await inspectS12CueTrackBlockEvidence(f);
+  assert.equal(result.status,'CUE_TRACK_BLOCK_HEADERS_VERIFIED',result.reasons.join(';'));
+  assert.equal(result.checkedReferences,257);
+  assert.equal(result.totalReferences,257);
+  assert.equal(result.cueTimestampCheckedReferences,1);
+  assert.equal(result.cueTimestampStatus,'CUE_BLOCK_TIMESTAMP_UNVERIFIED');
+  assert.ok(result.cueTimestampReasons.some(reason=>reason.includes('CUE_TIME_NO_MATCHING_BLOCK')));
+  assert.ok(f.reads.length<2500,'one bounded scan per Cluster, not per CueTime');
+  assert.ok(f.reads.every(n=>n<=12),'payload is never accessed');
 });
