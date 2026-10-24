@@ -10,6 +10,9 @@ const ID = Object.freeze({
   tracks: 0x1654ae6b, cluster: 0x1f43b675, attachments: 0x1941a469,
   attachedFile: 0x61a7, fileName: 0x466e, mediaType: 0x4660,
   description: 0x467e, fileData: 0x465c, fileUid: 0x46ae,
+  info: 0x1549a966, seekHead: 0x114d9b74, void: 0xec,
+  tags: 0x1254c367, chapters: 0x1043a770, cues: 0x1c53bb6b,
+  crc32: 0xbf,
 });
 const MAX_HEADERS = 40000;
 const MAX_ATTACHMENTS = 1024;
@@ -146,6 +149,7 @@ export function createMatroskaAttachmentReader(file, {
     let hasTracks = false;
     let hasCluster = false;
     let attachmentElements = 0;
+    const topLevel = new Map();
     try {
       const ebml = await readElement(file, 0, file.size, budget);
       if (ebml.id !== ID.ebml || ebml.unknown ||
@@ -165,6 +169,7 @@ export function createMatroskaAttachmentReader(file, {
       if (!segment) throw new Error('MATROSKA_SEGMENT_MISSING');
       const end = segment.end ?? file.size;
       await visitChildren(file, segment.dataStart, end, budget, async el => {
+        topLevel.set(el.id, (topLevel.get(el.id) || 0) + 1);
         if (el.id === ID.tracks) hasTracks = true;
         if (el.id === ID.cluster) hasCluster = true;
         if (el.id !== ID.attachments) return;
@@ -185,7 +190,15 @@ export function createMatroskaAttachmentReader(file, {
         source: asset,
         docType,
         structure: { hasTracksElement: hasTracks, hasClusterElement: hasCluster,
-          attachmentElements, nonPlayingStructure: !hasTracks && !hasCluster },
+          attachmentElements, nonPlayingStructure: !hasTracks && !hasCluster,
+          // Additional read-only facts for the S12 large-attachment research
+          // admission gate. No successful inspection authorizes a writer.
+          segmentFiniteExact: segment.end != null && segment.end === file.size,
+          segmentSizeKnown: segment.end != null,
+          topLevelCount: Array.from(topLevel.values()).reduce((a,b)=>a+b,0),
+          topLevelElements: Array.from(topLevel, ([id,count])=>Object.freeze({id,count}))
+            .sort((a,b)=>a.id-b.id),
+        },
         attachments,
         scanning: { headerCount: budget.headers, fileDataBytesRead: 0,
           dataMode: 'seek-only-no-filedata-read' },
@@ -231,6 +244,8 @@ export function createMatroskaAttachmentReader(file, {
   // Structural risk preflight is separate from the attachment inventory;
   // neither reports authorization for an existing-MKV rewrite.
   const inspectPreservation = () => inspectMatroskaPreservation(file);
+  const isCurrentSourceFile = candidate => candidate === file &&
+    sourceSession.isCurrent(asset,file);
   const inspectRelations = async inventory => {
     if (!isCurrentInspection(inventory)) {
       throw new Error('RELATION_GRAPH_CURRENT_INSPECTION_REQUIRED');
@@ -243,6 +258,7 @@ export function createMatroskaAttachmentReader(file, {
   };
   return Object.freeze({
     source: asset, inspect, openAttachment,
-    isCurrentInspection, inspectPreservation, inspectRelations,
+    isCurrentInspection, isCurrentSourceFile,
+    inspectPreservation, inspectRelations,
   });
 }
