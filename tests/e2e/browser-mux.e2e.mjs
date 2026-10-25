@@ -2112,6 +2112,12 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     // Reload destroys browser File grants and all ephemeral confirmation.
     await page.reload({waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
+    // Modern workbench intentionally defaults to a CLOSED recovery
+    // disclosure on every load. An actual user must expand it before
+    // selecting any locally persisted checkpoint.
+    if(!await page.locator('#sf14Recovery').evaluate(el=>el.open))
+      await page.locator('#sf14Recovery > summary').click();
+    assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),true);
     assert.equal(await page.locator('#videoInput').evaluate(el=>el.files.length),0);
     assert.equal(await page.locator('#muxBtn').isDisabled(),true);
     assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
