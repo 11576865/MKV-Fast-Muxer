@@ -833,7 +833,7 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       // source/ASS/font workbench. Import must stage the two legacy verified
       // recovery workflows without granting media authority or applying edits.
       const recoveryDrawer=page.locator('#sf14Recovery');
-      await recoveryDrawer.locator('summary').click();
+      await page.locator('#sf14Recovery > summary').click();
       assert.equal(await recoveryDrawer.evaluate(el=>el.open),true,
         'combined draft belongs to the real visible disclosure');
       assert.equal(await page.locator('#workspaceBundleExportBtn').isVisible(),true);
