@@ -234,10 +234,10 @@ export function mountSoftmux1014Workbench(doc = document) {
   recovery.appendChild(recoverySummary);
   const scopeNote = doc.createElement('p');
   scopeNote.className = 'sf14-recovery-scope';
-  scopeNote.textContent = '目前分为两份独立草稿：来源轨道／附件与外部音频／字幕元数据。页面刷新后需重新选择真实文件，分别核验 SHA-256 并明确确认。导入不会恢复浏览器文件权限、执行历史或自动封装；本入口不承诺所有编辑类型的统一撤销／重做。';
+  scopeNote.textContent = '可用一个 JSON 组合导出／导入来源轨道／附件与外部音频／字幕元数据，也可分别管理。两部分仍拥有独立恢复授权：刷新后重新选择真实文件，分别验证 SHA-256、审核与明确确认；不会恢复文件权限、执行历史、字体授权或自动封装，不承诺跨领域原子撤销。';
   recovery.appendChild(scopeNote);
   const recoveryNodes = [
-    '.composition-header-tools',
+    '.composition-header-tools', '#workspaceBundleStatus',
     '.container-project-intent-review:not([id])',
     '#containerProjectImportReview', '#containerProjectIntentReview',
     '#containerProjectConflictReview', '#containerProjectVerifySourceBtn',
@@ -248,7 +248,7 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (node) recovery.appendChild(node);
   }
   composition.insertBefore(recovery,composition.querySelector('.composition-actions'));
-  for (const id of ['containerProjectImportInput','externalCheckpointImportInput']) {
+  for (const id of ['containerProjectImportInput','externalCheckpointImportInput','workspaceBundleImportInput']) {
     get(doc,id)?.addEventListener('change', () => { recovery.open = true; });
   }
 
