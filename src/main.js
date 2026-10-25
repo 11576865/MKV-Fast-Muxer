@@ -2750,6 +2750,7 @@ externalCheckpointControls.undo?.addEventListener('click',()=>{
 // Packaging combines existing independent recovery scopes; it never grants
 // either domain a File or writer permission and never atomically replays edits.
 workspaceBundleExportBtn?.addEventListener('click',async()=>{
+  workspaceBundleStatus.textContent='正在核对组合草稿导出条件…';
   const source=videoInput.files?.[0]||null;
   const workspace=liveWorkspaceAuthority,generation=workspace?.generation??null;
   if(workspaceBundleBusy||projectDigestExportInProgress||
