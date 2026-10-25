@@ -2068,6 +2068,47 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     assert.match(JSON.stringify(externalDraft),/S09 Recovered External FLAC/);
     assert.equal(await originalHash(source),before.source);
 
+    // S09 local-only persisted metadata: an actual user saves a CURRENT
+    // fully hashed source + external/sidecar checkpoint into this browser.
+    // Chromium IndexedDB persistence is tested across a real page reload.
+    await page.locator('#workspaceShelfSaveBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#workspaceShelfStatus')?.textContent
+        .includes('已保存经完整哈希绑定'),null,{timeout:120_000});
+    const savedId=await page.locator('#workspaceShelfSelect option')
+      .nth(1).getAttribute('value');
+    assert.match(savedId,/^[0-9a-f-]{36}$/);
+    const persistedShape=await page.evaluate(async id=>{
+      const db=await new Promise((resolve,reject)=>{
+        const req=indexedDB.open('softmux-workspace-metadata-checkpoints-v1',1);
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>reject(req.error);
+      });
+      try{
+        return await new Promise((resolve,reject)=>{
+          const tx=db.transaction('checkpoints','readonly');
+          const req=tx.objectStore('checkpoints').get(id);
+          req.onsuccess=()=>{
+            const v=req.result;resolve({
+              keys:Object.keys(v).sort(),
+              sourceSha:JSON.parse(v.json).sourceDraft.sources[0].sha256,
+              hasNativeFile:Object.values(v).some(x=>x instanceof File || x instanceof Blob),
+              sourceTitle:JSON.parse(v.json).sourceDraft.editIntents
+                .some(x=>x.to==='S09 Recovered Original Audio'),
+              externalTitle:v.json.includes('S09 Recovered External FLAC'),
+            });
+          };
+          req.onerror=()=>reject(req.error);
+        });
+      }finally{db.close();}
+    },savedId);
+    assert.deepEqual(persistedShape.keys,
+      ['createdAt','hasExternalCheckpoint','id','json','schema','sourceName']);
+    assert.match(persistedShape.sourceSha,/^[a-f0-9]{64}$/);
+    assert.equal(persistedShape.hasNativeFile,false);
+    assert.equal(persistedShape.sourceTitle,true);
+    assert.equal(persistedShape.externalTitle,true);
+
     // Reload destroys browser File grants and all ephemeral confirmation.
     await page.reload({waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
@@ -2075,10 +2116,22 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     assert.equal(await page.locator('#muxBtn').isDisabled(),true);
     assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
     assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
-    await page.setInputFiles('#containerProjectImportInput',projectJson);
-    await page.setInputFiles('#externalCheckpointImportInput',externalJson);
+    await page.waitForFunction(()=>
+      document.querySelector('#workspaceShelfSelect')?.options.length>1,
+      null,{timeout:30000});
+    await page.locator('#workspaceShelfSelect').selectOption(savedId);
+    await page.locator('#workspaceShelfLoadBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#workspaceShelfStatus')?.textContent
+        .includes('已只读加载'),null,{timeout:30000});
     assert.equal(await page.locator('#videoInput').evaluate(el=>el.files.length),0,
-      'imported text may never recreate browser file permissions');
+      'an IndexedDB checkpoint must not recreate native browser File grants');
+    assert.equal(await page.locator('#muxBtn').isDisabled(),true,
+      'loading saved JSON cannot authorize ffmpeg');
+    assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true,
+      'loaded source metadata alone is not permission to replay');
+    assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true,
+      'loaded external metadata alone is not permission to replay');
     assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
     assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
 
@@ -2144,6 +2197,16 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     const plan=await page.locator('#muxPlan').textContent();
     assert.match(plan,/S09 Recovered Original Audio/);
     assert.match(plan,/S09 Recovered External FLAC/);
+    // Explicit deletion only affects the saved metadata; it cannot revoke
+    // an already approved in-session current plan or delete any input media.
+    page.once('dialog',dialog=>dialog.accept());
+    await page.locator('#workspaceShelfDeleteBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#workspaceShelfStatus')?.textContent
+        .includes('已删除选中的'),null,{timeout:30000});
+    assert.equal(await page.locator('#workspaceShelfSelect option').count(),1);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered Original Audio/);
+    assert.match(await page.locator('#muxPlan').textContent(),/S09 Recovered External FLAC/);
 
     await page.locator('#muxBtn').click();
     await waitForStatus(page,'完成。');
