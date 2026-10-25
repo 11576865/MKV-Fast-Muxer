@@ -10,7 +10,8 @@ import {prepareWorkspaceShelfEntry,validateWorkspaceShelfEntry,
 const id='12345678-1234-4234-8234-123456789abc';
 const source=(hash='a'.repeat(64))=>serializeContainerProject(
  createContainerProject({documentId:'test:s09:shelf',
-  sources:[{id:'source:test',name:'episode.mkv',size:444,sha256:hash}],
+  sources:[{id:'source:test',name:'episode.mkv',size:444,
+    ...(hash===null?{}:{sha256:hash})}],
   objects:[{id:'source:audio',kind:'audio',sourceId:'source:test',
     included:true,order:0,attributes:{title:'Example'}}],
  }));
