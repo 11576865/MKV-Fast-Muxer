@@ -35,7 +35,9 @@ test('S09 local storage checkpoint: strict inert JSON, no File permission or aut
 });
 test('S09 only byte-verifiable projects qualify for a local saved recovery point',()=>{
  assert.throws(()=>make(pkg(null)),/WORKSPACE_SHELF_SOURCE_SHA256_REQUIRED/);
- assert.throws(()=>make(pkg('deadbeef')),/PROJECT_SOURCE_UNTRUSTED/);
+ const tampered=JSON.parse(pkg());
+ tampered.sourceDraft.sources[0].sha256='deadbeef';
+ assert.throws(()=>make(JSON.stringify(tampered)),/PROJECT_SOURCE_UNTRUSTED/);
  const withBad=JSON.parse(pkg());
  withBad.externalCheckpoint.rows=[{kind:'subtitle',index:0,sha256:'ff'}];
  assert.throws(()=>make(JSON.stringify(withBad)),/EXTERNAL_CHECKPOINT_ENTRY/);
