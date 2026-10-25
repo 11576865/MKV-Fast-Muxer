@@ -829,6 +829,67 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       assert.equal(await page.locator('#downloadLink').isVisible(),true,
         'download remains available after partial save or tamper detection');
 
+      // S09: user can export one portable metadata bundle from the actual
+      // source/ASS/font workbench. Import must stage the two legacy verified
+      // recovery workflows without granting media authority or applying edits.
+      const recoveryDrawer=page.locator('#sf14Recovery');
+      await page.locator('#sf14Recovery > summary').click();
+      assert.equal(await recoveryDrawer.evaluate(el=>el.open),true,
+        'combined draft belongs to the real visible disclosure');
+      assert.equal(await page.locator('#workspaceBundleExportBtn').isVisible(),true);
+      assert.equal(await page.locator('#workspaceBundleExportBtn').isEnabled(),true);
+      const bundleFile=path.join(outDir,'s09-workspace-combined.json');
+      await page.evaluate(()=>{
+        const button=document.querySelector('#workspaceBundleExportBtn');
+        window.__s09ClickTrace={down:0,click:0};
+        button.addEventListener('pointerdown',()=>window.__s09ClickTrace.down++,{capture:true});
+        button.addEventListener('click',()=>window.__s09ClickTrace.click++,{capture:true});
+      });
+      try {
+        await saveDownload(page,'#workspaceBundleExportBtn',bundleFile);
+      } catch (error) {
+        throw new Error('S09 real UI export produced no download. Status: '+
+          await page.locator('#workspaceBundleStatus').textContent()+
+          '; source status: '+await page.locator('#status').textContent()+
+          '; exportDisabled: '+await page.locator('#workspaceBundleExportBtn').isDisabled()+
+          '; UI events: '+JSON.stringify(await page.evaluate(()=>window.__s09ClickTrace))+
+          '; button connected: '+await page.locator('#workspaceBundleExportBtn').evaluate(el=>el.isConnected),
+          {cause:error});
+      }
+      const bundleJson=JSON.parse(await fs.readFile(bundleFile,'utf8'));
+      assert.equal(bundleJson.schema,'softmux-workspace-recovery-bundle-v1');
+      assert.equal(bundleJson.sourceDraft.schema,'container-project-v1');
+      assert.match(bundleJson.sourceDraft.sources[0]?.sha256||'',/^[a-f0-9]{64}$/,
+        'real source must have its full SHA before portable export');
+      assert.equal(bundleJson.externalCheckpoint?.schema,
+        'mkv-external-metadata-checkpoint-v1');
+      assert.ok(bundleJson.externalCheckpoint.rows.some(r=>r.kind==='subtitle'));
+      const plannedBefore=await page.locator('#muxPlan').textContent();
+      await page.setInputFiles('#workspaceBundleImportInput',bundleFile);
+      await page.waitForFunction(()=>
+        (document.querySelector('#workspaceBundleStatus')?.textContent||'')
+          .includes('已同时读取两个'),null,{timeout:30000});
+      assert.equal(await page.locator('#externalCheckpointPrepareBtn').isEnabled(),true);
+      assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+      assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true);
+      assert.equal(await page.locator('#muxPlan').textContent(),plannedBefore,
+        'importing combined JSON is inert; not a media edit');
+
+      // The new file must be validated in full before replacing either
+      // existing staged draft, even if its source component looks authentic.
+      const malformedBundle=path.join(outDir,'s09-workspace-combined-invalid.json');
+      const altered=structuredClone(bundleJson);
+      altered.externalCheckpoint.rows[0].sha256='forged';
+      await fs.writeFile(malformedBundle,JSON.stringify(altered));
+      await page.setInputFiles('#workspaceBundleImportInput',malformedBundle);
+      await page.waitForFunction(()=>
+        (document.querySelector('#workspaceBundleStatus')?.textContent||'')
+          .includes('整包已拒绝'),null,{timeout:30000});
+      assert.equal(await page.locator('#externalCheckpointPrepareBtn').isEnabled(),true,
+        'invalid bundle must retain the previous valid staged external checkpoint');
+      assert.equal(await page.locator('#externalCheckpointApplyBtn').isDisabled(),true);
+      assert.equal(await page.locator('#muxPlan').textContent(),plannedBefore);
+
       // WU-03 F-A: one public mixed-source task, independently verified from
       // the REAL downloaded MKV rather than the same JS report that created it.
       // Input is a real chapter/tag/2-attachment MKV; new ASS and font were
