@@ -832,6 +832,12 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       // S09: user can export one portable metadata bundle from the actual
       // source/ASS/font workbench. Import must stage the two legacy verified
       // recovery workflows without granting media authority or applying edits.
+      const recoveryDrawer=page.locator('#sf14Recovery');
+      await recoveryDrawer.locator('summary').click();
+      assert.equal(await recoveryDrawer.evaluate(el=>el.open),true,
+        'combined draft belongs to the real visible disclosure');
+      assert.equal(await page.locator('#workspaceBundleExportBtn').isVisible(),true);
+      assert.equal(await page.locator('#workspaceBundleExportBtn').isEnabled(),true);
       const bundleFile=path.join(outDir,'s09-workspace-combined.json');
       await page.evaluate(()=>{
         const button=document.querySelector('#workspaceBundleExportBtn');
