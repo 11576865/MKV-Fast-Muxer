@@ -59,7 +59,7 @@ function sourceDraft(live){
 }
 const proof=Object.freeze({state:'digest-matches-draft',matched:true,
   sourceByteIdentityProven:true});
-async function ready(){
+async function ready({priorHistory=0}={}){
  const f=fresh();
  const checkpoint=parseExternalMetadataCheckpoint(
   await exportExternalMetadataCheckpoint(f.workspace,f.context));
@@ -67,6 +67,17 @@ async function ready(){
   {kind:'audio',index:0,field:'title',value:'Local override'},
   {kind:'subtitle',index:0,field:'language',value:'eng'},
  ]});
+ if(priorHistory){
+   let project=f.workspace.project;
+   const id=f.workspace.externalSession.keys.get('audio:0');
+   for(let i=0;i<priorHistory;i++)project=applyContainerProjectEdit(project,{
+     type:'set-attribute',objectId:id,field:'title',
+     value:i%2?'Local override':'Temporary editor title',
+   });
+   f.workspace.project=project;
+   f.workspace.sourceSession.project=project;
+   f.workspace.externalSession.project=project;
+ }
  const draft=sourceDraft(f.projection);
  const prepared=await prepareAtomicWorkspaceRecovery({
   workspace:f.workspace,context:f.context,sourceDraft:draft,
@@ -181,4 +192,25 @@ test('S09 both changes are mandatory: source-only and external-only reuse legacy
   context:f.context,sourceDraft:draft,sourceProof:proof,
   liveProjection:f.projection,externalCheckpoint:checkpoint}),
   /WORKSPACE_ATOMIC_EXTERNAL_HAS_NO_EDIT_DELTA/);
+});
+
+test('S09 final append-preserve-all switch cannot commit source half while restoring external',async()=>{
+ const f=await ready(),old=f.workspace.project;
+ assert.throws(()=>applyAtomicWorkspaceRecovery(f.workspace,f.context,f.prepared,
+   {confirmed:true,appendMode:true}),/WORKSPACE_ATOMIC_SELECTIVE_MODE_REQUIRED/);
+ assert.equal(f.workspace.project,old);
+ assert.equal(f.track.title,'Original audio');
+ assert.equal(f.audioRows[0].title,'Local override');
+});
+test('S09 accepted multi-owner transaction remains inversible after history compaction',async()=>{
+ const f=await ready({priorHistory:96});
+ const receipt=applyAtomicWorkspaceRecovery(f.workspace,f.context,f.prepared,
+   {confirmed:true});
+ assert.equal(f.track.title,'Recovered source title');
+ assert.equal(f.audioRows[0].title,'Original dub');
+ const inverse=undoAtomicWorkspaceRecovery(f.workspace,f.context,receipt.undo);
+ assert.equal(inverse.status,'reverted-both-domains');
+ assert.equal(f.track.title,'Original audio');
+ assert.equal(f.audioRows[0].title,'Local override');
+ assert.equal(inspectLiveWorkspaceAuthority(f.workspace,f.context).sameImmutableDocument,true);
 });
