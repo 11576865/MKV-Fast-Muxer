@@ -2112,6 +2112,10 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
     // Reload destroys browser File grants and all ephemeral confirmation.
     await page.reload({waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
+    assert.equal(await page.locator('#outputCompositionPanel').isVisible(),false,
+      'empty post-reload media composition must remain hidden');
+    assert.equal(await page.locator('#sf14Recovery > summary').isVisible(),true,
+      'persistent recovery must remain visible independently of a media source');
     // Modern workbench intentionally defaults to a CLOSED recovery
     // disclosure on every load. An actual user must expand it before
     // selecting any locally persisted checkpoint.
