@@ -87,6 +87,8 @@ import {
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { serializePortableWorkspaceBundle, parsePortableWorkspaceBundle, PORTABLE_WORKSPACE_BUNDLE_MAX_BYTES } from './portable-workspace-bundle.js';
+import { prepareAtomicWorkspaceRecovery, applyAtomicWorkspaceRecovery,
+  undoAtomicWorkspaceRecovery } from './portable-workspace-atomic-recovery.js';
 import { auditS12WorkbenchStructure, formatS12WorkbenchStructure } from './s12-workbench-structure-audit.js';
 import { setupAttachmentExtractionUI } from './attachment-extraction-ui.js';
 import { setupExistingAttachmentImpactUI } from './existing-attachment-impact-ui.js';
@@ -290,6 +292,11 @@ const containerProjectExportBtn = $('containerProjectExportBtn');
 const workspaceBundleExportBtn = $('workspaceBundleExportBtn');
 const workspaceBundleImportInput = $('workspaceBundleImportInput');
 const workspaceBundleStatus = $('workspaceBundleStatus');
+const workspaceAtomicPrepareBtn = $('workspaceAtomicPrepareBtn');
+const workspaceAtomicConfirm = $('workspaceAtomicConfirm');
+const workspaceAtomicApplyBtn = $('workspaceAtomicApplyBtn');
+const workspaceAtomicUndoBtn = $('workspaceAtomicUndoBtn');
+const workspaceAtomicStatus = $('workspaceAtomicStatus');
 const containerProjectImportInput = $('containerProjectImportInput');
 const containerProjectImportReview = $('containerProjectImportReview');
 const containerProjectIntentReview = $('containerProjectIntentReview');
@@ -599,6 +606,9 @@ let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
 let workspaceBundleBusy = false;
+let workspaceAtomicBusy = false;
+let workspaceAtomicPrepared = null;
+let workspaceAtomicUndo = null;
 let externalCheckpointBusy = false;
 let activeProjectHash = null;
 let importInProgress = false;
@@ -1519,7 +1529,15 @@ function updateUI() {
       !currentProjectSourceProjection;
   }
   if(workspaceBundleImportInput){
-    workspaceBundleImportInput.disabled=busy||workspaceBundleBusy;
+    workspaceBundleImportInput.disabled=busy||workspaceBundleBusy||workspaceAtomicBusy;
+  }
+  if(workspaceAtomicPrepareBtn){
+    workspaceAtomicPrepareBtn.disabled=busy||workspaceAtomicBusy||
+      sourceDigestCheckInProgress||workspaceBundleBusy;
+    workspaceAtomicApplyBtn.disabled=busy||workspaceAtomicBusy||
+      !workspaceAtomicPrepared||!workspaceAtomicConfirm.checked;
+    workspaceAtomicUndoBtn.disabled=busy||workspaceAtomicBusy||
+      !workspaceAtomicUndo;
   }
   const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
@@ -2580,6 +2598,7 @@ containerProjectImportInput?.addEventListener('change', async () => {
     const draft = parseContainerProjectDraft(await file.text());
     activeProjectHash?.controller.abort();
     importedProjectForReview = draft;
+    clearAtomicApproval();
     detachedSourceProof = null;
     if (containerProjectRestoreConfirm) containerProjectRestoreConfirm.checked = false;
     if (containerProjectRestoreStatus) containerProjectRestoreStatus.textContent = '';
@@ -2670,6 +2689,7 @@ externalCheckpointControls.input?.addEventListener('change',async()=>{
   const file=externalCheckpointControls.input.files?.[0];
   externalCheckpointControls.input.value='';
   pendingExternalCheckpoint=null;
+  clearAtomicApproval();
   resetExternalCheckpointApproval();
   externalCheckpointControls.prepare.disabled=true;
   if(!file)return;
@@ -2747,8 +2767,116 @@ externalCheckpointControls.undo?.addEventListener('click',()=>{
   }
 });
 
+// S09 combined recovery: one prepared two-domain transaction. The existing
+// full-SHA source check and external SHA/sidecar checks remain independent.
+function clearAtomicApproval(){
+  workspaceAtomicPrepared=null;
+  if(workspaceAtomicConfirm){
+    workspaceAtomicConfirm.checked=false;
+    workspaceAtomicConfirm.disabled=true;
+  }
+  if(workspaceAtomicApplyBtn)workspaceAtomicApplyBtn.disabled=true;
+}
+workspaceAtomicConfirm?.addEventListener('change',()=>{
+  workspaceAtomicApplyBtn.disabled=!workspaceAtomicConfirm.checked||
+    !workspaceAtomicPrepared||workspaceAtomicBusy;
+});
+workspaceAtomicPrepareBtn?.addEventListener('click',async()=>{
+  const source=videoInput.files?.[0]||null;
+  const draft=importedProjectForReview;
+  const checkpoint=pendingExternalCheckpoint;
+  const proof=detachedSourceProof?.source===source&&
+    detachedSourceProof?.draft===draft?detachedSourceProof.verdict:null;
+  if(workspaceAtomicBusy||workspaceBundleBusy||isBusy()||batchRunning||
+     sourceDigestCheckInProgress||importInProgress)return;
+  clearAtomicApproval();
+  workspaceAtomicBusy=true;
+  workspaceAtomicStatus.textContent='正在验证两个领域的来源与编辑冲突，并计算外部文件和 sidecar 的完整 SHA-256…';
+  updateUI();
+  try{
+    if(!source||!draft||!checkpoint||!proof?.matched)
+      throw Error('请先导入组合草稿、重新选择媒体，并完成来源完整 SHA-256 核验');
+    const scanned=trackState?.fileKey===fileKey(source)?trackState:null;
+    const projection=buildContainerDocument({
+      video:source,trackState:scanned,
+      appendMode:Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()),
+      externalAudio:externalAudioState,newSubtitles:newSubtitleState,
+      fonts:selectedFonts(),fontMode:fontMode.value,
+    });
+    if(!scanned||currentProjectSourceFile!==source||
+       projection.sourceKey!==currentProjectSourceProjection?.sourceKey)
+      throw Error('当前来源扫描已过期，必须重新核验');
+    const workspace=liveWorkspaceAuthority;
+    const prepared=await prepareAtomicWorkspaceRecovery({
+      workspace,context:liveWorkspaceContext(),
+      sourceDraft:draft,sourceProof:proof,liveProjection:projection,
+      externalCheckpoint:checkpoint,
+      appendMode:Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()),
+    });
+    if(source!==videoInput.files?.[0]||draft!==importedProjectForReview||
+       checkpoint!==pendingExternalCheckpoint||workspace!==liveWorkspaceAuthority)
+      throw Error('核验期间当前素材或待恢复草稿已更换');
+    workspaceAtomicPrepared={prepared,source,draft,checkpoint};
+    workspaceAtomicConfirm.disabled=false;
+    workspaceAtomicStatus.textContent='两个领域预检已通过：来源 '+
+      prepared.sourcePlan.proposedCount+' 项，外部 '+
+      prepared.external.changes.length+
+      ' 项。将在同一个工程修订中提交；请审核并单独勾选同意。';
+  }catch(error){
+    workspaceAtomicStatus.textContent='联合恢复预检拒绝：'+
+      (error?.message||String(error))+'。未修改任何领域。';
+  }finally{
+    workspaceAtomicBusy=false;
+    updateUI();
+  }
+});
+workspaceAtomicApplyBtn?.addEventListener('click',()=>{
+  const entry=workspaceAtomicPrepared;
+  if(!entry||!workspaceAtomicConfirm.checked||workspaceAtomicBusy||
+     isBusy()||batchRunning||importInProgress)return;
+  try{
+    if(entry.source!==videoInput.files?.[0]||
+       entry.draft!==importedProjectForReview||
+       entry.checkpoint!==pendingExternalCheckpoint)
+      throw Error('来源或草稿已更换');
+    if(Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()))
+      throw Error('来源已切换为保留全部模式，原来源轨道恢复不再适用；请切回选择模式并重新核验');
+    const result=applyAtomicWorkspaceRecovery(
+      liveWorkspaceAuthority,liveWorkspaceContext(),entry.prepared,{
+        confirmed:true,
+        appendMode:Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()),
+      });
+    workspaceAtomicUndo=result.undo;
+    clearAtomicApproval();
+    // The two domain executor surfaces now project the SAME revision.
+    renderTrackList();renderAttachmentList();renderNewTrackLists();
+    updateUI();renderMuxPlan();renderOutputComposition();
+    workspaceAtomicStatus.textContent='已作为一笔事务恢复来源 '+
+      result.sourceFields+' 项、外部 '+result.externalFields+
+      ' 项；未写文件、未执行封装。可在没有后续编辑时整体撤销。';
+  }catch(error){
+    clearAtomicApproval();
+    workspaceAtomicStatus.textContent='联合恢复未执行：'+
+      (error?.message||String(error))+'。两个领域保持原状态。';
+  }
+});
+workspaceAtomicUndoBtn?.addEventListener('click',()=>{
+  if(!workspaceAtomicUndo||workspaceAtomicBusy||isBusy()||batchRunning)return;
+  try{
+    undoAtomicWorkspaceRecovery(liveWorkspaceAuthority,
+      liveWorkspaceContext(),workspaceAtomicUndo);
+    workspaceAtomicUndo=null;
+    renderTrackList();renderAttachmentList();renderNewTrackLists();
+    updateUI();renderMuxPlan();renderOutputComposition();
+    workspaceAtomicStatus.textContent='已一次性撤销本次来源与外部恢复；未写文件。';
+  }catch(error){
+    workspaceAtomicStatus.textContent='联合撤销拒绝：'+
+      (error?.message||String(error))+'。没有部分撤销。';
+  }
+});
+
 // Packaging combines existing independent recovery scopes; it never grants
-// either domain a File or writer permission and never atomically replays edits.
+// either domain a File or writer permission and never automatically replays edits.
 workspaceBundleExportBtn?.addEventListener('click',async()=>{
   workspaceBundleStatus.textContent='正在核对组合草稿导出条件…';
   const source=videoInput.files?.[0]||null;
@@ -2819,6 +2947,7 @@ workspaceBundleImportInput?.addEventListener('change',async()=>{
     const parsed=parsePortableWorkspaceBundle(await file.text());
     activeProjectHash?.controller.abort();
     importedProjectForReview=parsed.sourceDraft;
+    clearAtomicApproval();
     detachedSourceProof=null;
     // Import is inert: do not destroy undo receipts for edits that were
     // already explicitly applied to the live workspace. Their own revision

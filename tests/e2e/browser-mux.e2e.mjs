@@ -2098,6 +2098,34 @@ async function scenarioS09CrossReloadTwoDraftRecovery(browser) {
       null,{timeout:120_000});
     assert.equal(await page.locator('#containerProjectRestoreBtn').isDisabled(),true,
       'verified SHA alone does not imply user authorization');
+    // S09 combined atomic workflow: both independent byte proofs precede one
+    // explicit transaction, then ONE inverse restores both exact domains.
+    await page.locator('#workspaceAtomicPrepareBtn').click();
+    await page.waitForFunction(()=>
+      document.querySelector('#workspaceAtomicConfirm')?.disabled===false,
+      null,{timeout:120_000});
+    assert.match(await page.locator('#workspaceAtomicStatus').textContent(),
+      /两个领域预检已通过/);
+    assert.equal(await page.locator('#workspaceAtomicApplyBtn').isDisabled(),true,
+      'joint source/external byte proof is still NOT a writer grant');
+    assert.doesNotMatch(await page.locator('#muxPlan').textContent(),
+      /S09 Recovered Original Audio|S09 Recovered External FLAC/);
+    await page.locator('#workspaceAtomicConfirm').check();
+    await page.locator('#workspaceAtomicApplyBtn').click();
+    assert.match(await page.locator('#workspaceAtomicStatus').textContent(),
+      /一笔事务恢复来源/);
+    const acceptedPlan=await page.locator('#muxPlan').textContent();
+    assert.match(acceptedPlan,/S09 Recovered Original Audio/);
+    assert.match(acceptedPlan,/S09 Recovered External FLAC/);
+    await page.locator('#workspaceAtomicUndoBtn').click();
+    assert.match(await page.locator('#workspaceAtomicStatus').textContent(),
+      /一次性撤销/);
+    const revertedPlan=await page.locator('#muxPlan').textContent();
+    assert.doesNotMatch(revertedPlan,
+      /S09 Recovered Original Audio|S09 Recovered External FLAC/,
+      'joint undo must not leave one restored domain behind');
+    // The two existing separate confirmation paths remain independently
+    // reachable after the new bounded atomic replay is undone.
     await page.locator('#containerProjectRestoreConfirm').check();
     await page.locator('#containerProjectRestoreBtn').click();
     assert.match(await page.locator('#containerProjectRestoreStatus').textContent(),/已将/);

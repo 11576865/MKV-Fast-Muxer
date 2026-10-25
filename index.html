@@ -121,6 +121,15 @@
                 <button id="externalCheckpointUndoBtn" type="button" class="button button-secondary" disabled>撤销本次外部恢复</button>
                 <p id="externalCheckpointStatus" role="status" aria-live="polite">导入草稿不包含文件权限；必须重新选择当前音频、字幕及 sidecar。</p>
               </section>
+              <section id="workspaceAtomicRestorePanel" class="container-project-intent-review" aria-label="来源与外部轨道统一事务恢复">
+                <strong>统一恢复：来源轨道／附件与外部音频／字幕</strong>
+                <p>先导入组合草稿、重新选择来源及外部资源，完成来源完整 SHA-256 核对。本操作将验证两个领域全部修改，再一次提交到同一个待封装工程修订；任何一侧失败都不得部分恢复。仅支持已有受限元数据字段；不恢复字体权限、媒体文件、未知 EBML，不执行封装。</p>
+                <button type="button" id="workspaceAtomicPrepareBtn" class="button button-secondary">同时验证两个领域并预览修改</button>
+                <label><input id="workspaceAtomicConfirm" type="checkbox" disabled /> 我已确认来源与外部轨道全部修改，同意作为一笔事务应用</label>
+                <button type="button" id="workspaceAtomicApplyBtn" class="button button-secondary" disabled>一次性应用两个领域</button>
+                <button type="button" id="workspaceAtomicUndoBtn" class="button button-secondary" disabled>原子撤销本次联合恢复</button>
+                <p id="workspaceAtomicStatus" role="status" aria-live="polite">仅在两个领域都存在可恢复修改且字节证明有效时开放。</p>
+              </section>
               <p id="containerProjectImportReview" class="container-project-import-review" role="status" aria-live="polite" hidden></p>
               <details id="containerProjectIntentReview" class="container-project-intent-review" hidden>
                 <summary id="containerProjectIntentSummary">草稿修改记录（只读）</summary>
