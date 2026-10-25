@@ -613,6 +613,7 @@ let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
 let workspaceBundleBusy = false;
 let workspaceShelfBusy=false;
+let workspaceShelfAvailable=true;
 const workspaceShelf=createWorkspaceCheckpointShelf();
 let workspaceAtomicBusy = false;
 let workspaceAtomicPrepared = null;
@@ -1540,17 +1541,17 @@ function updateUI() {
     workspaceBundleImportInput.disabled=busy||workspaceBundleBusy||workspaceAtomicBusy;
   }
   if(workspaceShelfSaveBtn)
-    workspaceShelfSaveBtn.disabled=busy||workspaceBundleBusy||
+    workspaceShelfSaveBtn.disabled=!workspaceShelfAvailable||busy||workspaceBundleBusy||
       workspaceShelfBusy||workspaceAtomicBusy||activeProjectHash||
       !video||currentProjectSourceFile!==video||
       !currentProjectSourceProjection;
   if(workspaceShelfSelect)
-    workspaceShelfSelect.disabled=busy||workspaceShelfBusy;
+    workspaceShelfSelect.disabled=!workspaceShelfAvailable||busy||workspaceShelfBusy;
   if(workspaceShelfLoadBtn)
-    workspaceShelfLoadBtn.disabled=busy||workspaceBundleBusy||
+    workspaceShelfLoadBtn.disabled=!workspaceShelfAvailable||busy||workspaceBundleBusy||
       workspaceShelfBusy||!workspaceShelfSelect?.value;
   if(workspaceShelfDeleteBtn)
-    workspaceShelfDeleteBtn.disabled=busy||workspaceShelfBusy||
+    workspaceShelfDeleteBtn.disabled=!workspaceShelfAvailable||busy||workspaceShelfBusy||
       !workspaceShelfSelect?.value;
   if(workspaceAtomicPrepareBtn){
     workspaceAtomicPrepareBtn.disabled=busy||workspaceAtomicBusy||
@@ -3026,6 +3027,7 @@ workspaceShelfDeleteBtn?.addEventListener('click',async()=>{
 // blocked origin storage must not make the existing manual JSON path unusable.
 if(workspaceShelfSelect){
   void refreshLocalWorkspaceShelf().catch(error=>{
+    workspaceShelfAvailable=false;
     workspaceShelfStatus.textContent='当前浏览器本地恢复点不可用：'+
       (error?.message||String(error))+'；仍可手动导入/导出组合 JSON。';
     workspaceShelfSaveBtn.disabled=true;
