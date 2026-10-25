@@ -11,7 +11,7 @@ import {prepareVerifiedTrackReplay,applyPreparedTrackReplay}
 import {prepareExternalMetadataRecovery}
   from './portable-external-project-recovery.js';
 import {inspectLiveWorkspaceAuthority} from './live-container-workspace-authority.js';
-import {applyContainerProjectEdit} from './container-project.js';
+import {applyContainerProjectEdit,createContainerProject} from './container-project.js';
 
 export const ATOMIC_WORKSPACE_REPLAY_SCHEMA='atomic-workspace-replay-v1';
 const SOURCE_FIELDS=['include','title','language','default','forced',
@@ -24,12 +24,24 @@ const rowsOf=context=>[
 ];
 const valueOf=(obj,field)=>field==='include'?obj.included:obj.attributes[field];
 const fieldEdit=(field)=>field==='include'?'include':'set-attribute';
+// Preserve the same bounded-history policy as the existing live adapters.
+ // A combined edit/inverse can span >100 individual attribute mutations even
+ // though publishing remains exactly ONE workspace generation.
+function compact(project){
+  if(project.history.length<85)return project;
+  return createContainerProject({
+    documentId:project.documentId,
+    sources:project.sources.map(({size,...source})=>
+      size===null?source:{...source,size}),
+    objects:project.objects,
+  });
+}
 function setSemantic(current,id,field,value){
   const obj=current.objects.find(x=>x.id===id);
   if(!obj)fail('PROJECT_OBJECT_MISSING');
   const from=valueOf(obj,field);
   if(from===value)return current;
-  return applyContainerProjectEdit(current,{
+  return applyContainerProjectEdit(compact(current),{
     type:fieldEdit(field),objectId:id,
     ...(field==='include'?{}:{field}),
     value,
@@ -142,7 +154,7 @@ function compile(prepared,workspace,context,direction='forward'){
       const original=project.objects.find(o=>o.id===item.id);
       if(original.order!==item.domainOrder)fail('ORDER_PROJECT_DRIFT');
       if(original.order!==slots[i]){
-        next=applyContainerProjectEdit(next,{type:'reorder',
+        next=applyContainerProjectEdit(compact(next),{type:'reorder',
           objectId:item.id,value:slots[i]});
       }
     }
@@ -217,6 +229,7 @@ export async function prepareAtomicWorkspaceRecovery({
     schema:ATOMIC_WORKSPACE_REPLAY_SCHEMA,
     workspace,source:context.source,trackState:context.trackState,
     sourcePlan,external,project,generation,
+    appendMode:false,
     externalBefore:Object.freeze(external.changes.map(c=>Object.freeze({
       ...c,value:rowsOf(context).find(r=>r.kind===c.kind&&r.index===c.index).row[c.field],
     }))),
@@ -229,8 +242,9 @@ export async function prepareAtomicWorkspaceRecovery({
   compile(prepared,workspace,context);
   return prepared;
 }
-export function applyAtomicWorkspaceRecovery(workspace,context,prepared,{confirmed=false}={}){
+export function applyAtomicWorkspaceRecovery(workspace,context,prepared,{confirmed=false,appendMode=false}={}){
   if(!confirmed)fail('EXPLICIT_CONFIRMATION_REQUIRED');
+  if(appendMode||prepared?.appendMode)fail('SELECTIVE_MODE_REQUIRED');
   assertCurrent(prepared,workspace,context);
   validateEditorReplay(prepared.sourcePlan,context.trackState);
   const staged=compile(prepared,workspace,context);
