@@ -247,7 +247,12 @@ export function mountSoftmux1014Workbench(doc = document) {
     const node = composition.querySelector(selector);
     if (node) recovery.appendChild(node);
   }
-  composition.insertBefore(recovery,composition.querySelector('.composition-actions'));
+  // Recovery must remain available when NO media is loaded. The entire
+  // legacy #outputCompositionPanel is hidden without a scanned object;
+  // mounting recovery INSIDE it made saved checkpoints impossible to open
+  // after a genuine page refresh. Rehost the original control nodes as a
+  // visible sibling in the permanent modern composition pane instead.
+  composition.parentNode.insertBefore(recovery,composition);
   for (const id of ['containerProjectImportInput','externalCheckpointImportInput','workspaceBundleImportInput']) {
     get(doc,id)?.addEventListener('change', () => { recovery.open = true; });
   }
