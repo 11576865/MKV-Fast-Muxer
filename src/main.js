@@ -599,6 +599,7 @@ let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
 let workspaceBundleBusy = false;
+let externalCheckpointBusy = false;
 let activeProjectHash = null;
 let importInProgress = false;
 let importPendingCount = 0;
@@ -2640,7 +2641,6 @@ const externalCheckpointControls = {
 let pendingExternalCheckpoint = null;
 let preparedExternalCheckpoint = null;
 let externalCheckpointUndo = null;
-let externalCheckpointBusy = false;
 function resetExternalCheckpointApproval() {
   preparedExternalCheckpoint = null;
   externalCheckpointControls.confirm.checked = false;
