@@ -108,6 +108,16 @@
                   </label>
                 </div>
               </header>
+              <section class="container-project-intent-review" id="workspaceLocalShelfPanel" aria-label="本浏览器工程元数据恢复点">
+                <strong>本浏览器的元数据恢复点（最多 8 个）</strong>
+                <p>主动保存来源轨道／附件与外部音频／字幕的 SHA-256 绑定草稿。仅存本网站 IndexedDB 内的 JSON，不存媒体内容、File 权限、成品或自动恢复批准；隐私模式、清理站点数据和浏览器回收均可导致丢失。需要长期留存请使用“导出组合元数据草稿”。</p>
+                <button type="button" id="workspaceShelfSaveBtn" class="button button-secondary">保存当前工程元数据到此浏览器</button>
+                <label for="workspaceShelfSelect">已保存的恢复点</label>
+                <select id="workspaceShelfSelect" aria-label="选择已保存的本地元数据恢复点"><option value="">无恢复点</option></select>
+                <button type="button" id="workspaceShelfLoadBtn" class="button button-secondary" disabled>只读加载恢复点</button>
+                <button type="button" id="workspaceShelfDeleteBtn" class="button button-secondary" disabled>删除选中恢复点</button>
+                <p id="workspaceShelfStatus" role="status" aria-live="polite">仅可恢复经再次核验并获明确同意的编辑，不会恢复媒体授权。</p>
+              </section>
               <p id="workspaceBundleStatus" role="status" aria-live="polite">组合草稿包含来源轨道/附件与外部音频/字幕的元数据；不包含媒体字节、字体授权或统一原子恢复；导入不会自动写回或封装。</p>
               <section class="container-project-intent-review" aria-label="外部轨道跨会话恢复">
                 <strong>外部音频／字幕元数据检查点</strong>
