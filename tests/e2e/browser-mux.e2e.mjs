@@ -833,7 +833,15 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       // source/ASS/font workbench. Import must stage the two legacy verified
       // recovery workflows without granting media authority or applying edits.
       const bundleFile=path.join(outDir,'s09-workspace-combined.json');
-      await saveDownload(page,'#workspaceBundleExportBtn',bundleFile);
+      try {
+        await saveDownload(page,'#workspaceBundleExportBtn',bundleFile);
+      } catch (error) {
+        throw new Error('S09 real UI export produced no download. Status: '+
+          await page.locator('#workspaceBundleStatus').textContent()+
+          '; source status: '+await page.locator('#status').textContent()+
+          '; exportDisabled: '+await page.locator('#workspaceBundleExportBtn').isDisabled(),
+          {cause:error});
+      }
       const bundleJson=JSON.parse(await fs.readFile(bundleFile,'utf8'));
       assert.equal(bundleJson.schema,'softmux-workspace-recovery-bundle-v1');
       assert.equal(bundleJson.sourceDraft.schema,'container-project-v1');
