@@ -598,6 +598,7 @@ let detachedSourceProof = null;
 let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
+let workspaceBundleBusy = false;
 let activeProjectHash = null;
 let importInProgress = false;
 let importPendingCount = 0;
@@ -1510,6 +1511,15 @@ function updateUI() {
   );
   const mode = fontMode.value || 'preserve';
   const busy = isBusy() || batchStartPending || batchRunning;
+  if(workspaceBundleExportBtn){
+    workspaceBundleExportBtn.disabled=busy||workspaceBundleBusy||
+      projectDigestExportInProgress||externalCheckpointBusy||
+      !video||currentProjectSourceFile!==video||
+      !currentProjectSourceProjection;
+  }
+  if(workspaceBundleImportInput){
+    workspaceBundleImportInput.disabled=busy||workspaceBundleBusy;
+  }
   const importRoles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
 
   const videoLabel = video?.name ?? '未选择';
@@ -2739,7 +2749,6 @@ externalCheckpointControls.undo?.addEventListener('click',()=>{
 
 // Packaging combines existing independent recovery scopes; it never grants
 // either domain a File or writer permission and never atomically replays edits.
-let workspaceBundleBusy=false;
 workspaceBundleExportBtn?.addEventListener('click',async()=>{
   const source=videoInput.files?.[0]||null;
   const workspace=liveWorkspaceAuthority,generation=workspace?.generation??null;
