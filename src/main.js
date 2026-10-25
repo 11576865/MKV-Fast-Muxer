@@ -87,6 +87,7 @@ import {
 import { PROJECT_SOURCE_HASH_MAX_BYTES, hashBoundedProjectSource, attachContainerProjectSourceDigest, verifyContainerProjectSourceDigest } from './container-project-source-proof.js';
 import { projectSourceStructureEvidence, projectActualOutputEvidence } from './container-workbench-evidence.js';
 import { serializePortableWorkspaceBundle, parsePortableWorkspaceBundle, PORTABLE_WORKSPACE_BUNDLE_MAX_BYTES } from './portable-workspace-bundle.js';
+import { createWorkspaceCheckpointShelf } from './workspace-checkpoint-shelf.js';
 import { prepareAtomicWorkspaceRecovery, applyAtomicWorkspaceRecovery,
   undoAtomicWorkspaceRecovery } from './portable-workspace-atomic-recovery.js';
 import { auditS12WorkbenchStructure, formatS12WorkbenchStructure } from './s12-workbench-structure-audit.js';
@@ -292,6 +293,11 @@ const containerProjectExportBtn = $('containerProjectExportBtn');
 const workspaceBundleExportBtn = $('workspaceBundleExportBtn');
 const workspaceBundleImportInput = $('workspaceBundleImportInput');
 const workspaceBundleStatus = $('workspaceBundleStatus');
+const workspaceShelfSaveBtn = $('workspaceShelfSaveBtn');
+const workspaceShelfSelect = $('workspaceShelfSelect');
+const workspaceShelfLoadBtn = $('workspaceShelfLoadBtn');
+const workspaceShelfDeleteBtn = $('workspaceShelfDeleteBtn');
+const workspaceShelfStatus = $('workspaceShelfStatus');
 const workspaceAtomicPrepareBtn = $('workspaceAtomicPrepareBtn');
 const workspaceAtomicConfirm = $('workspaceAtomicConfirm');
 const workspaceAtomicApplyBtn = $('workspaceAtomicApplyBtn');
@@ -606,6 +612,8 @@ let lastProjectRestore = null;
 let sourceDigestCheckInProgress = false;
 let projectDigestExportInProgress = false;
 let workspaceBundleBusy = false;
+let workspaceShelfBusy=false;
+const workspaceShelf=createWorkspaceCheckpointShelf();
 let workspaceAtomicBusy = false;
 let workspaceAtomicPrepared = null;
 let workspaceAtomicUndo = null;
@@ -1531,6 +1539,19 @@ function updateUI() {
   if(workspaceBundleImportInput){
     workspaceBundleImportInput.disabled=busy||workspaceBundleBusy||workspaceAtomicBusy;
   }
+  if(workspaceShelfSaveBtn)
+    workspaceShelfSaveBtn.disabled=busy||workspaceBundleBusy||
+      workspaceShelfBusy||workspaceAtomicBusy||activeProjectHash||
+      !video||currentProjectSourceFile!==video||
+      !currentProjectSourceProjection;
+  if(workspaceShelfSelect)
+    workspaceShelfSelect.disabled=busy||workspaceShelfBusy;
+  if(workspaceShelfLoadBtn)
+    workspaceShelfLoadBtn.disabled=busy||workspaceBundleBusy||
+      workspaceShelfBusy||!workspaceShelfSelect?.value;
+  if(workspaceShelfDeleteBtn)
+    workspaceShelfDeleteBtn.disabled=busy||workspaceShelfBusy||
+      !workspaceShelfSelect?.value;
   if(workspaceAtomicPrepareBtn){
     workspaceAtomicPrepareBtn.disabled=busy||workspaceAtomicBusy||
       sourceDigestCheckInProgress||workspaceBundleBusy;
@@ -2875,6 +2896,145 @@ workspaceAtomicUndoBtn?.addEventListener('click',()=>{
   }
 });
 
+async function collectCurrentWorkspaceMetadataBundle({requireDigest=false}={}){
+  const source=videoInput.files?.[0]||null;
+  const workspace=liveWorkspaceAuthority,generation=workspace?.generation??null;
+  if(!source||currentProjectSourceFile!==source||
+     !currentProjectSourceProjection)throw Error('请先加载并检查真实来源');
+  // Snapshot the actual mux plan as well as both session File identities;
+  // every asynchronous hash boundary is followed by an ownership recheck.
+  const initialPlan=JSON.stringify(buildMuxPlan());
+  const digest=source.size<=PROJECT_SOURCE_HASH_MAX_BYTES
+    ?await runProjectHash(source,opts=>hashBoundedProjectSource(source,opts)):null;
+  if(requireDigest&&!digest)
+    throw Error('当前来源超过可完整 SHA-256 证明的范围；不能建立可恢复的本地恢复点');
+  const current=()=>videoInput.files?.[0]===source&&
+    currentProjectSourceFile===source&&liveWorkspaceAuthority===workspace&&
+    (workspace?.generation??null)===generation&&
+    JSON.stringify(buildMuxPlan())===initialPlan;
+  if(!current())throw Error('WORKSPACE_BUNDLE_SOURCE_OR_PLAN_CHANGED');
+  const latest=currentProjectSourceProjection;
+  if(!latest||latest.sourceKey!==outputCompositionFileKey(source))
+    throw Error('WORKSPACE_BUNDLE_SOURCE_PROJECTION_CHANGED');
+  let project=createEditedContainerProjectFromProjection(latest);
+  if(digest)project=attachContainerProjectSourceDigest(project,digest);
+  const withExternal=externalAudioState.length>0||newSubtitleState.length>0;
+  const externalJson=withExternal
+    ?await exportExternalMetadataCheckpoint(workspace,liveWorkspaceContext()):null;
+  if(!current())throw Error('WORKSPACE_BUNDLE_EXTERNAL_OR_PLAN_CHANGED');
+  const json=serializePortableWorkspaceBundle({
+    sourceDraftJson:serializeContainerProject(project),
+    externalCheckpointJson:externalJson,
+  });
+  return Object.freeze({json,digest,withExternal,sourceName:source.name});
+}
+
+function stageWorkspaceMetadataBundle(parsed){
+  // A validated bundle remains inert. Never rehydrate File/Blob handles,
+  // current media selections, any applied undo receipts, or writer grants.
+  activeProjectHash?.controller.abort();
+  importedProjectForReview=parsed.sourceDraft;
+  clearAtomicApproval();
+  detachedSourceProof=null;
+  pendingExternalCheckpoint=parsed.externalCheckpoint;
+  resetExternalCheckpointApproval();
+  externalCheckpointControls.prepare.disabled=!pendingExternalCheckpoint;
+  if(containerProjectRestoreConfirm)containerProjectRestoreConfirm.checked=false;
+  if(containerProjectRestoreStatus)containerProjectRestoreStatus.textContent='';
+  externalCheckpointControls.status.textContent=pendingExternalCheckpoint
+    ?'组合草稿已读取；须重新选择外部音频/字幕/sidecar，再核对 SHA-256 并独立确认。'
+    :'组合草稿没有外部音频/字幕草稿，未恢复任何外部权限。';
+  renderOutputComposition();
+}
+async function refreshLocalWorkspaceShelf(preferredId=null){
+  const items=await workspaceShelf.list();
+  const selected=preferredId||workspaceShelfSelect.value;
+  workspaceShelfSelect.replaceChildren();
+  const placeholder=document.createElement('option');
+  placeholder.value='';placeholder.textContent=items.length?
+    '请选择已保存的恢复点':'无本地恢复点';
+  workspaceShelfSelect.appendChild(placeholder);
+  for(const item of items){
+    const option=document.createElement('option');
+    option.value=item.id;
+    option.textContent=new Date(item.createdAt).toLocaleString()+
+      ' · '+item.sourceName+(item.hasExternalCheckpoint?' · 含外部轨道':'');
+    workspaceShelfSelect.appendChild(option);
+  }
+  if(items.some(x=>x.id===selected))workspaceShelfSelect.value=selected;
+  updateUI();
+  return items.length;
+}
+workspaceShelfSelect?.addEventListener('change',()=>updateUI());
+workspaceShelfSaveBtn?.addEventListener('click',async()=>{
+  if(workspaceShelfBusy||workspaceBundleBusy||workspaceAtomicBusy||
+     projectDigestExportInProgress||externalCheckpointBusy||activeProjectHash||
+     isBusy()||batchRunning)return;
+  workspaceShelfBusy=true;
+  workspaceShelfStatus.textContent='正在计算完整来源及外部资源 SHA-256，建立仅含元数据的本地恢复点…';
+  updateUI();
+  try{
+    const output=await collectCurrentWorkspaceMetadataBundle({requireDigest:true});
+    const saved=await workspaceShelf.save({
+      json:output.json,sourceName:output.sourceName,
+    });
+    await refreshLocalWorkspaceShelf(saved.id);
+    workspaceShelfStatus.textContent='已保存经完整哈希绑定的元数据恢复点。'+
+      ' 需重新选取原媒体并明确审核后才能应用；浏览器清除网站数据会丢失它。';
+  }catch(error){
+    workspaceShelfStatus.textContent='本地恢复点未确认保存：'+
+      (error?.message||String(error))+
+      '。可改用“导出组合元数据草稿”保存到自有文件。';
+  }finally{workspaceShelfBusy=false;updateUI();}
+});
+workspaceShelfLoadBtn?.addEventListener('click',async()=>{
+  const id=workspaceShelfSelect?.value;
+  if(!id||workspaceShelfBusy||workspaceBundleBusy||workspaceAtomicBusy||
+     isBusy()||batchRunning)return;
+  const sourceBefore=videoInput.files?.[0]||null;
+  workspaceShelfBusy=true;
+  updateUI();
+  try{
+    const selected=await workspaceShelf.load(id);
+    if(sourceBefore!==(videoInput.files?.[0]||null)||
+        isBusy()||batchRunning)
+      throw Error('读取期间当前媒体/任务已更换，未应用该恢复点');
+    stageWorkspaceMetadataBundle(selected.bundle);
+    workspaceShelfStatus.textContent='已只读加载“'+selected.sourceName+'”元数据草稿。'+
+      ' 仍需重新选择真实媒体、核对 SHA-256 并明确确认；当前封装计划未自动修改。';
+  }catch(error){
+    workspaceShelfStatus.textContent='恢复点读取拒绝：'+
+      (error?.message||String(error))+
+      '。未修改当前来源、待封装方案或此前待审核草稿。';
+  }finally{workspaceShelfBusy=false;updateUI();}
+});
+workspaceShelfDeleteBtn?.addEventListener('click',async()=>{
+  const id=workspaceShelfSelect?.value;
+  if(!id||workspaceShelfBusy||isBusy()||batchRunning)return;
+  if(!window.confirm('确定删除选中的本浏览器工程元数据恢复点？此操作不可撤销，不会删除媒体文件。'))return;
+  workspaceShelfBusy=true;updateUI();
+  try{
+    await workspaceShelf.remove(id);
+    await refreshLocalWorkspaceShelf();
+    workspaceShelfStatus.textContent='已删除选中的本地元数据恢复点；'+
+      '不会删除外部媒体或此前导出的 JSON 文件。';
+  }catch(error){
+    workspaceShelfStatus.textContent='删除未确认：'+(error?.message||String(error));
+  }finally{workspaceShelfBusy=false;updateUI();}
+});
+// IndexedDB access is lazy and never starts mux/recovery. Unsupported or
+// blocked origin storage must not make the existing manual JSON path unusable.
+if(workspaceShelfSelect){
+  void refreshLocalWorkspaceShelf().catch(error=>{
+    workspaceShelfStatus.textContent='当前浏览器本地恢复点不可用：'+
+      (error?.message||String(error))+'；仍可手动导入/导出组合 JSON。';
+    workspaceShelfSaveBtn.disabled=true;
+    workspaceShelfSelect.disabled=true;
+    workspaceShelfLoadBtn.disabled=true;
+    workspaceShelfDeleteBtn.disabled=true;
+  });
+}
+
 // Packaging combines existing independent recovery scopes; it never grants
 // either domain a File or writer permission and never automatically replays edits.
 workspaceBundleExportBtn?.addEventListener('click',async()=>{
@@ -2893,30 +3053,7 @@ workspaceBundleExportBtn?.addEventListener('click',async()=>{
   workspaceBundleBusy=true;projectDigestExportInProgress=true;
   externalCheckpointBusy=true;workspaceBundleExportBtn.disabled=true;
   try{
-    // Computing the plan belongs to the protected export boundary too; an
-    // invalid live project must be reported rather than silently failing an
-    // async click handler before any user-visible status update.
-    const initialPlan=JSON.stringify(buildMuxPlan());
-    const digest=source.size<=PROJECT_SOURCE_HASH_MAX_BYTES
-      ?await runProjectHash(source,opts=>hashBoundedProjectSource(source,opts)):null;
-    const current=()=>videoInput.files?.[0]===source&&
-      currentProjectSourceFile===source&&liveWorkspaceAuthority===workspace&&
-      (workspace?.generation??null)===generation&&
-      JSON.stringify(buildMuxPlan())===initialPlan;
-    if(!current())throw Error('WORKSPACE_BUNDLE_SOURCE_OR_PLAN_CHANGED');
-    const latest=currentProjectSourceProjection;
-    if(!latest||latest.sourceKey!==outputCompositionFileKey(source))
-      throw Error('WORKSPACE_BUNDLE_SOURCE_PROJECTION_CHANGED');
-    let project=createEditedContainerProjectFromProjection(latest);
-    if(digest)project=attachContainerProjectSourceDigest(project,digest);
-    const withExternal=externalAudioState.length>0||newSubtitleState.length>0;
-    const externalJson=withExternal
-      ?await exportExternalMetadataCheckpoint(workspace,liveWorkspaceContext()):null;
-    if(!current())throw Error('WORKSPACE_BUNDLE_EXTERNAL_OR_PLAN_CHANGED');
-    const json=serializePortableWorkspaceBundle({
-      sourceDraftJson:serializeContainerProject(project),
-      externalCheckpointJson:externalJson,
-    });
+    const {json,digest,withExternal}=await collectCurrentWorkspaceMetadataBundle();
     const url=URL.createObjectURL(new Blob([json],{type:'application/json;charset=utf-8'}));
     const link=document.createElement('a');
     link.href=url;link.download='softmux-workspace-metadata-bundle-v1.json';
@@ -2945,21 +3082,7 @@ workspaceBundleImportInput?.addEventListener('change',async()=>{
       throw Error('WORKSPACE_BUNDLE_TOO_LARGE');
     // Validate both imported schemas before mutating either draft slot.
     const parsed=parsePortableWorkspaceBundle(await file.text());
-    activeProjectHash?.controller.abort();
-    importedProjectForReview=parsed.sourceDraft;
-    clearAtomicApproval();
-    detachedSourceProof=null;
-    // Import is inert: do not destroy undo receipts for edits that were
-    // already explicitly applied to the live workspace. Their own revision
-    // guards determine whether they remain usable.
-    pendingExternalCheckpoint=parsed.externalCheckpoint;
-    resetExternalCheckpointApproval();
-    externalCheckpointControls.prepare.disabled=!pendingExternalCheckpoint;
-    if(containerProjectRestoreConfirm)containerProjectRestoreConfirm.checked=false;
-    if(containerProjectRestoreStatus)containerProjectRestoreStatus.textContent='';
-    externalCheckpointControls.status.textContent=pendingExternalCheckpoint
-      ?'组合草稿已读取；须重新选择外部音频/字幕/sidecar，再核对 SHA-256 并独立确认。'
-      :'组合草稿没有外部音频/字幕草稿，未恢复任何外部权限。';
+    stageWorkspaceMetadataBundle(parsed);
     workspaceBundleStatus.textContent='已同时读取两个相互独立的未授权草稿范围。'+
       ' 来源与外部部分仍需分别验证和确认；未修改可执行工程或封装器。';
     renderOutputComposition();
