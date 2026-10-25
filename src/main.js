@@ -2743,15 +2743,22 @@ let workspaceBundleBusy=false;
 workspaceBundleExportBtn?.addEventListener('click',async()=>{
   const source=videoInput.files?.[0]||null;
   const workspace=liveWorkspaceAuthority,generation=workspace?.generation??null;
-  const initialPlan=JSON.stringify(buildMuxPlan());
   if(workspaceBundleBusy||projectDigestExportInProgress||
-      externalCheckpointBusy||activeProjectHash||isBusy()||batchRunning)return;
+      externalCheckpointBusy||activeProjectHash||isBusy()||batchRunning){
+    workspaceBundleStatus.textContent='当前正在执行媒体扫描、散列或其他工作台操作；'+
+      '组合草稿未导出。操作结束后可重新点击，既有成品不受影响。';
+    return;
+  }
   if(!source||currentProjectSourceFile!==source||!currentProjectSourceProjection){
     workspaceBundleStatus.textContent='请先加载并检查真实来源。';return;
   }
   workspaceBundleBusy=true;projectDigestExportInProgress=true;
   externalCheckpointBusy=true;workspaceBundleExportBtn.disabled=true;
   try{
+    // Computing the plan belongs to the protected export boundary too; an
+    // invalid live project must be reported rather than silently failing an
+    // async click handler before any user-visible status update.
+    const initialPlan=JSON.stringify(buildMuxPlan());
     const digest=source.size<=PROJECT_SOURCE_HASH_MAX_BYTES
       ?await runProjectHash(source,opts=>hashBoundedProjectSource(source,opts)):null;
     const current=()=>videoInput.files?.[0]===source&&
