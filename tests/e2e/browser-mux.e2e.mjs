@@ -833,13 +833,21 @@ async function scenarioSelectiveAttachments(browser, {modern=false} = {}) {
       // source/ASS/font workbench. Import must stage the two legacy verified
       // recovery workflows without granting media authority or applying edits.
       const bundleFile=path.join(outDir,'s09-workspace-combined.json');
+      await page.evaluate(()=>{
+        const button=document.querySelector('#workspaceBundleExportBtn');
+        window.__s09ClickTrace={down:0,click:0};
+        button.addEventListener('pointerdown',()=>window.__s09ClickTrace.down++,{capture:true});
+        button.addEventListener('click',()=>window.__s09ClickTrace.click++,{capture:true});
+      });
       try {
         await saveDownload(page,'#workspaceBundleExportBtn',bundleFile);
       } catch (error) {
         throw new Error('S09 real UI export produced no download. Status: '+
           await page.locator('#workspaceBundleStatus').textContent()+
           '; source status: '+await page.locator('#status').textContent()+
-          '; exportDisabled: '+await page.locator('#workspaceBundleExportBtn').isDisabled(),
+          '; exportDisabled: '+await page.locator('#workspaceBundleExportBtn').isDisabled()+
+          '; UI events: '+JSON.stringify(await page.evaluate(()=>window.__s09ClickTrace))+
+          '; button connected: '+await page.locator('#workspaceBundleExportBtn').evaluate(el=>el.isConnected),
           {cause:error});
       }
       const bundleJson=JSON.parse(await fs.readFile(bundleFile,'utf8'));
