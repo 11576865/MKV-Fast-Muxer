@@ -41,7 +41,7 @@ function witnessExternal(prepared,context){
   for(let i=0;i<now.length;i++){
     const row=now[i],ref=refs[i];
     if(row.kind!==ref.kind||row.index!==ref.index||
-       row.row!==ref.row||row.row.file!==ref.file||
+       row.row.file!==ref.file||
        (row.row.sidecarFile??null)!==ref.sidecar||
        row.row.format!==ref.format||row.row.identity!==ref.identity)
       fail('EXTERNAL_IDENTITY_CHANGED');
