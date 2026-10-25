@@ -2839,8 +2839,13 @@ workspaceAtomicApplyBtn?.addEventListener('click',()=>{
        entry.draft!==importedProjectForReview||
        entry.checkpoint!==pendingExternalCheckpoint)
       throw Error('来源或草稿已更换');
+    if(Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()))
+      throw Error('来源已切换为保留全部模式，原来源轨道恢复不再适用；请切回选择模式并重新核验');
     const result=applyAtomicWorkspaceRecovery(
-      liveWorkspaceAuthority,liveWorkspaceContext(),entry.prepared,{confirmed:true});
+      liveWorkspaceAuthority,liveWorkspaceContext(),entry.prepared,{
+        confirmed:true,
+        appendMode:Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()),
+      });
     workspaceAtomicUndo=result.undo;
     clearAtomicApproval();
     // The two domain executor surfaces now project the SAME revision.
