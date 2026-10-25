@@ -102,8 +102,12 @@ export function createWorkspaceCheckpointShelf({
         const read=store.getAll();
         read.onsuccess=()=>{
           try{
-            if(read.result.length>=WORKSPACE_SHELF_MAX_ENTRIES)
-              reject('FULL_DELETE_AN_OLD_CHECKPOINT');
+            if(read.result.length>=WORKSPACE_SHELF_MAX_ENTRIES){
+              // A rejected save changes nothing and returns the exact
+              // capacity error instead of a generic IDB abort message.
+              set(Error('WORKSPACE_SHELF_FULL_DELETE_AN_OLD_CHECKPOINT'));
+              return;
+            }
             store.put(entry);
             set(Object.freeze({id:entry.id,createdAt:entry.createdAt,
               sourceName:entry.sourceName}));
