@@ -3069,7 +3069,7 @@ workspaceBundleExportBtn?.addEventListener('click',async()=>{
   }finally{
     workspaceBundleBusy=false;externalCheckpointBusy=false;
     projectDigestExportInProgress=false;workspaceBundleExportBtn.disabled=false;
-    renderOutputComposition();
+    updateUI();renderOutputComposition();
   }
 });
 workspaceBundleImportInput?.addEventListener('change',async()=>{
@@ -3085,12 +3085,11 @@ workspaceBundleImportInput?.addEventListener('change',async()=>{
     stageWorkspaceMetadataBundle(parsed);
     workspaceBundleStatus.textContent='已同时读取两个相互独立的未授权草稿范围。'+
       ' 来源与外部部分仍需分别验证和确认；未修改可执行工程或封装器。';
-    renderOutputComposition();
   }catch(error){
     workspaceBundleStatus.textContent='组合草稿无效，整包已拒绝：'+
       (error?.message||String(error))+
       '；此前的待审核草稿、媒体与执行方案未改变。';
-  }finally{workspaceBundleBusy=false;}
+  }finally{workspaceBundleBusy=false;updateUI();}
 });
 
 containerProjectExportBtn?.addEventListener('click', async () => {
