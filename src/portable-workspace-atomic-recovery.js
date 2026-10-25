@@ -162,7 +162,7 @@ function compile(prepared,workspace,context,direction='forward'){
     const id=external.keys.get(change.kind+':'+change.index);
     const obj=project.objects.find(o=>o.id===id);
     if(!ref||!entry||!id||!obj)fail('EXTERNAL_OBJECT_CHANGED');
-    const initial=ref.row[change.field];
+    const initial=entry.row[change.field];
     const value=undo?prepared.externalBefore.find(c=>c.kind===change.kind&&
       c.index===change.index&&c.field===change.field)?.value:change.value;
     if(value===undefined||obj.attributes[change.field]!==initial)
