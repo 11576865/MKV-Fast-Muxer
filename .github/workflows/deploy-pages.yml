@@ -36,6 +36,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Audit 1.0 release evidence ledger (developer version remains allowed)
+        run: npm run release:audit
+
       - name: Build
         run: npm run build
 
