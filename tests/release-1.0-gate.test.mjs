@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {
  inspectSoftmuxRelease,fetchGithubExactHeadRuns,
  RELEASE_REQUIRED_WORKFLOWS,
@@ -14,6 +15,9 @@ const files=[
 const load=()=>files.map(path=>JSON.parse(readFileSync(
  new URL('../'+path,import.meta.url),'utf8')));
 const SHA='a'.repeat(40), OTHER='b'.repeat(40);
+const contractSha256=createHash('sha256').update(readFileSync(
+ new URL('../docs/softmux-1.0-product-acceptance-contract-20261020.md',import.meta.url)
+)).digest('hex');
 const proof=(sha=SHA)=>({
  commit:sha,url:'https://example.org/independent-mkv-evidence',
  fixture:'real-mkv-fixture-with-independent-stream-and-byte-check',
@@ -24,6 +28,11 @@ function syntheticComplete(){
  const [release,legacy,historical]=load();
  release.release.targetVersion='1.0.0';
  release.release.candidateCommit=SHA;
+ release.contractApproval={
+   status:'APPROVED',documentSha256:contractSha256,
+   approvalUrl:'https://example.org/synthetic-owner-signature',
+   approvedBy:'synthetic-only-reviewer',approvedAt:'synthetic-date',
+ };
  release.release.publishedWebsiteEvidence={
    commit:SHA,url:'https://example.org/website',
    evidenceUrl:'https://example.org/independent-site-audit',result:'pass',
@@ -50,6 +59,7 @@ function syntheticComplete(){
    item.verifiedCommit=SHA;item.evidence=[proof()];
  }
  return {release,legacy,historical,packageVersion:'1.0.0',actualCommit:SHA,
+   contractSha256,
    workflowRuns:RELEASE_REQUIRED_WORKFLOWS.map(name=>({
      name,head_sha:SHA,status:'completed',conclusion:'success',
    }))};
@@ -60,7 +70,7 @@ test('S14 current project baseline: 14 must cases + 44 original legacy IDs + 57 
  const [release,legacy,historical]=load();
  const result=inspect({
   release,legacy,historical,packageVersion:'0.1033.0',
-  actualCommit:'c'.repeat(40),
+  actualCommit:'c'.repeat(40),contractSha256,
  });
  assert.equal(result.scenarioCount,14);
  assert.equal(result.legacyCount,44);
@@ -140,4 +150,16 @@ test('S14 live GitHub receipt lookup requires authorization and filters commit S
    });
  assert.equal(returned.length,1);
  assert.equal(returned[0].head_sha,SHA);
+});
+
+test('S14 unapproved or outdated owner acceptance contract cannot be promoted by green media CI',()=>{
+ const missing=syntheticComplete();
+ missing.release.contractApproval.status='PENDING_OWNER_REVIEW';
+ assert.ok(inspect(missing).blockers.some(x=>x.id==='CONTRACT'));
+ const changed=syntheticComplete();
+ changed.contractSha256='0'.repeat(64);
+ assert.ok(inspect(changed).blockers.some(x=>x.id==='CONTRACT'));
+ const malformed=syntheticComplete();
+ malformed.release.contractApproval.approvalUrl='not-an-approval-url';
+ assert.ok(inspect(malformed).blockers.some(x=>x.id==='CONTRACT'));
 });
