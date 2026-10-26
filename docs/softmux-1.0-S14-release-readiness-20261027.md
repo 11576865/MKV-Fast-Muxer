@@ -47,12 +47,17 @@ npm run release:audit
 # 仅在准备发布 1.0.0 时使用：要求 GITHUB_TOKEN，
 # 查找冻结目标 SHA 上成功完成的全部关键工作流。
 # 任何一项合同证据或目标网站/设备/回滚记录缺失 => 退出码 1。
+# 在 CI 中分别 checkout 候选版本 A 和之后的证据版本 B（B 必须后继 A）。
+# SOFTMUX_RELEASE_EVIDENCE_DIR=/path/to/evidence \
+# SOFTMUX_RELEASE_EVIDENCE_SHA=<evidence-B-40hex> \
 GITHUB_TOKEN=... npm run release:gate
 ```
 
 合同批准与测试合格是两条独立的发布门禁：**即使全部测试通过，缺少对应当前验收合同 SHA-256 的用户批准记录，也不得发布 1.0**。这保留了“方案 B 已批准、详细的 S01—S14 条目仍是提案”的真实决策边界。
 
-专门的 [`release-1.0-gate.yml`](../.github/workflows/release-1.0-gate.yml) 接收**40 字节十六进制 commit SHA** 作为手动执行参数，checkout 正好这个 SHA 而非浮动的 `main`，然后对 GitHub Actions 公开真实工作流状态进行二次核对。
+专门的 [`release-1.0-gate.yml`](../.github/workflows/release-1.0-gate.yml) 接收**两个独立的 40 位 SHA**：①冻结的软件产物提交 `candidate_sha`，②该产物完成真实执行后再提交的证据版本 `evidence_sha`。CI 必须 checkout 两套仓库快照，证明证据提交是产品提交的后代，并且使用**候选产品快照中的审查程序**去读取较新的收据。否则会产生不可解的循环：在同一提交内写入它自己的 SHA/运行结果将导致 SHA 变化，使合法 1.0 版本永远无法通过发布检查。证据不能靠浮动 `main` 自动替换。
+
+S12 不把一个手动执行的单项绿色任务当成三规格验收：一个相同 SHA、相同工作流运行内必须全部出现并成功完成 `128m/attachment`、`512m/pcm` 和 `1000m/pcm` 三条真实媒体 Job。软件设计还要求目标桌面与平板上的额外实际测试；三条 CI 只证明这些明确输入范围。
 
 **注意证据等级**：脚本能检测 ID、状态、必填收据、目标 SHA 和 GitHub CI 返回结果，但人类输入的设备证明 URL 或网页检查字段本身不可由静态解析判断真实性。最终 S12/S13 与部署验收仍需可重复的实际操作/日志/媒体证据，并由人工审查，不是自填一段 JSON 就完成产品认证。
 
