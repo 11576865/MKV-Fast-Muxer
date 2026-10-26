@@ -46,8 +46,8 @@ export function inspectSoftmuxRelease({
      legacy?.schema!=='softmux-legacy-44-evidence-v1'||
      historical?.schema!=='mkv-ten-round-acceptance-ledger-v1')
     fail('SCHEMA_MISMATCH');
-  exactIds(release.scenarios,expected('S',14).map(x=>'S'+x.slice(1)), // S001 -> replace below
-    'SCENARIO_ID_MATRIX');
+  exactIds(release.scenarios,Array.from({length:14},(_,i)=>
+    'S'+String(i+1).padStart(2,'0')),'SCENARIO_ID_MATRIX');
   exactIds(legacy.requirements,expected('L-',44),'LEGACY_ID_MATRIX');
   exactIds(release.original57,expectedOriginal,'ORIGINAL_57_ID_MATRIX');
   exactIds(historical.requirements,expectedOriginal,'HISTORIC_57_ID_MATRIX');
