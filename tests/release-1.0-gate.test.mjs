@@ -26,6 +26,7 @@ const proof=(sha=SHA)=>({
 });
 function syntheticComplete(){
  const [release,legacy,historical]=load();
+ const baselineRelease=structuredClone(release),baselineLegacy=structuredClone(legacy);
  release.release.targetVersion='1.0.0';
  release.release.candidateCommit=SHA;
  release.contractApproval={
@@ -58,7 +59,8 @@ function syntheticComplete(){
    item.releaseScope='IN_SCOPE';item.outcome='PASS';
    item.verifiedCommit=SHA;item.evidence=[proof()];
  }
- return {release,legacy,historical,packageVersion:'1.0.0',actualCommit:SHA,
+ return {release,legacy,historical,baselineRelease,baselineLegacy,
+   packageVersion:'1.0.0',actualCommit:SHA,
    contractSha256,evidenceCommit:OTHER,
    workflowRuns:RELEASE_REQUIRED_WORKFLOWS.map(name=>({
      name,head_sha:SHA,status:'completed',conclusion:'success',
@@ -74,7 +76,8 @@ const inspect=opts=>inspectSoftmuxRelease(opts);
 test('S14 current project baseline: 14 must cases + 44 original legacy IDs + 57 original historical cases, fail-closed',()=>{
  const [release,legacy,historical]=load();
  const result=inspect({
-  release,legacy,historical,packageVersion:'0.1033.0',
+  release,legacy,historical,baselineRelease:structuredClone(release),
+  baselineLegacy:structuredClone(legacy),packageVersion:'0.1033.0',
   actualCommit:'c'.repeat(40),contractSha256,
  });
  assert.equal(result.scenarioCount,14);
@@ -199,4 +202,16 @@ test('S14 live GitHub result proves all three S12 matrix jobs and filters other 
    });
  assert.equal(returned.length,1);
  assert.equal(returned[0].jobs.length,3);
+});
+
+test('S14 later evidence commit cannot rename or narrow the frozen product/legacy denominator',()=>{
+ const x=syntheticComplete();
+ x.release.scenarios[0].title='Easy screenshot only';
+ assert.throws(()=>inspect(x),/SCENARIO_DENOMINATOR_DRIFT_S01/);
+ const y=syntheticComplete();
+ y.legacy.requirements[8].originalCapability='Minimal unrelated demo';
+ assert.throws(()=>inspect(y),/LEGACY_DENOMINATOR_DRIFT_L-009/);
+ const z=syntheticComplete();
+ z.legacy.requirements[40].proposedDisposition='REMOVE_UNREVIEWED';
+ assert.throws(()=>inspect(z),/LEGACY_DENOMINATOR_DRIFT_L-041/);
 });
