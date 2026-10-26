@@ -49,7 +49,7 @@ function evidenceValid(row,sha,key='evidence'){
  */
 export function inspectSoftmuxRelease({
   release,legacy,historical,packageVersion,actualCommit=null,workflowRuns=[],
-  contractSha256=null,
+  contractSha256=null,evidenceCommit=null,
 }={}){
   if(release?.schema!=='softmux-1.0-evidence-gate-v1'||
      legacy?.schema!=='softmux-legacy-44-evidence-v1'||
@@ -72,6 +72,11 @@ export function inspectSoftmuxRelease({
   const candidate=release.release?.candidateCommit;
   const pinned=shaOk(candidate);
   if(!pinned)note('RLS','missing exact 40-digit candidate commit');
+  // Candidate A is immutable. Acceptance evidence B is necessarily a
+  // separate, later repository revision: writing a SHA into commit A itself
+  // would change the SHA and make a legitimate PASS impossible.
+  if(!shaOk(evidenceCommit)||candidate===evidenceCommit)
+    note('EVIDENCE_REVISION','a separate post-candidate evidence revision is required');
   const approval=release.contractApproval;
   if(approval?.status!=='APPROVED'||
      typeof contractSha256!=='string'||
@@ -153,20 +158,35 @@ export function inspectSoftmuxRelease({
 }
 export async function fetchGithubExactHeadRuns(sha,token,fetcher=fetch){
   if(!shaOk(sha)||!token)fail('ONLINE_AUTH_REQUIRED');
-  const url='https://api.github.com/repos/11576865/MKV-Fast-Muxer/actions/runs?head_sha='+
-    encodeURIComponent(sha)+'&per_page=100';
-  const r=await fetcher(url,{headers:{
+  const base='https://api.github.com/repos/11576865/MKV-Fast-Muxer';
+  const headers={
     Accept:'application/vnd.github+json',
     Authorization:'Bearer '+token,
     'X-GitHub-Api-Version':'2022-11-28',
-  }});
+  };
+  const r=await fetcher(base+'/actions/runs?head_sha='+
+    encodeURIComponent(sha)+'&per_page=100',{headers});
   if(!r.ok)fail('GITHUB_QUERY_FAILED_'+r.status);
   const json=await r.json();
   if(!Array.isArray(json.workflow_runs))fail('GITHUB_BAD_WORKFLOWS');
-  return json.workflow_runs.filter(run=>run.head_sha===sha);
+  return await Promise.all(json.workflow_runs.filter(run=>run.head_sha===sha)
+    .map(async run=>{
+      if(run.name!=='S12 scoped real large media acceptance'||
+         run.status!=='completed'||run.conclusion!=='success')return run;
+      if(!Number.isSafeInteger(run.id)||run.id<1)
+        fail('GITHUB_RUN_ID_INVALID');
+      const response=await fetcher(base+'/actions/runs/'+run.id+
+        '/jobs?per_page=100',{headers});
+      if(!response.ok)fail('GITHUB_JOBS_QUERY_FAILED_'+response.status);
+      const jobs=await response.json();
+      if(!Array.isArray(jobs.jobs))fail('GITHUB_BAD_JOBS');
+      return {...run,jobs:jobs.jobs};
+    }));
 }
-function load(relative){
-  const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+function sourceRoot(){
+  return resolve(dirname(fileURLToPath(import.meta.url)),'..');
+}
+function load(relative,root=sourceRoot()){
   return JSON.parse(readFileSync(resolve(root,relative),'utf8'));
 }
 async function main(){
