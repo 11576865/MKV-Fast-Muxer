@@ -1,0 +1,152 @@
+{
+  "schema": "softmux-1.0-evidence-gate-v1",
+  "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
+  "currentDevelopmentBaseline": "36f71dc9ae80a4e0b463de51d2f3aa2edae64c02",
+  "release": {
+    "targetVersion": "1.0.0",
+    "candidateCommit": null,
+    "publishedWebsiteEvidence": null,
+    "rollbackEvidence": null
+  },
+  "evidencePolicy": {
+    "passRequires": "Exact full commit and independent actual-output test receipt; browser interaction when applicable",
+    "deviceEvidenceFor": [
+      "S12",
+      "S13"
+    ],
+    "siteChecksFor": [
+      "S14"
+    ],
+    "noAutomaticStatusPromotion": true,
+    "historicalGreenRunsDoNotProveFutureCommit": true,
+    "candidateDoesNotImplyApproval": true
+  },
+  "scenarios": [
+    {
+      "id": "S01",
+      "title": "实际来源与身份绑定",
+      "status": "UNASSESSED",
+      "openGap": "未完成针对复杂真实 MKV + 外部 ASS/字体的全对象 S01 验收",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S02",
+      "title": "普通软封及码流证明",
+      "status": "UNASSESSED",
+      "openGap": "缺 S02 指定字幕格式全集与不同容器源统一验收",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S03",
+      "title": "ASS 字体预览与成品独立渲染",
+      "status": "UNASSESSED",
+      "openGap": "缺成品级缺字体反例、不同字体策略的完整判定",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S04",
+      "title": "来源轨道属性、选择和排序",
+      "status": "UNASSESSED",
+      "openGap": "缺合同全部轨道/属性与独立输出逐项验证对账",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S05",
+      "title": "已有及新增附件保真交付",
+      "status": "UNASSESSED",
+      "openGap": "缺合同完整双原附件、一外部附件、UID/Tag 风险组合验收",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S06",
+      "title": "有界原位附件编辑",
+      "status": "UNASSESSED",
+      "openGap": "缺在统一 1.0 场景中将结构、安全拒绝与原生证据对账",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S07",
+      "title": "章节与标签扫描及等字节写入",
+      "status": "UNASSESSED",
+      "openGap": "缺统一正负样本与实际工作台任务闭环",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S08",
+      "title": "复杂章节/Tag 保真失败封闭",
+      "status": "UNASSESSED",
+      "openGap": "Issue #77 风险场景需明确的完整 1.0 验收收据",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S09",
+      "title": "工程恢复与撤销",
+      "status": "IMPLEMENTED_NOT_ACCEPTED",
+      "openGap": "现有联合恢复、浏览器本地恢复点有真实 CI；不包含全部 S09 undo/redo 和所有编辑类型",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S10",
+      "title": "20 个实际封装批量任务",
+      "status": "IMPLEMENTED_NOT_ACCEPTED",
+      "openGap": "已有 20 项实际短素材批次正例；合同的权限丢失/保存失败/恢复全矩阵未统一结案",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S11",
+      "title": "成品核验与持久化收据",
+      "status": "IMPLEMENTED_NOT_ACCEPTED",
+      "openGap": "已有单工程和批次保存回读/重试；不等于目标系统实际磁盘持久性验收",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S12",
+      "title": "引擎边界与大于 1 GB 非阻断提示",
+      "status": "BLOCKED",
+      "openGap": "缺明确目标桌面/平板设备上各尺寸的完整封装、保存和资源证据",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S13",
+      "title": "实际桌面与平板工作台",
+      "status": "BLOCKED",
+      "openGap": "缺目标实体平板触控/键鼠真实设备任务及留存证据",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    },
+    {
+      "id": "S14",
+      "title": "真实发布冻结与完整回归",
+      "status": "BLOCKED",
+      "openGap": "44 旧功能、57 原场景尚未逐项正式裁决；精确正式版本/部署/回滚仍未验收",
+      "evidence": [],
+      "verifiedCommit": null,
+      "deviceEvidence": null
+    }
+  ]
+}
