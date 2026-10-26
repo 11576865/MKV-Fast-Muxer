@@ -834,5 +834,12 @@
       "verifiedCommit": null,
       "releaseExceptionApproval": null
     }
-  ]
+  ],
+  "contractApproval": {
+    "status": "PENDING_OWNER_REVIEW",
+    "documentSha256": null,
+    "approvalUrl": null,
+    "approvedBy": null,
+    "approvedAt": null
+  }
 }
