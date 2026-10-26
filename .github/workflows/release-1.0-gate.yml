@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact 40-digit candidate commit SHA; no branch or tag substitution
+        description: Exact immutable product commit SHA, not a moving branch
+        required: true
+        type: string
+      evidence_sha:
+        description: Later reviewed evidence revision SHA; must descend from candidate
         required: true
         type: string
 
@@ -16,18 +20,31 @@ jobs:
   release-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the exact candidate commit
+      - name: Check out the exact immutable product candidate
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Independently check out the later acceptance-evidence revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.evidence_sha }}
+          path: evidence
+          fetch-depth: 0
           persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install development tooling
+      - name: Install product candidate tooling
+        working-directory: candidate
         run: npm install
-      - name: Confirm SHA, source baseline and release evidence against live successful workflows
+      - name: Validate exact candidate, descendant evidence and live job-level acceptance
+        working-directory: candidate
         run: npm run release:gate
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          SOFTMUX_RELEASE_EVIDENCE_DIR: ${{ github.workspace }}/evidence
+          SOFTMUX_RELEASE_EVIDENCE_SHA: ${{ inputs.evidence_sha }}
