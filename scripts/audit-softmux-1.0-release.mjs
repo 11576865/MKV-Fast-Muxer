@@ -18,7 +18,8 @@ const sorted=x=>[...x].sort().join('|');
 const expected=(stem,count)=>Array.from({length:count},
   (_,i)=>stem+String(i+1).padStart(3,'0'));
 const expectedOriginal=[
-  ...expected('R-',5),...expected('T-',15),...expected('B-',17),
+  ...Array.from({length:5},(_,i)=>'R-'+String(i+1).padStart(2,'0')),
+  ...expected('T-',15),...expected('B-',17),
   ...expected('S-',8),...expected('U-',12),
 ];
 function exactIds(rows,ids,code){
