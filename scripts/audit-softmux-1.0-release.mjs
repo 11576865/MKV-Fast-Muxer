@@ -49,7 +49,7 @@ function evidenceValid(row,sha,key='evidence'){
  */
 export function inspectSoftmuxRelease({
   release,legacy,historical,packageVersion,actualCommit=null,workflowRuns=[],
-  contractSha256=null,evidenceCommit=null,
+  contractSha256=null,evidenceCommit=null,baselineRelease=null,baselineLegacy=null,
 }={}){
   if(release?.schema!=='softmux-1.0-evidence-gate-v1'||
      legacy?.schema!=='softmux-legacy-44-evidence-v1'||
@@ -60,6 +60,24 @@ export function inspectSoftmuxRelease({
   exactIds(legacy.requirements,expected('L-',44),'LEGACY_ID_MATRIX');
   exactIds(release.original57,expectedOriginal,'ORIGINAL_57_ID_MATRIX');
   exactIds(historical.requirements,expectedOriginal,'HISTORIC_57_ID_MATRIX');
+  // A later attestation revision may add receipts, not redefine what A
+  // promised to deliver. Freeze titles and original migration dispositions.
+  if(!baselineRelease||!baselineLegacy)
+    fail('FROZEN_DENOMINATOR_REQUIRED');
+  exactIds(baselineRelease.scenarios,release.scenarios.map(r=>r.id),
+    'BASELINE_SCENARIO_ID_MATRIX');
+  exactIds(baselineLegacy.requirements,legacy.requirements.map(r=>r.id),
+    'BASELINE_LEGACY_ID_MATRIX');
+  for(const row of release.scenarios){
+    const baseline=baselineRelease.scenarios.find(x=>x.id===row.id);
+    if(row.title!==baseline.title)fail('SCENARIO_DENOMINATOR_DRIFT_'+row.id);
+  }
+  for(const row of legacy.requirements){
+    const baseline=baselineLegacy.requirements.find(x=>x.id===row.id);
+    if(row.originalCapability!==baseline.originalCapability||
+       row.proposedDisposition!==baseline.proposedDisposition)
+      fail('LEGACY_DENOMINATOR_DRIFT_'+row.id);
+  }
   for(const row of release.original57){
     const historic=historical.requirements.find(h=>h.id===row.id);
     if(row.requirement!==historic.title||
@@ -205,6 +223,8 @@ async function main(){
     evidenceRoot||sourceRoot());
   const historical=load('docs/ten-round-sprint-20261015/acceptance-ledger.json');
   const pkg=load('package.json');
+  const baselineRelease=load('docs/softmux-1.0-release-evidence.json');
+  const baselineLegacy=load('docs/softmux-1.0-legacy-capability-ledger.json');
   const contractBytes=readFileSync(resolve(
     dirname(fileURLToPath(import.meta.url)),
     '../docs/softmux-1.0-product-acceptance-contract-20261020.md'));
@@ -229,6 +249,7 @@ async function main(){
   const result=inspectSoftmuxRelease({
     release,legacy,historical,packageVersion:pkg.version,
     actualCommit,workflowRuns,contractSha256,evidenceCommit,
+    baselineRelease,baselineLegacy,
   });
   process.stdout.write(JSON.stringify(result,null,2)+'\n');
   if(strict&&!result.ready)process.exitCode=1;
