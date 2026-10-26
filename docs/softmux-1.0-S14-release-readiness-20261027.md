@@ -50,12 +50,15 @@ npm run release:audit
 GITHUB_TOKEN=... npm run release:gate
 ```
 
+合同批准与测试合格是两条独立的发布门禁：**即使全部测试通过，缺少对应当前验收合同 SHA-256 的用户批准记录，也不得发布 1.0**。这保留了“方案 B 已批准、详细的 S01—S14 条目仍是提案”的真实决策边界。
+
 专门的 [`release-1.0-gate.yml`](../.github/workflows/release-1.0-gate.yml) 接收**40 字节十六进制 commit SHA** 作为手动执行参数，checkout 正好这个 SHA 而非浮动的 `main`，然后对 GitHub Actions 公开真实工作流状态进行二次核对。
 
 **注意证据等级**：脚本能检测 ID、状态、必填收据、目标 SHA 和 GitHub CI 返回结果，但人类输入的设备证明 URL 或网页检查字段本身不可由静态解析判断真实性。最终 S12/S13 与部署验收仍需可重复的实际操作/日志/媒体证据，并由人工审查，不是自填一段 JSON 就完成产品认证。
 
 ## 5. 当前明确的 release blockers
 
+- 详细的 S01—S14 提案尚无明确的用户核定记录；`contractApproval` 仍为 `PENDING_OWNER_REVIEW`，未来核定必须绑定合同文件的完整 SHA-256，验收文本改变后不得沿用旧批准；
 - `release.candidateCommit` 未冻结；
 - 当前 `package.json` 仍是 0.1033 开发版，不是目标 `1.0.0`；
 - S01—S14 尚无一个依照完整 1.0 合同获得正式 PASS；
