@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {
  inspectSoftmuxRelease,fetchGithubExactHeadRuns,
- RELEASE_REQUIRED_WORKFLOWS,
+ RELEASE_REQUIRED_WORKFLOWS,RELEASE_REQUIRED_S12_JOBS,
 } from '../scripts/audit-softmux-1.0-release.mjs';
 
 const files=[
@@ -51,7 +51,7 @@ function syntheticComplete(){
    };
  }
  for(const item of legacy.requirements){
-   item.outcome='PASS';item.verifiedCommit=SHA;item.evidence=[proof()];
+   item.outcome='PASS';item.verifiedCommit=SHA;item.actualOutputEvidence=[proof()];
    item.migrationPath='synthetic-alternative-proven';
  }
  for(const item of release.original57){
@@ -59,9 +59,14 @@ function syntheticComplete(){
    item.verifiedCommit=SHA;item.evidence=[proof()];
  }
  return {release,legacy,historical,packageVersion:'1.0.0',actualCommit:SHA,
-   contractSha256,
+   contractSha256,evidenceCommit:OTHER,
    workflowRuns:RELEASE_REQUIRED_WORKFLOWS.map(name=>({
      name,head_sha:SHA,status:'completed',conclusion:'success',
+     ...(name==='S12 scoped real large media acceptance'?{
+       jobs:RELEASE_REQUIRED_S12_JOBS.map(name=>({
+         name,status:'completed',conclusion:'success',
+       })),
+     }:{}),
    }))};
 }
 const inspect=opts=>inspectSoftmuxRelease(opts);
@@ -126,6 +131,12 @@ test('S14 CI source must match exact pinned commit, successful terminal workflow
  assert.ok(inspect(b).blockers.some(x=>x.id==='CI'));
  const c=syntheticComplete();c.actualCommit=OTHER;
  assert.ok(inspect(c).blockers.some(x=>x.id==='COMMIT'));
+ const d=syntheticComplete();d.evidenceCommit=SHA;
+ assert.ok(inspect(d).blockers.some(x=>x.id==='EVIDENCE_REVISION'));
+ const e=syntheticComplete();e.workflowRuns.find(x=>x.name==='S12 scoped real large media acceptance')
+   .jobs.pop();
+ assert.ok(inspect(e).blockers.some(x=>x.id==='CI'),
+  'manual single-tier S12 success must not replace the required full real-media job matrix');
 });
 
 test('S14 legacy removal and historical exception cannot launder a missing approval into green',()=>{
@@ -162,4 +173,30 @@ test('S14 unapproved or outdated owner acceptance contract cannot be promoted by
  const malformed=syntheticComplete();
  malformed.release.contractApproval.approvalUrl='not-an-approval-url';
  assert.ok(inspect(malformed).blockers.some(x=>x.id==='CONTRACT'));
+});
+
+test('S14 legacy actualOutputEvidence schema is required; unrelated evidence field cannot mask a missing receipt',()=>{
+ const complete=syntheticComplete(),row=complete.legacy.requirements[0];
+ row.evidence=[proof()];
+ row.actualOutputEvidence=[];
+ assert.ok(inspect(complete).blockers.some(x=>x.id==='L-001'));
+});
+test('S14 live GitHub result proves all three S12 matrix jobs and filters other SHA jobs',async()=>{
+ const returned=await fetchGithubExactHeadRuns(SHA,'synthetic-token',
+   async (url)=>{
+     if(url.includes('/jobs?')){
+       assert.match(url,/actions\/runs\/77\/jobs/);
+       return {ok:true,json:async()=>({jobs:RELEASE_REQUIRED_S12_JOBS.map(name=>({
+         name,status:'completed',conclusion:'success',
+       }))})};
+     }
+     return {ok:true,json:async()=>({workflow_runs:[
+       {id:77,name:'S12 scoped real large media acceptance',head_sha:SHA,
+         status:'completed',conclusion:'success'},
+       {id:78,name:'S12 scoped real large media acceptance',head_sha:OTHER,
+         status:'completed',conclusion:'success'},
+     ]})};
+   });
+ assert.equal(returned.length,1);
+ assert.equal(returned[0].jobs.length,3);
 });
