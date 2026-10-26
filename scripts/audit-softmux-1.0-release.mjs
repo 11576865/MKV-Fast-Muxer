@@ -8,6 +8,11 @@ export const RELEASE_REQUIRED_WORKFLOWS=Object.freeze([
   'Deploy to GitHub Pages','Browser E2E mux tests',
   'S12 scoped real large media acceptance',
 ]);
+export const RELEASE_REQUIRED_S12_JOBS=Object.freeze([
+  'S12 actual MKV / 128m / attachment',
+  'S12 actual MKV / 512m / pcm',
+  'S12 actual MKV / 1000m / pcm',
+]);
 export const RELEASE_SCENARIO_COUNT=14;
 export const RELEASE_LEGACY_COUNT=44;
 export const RELEASE_ORIGINAL_COUNT=57;
@@ -28,9 +33,10 @@ function exactIds(rows,ids,code){
       typeof r.id!=='string')||
       sorted(rows.map(r=>r.id))!==sorted(ids))fail(code);
 }
-function evidenceValid(row,sha){
-  return Array.isArray(row.evidence)&&row.evidence.length>0&&
-    row.evidence.every(e=>e&&typeof e==='object'&&
+function evidenceValid(row,sha,key='evidence'){
+  const receipts=row[key];
+  return Array.isArray(receipts)&&receipts.length>0&&
+    receipts.every(e=>e&&typeof e==='object'&&
       e.commit===sha&&urlOk(e.url)&&
       typeof e.fixture==='string'&&e.fixture.length>0&&
       typeof e.oracle==='string'&&e.oracle.length>0&&
@@ -103,7 +109,7 @@ export function inspectSoftmuxRelease({
       continue;
     }
     if(row.outcome!=='PASS'||row.verifiedCommit!==candidate||
-       !evidenceValid(row,candidate)||!row.migrationPath)
+       !evidenceValid(row,candidate,'actualOutputEvidence')||!row.migrationPath)
       note(row.id,'legacy behavior not independently verified or migrated');
   }
   for(const row of release.original57){
@@ -127,10 +133,14 @@ export function inspectSoftmuxRelease({
      !urlOk(rollback.testEvidenceUrl)||!shaOk(rollback.previousCommit))
     note('ROLLBACK','recovery/rollback procedure has no executed evidence');
   for(const workflow of RELEASE_REQUIRED_WORKFLOWS){
-    if(!pinned||!workflowRuns.some(r=>r.head_sha===candidate&&
-        r.name===workflow&&r.status==='completed'&&
-        r.conclusion==='success'))
-      note('CI','missing exact-head successful workflow: '+workflow);
+    const covered=pinned&&workflowRuns.some(r=>r.head_sha===candidate&&
+      r.name===workflow&&r.status==='completed'&&
+      r.conclusion==='success'&&
+      (workflow!=='S12 scoped real large media acceptance'||
+        RELEASE_REQUIRED_S12_JOBS.every(name=>Array.isArray(r.jobs)&&
+          r.jobs.some(job=>job.name===name&&job.status==='completed'&&
+            job.conclusion==='success'))));
+    if(!covered)note('CI','missing exact-head full successful workflow/jobs: '+workflow);
   }
   return Object.freeze({
     schema:'softmux-release-gate-result-v1',
