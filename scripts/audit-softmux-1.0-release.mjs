@@ -193,8 +193,16 @@ async function main(){
   const strict=process.argv.includes('--release');
   if(!strict&&!process.argv.includes('--audit'))
     fail('SELECT_AUDIT_OR_RELEASE');
-  const release=load('docs/softmux-1.0-release-evidence.json');
-  const legacy=load('docs/softmux-1.0-legacy-capability-ledger.json');
+  // The immutable candidate is a separate checkout from its subsequently
+  // collected attestation revision. GitHub will validate exact SHA and
+  // ancestry in the manual release workflow, never inside the candidate.
+  const evidenceRoot=strict?process.env.SOFTMUX_RELEASE_EVIDENCE_DIR:null;
+  if(strict&&(!evidenceRoot||!shaOk(process.env.SOFTMUX_RELEASE_EVIDENCE_SHA)))
+    fail('SEPARATE_EVIDENCE_REQUIRED');
+  const release=load('docs/softmux-1.0-release-evidence.json',
+    evidenceRoot||sourceRoot());
+  const legacy=load('docs/softmux-1.0-legacy-capability-ledger.json',
+    evidenceRoot||sourceRoot());
   const historical=load('docs/ten-round-sprint-20261015/acceptance-ledger.json');
   const pkg=load('package.json');
   const contractBytes=readFileSync(resolve(
@@ -204,11 +212,23 @@ async function main(){
   let actualCommit=null;
   try {actualCommit=execFileSync('git',['rev-parse','HEAD'],{
     encoding:'utf8'}).trim();}catch{}
+  let evidenceCommit=null;
+  if(strict){
+    evidenceCommit=execFileSync('git',
+      ['-C',evidenceRoot,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
+    if(evidenceCommit!==process.env.SOFTMUX_RELEASE_EVIDENCE_SHA||
+       evidenceCommit===actualCommit)
+      fail('EVIDENCE_REVISION_MISMATCH');
+    try{
+      execFileSync('git',['-C',evidenceRoot,'merge-base',
+        '--is-ancestor',actualCommit,evidenceCommit],{stdio:'pipe'});
+    }catch{fail('EVIDENCE_NOT_DESCENDANT_OF_CANDIDATE')}
+  }
   const workflowRuns=strict?await fetchGithubExactHeadRuns(
     release.release?.candidateCommit,process.env.GITHUB_TOKEN):[];
   const result=inspectSoftmuxRelease({
     release,legacy,historical,packageVersion:pkg.version,
-    actualCommit,workflowRuns,contractSha256,
+    actualCommit,workflowRuns,contractSha256,evidenceCommit,
   });
   process.stdout.write(JSON.stringify(result,null,2)+'\n');
   if(strict&&!result.ready)process.exitCode=1;
