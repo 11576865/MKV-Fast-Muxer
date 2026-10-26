@@ -1,4 +1,5 @@
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {resolve,dirname} from 'node:path';
@@ -42,6 +43,7 @@ function evidenceValid(row,sha){
  */
 export function inspectSoftmuxRelease({
   release,legacy,historical,packageVersion,actualCommit=null,workflowRuns=[],
+  contractSha256=null,
 }={}){
   if(release?.schema!=='softmux-1.0-evidence-gate-v1'||
      legacy?.schema!=='softmux-legacy-44-evidence-v1'||
@@ -64,6 +66,13 @@ export function inspectSoftmuxRelease({
   const candidate=release.release?.candidateCommit;
   const pinned=shaOk(candidate);
   if(!pinned)note('RLS','missing exact 40-digit candidate commit');
+  const approval=release.contractApproval;
+  if(approval?.status!=='APPROVED'||
+     typeof contractSha256!=='string'||
+     !/^[a-f0-9]{64}$/.test(contractSha256)||
+     approval.documentSha256!==contractSha256||
+     !urlOk(approval.approvalUrl)||!approval.approvedBy||!approval.approvedAt)
+    note('CONTRACT','owner approval must bind the SHA-256 of the exact frozen S01-S14 product contract');
   if(packageVersion!==release.release?.targetVersion||
       release.release?.targetVersion!=='1.0.0')
     note('VERSION','developer version or target is not 1.0.0');
@@ -158,6 +167,10 @@ async function main(){
   const legacy=load('docs/softmux-1.0-legacy-capability-ledger.json');
   const historical=load('docs/ten-round-sprint-20261015/acceptance-ledger.json');
   const pkg=load('package.json');
+  const contractBytes=readFileSync(resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '../docs/softmux-1.0-product-acceptance-contract-20261020.md'));
+  const contractSha256=createHash('sha256').update(contractBytes).digest('hex');
   let actualCommit=null;
   try {actualCommit=execFileSync('git',['rev-parse','HEAD'],{
     encoding:'utf8'}).trim();}catch{}
@@ -165,7 +178,7 @@ async function main(){
     release.release?.candidateCommit,process.env.GITHUB_TOKEN):[];
   const result=inspectSoftmuxRelease({
     release,legacy,historical,packageVersion:pkg.version,
-    actualCommit,workflowRuns,
+    actualCommit,workflowRuns,contractSha256,
   });
   process.stdout.write(JSON.stringify(result,null,2)+'\n');
   if(strict&&!result.ready)process.exitCode=1;
