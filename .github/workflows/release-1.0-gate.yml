@@ -1,0 +1,33 @@
+name: Softmux 1.0 evidence-gated release
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-digit candidate commit SHA; no branch or tag substitution
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install development tooling
+        run: npm install
+      - name: Confirm SHA, source baseline and release evidence against live successful workflows
+        run: npm run release:gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
