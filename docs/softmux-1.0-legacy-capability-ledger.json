@@ -1,0 +1,447 @@
+{
+  "schema": "softmux-legacy-44-evidence-v1",
+  "originalAuthority": "软封工程_未来规划总决议_2026-10-12(1).txt §4.2–4.5, L-001–L-044",
+  "description": "Original 44 ID/title list and scope-level proposed migration treatment, NOT proof that any migrated behavior was tested; no functionality deletion has been approved from this ledger",
+  "requirements": [
+    {
+      "id": "L-001",
+      "originalCapability": "已完成视频 + 字幕 + 字体的一键 MKV 封装",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-002",
+      "originalCapability": "MP4/MOV/M4V/MKV/WebM 等输入识别",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-003",
+      "originalCapability": "文件/文件夹/拖放/多选资源导入",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-004",
+      "originalCapability": "容器内容未扫描的“未知/待确认”状态",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-005",
+      "originalCapability": "外部单独音频导入与 stream copy",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-006",
+      "originalCapability": "新字幕 ASS/SSA/SRT/WebVTT/PGS/VobSub 导入",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-007",
+      "originalCapability": "字幕 UTF-8/UTF-16 及实际格式检测",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-008",
+      "originalCapability": "WebVTT 到 SubRip 适配",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-009",
+      "originalCapability": "视频和音频不主动转码",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-010",
+      "originalCapability": "新字幕 language/title/Default/Forced 等",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-011",
+      "originalCapability": "原 MKV 音轨/字幕轨扫描与选择",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-012",
+      "originalCapability": "原 MKV 音轨/字幕轨排序、排除、属性修改",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-013",
+      "originalCapability": "多项原轨批量改语言、Default、恢复扫描值",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-014",
+      "originalCapability": "原 MKV “保留全部，仅追加”",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-015",
+      "originalCapability": "旧兼容模式“保留音频但默认不保留原字幕”等",
+      "proposedDisposition": "REPLACE_IMPLICIT_BEHAVIOR",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-016",
+      "originalCapability": "原附件的扫描、保留/排除、文件名和 MIME",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-017",
+      "originalCapability": "章（Chapters）和标签（Tags）",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-018",
+      "originalCapability": "原附属 data/other stream",
+      "proposedDisposition": "PRESERVE_OR_BLOCK",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-019",
+      "originalCapability": "字幕/音频/附件同名和输出冲突处理",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-020",
+      "originalCapability": "ASS/SSA + libass 按需静态帧预览",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-021",
+      "originalCapability": "预览按时间点或字幕条目跳转",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-022",
+      "originalCapability": "ASS 字体识别、字体名称别名、字形覆盖、字体匹配",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-023",
+      "originalCapability": "外部 TTF/OTF/TTC/OTC 与实际字体结构检测",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-024",
+      "originalCapability": "强制统一字体模式",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-025",
+      "originalCapability": "HarfBuzz 字体子集化",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-026",
+      "originalCapability": "字体文件按内容哈希去重及名称冲突处理",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-027",
+      "originalCapability": "字体交付报告",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-028",
+      "originalCapability": "codec 组合兼容性解析及兼容性证据矩阵",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-029",
+      "originalCapability": "FFprobe 封装后审计",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-030",
+      "originalCapability": "JSON 封装报告",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-031",
+      "originalCapability": "输出文件及报告保存/下载",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-032",
+      "originalCapability": "批量剧集字幕自动匹配",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-033",
+      "originalCapability": "无歧义匹配、冲突阻断、无效文件列明",
+      "proposedDisposition": "IMPROVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-034",
+      "originalCapability": "原批量完整字体、逐任务子集、Group 子集",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-035",
+      "originalCapability": "逐项执行、单项失败后继续、取消、异常报告",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-036",
+      "originalCapability": "批量目录输出、已存在文件预检、保存失败下载回退",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-037",
+      "originalCapability": "批次 Blob URL 生命周期",
+      "proposedDisposition": "PRESERVE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-038",
+      "originalCapability": "现有“01 素材—02 调整—03 输出”的展开式主 UI",
+      "proposedDisposition": "REPLACE_UI",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-039",
+      "originalCapability": "同一轨道在来源树、编辑器、输出计划重复展示",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-040",
+      "originalCapability": "批处理长期处于主页面底部折叠区",
+      "proposedDisposition": "REPLACE_UI",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-041",
+      "originalCapability": "批量通过设置隐藏输入、触发 change 和 muxBtn.click()",
+      "proposedDisposition": "REPLACE_EXECUTION",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-042",
+      "originalCapability": "UI 内过多静态说明文字",
+      "proposedDisposition": "INTEGRATE",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-043",
+      "originalCapability": "空状态的大导入区域",
+      "proposedDisposition": "CONTEXTUAL_UI",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    },
+    {
+      "id": "L-044",
+      "originalCapability": "手机四阶段互斥标签与无限长滚动",
+      "proposedDisposition": "REPLACE_UI",
+      "outcome": "UNASSESSED",
+      "migrationPath": null,
+      "actualOutputEvidence": [],
+      "verifiedCommit": null,
+      "formalRemovalApproved": false
+    }
+  ]
+}
