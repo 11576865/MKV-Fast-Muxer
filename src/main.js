@@ -74,6 +74,7 @@ import { createLiveSourceTrackSession } from './live-source-track-authority.js';
 import {
   createLiveExternalAssetSession, commitLiveExternalAssetChanges,
   inspectLiveExternalAssets, rebindLiveExternalFontInventory, externalOutputTracks,
+  captureExternalOutputSelection, isExternalOutputSelectionCurrent,
 } from './live-external-asset-authority.js';
 import {
   createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
@@ -845,6 +846,10 @@ function selectedSubtitleTracks() {
 
 const outputSubtitleTracks = () => externalOutputTracks(newSubtitleState);
 const outputAudioTracks = () => externalOutputTracks(externalAudioState);
+const externalOutputContext = () => ({audioRows:externalAudioState,
+  subtitleRows:newSubtitleState,fonts:selectedFonts(),mode:fontMode.value});
+const currentOutputSelection = owner => Boolean(owner &&
+  isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()));
 
 function selectedSubtitleFiles() {
   return selectedSubtitleTracks().map((track) => track.file);
@@ -1434,6 +1439,7 @@ function withSourceAttachmentUndoIndicator(sections) {
       currentSourceKey:outputCompositionFileKey(source),
       sourceKeyAtExecution:lastActualOutput.sourceKey,
       sourceReferenceCurrent:lastActualOutput.sourceFile === source,
+      resourceSelectionCurrent:currentOutputSelection(lastActualOutput),
       currentPlan:buildMuxPlan(),
     });
   // Both actual File identity and exact displayed plan must match before
@@ -1951,6 +1957,7 @@ function renderActualOutputEvidence() {
     currentSourceKey: outputCompositionFileKey(videoInput.files?.[0] || null),
     sourceKeyAtExecution: lastActualOutput.sourceKey,
     sourceReferenceCurrent: lastActualOutput.sourceFile === (videoInput.files?.[0] || null),
+    resourceSelectionCurrent:currentOutputSelection(lastActualOutput),
     currentPlan: buildMuxPlan(),
   });
   outputEvidencePanel.hidden = !model;
@@ -2057,6 +2064,7 @@ outputIndexInspectBtn?.addEventListener('click', async () => {
   // stale rendered button (or programmatic click) is never enough authority.
   if (!owner?.sourceFile || !owner.outputBlob ||
       owner.sourceFile !== (videoInput.files?.[0] || null) ||
+      !currentOutputSelection(owner) ||
       JSON.stringify(buildMuxPlan()) !== JSON.stringify(owner.report?.plan) ||
       running || batchRunning || outputIndexAuditPending) {
     renderActualOutputEvidence();
@@ -2083,6 +2091,7 @@ outputIndexInspectBtn?.addEventListener('click', async () => {
   // completed output without publishing stale evidence.
   const stillCurrent = owner === lastActualOutput &&
     owner.sourceFile === (videoInput.files?.[0] || null) &&
+    currentOutputSelection(owner) &&
     JSON.stringify(buildMuxPlan()) === JSON.stringify(owner.report?.plan);
   // A later real mux may retire this output while its old scan is still
   // running. Never clear the new output's pending flag or publish a stale scan.
@@ -3444,6 +3453,7 @@ assetInventory?.addEventListener('change', (event) => {
       member.checked=rows[index].include!==false;
       return;
     }
+    renderNewTrackLists();
     updateUI();
     focusUpdatedInventoryItem(assetInventory,{selector:'[data-asset-include]',
       keyAttribute:'data-asset-include',key:entry.key,fallback:assetDropzone});
@@ -5614,6 +5624,11 @@ async function executeCurrentMuxTask(explicit = null) {
   const fontIdentityByKey = new Map(
     fontRecognition.recognized.map((entry) => [fileKey(entry.file), entry.identity])
   );
+  const externalSelection = independent ? null : captureExternalOutputSelection(externalOutputContext());
+  const assertExternalSelection = () => {
+    if(!independent && !isExternalOutputSelectionCurrent(externalSelection,externalOutputContext()))
+      throw Error('执行准备期间输出成员或其来源已变化，请重新核对后封装。');
+  };
   const subtitleTracks = independent ? explicit.subtitles : outputSubtitleTracks();
   const externalAudioTracks = independent ? explicit.externalAudio : outputAudioTracks();
   // A source-only remux is valid: existing MKV tracks, chapters and attachments
@@ -5705,6 +5720,7 @@ async function executeCurrentMuxTask(explicit = null) {
       }
     }
     assertCurrentSubtitleWitness();
+    assertExternalSelection();
   } catch (err) {
     status.textContent = formatOperationError(err, { phase: 'mux' });
     bar.style.width = '0%';
@@ -6090,6 +6106,7 @@ async function executeCurrentMuxTask(explicit = null) {
     // legacy arguments. Refuse before ffmpeg.exec on any mismatch or stale
     // subtitle/source edit; do not claim EBML output preservation.
     assertCurrentSubtitleWitness();
+    assertExternalSelection();
     verifyStagedSubtitleCommandParity({
       source: video, runtimeSubtitles,
       commandOptions, expectedArgs: args,
@@ -6597,7 +6614,7 @@ async function executeCurrentMuxTask(explicit = null) {
       // structure inspection; the existing output object URL already retains
       // these bytes until the next task clears it.
       lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video,
-        outputBlob, report };
+        outputBlob, report, externalSelection };
       singleDirectorySession.replace(lastActualOutput,{
         blob:outputBlob,outputName,reportBlob,
         reportName:reportFilename(outputName),outputSha256,

@@ -253,3 +253,21 @@ test('output projection selects included rows in original order without mutating
   assert.equal(inventory.length,3);
   assert.equal(inventory[1],candidate);
 });
+
+test('equal-label candidate swap invalidates exact output selection but preview-only state does not',async()=>{
+ const {captureExternalOutputSelection,isExternalOutputSelectionCurrent}=await import('../src/live-external-asset-authority.js');
+ const fileA={name:'same.ass',size:1,lastModified:2},fileB={...fileA};
+ const rows=[{file:fileA,title:'Same',include:true},{file:fileB,title:'Same',include:false}];
+ const context={audioRows:[],subtitleRows:rows,fonts:[],mode:'preserve'};
+ const witness=captureExternalOutputSelection(context);
+ assert.equal(isExternalOutputSelectionCurrent(witness,context),true);
+ assert.equal(Object.isFrozen(fileA),false,'never freeze an authoring File grant');
+ rows[1].previewSelected=true;
+ assert.equal(isExternalOutputSelectionCurrent(witness,context),true);
+ rows[0].include=false;rows[1].include=true;
+ assert.equal(isExternalOutputSelectionCurrent(witness,context),false);
+ rows[0].include=true;rows[1].include=false;
+ assert.equal(isExternalOutputSelectionCurrent(witness,context),true);
+ rows[0].file={...fileA};
+ assert.equal(isExternalOutputSelectionCurrent(witness,context),false);
+});

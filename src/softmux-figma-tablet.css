@@ -841,3 +841,8 @@
     background:#406fa4;
   }
 }
+
+/* Completed-output controls can be taller than the bounded dock. Top-align
+ * the overflowing child so its first actions remain in the scrollable range;
+ * centered overflow placed Start above the dock's scroll origin after a mux. */
+.sf14-app .sf14-output { align-items:flex-start; }

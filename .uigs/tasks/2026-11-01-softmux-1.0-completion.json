@@ -1,13 +1,27 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "in_progress",
+  "status": "work_unit_complete_pending_external_validation",
   "current_bounded_work_unit": "Explicit external track output membership with independent preview, real mux and portable recovery",
-  "completed_units": [],
-  "next_units": ["Attachment-only real writer integration and independent extraction", "Multiple container inspection and source draft preservation", "Full release evidence reconciliation and candidate verification"],
+  "completed_units": [
+    "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified"
+  ],
+  "next_units": [
+    "Attachment-only real writer integration and independent extraction",
+    "Multiple container inspection and source draft preservation",
+    "Full release evidence reconciliation and candidate verification"
+  ],
   "branch": "feat/softmux-1.0-completion-20261101",
   "pr": null,
-  "latest_durable_commit": "36f71dc9ae80a4e0b463de51d2f3aa2edae64c02",
-  "external_validation_states": {},
-  "blockers": ["Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"],
-  "updated_at": "2026-11-01T05:10:00+08:00"
+  "latest_durable_commit": "61f720c93f01697420a0fbbaf3a98ed307bcddf6",
+  "external_validation_states": {
+    "node_build_local": "757/757 passed; build passed",
+    "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
+    "full_exact_head_ci": "pending_submission",
+    "physical_tablet": "unavailable",
+    "UIGS_Intake": "deduplicated, pending_case_write"
+  },
+  "blockers": [
+    "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
+  ],
+  "updated_at": "2026-10-31T20:14:02.909039+00:00"
 }

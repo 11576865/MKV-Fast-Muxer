@@ -127,10 +127,21 @@ test('composition workspace visibly integrates actual evidence without creating 
   }
   assert.match(main, /projectSourceStructureEvidence\(\{ source, trackState: scanned \}\)/);
   assert.match(main, /projectActualOutputEvidence\(lastActualOutput\.report,/);
-  assert.match(main, /lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video,\s*outputBlob, report \}/);
+  assert.match(main, /lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video,\s*outputBlob, report, externalSelection \}/);
   assert.match(main, /renderActualOutputEvidence\(\)/);
   assert.match(css, /\.composition-evidence-row/);
   assert.match(main, /sourceAttachmentDeliveryAudit = auditSourceAttachmentDelivery/);
   assert.match(main, /lastActualOutput\.sourceFile === source/);
   assert.match(css, /\.output-evidence-panel\[data-current="false"\]/);
+});
+
+test('different included external File cannot reuse output evidence when display plan is identical',()=>{
+ const key='source.mkv|80|9';
+ const evidence=projectActualOutputEvidence(report,{
+  currentSourceKey:key,sourceKeyAtExecution:key,currentPlan:report.plan,
+  resourceSelectionCurrent:false,
+ });
+ assert.equal(evidence.status,'pass');
+ assert.equal(evidence.current,false);
+ assert.match(evidence.revisionNotice,/输出成员/);
 });

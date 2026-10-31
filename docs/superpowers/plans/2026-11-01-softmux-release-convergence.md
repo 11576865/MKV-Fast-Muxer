@@ -20,13 +20,13 @@ Spec: docs/softmux-1.0-scope-b-1gb-decision-20261020.md; docs/softmux-1.0-produc
 - Batch contexts remain independent of standalone membership.
 
 ## Task 1: External resource membership and real delivery
-- [ ] Test immutable include/exclude transactions, bypass rejection, composition counts and compatibility of existing rows.
-- [ ] Implement include in external authority using ContainerProject's existing include operation.
-- [ ] Bind include checkboxes in existing external editors and inventory; preserve all candidates for preview.
-- [ ] Filter only execution projections, plan counts, defaults and finished-output witnesses.
-- [ ] Test/export/import membership in portable checkpoints and atomic recovery without granting permissions.
-- [ ] Run Node suite/build and add real-browser output/preview regression with independent ffprobe.
-- [ ] Commit and push coherent work; use repository asynchronous CI boundary and record exact pending validations.
+- [x] Test immutable include/exclude transactions, bypass rejection, composition counts and compatibility of existing rows.
+- [x] Implement include in external authority using ContainerProject's existing include operation.
+- [x] Bind include checkboxes in existing external editors and inventory; preserve all candidates for preview.
+- [x] Filter only execution projections, plan counts, defaults and finished-output witnesses.
+- [x] Test/export/import membership in portable checkpoints and atomic recovery without granting permissions.
+- [x] Run Node suite/build and add real-browser output/preview regression with independent ffprobe.
+- [x] Commit and push coherent work; use repository asynchronous CI boundary and record exact pending validations.
 
 ## Next units tracked in .uigs/tasks/2026-11-01-softmux-1.0-completion.json
 Actual attachment-only writer delivery; multi-container focus/state preservation; final release contract reconciliation, physical-device evidence and candidate release verification. These are not completed by Task 1.

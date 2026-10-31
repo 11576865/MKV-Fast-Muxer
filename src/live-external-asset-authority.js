@@ -258,3 +258,26 @@ export function inspectLiveExternalAssets(session,{audioRows,subtitleRows,fonts,
 
 // A read-only executor projection. Candidate inventory and preview retain all rows.
 export const externalOutputTracks = rows => (rows || []).filter(row => row.include !== false);
+
+// Session-only completed-output/final-handoff witness. Equal names, sizes and
+// authored labels do not make two File grants interchangeable. Preview focus
+// is deliberately absent, and nothing reachable through a File is frozen.
+export function captureExternalOutputSelection({audioRows=[],subtitleRows=[],fonts=[],mode='preserve'}={}) {
+  const capture=(kind,rows)=>Object.freeze(externalOutputTracks(rows).map(row=>Object.freeze({
+    file:row.file,sidecar:row.sidecarFile||null,
+    metadata:JSON.stringify(fieldsFor(kind).map(field=>row[field])),
+    format:JSON.stringify(row.format||null),
+  })));
+  return Object.freeze({audio:capture('audio',audioRows),subtitle:capture('subtitle',subtitleRows),
+    fonts:Object.freeze([...fonts]),mode});
+}
+export function isExternalOutputSelectionCurrent(witness,context) {
+  if(!witness)return false;
+  const next=captureExternalOutputSelection(context);
+  return witness.mode===next.mode && witness.fonts.length===next.fonts.length &&
+    witness.fonts.every((file,i)=>file===next.fonts[i]) &&
+    ['audio','subtitle'].every(kind=>witness[kind].length===next[kind].length &&
+      witness[kind].every((row,i)=>row.file===next[kind][i].file &&
+        row.sidecar===next[kind][i].sidecar && row.metadata===next[kind][i].metadata &&
+        row.format===next[kind][i].format));
+}
