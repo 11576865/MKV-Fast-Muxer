@@ -73,7 +73,7 @@ import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTra
 import { createLiveSourceTrackSession } from './live-source-track-authority.js';
 import {
   createLiveExternalAssetSession, commitLiveExternalAssetChanges,
-  inspectLiveExternalAssets, rebindLiveExternalFontInventory,
+  inspectLiveExternalAssets, rebindLiveExternalFontInventory, externalOutputTracks,
 } from './live-external-asset-authority.js';
 import {
   createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
@@ -843,6 +843,9 @@ function selectedSubtitleTracks() {
   return selectedSubtitleTrackInputs().tracks;
 }
 
+const outputSubtitleTracks = () => externalOutputTracks(newSubtitleState);
+const outputAudioTracks = () => externalOutputTracks(externalAudioState);
+
 function selectedSubtitleFiles() {
   return selectedSubtitleTracks().map((track) => track.file);
 }
@@ -857,6 +860,7 @@ function syncNewTrackState() {
     const old = oldAudio.get(fileKey(file));
     return old?.file === file ? old : {
       file,
+      include: true,
       language: 'und',
       title: stripExtension(file.name),
       default: false,
@@ -890,6 +894,7 @@ function syncNewTrackState() {
       format,
       identity: trackInput.identity || null,
       identityMismatch: trackInput.identityMismatch || '',
+      include: true,
       language: inferred.language,
       title: inferred.title || stripExtension(trackInput.file.name) || languageTitles.und,
       default: index === 0,
@@ -982,7 +987,7 @@ function renderedExternalTrackFieldsMatch(container, kind, rows, fields) {
       const control = container.querySelector(
         '[' + selector + '="' + field + '"][data-index="' + index + '"]',
       );
-      if (!control || (control.type === 'checkbox' ? control.checked : control.value) !== row[field])
+      if (!control || (control.type === 'checkbox' ? control.checked : control.value) !== (field === 'include' ? row.include !== false : row[field]))
         return false;
     }
   }
@@ -1001,10 +1006,10 @@ function canRetainExternalTrackEditorMarkup() {
     return false;
   return renderedExternalTrackFieldsMatch(
     newAudioList, 'audio', externalAudioState,
-    ['title', 'language', 'default', 'original', 'commentary', 'hearingImpaired'],
+    ['include', 'title', 'language', 'default', 'original', 'commentary', 'hearingImpaired'],
   ) && renderedExternalTrackFieldsMatch(
     newSubtitleList, 'subtitle', newSubtitleState,
-    ['title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
+    ['include', 'title', 'language', 'default', 'forced', 'original', 'commentary', 'hearingImpaired'],
   );
 }
 
@@ -1026,6 +1031,7 @@ function renderNewTrackLists() {
           </div>
         </div>
         <div class="new-track-flags">
+          <label><input type="checkbox" data-new-audio-field="include" data-index="${index}" ${item.include !== false ? 'checked' : ''}> 参与输出</label>
           <label><input type="checkbox" data-new-audio-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
           <details class="track-advanced">
             <summary>高级属性</summary>
@@ -1049,6 +1055,7 @@ function renderNewTrackLists() {
           </div>
         </div>
         <div class="new-track-flags">
+          <label><input type="checkbox" data-new-sub-field="include" data-index="${index}" ${item.include !== false ? 'checked' : ''}> 参与输出</label>
           <label><input type="checkbox" data-new-sub-field="default" data-index="${index}" ${item.default ? 'checked' : ''}> Default</label>
           <label><input type="checkbox" data-new-sub-field="forced" data-index="${index}" ${item.forced ? 'checked' : ''}> Forced</label>
           <details class="track-advanced">
@@ -1486,7 +1493,7 @@ function captureNewTrackEditorState() {
       if(!item)continue;
       const field=control.dataset[attribute];
       const value=control.type==='checkbox'?control.checked:control.value;
-      if(item[field]!==value)changes.push({kind,index,field,value});
+      if((field==='include'?item.include!==false:item[field])!==value)changes.push({kind,index,field,value});
     }
   }
   if(changes.length && !changeExternalAssetFields(changes)) {
@@ -1684,6 +1691,10 @@ function bindNewTrackEditor(container, selector, getState, kind) {
       return;
     }
     renderMuxPlan();
+    if(field==='include') {
+      renderImportedAssetInventory();
+      renderActualOutputEvidence();
+    }
   };
   container.addEventListener('input',update);
   container.addEventListener('change',update);
@@ -2312,7 +2323,7 @@ function renderOutputComposition() {
     const label = compositionKindNames[item.kind] || item.kind;
     const status = item.status === 'remove' ? '移除' :
       item.status === 'add' ? '新增' : item.status === 'modify' ? '修改' :
-      item.status === 'pending' ? '待核验' : '';
+      item.status === 'pending' ? '待核验' : item.status === 'candidate' ? '未加入' : '';
     const info = `<span class="composition-kind">${escapeHtml(label)}</span>
       <span class="composition-track-main"><strong>${escapeHtml(item.title)}</strong>
       <small>${escapeHtml(item.detail)}</small></span>
@@ -3226,6 +3237,10 @@ function renderImportedAssetInventory() {
       container: '媒体容器', subtitle: '字幕', font: '字体',
       audio: '独立音频', unknown: '未识别',
     }[entry.kind] || '未知';
+    const externalRows = entry.kind === 'subtitle' ? newSubtitleState :
+      entry.kind === 'audio' ? externalAudioState : [];
+    const externalIndex = externalRows.findIndex(row => row.file === entry.file);
+    const external = externalRows[externalIndex];
     const sourceScanned = selected && trackState?.fileKey === fileKey(entry.file);
     const statusLabel = sourceScanned ? '已扫描'
       : entry.status === ASSET_STATUS.RECOGNIZED ? '已识别'
@@ -3252,6 +3267,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
       <div class="asset-entry-roles">
+        ${external ? `<label><input type="checkbox" data-asset-include="${escapeHtml(entry.key)}" ${external.include !== false ? 'checked' : ''} ${canChange ? '' : 'disabled'}> 参与输出</label>` : ''}
         ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
         ${entry.kind === 'container' ? `<label class="asset-select-source">
           <input type="radio" name="assetMainSource" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
@@ -3417,6 +3433,22 @@ for (const target of [assetInventory, assetInspectorHost]) {
 }
 
 assetInventory?.addEventListener('change', (event) => {
+  const member = event.target.closest('[data-asset-include]');
+  if(member) {
+    if(isBusy() || batchRunning || importInProgress)return;
+    const entry=importedAssetEntries.find(item=>item.key===member.dataset.assetInclude);
+    const rows=entry?.kind==='subtitle'?newSubtitleState:entry?.kind==='audio'?externalAudioState:[];
+    const index=rows.findIndex(row=>row.file===entry?.file);
+    if(index<0)return;
+    if(!changeExternalAssetFields([{kind:entry.kind,index,field:'include',value:member.checked}])) {
+      member.checked=rows[index].include!==false;
+      return;
+    }
+    updateUI();
+    focusUpdatedInventoryItem(assetInventory,{selector:'[data-asset-include]',
+      keyAttribute:'data-asset-include',key:entry.key,fallback:assetDropzone});
+    return;
+  }
   const radio = event.target.closest('[data-asset-source]');
   if (!radio || isBusy() || batchRunning || importInProgress) return;
   chosenImportSourceKey = radio.dataset.assetSource;
@@ -4532,14 +4564,14 @@ function sourceAttachmentModified(item) {
 function plannedFontAttachmentCount() {
   const recognized = selectedFontRecognition().recognized || [];
   if (!recognized.length) return 0;
-  const hasAssLikeSubtitle = newSubtitleState.some((track) => track.format?.assLike);
+  const hasAssLikeSubtitle = outputSubtitleTracks().some((track) => track.format?.assLike);
   return fontMode.value === 'force' && hasAssLikeSubtitle ? 1 : recognized.length;
 }
 
 function containerChangeCounts({ newFontCount = plannedFontAttachmentCount() } = {}) {
   const added =
-    externalAudioState.length +
-    newSubtitleState.length +
+    outputAudioTracks().length +
+    outputSubtitleTracks().length +
     newFontCount;
 
   if (!trackState) {
@@ -4697,10 +4729,10 @@ function defaultConflictWarnings() {
   const warnings = [];
   const audioDefaultCount =
     selectedTracks('audio').filter((track) => track.default).length +
-    externalAudioState.filter((track) => track.default).length;
+    outputAudioTracks().filter((track) => track.default).length;
   const subtitleDefaultCount =
     selectedTracks('subtitle').filter((track) => track.default).length +
-    newSubtitleState.filter((track) => track.default).length;
+    outputSubtitleTracks().filter((track) => track.default).length;
 
   if (audioDefaultCount > 1) {
     warnings.push(`存在 ${audioDefaultCount} 条 Default 音频轨；播放器行为可能不一致。`);
@@ -4780,7 +4812,7 @@ function buildMuxPlan() {
     });
   }
 
-  externalAudioState.forEach((track, index) => {
+  outputAudioTracks().forEach((track, index) => {
     entries.push({
       kind: `外部音频 ${index + 1}`,
       title: track.title || track.file.name,
@@ -4789,7 +4821,7 @@ function buildMuxPlan() {
     });
   });
 
-  newSubtitleState.forEach((track, index) => {
+  outputSubtitleTracks().forEach((track, index) => {
     entries.push({
       kind: `字幕 ${index + 1}`,
       title: track.title || track.file.name,
@@ -4841,7 +4873,7 @@ function buildMuxPlan() {
     });
   }
 
-  const hasAssLikeSubtitle = newSubtitleState.some((track) => track.format?.assLike);
+  const hasAssLikeSubtitle = outputSubtitleTracks().some((track) => track.format?.assLike);
   const attachedFonts = mode === 'force' && hasAssLikeSubtitle ? fonts.slice(0, 1) : fonts;
   attachedFonts.forEach((file, index) => {
     entries.push({
@@ -4852,7 +4884,7 @@ function buildMuxPlan() {
     });
   });
 
-  if (!appendMode && trackState && selectedTracks('audio').length === 0 && externalAudioState.length === 0) {
+  if (!appendMode && trackState && selectedTracks('audio').length === 0 && outputAudioTracks().length === 0) {
     warnings.push('扫描后没有选择原音频，也没有外部音频；输出将没有音频。');
   }
 
@@ -4885,7 +4917,7 @@ function buildMuxPlan() {
     )
   );
   warnings.push(...compatibilityPlanMessages({
-    newSubtitles: newSubtitleState,
+    newSubtitles: outputSubtitleTracks(),
     fontCount: attachedFonts.length,
     hasKnownAssLikeSource,
     sourceSubtitleKnowledge: appendMode && !trackState ? 'unknown' : 'known',
@@ -5063,7 +5095,7 @@ function renderTrackList() {
       ${containerStatusBadge('keep')}
     </div>`);
 
-  externalAudioState.forEach((item, index) => {
+  outputAudioTracks().forEach((item, index) => {
     sourceRows.push(`
       <div class="container-item container-readonly-row" data-change="add">
         <span class="container-item-kind">音频</span>
@@ -5071,7 +5103,7 @@ function renderTrackList() {
         ${containerStatusBadge('add')}
       </div>`);
   });
-  newSubtitleState.forEach((item, index) => {
+  outputSubtitleTracks().forEach((item, index) => {
     sourceRows.push(`
       <div class="container-item container-readonly-row" data-change="add">
         <span class="container-item-kind">字幕</span>
@@ -5081,7 +5113,7 @@ function renderTrackList() {
   });
 
   const fonts = selectedFontRecognition().recognized || [];
-  const visibleFonts = fontMode.value === 'force' && newSubtitleState.some((track) => track.format?.assLike)
+  const visibleFonts = fontMode.value === 'force' && outputSubtitleTracks().some((track) => track.format?.assLike)
     ? fonts.slice(0, 1)
     : fonts;
   visibleFonts.forEach((item) => {
@@ -5582,8 +5614,8 @@ async function executeCurrentMuxTask(explicit = null) {
   const fontIdentityByKey = new Map(
     fontRecognition.recognized.map((entry) => [fileKey(entry.file), entry.identity])
   );
-  const subtitleTracks = independent ? explicit.subtitles : newSubtitleState;
-  const externalAudioTracks = independent ? explicit.externalAudio : externalAudioState;
+  const subtitleTracks = independent ? explicit.subtitles : outputSubtitleTracks();
+  const externalAudioTracks = independent ? explicit.externalAudio : outputAudioTracks();
   // A source-only remux is valid: existing MKV tracks, chapters and attachments
   // do not require an extra subtitle file. ffprobe still checks video presence.
   if (!video || (!independent && importInProgress)) return;
@@ -5622,7 +5654,7 @@ async function executeCurrentMuxTask(explicit = null) {
   const assertCurrentSubtitleWitness = () => {
     const fresh = validateSubtitleExecutionWitness(subtitleWitness, {
       source: independent ? explicit.source : videoInput.files[0],
-      tracks: independent ? explicit.subtitles : newSubtitleState,
+      tracks: independent ? explicit.subtitles : outputSubtitleTracks(),
       appendMode: independent ? Boolean(explicit.appendPreserveAll)
         : Boolean(currentVideoIsMatroska() && appendPreserveAll?.checked),
     });

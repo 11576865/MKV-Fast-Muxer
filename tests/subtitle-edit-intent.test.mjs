@@ -143,3 +143,15 @@ test('ContainerDocument exposes same immutable draft without claiming whole-cont
   assert.equal(document.execution.wholeEbmlPreservation, 'unverified');
   assert.equal(Object.isFrozen(document.subtitleEditIntents), true);
 });
+
+test('excluded subtitle candidate produces no add intent and membership changes draft freshness',()=>{
+ const source={name:'source.mkv',size:100,lastModified:1};
+ const tracks=[{file:{name:'selected.ass',size:10,lastModified:1},title:'Selected'},
+  {file:{name:'preview.ass',size:10,lastModified:1},title:'Candidate',include:false}];
+ const draft=buildSubtitleEditIntentSnapshot({source,newSubtitles:tracks});
+ assert.equal(draft.intents.length,1);
+ tracks[1].include=true;
+ const next=buildSubtitleEditIntentSnapshot({source,newSubtitles:tracks});
+ assert.equal(next.intents.length,2);
+ assert.notEqual(draft.revision,next.revision);
+});

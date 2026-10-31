@@ -104,3 +104,23 @@ test('reject missed case when an accepted checkpoint is edited during hash await
  }};
  await assert.rejects(prepareExternalMetadataRecovery(f.ws,f.context,cp,{hashOptions}),/DRAFT_CHANGED_DURING_HASH/);
 });
+
+test('checkpoint membership survives consent-driven recovery and undo; old v1 rows remain readable',async()=>{
+ const authored=fresh();
+ change(authored,[{kind:'subtitle',index:0,field:'include',value:false}]);
+ const text=await exportExternalMetadataCheckpoint(authored.ws,authored.context);
+ const checkpoint=parseExternalMetadataCheckpoint(text);
+ assert.equal(checkpoint.rows[1].included,false);
+ const target=fresh();
+ const prepared=await prepareExternalMetadataRecovery(target.ws,target.context,checkpoint);
+ assert.equal(target.context.subtitleRows[0].include,undefined);
+ const receipt=applyPreparedExternalRecovery(target.ws,target.context,prepared,{confirmed:true});
+ assert.equal(target.context.subtitleRows[0].include,false);
+ undoAppliedExternalRecovery(target.ws,target.context,receipt.undo);
+ assert.equal(target.context.subtitleRows[0].include,true);
+ const legacy=JSON.parse(text);
+ for(const row of legacy.rows)delete row.included;
+ assert.doesNotThrow(()=>parseExternalMetadataCheckpoint(JSON.stringify(legacy)));
+ legacy.rows[1].included='false';
+ assert.throws(()=>parseExternalMetadataCheckpoint(JSON.stringify(legacy)),/ENTRY/);
+});

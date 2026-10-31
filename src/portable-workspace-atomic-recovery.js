@@ -93,7 +93,8 @@ function compile(prepared,workspace,context,direction='forward'){
   let next=project;
   const assignments=[];
   const schedule=(row,field,value)=>{
-    if(!row||!Object.hasOwn(row,field)||typeof value!==typeof row[field])
+    if(!row||(field==='include' ? typeof value!=='boolean' :
+        !Object.hasOwn(row,field)||typeof value!==typeof row[field]))
       fail('EDITOR_ASSIGNMENT_INVALID');
     const d=Object.getOwnPropertyDescriptor(row,field);
     if(d&&!d.writable&&!d.set)fail('EDITOR_READONLY');
@@ -174,10 +175,10 @@ function compile(prepared,workspace,context,direction='forward'){
     const id=external.keys.get(change.kind+':'+change.index);
     const obj=project.objects.find(o=>o.id===id);
     if(!ref||!entry||!id||!obj)fail('EXTERNAL_OBJECT_CHANGED');
-    const initial=entry.row[change.field];
+    const initial=change.field==='include'?entry.row.include!==false:entry.row[change.field];
     const value=undo?prepared.externalBefore.find(c=>c.kind===change.kind&&
       c.index===change.index&&c.field===change.field)?.value:change.value;
-    if(value===undefined||obj.attributes[change.field]!==initial)
+    if(value===undefined||valueOf(obj,change.field)!==initial)
       fail('EXTERNAL_SEMANTIC_DRIFT');
     next=setSemantic(next,id,change.field,value);
     schedule(entry.row,change.field,value);
@@ -231,7 +232,8 @@ export async function prepareAtomicWorkspaceRecovery({
     sourcePlan,external,project,generation,
     appendMode:false,
     externalBefore:Object.freeze(external.changes.map(c=>Object.freeze({
-      ...c,value:rowsOf(context).find(r=>r.kind===c.kind&&r.index===c.index).row[c.field],
+      ...c,value:(row=>c.field==='include'?row.include!==false:row[c.field])(
+        rowsOf(context).find(r=>r.kind===c.kind&&r.index===c.index).row),
     }))),
     executionAuthorized:false,writerAuthorized:false,
   });

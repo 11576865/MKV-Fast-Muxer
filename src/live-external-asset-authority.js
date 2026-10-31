@@ -20,7 +20,10 @@ const LIMIT=85;
 const fieldsFor=kind=>kind==='audio' ? EXTERNAL_AUDIO_FIELDS : EXTERNAL_SUBTITLE_FIELDS;
 const keyOf=(kind,index)=>kind+':'+index;
 const stringFields=new Set(['title','language']);
-const fieldsSnapshot=(kind,row)=>Object.fromEntries(fieldsFor(kind).map(f=>[f,row[f]]));
+const editableFields=kind=>['include',...fieldsFor(kind)];
+const rowValue=(row,field)=>field==='include'?row.include!==false:row[field];
+const semanticValue=(obj,field)=>field==='include'?obj.included:obj.attributes[field];
+const fieldsSnapshot=(kind,row)=>Object.fromEntries(editableFields(kind).map(f=>[f,rowValue(row,f)]));
 
 const cloneProject=project=>createContainerProject({
   documentId:project.documentId,
@@ -31,7 +34,7 @@ function compact(project) {
   return project.history.length<LIMIT ? project : cloneProject(project);
 }
 function validateField(kind,field,value) {
-  if(!fieldsFor(kind).includes(field))
+  if(!editableFields(kind).includes(field))
     throw Error('EXTERNAL_DOMAIN_FIELD_UNSUPPORTED');
   if(stringFields.has(field)) {
     if(typeof value!=='string' || value.length>(field==='title'?160:35) ||
@@ -74,8 +77,8 @@ function verify(session,{audioRows,subtitleRows,fonts,mode}={}) {
       throw Error('EXTERNAL_DOMAIN_SOURCE_CHANGED');
     seen.add(keyOf(now.kind,now.index));
     const obj=projectFields(session,now);
-    for(const field of fieldsFor(now.kind))
-      if(row[field]!==obj.attributes[field])
+    for(const field of editableFields(now.kind))
+      if(rowValue(row,field)!==semanticValue(obj,field))
         throw Error('EXTERNAL_DOMAIN_EXECUTOR_PROJECTION_DRIFT');
   }
   const fontObjects=session.project.objects.filter(o=>o.id.startsWith('external-font:'));
@@ -101,11 +104,13 @@ export function createLiveExternalAssetSession({
   const rows=entries.map(({kind,index,row})=>{
     if(!row?.file)throw Error('EXTERNAL_DOMAIN_SOURCE_REQUIRED');
     const name='external-'+kind+':'+index,sourceId='external-input:'+kind+':'+index;
-    const attrs=fieldsSnapshot(kind,row);
+    const {include,...attrs}=fieldsSnapshot(kind,row);
     for(const [field,value] of Object.entries(attrs))validateField(kind,field,value);
     sources.push({id:sourceId,name:row.file.name,
       identityEvidence:'session-exact-file-reference'});
-    objects.push({id:name,kind,sourceId,included:true,attributes:attrs});
+    if(row.include!==undefined && typeof row.include!=='boolean')
+      throw Error('EXTERNAL_DOMAIN_BOOLEAN_REQUIRED');
+    objects.push({id:name,kind,sourceId,included:include,attributes:attrs});
     keys.set(keyOf(kind,index),name);
     return {kind,index,row,file:row.file,sidecarFile:row.sidecarFile,
       format:row.format,identity:row.identity};
@@ -155,8 +160,8 @@ export function rebindLiveExternalFontInventory(session,{
         row?.format!==prior.format || row?.identity!==prior.identity)
       throw Error('EXTERNAL_DOMAIN_FONT_REBIND_TRACK_SOURCE_CHANGED');
     const original=projectFields(session,current);
-    for(const field of fieldsFor(current.kind))
-      if(row[field]!==original.attributes[field])
+    for(const field of editableFields(current.kind))
+      if(rowValue(row,field)!==semanticValue(original,field))
         throw Error('EXTERNAL_DOMAIN_FONT_REBIND_EDITOR_DRIFT');
   }
   if(fonts.length===session.fonts.length &&
@@ -192,13 +197,14 @@ export function commitLiveExternalAssetChanges(session,{
   let next=session.project,count=0;
   for(const [key,item] of staged) {
     const id=session.keys.get(key);
-    for(const field of fieldsFor(item.row.kind)) {
+    for(const field of editableFields(item.row.kind)) {
       const obj=next.objects.find(o=>o.id===id);
       if(!obj)throw Error('EXTERNAL_DOMAIN_OBJECT_DRIFT');
-      if(obj.attributes[field]===item.after[field])continue;
+      if(semanticValue(obj,field)===item.after[field])continue;
       next=compact(next);
       next=applyContainerProjectEdit(next,{
-        type:'set-attribute',objectId:id,field,value:item.after[field],
+        type:field==='include'?'include':'set-attribute',objectId:id,
+        ...(field==='include'?{}:{field}),value:item.after[field],
       });
       count++;
     }
@@ -207,8 +213,8 @@ export function commitLiveExternalAssetChanges(session,{
   for(const item of staged.values()) {
     const obj=next.objects.find(o=>o.id===session.keys.get(
       keyOf(item.row.kind,item.row.index)));
-    for(const field of fieldsFor(item.row.kind))
-      item.row.row[field]=obj.attributes[field];
+    for(const field of editableFields(item.row.kind))
+      item.row.row[field]=semanticValue(obj,field);
   }
   session.project=next;
   session.generation++;
@@ -249,3 +255,6 @@ export function inspectLiveExternalAssets(session,{audioRows,subtitleRows,fonts,
     resourceOnlyWriting:false,
   });
 }
+
+// A read-only executor projection. Candidate inventory and preview retain all rows.
+export const externalOutputTracks = rows => (rows || []).filter(row => row.include !== false);

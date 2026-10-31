@@ -20,6 +20,7 @@ export function buildSubtitleEditIntentSnapshot({ source = null, newSubtitles = 
   const seen = new Set();
 
   for (const [ordinal, track] of (newSubtitles || []).entries()) {
+    if (track?.include === false) continue;
     if (!track?.file) {
       diagnostics.push({ code: 'MISSING_SUBTITLE_FILE', ordinal });
       continue;

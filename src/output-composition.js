@@ -99,13 +99,13 @@ export function buildOutputComposition({
           kind === 'subtitle' ? label(item.format?.label, '字幕') : '外部音频',
           flagSummary(item),
         ].filter(Boolean).join(' · '),
-        status: 'add', included: true,
+        status: item.include === false ? 'candidate' : 'add', included: item.include !== false,
         target: { type: 'external', kind, fileKey, index },
       });
     }
   }
 
-  const subtitleNeedsFonts = (newSubtitles || []).some(track => track.format?.assLike);
+  const subtitleNeedsFonts = (newSubtitles || []).some(track => track.include !== false && track.format?.assLike);
   const attachedFonts = fontMode === 'force' && subtitleNeedsFonts ? (fonts || []).slice(0, 1) : (fonts || []);
   for (const [index, font] of attachedFonts.entries()) {
     const fileKey = outputCompositionFileKey(font);

@@ -216,3 +216,40 @@ test('reselection rebind is explicit and never merges same-named old File refere
   assert.equal(successor[0].title,'Fresh after rebind');
   assert.equal(f.session.project.objects.find(o=>o.kind==='audio').attributes.title,'Japanese');
 });
+
+test('external output membership is a semantic include transaction without losing candidate File or metadata',()=>{
+  const f=fixture(),before=f.session.project;
+  f.commit([edit('subtitle',0,'include',false),edit('audio',0,'include',false)]);
+  assert.equal(f.subtitle[0].include,false);
+  assert.equal(f.audio[0].include,false);
+  assert.equal(f.session.project.objects.find(o=>o.kind==='subtitle').included,false);
+  assert.equal(before.objects.find(o=>o.kind==='subtitle').included,true);
+  assert.equal(f.subtitle[0].file,f.files.subtitleFile);
+  f.commit([edit('subtitle',0,'title','Candidate'),edit('subtitle',0,'include',true)]);
+  assert.equal(f.subtitle[0].title,'Candidate');
+  assert.equal(f.subtitle[0].include,true);
+  assert.equal(f.session.project.objects.find(o=>o.kind==='subtitle').included,true);
+  assert.equal(f.session.project.objects.find(o=>o.kind==='subtitle').attributes.include,undefined);
+});
+
+test('directly mutating external membership cannot bypass the domain authority',()=>{
+  const f=fixture();
+  f.subtitle[0].include=false;
+  assert.throws(()=>inspectLiveExternalAssets(f.session,f.base()),/EXTERNAL_DOMAIN_EXECUTOR_PROJECTION_DRIFT/);
+});
+
+test('invalid external include value cannot partially apply a metadata change',()=>{
+  const f=fixture(),before=f.session.project;
+  assert.throws(()=>f.commit([edit('subtitle',0,'title','wrong'),edit('subtitle',0,'include',0)]),/EXTERNAL_DOMAIN_BOOLEAN_REQUIRED/);
+  assert.equal(f.subtitle[0].title,'Chinese');
+  assert.equal(f.session.project,before);
+});
+
+test('output projection selects included rows in original order without mutating preview inventory',async()=>{
+  const {externalOutputTracks}=await import('../src/live-external-asset-authority.js');
+  const candidate={include:false,title:'Preview'},first={title:'Default'},last={include:true,title:'Chosen'};
+  const inventory=[first,candidate,last];
+  assert.deepEqual(externalOutputTracks(inventory),[first,last]);
+  assert.equal(inventory.length,3);
+  assert.equal(inventory[1],candidate);
+});
