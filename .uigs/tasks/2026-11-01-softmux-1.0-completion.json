@@ -11,17 +11,17 @@
     "Full release evidence reconciliation and candidate verification"
   ],
   "branch": "feat/softmux-1.0-completion-20261101",
-  "pr": null,
-  "latest_durable_commit": "61f720c93f01697420a0fbbaf3a98ed307bcddf6",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/207",
+  "latest_durable_commit": "6dbbb06a881481d8aa959a6d1264c57e36a6c95b",
   "external_validation_states": {
     "node_build_local": "757/757 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "pending_submission",
+    "full_exact_head_ci": "PR #207 submitted; pending exact final-head workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "deduplicated, pending_case_write"
+    "UIGS_Intake": "Case saved in UIGS-Foundry: inbox/cases/2026-11-01-softmux-candidate-membership-capture-output-identity.md @ 0b5f4494281bed002da99bec4791ddbde7356944; no Canonical promotion"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-10-31T20:14:02.909039+00:00"
+  "updated_at": "2026-10-31T20:14:57.984Z"
 }
