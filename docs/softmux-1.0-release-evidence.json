@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "49101cc2acb0b83186a86874c1b2126c25c2e8ce",
+  "currentDevelopmentBaseline": "76a211add5f3c9e0134544d19983f3e98c57e7b8",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -69,7 +69,7 @@
       "id": "S03",
       "title": "ASS 字体预览与成品独立渲染",
       "status": "UNASSESSED",
-      "openGap": "缺成品级缺字体反例、不同字体策略的完整判定",
+      "openGap": "0.1039 具名字体保留/子集/强制及缺字体/缺字反例已有本地成品回读与渲染；完整 CI、复杂 shaping、OTC/多 face 和最终候选证据仍待核验，不自动 PASS。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -77,7 +77,9 @@
         "testPaths": [
           "tests/output-font-payload-audit.test.mjs",
           "tests/embedded-preview.test.mjs",
-          "tests/e2e/embedded-ass-preview-scenario.mjs"
+          "tests/e2e/embedded-ass-preview-scenario.mjs",
+          "tests/ass-subset-characters.test.mjs",
+          "tests/e2e/font-strategy-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13069988223,

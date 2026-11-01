@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioFontStrategies} from './font-strategy-scenario.mjs';
 import {scenarioOriginalSubtitleTimeline} from './original-subtitle-timeline-scenario.mjs';
 import {scenarioReadonlyWriterBoundary} from './readonly-writer-boundary-scenario.mjs';
 import {scenarioContainerBatchReview} from './container-batch-review-scenario.mjs';
@@ -7711,6 +7712,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioFontStrategies(browser,{root,outDir:path.join(outDir,'font-strategies'),baseUrl});
   await scenarioOriginalSubtitleTimeline(browser,{root,outDir:path.join(outDir,'original-subtitle-timeline'),baseUrl});
   await scenarioReadonlyWriterBoundary(browser,{outDir:path.join(outDir,'readonly-writer-boundary'),baseUrl});
   await scenarioContainerBatchReview(browser,{root,outDir:path.join(outDir,'container-batch-review'),baseUrl});

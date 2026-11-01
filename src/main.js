@@ -6063,7 +6063,7 @@ async function executeCurrentMuxTask(explicit = null) {
 
       if (format?.assLike) {
         const analysis = analyzeAssFontUsage(sourceText);
-        fontSubsetText += analysis.allCharacters.join('');
+        fontSubsetText += analysis.subsetCharacters.join('');
 
         if (descriptors.length && mode === 'force') {
           const primary = descriptors[0];
@@ -7584,7 +7584,7 @@ async function collectBatchSubsetText(pairing) {
       if (!format?.text) continue;
       const decoded = await readAssText(track.file);
       if (format.assLike) {
-        text += analyzeAssFontUsage(decoded.text).allCharacters.join('');
+        text += analyzeAssFontUsage(decoded.text).subsetCharacters.join('');
       } else {
         text += visibleTextForPlainSubtitle(decoded.text, format.id);
       }

@@ -238,6 +238,9 @@ export function analyzeAssFontUsage(text) {
 
   const usage = new Map();
   const allCharacters = new Set();
+  // Diagnostics omit whitespace, but subset closure must preserve its glyphs
+  // and advance widths. Keep a separate visible-text repertoire.
+  const subsetCharacters = new Set();
   section = '';
   let eventFormat = [];
 
@@ -264,6 +267,10 @@ export function analyzeAssFontUsage(text) {
     if (!item) return;
 
     for (const char of decodeAssVisibleText(value)) {
+      const cp = char.codePointAt(0);
+      if (cp >= 0x20 && !(cp >= 0x7f && cp <= 0x9f) && !/[\u2028\u2029]/u.test(char)) {
+        subsetCharacters.add(char);
+      }
       if (!isMeaningfulCharacter(char)) continue;
       item.characters.add(char);
       allCharacters.add(char);
@@ -390,6 +397,7 @@ export function analyzeAssFontUsage(text) {
       sources: [...item.sources],
     })),
     allCharacters: [...allCharacters],
+    subsetCharacters: [...subsetCharacters],
   };
 }
 
@@ -794,8 +802,11 @@ function makeFormat4Checker(view, offset, cmapEnd) {
 
 function decodeAssVisibleText(value) {
   return value
-    .replace(/\\[Nn]/g, '\n')
-    .replace(/\\h/g, ' ');
+    .replace(/\\N/g, '\n')
+    // Soft line breaks render as spaces outside WrapStyle 2. Retaining the
+    // space glyph is safe for either wrapping mode.
+    .replace(/\\n/g, ' ')
+    .replace(/\\h/g, '\u00a0');
 }
 
 function isMeaningfulCharacter(char) {
