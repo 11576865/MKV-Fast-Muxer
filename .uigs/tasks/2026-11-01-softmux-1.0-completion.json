@@ -16,8 +16,8 @@
     "Collect real target desktop/tablet S12/S13 evidence; freeze an accepted candidate; validated formal promotion path and rollback"
   ],
   "branch": "feat/softmux-release-reconciliation-20261101",
-  "pr": null,
-  "latest_durable_commit": "ff20c2b8c8ef9fb2388ce0783f339183ab53eccd",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/210",
+  "latest_durable_commit": "024cddb8762e8c61e0fc8a9476685fe56e60dff3",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -29,10 +29,10 @@
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
     "multi_source_drafts_local": "A/B distinct native FFprobe outputs, same-File event, removal/reimport and 3 viewports passed",
     "release_gate_local": "781/781 Node tests passed; build passed; audit correctly reports not ready with frozen 14/44/57 denominator",
-    "release_gate_ci": "Not yet submitted"
+    "release_gate_ci": "PR #210 submitted; final exact-head full workflows pending; stop at durable execution boundary"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T04:59:16.972361+00:00"
+  "updated_at": "2026-11-01T04:59:50.754Z"
 }
