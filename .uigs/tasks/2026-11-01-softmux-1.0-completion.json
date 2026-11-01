@@ -33,8 +33,8 @@
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "fix/softmux-directory-save-receipt-20261102",
-  "pr": null,
-  "latest_durable_commit": "95423a389503979a8cbfa7ec4af570d15fb3b283",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/218",
+  "latest_durable_commit": "6d015421dbd19451abefd06c7435822a770b726a",
   "external_validation_states": {
     "node_build_local": "800/800 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -64,10 +64,10 @@
     "font_strategy_local": "passed: 4 actual MKVs, native ASS/font extraction, byte-preserving full font, subset cmap/name/size, isolated libass exact frame plus blank/altered/omitted-font controls; forced style/inline family/first-font and missing-family/glyph warning preservation; source hashes unchanged",
     "font_strategy_ci": "PR #217 0be3ff4 all full workflows passed; merged",
     "single_save_receipt_local": "passed: actual browser RED/GREEN collision/retry, three byte-identical saved pairs, report permission failure, corrupt readback/refused overwrite and native-verified unchanged download; directory API simulated, no physical disk durability claim",
-    "single_save_receipt_ci": "Not yet submitted; mandatory early browser scenario/artifact wired"
+    "single_save_receipt_ci": "PR #218 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T18:56:14.729636+00:00"
+  "updated_at": "2026-11-01T18:56:58.125Z"
 }
