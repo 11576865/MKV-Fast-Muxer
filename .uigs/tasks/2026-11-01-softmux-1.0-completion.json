@@ -22,13 +22,13 @@
   ],
   "branch": "test/softmux-bitmap-subtitle-output-20261101",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/212",
-  "latest_durable_commit": "0af66c2d08da616b00ed8ee2efd45c05bffabfff",
+  "latest_durable_commit": "69d26b6d63577af25dcae27b75b678b91d993999",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended with bounded async focus-lifecycle repair; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended @025bc502398a34190077f4ff1490fe69186db488; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -38,11 +38,11 @@
     "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
     "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance",
     "bitmap_local": "785 Node tests/build passed; actual Chromium PGS/VobSub MKV, versioned JSON report, original packets/times/decoded frames and video/audio bytes verified",
-    "bitmap_ci": "Native bitmap proof passed 41289901730; full Browser failed at existing source radio focus after asynchronous scan; bounded fix ready, next generation pending",
+    "bitmap_ci": "Repair pushed to PR #212 @69d26b6d63577af25dcae27b75b678b91d993999; next full CI generation Pending External Validation; not polled after bounded repair",
     "source_focus_local": "Real browser: RED body focus and closed disclosure; GREEN 5 source selections plus keyboard-away and pointer-away cancellation; 785 Node tests/build passed"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T09:37:09.682178+00:00"
+  "updated_at": "2026-11-01T09:37:44.195Z"
 }
