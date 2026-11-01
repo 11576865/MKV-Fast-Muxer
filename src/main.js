@@ -1,3 +1,4 @@
+import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
 import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
@@ -1342,7 +1343,7 @@ function setInputsDisabled(disabled) {
     button.disabled = disabled || !trackState;
   });
   if (appendPreserveAll) appendPreserveAll.disabled = sourceLocked || !currentVideoIsMatroska();
-  if (previewTimeInput) previewTimeInput.disabled = disabled || !selectedSubtitleTracks().some((track) => track.format?.previewable);
+  if (previewTimeInput) previewTimeInput.disabled = disabled || !previewSubtitleTracks().some((track) => track.format?.previewable);
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = disabled || !previewCueTimes.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = disabled || !previewCueTimes.length;
   if (batchUnifiedInput) batchUnifiedInput.disabled = sourceLocked || batchRunning || batchStartPending || batchImportInProgress;
@@ -1486,6 +1487,7 @@ function undoRecentSourceAttachmentChange() {
 }
 
 function resetTrackState() {
+  embeddedPreviewCueCache = null;
   recentSourceAttachmentUndo = null;
   trackState = null;
   scannedSourceFile = null;
@@ -1634,7 +1636,9 @@ function updateUI() {
   renderWorkloadNotice();
   syncPreviewControls();
 
-  fontModeHint.textContent = !fonts.length
+  fontModeHint.textContent = selectedPreviewTrack()?.embedded
+    ? '来源 ASS 预览按需读取内封字体；外部字体设置不会改写来源预览。'
+    : !fonts.length
     ? '未附加字体；ASS / SSA 预览使用可用替代字体。'
     : fontPending
       ? '正在解析字体内部结构与 face…'
@@ -4268,18 +4272,30 @@ function formatPreviewTime(seconds) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
 }
 
+let embeddedPreviewCueCache = null;
+function previewSubtitleTracks() {
+  return [...selectedSubtitleTracks(),...embeddedPreviewTracks({
+    source:videoInput.files[0],scannedSource:scannedSourceFile,state:trackState,
+  })];
+}
+function selectedPreviewTrack() {
+  const key=String(previewSubtitleSelect?.value || '0');
+  return previewSubtitleTracks().find((track,index) => (track.embedded?track.key:String(index))===key);
+}
+
 async function loadPreviewCueTimes() {
-  const tracks = selectedSubtitleTracks();
-  const selectedIndex = Number(previewSubtitleSelect?.value || 0);
-  const track = tracks[selectedIndex];
-  const file = track?.file;
-  if (!file || !track?.format?.previewable) {
-    previewCueTimes = [];
-    previewCueIndex = -1;
-    return [];
+  const track = selectedPreviewTrack();
+  if(track?.embedded){
+    previewCueTimes=embeddedPreviewCueCache?.source===track.sourceFile &&
+      embeddedPreviewCueCache.streamIndex===track.streamIndex ? [...embeddedPreviewCueCache.times] : [];
+  } else {
+    const file=track?.file;
+    if(!file || !track?.format?.previewable){
+      previewCueTimes=[];previewCueIndex=-1;return [];
+    }
+    const {text}=await readAssText(file);
+    previewCueTimes=extractPreviewCueTimes(text);
   }
-  const { text } = await readAssText(file);
-  previewCueTimes = extractPreviewCueTimes(text);
   const current = parsePreviewTime(previewTimeInput?.value);
   if (Number.isFinite(current) && previewCueTimes.length) {
     let nearest = 0;
@@ -4301,6 +4317,10 @@ async function loadPreviewCueTimes() {
 async function navigatePreviewCue(delta) {
   if (isBusy()) return;
   await loadPreviewCueTimes();
+  if(!previewCueTimes.length && selectedPreviewTrack()?.embedded){
+    await refreshSubtitlePreview();
+    await loadPreviewCueTimes();
+  }
   if (!previewCueTimes.length) return;
   if (previewCueIndex < 0) previewCueIndex = 0;
   else previewCueIndex = Math.max(0, Math.min(previewCueTimes.length - 1, previewCueIndex + delta));
@@ -4338,26 +4358,25 @@ function openPreviewDialog() {
 
 function syncPreviewControls() {
   if (!previewSubtitleSelect || !previewRefreshBtn) return;
-  const tracks = selectedSubtitleTracks();
+  const tracks = previewSubtitleTracks();
   const previewable = tracks
     .map((track, index) => ({ track, index }))
     .filter(({ track }) => Boolean(track.format?.previewable));
-  const previous = Number(previewSubtitleSelect.value);
+  const previous = String(previewSubtitleSelect.value);
   previewSubtitleSelect.innerHTML = previewable.length
-    ? previewable.map(({ track, index }) => `<option value="${index}">${escapeHtml(track.file.name)} · ${escapeHtml(track.format?.label || 'ASS/SSA')}</option>`).join('')
+    ? previewable.map(({ track, index }) => `<option value="${track.embedded?track.key:index}">${escapeHtml(track.file.name)} · ${escapeHtml(track.format?.label || 'ASS/SSA')}</option>`).join('')
     : '<option value="">没有可预览的 ASS / SSA</option>';
 
   if (previewable.length) {
-    const known = previewable.some((item) => item.index === previous);
-    previewSubtitleSelect.value = String(known ? previous : previewable[0].index);
+    const known = previewable.some((item) => (item.track.embedded?item.track.key:String(item.index)) === previous);
+    previewSubtitleSelect.value = String(known ? previous : (previewable[0].track.embedded?previewable[0].track.key:previewable[0].index));
   }
 
   previewSubtitleSelect.disabled = !previewable.length;
   const fontRecognition = selectedFontRecognition();
   previewRefreshBtn.disabled =
     !(videoInput.files[0] && previewable.length) ||
-    fontIdentityPending() ||
-    fontRecognition.ignored.length > 0;
+    (!selectedPreviewTrack()?.embedded && (fontIdentityPending() || fontRecognition.ignored.length > 0));
   if (previewTimeInput) previewTimeInput.disabled = !previewable.length;
   if (previewPrevCueBtn) previewPrevCueBtn.disabled = !previewable.length;
   if (previewNextCueBtn) previewNextCueBtn.disabled = !previewable.length;
@@ -4380,10 +4399,8 @@ async function refreshSubtitlePreview() {
   if (isBusy()) return;
 
   const video = videoInput.files[0];
-  const tracks = selectedSubtitleTracks();
-  const selectedIndex = Number(previewSubtitleSelect?.value || 0);
-  const track = tracks[selectedIndex];
-  const fontFiles = selectedFonts();
+  const track = selectedPreviewTrack();
+  let fontFiles = selectedFonts();
 
   await destroySubtitlePreview();
   const generation = previewGeneration;
@@ -4404,6 +4421,7 @@ async function refreshSubtitlePreview() {
   const mountPoint = `/${prefix}-preview-input`;
   const inputPath = `${mountPoint}/${video.name}`;
   const assPath = `/${prefix}-preview.ass`;
+  const embeddedAssPath = `/${prefix}-source-preview.ass`;
   const fontDir = `/${prefix}-preview-fonts`;
   const basePath = `/${prefix}-preview-base.png`;
   const outputPath = `/${prefix}-preview-sub.png`;
@@ -4416,6 +4434,26 @@ async function refreshSubtitlePreview() {
     await loadFFmpeg();
     if (cancelRequested || generation !== previewGeneration) return;
 
+    await ffmpeg.createDir(mountPoint);
+    await ffmpeg.mount(FFFSType.WORKERFS, { files: [video] }, mountPoint);
+    mounted = true;
+    const stillCurrent=()=>videoInput.files[0]===video && generation===previewGeneration && !cancelRequested;
+    let sourceAss;
+    if(track.embedded){
+      if(track.sourceFile!==video)throw Error('来源字幕预览身份已过期');
+      const extraction=await execWithCapturedLogs(['-hide_banner','-loglevel','error','-y',
+        '-copyts','-i',inputPath,'-map','0:'+track.streamIndex,'-c:s','ass','-f','ass',
+        '-fs',String(MAX_EMBEDDED_ASS_BYTES),embeddedAssPath]);
+      if(extraction.code!==0)throw Error('无法读取来源 ASS：'+usefulLogTail(extraction.logs));
+      const bytes=await ffmpeg.readFile(embeddedAssPath);
+      if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>=MAX_EMBEDDED_ASS_BYTES)throw Error('来源 ASS 超过 8 MiB 预览读取范围或为空');
+      sourceAss=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+      fontFiles=await readEmbeddedPreviewFonts(video,{isCurrent:stillCurrent});
+      if(!stillCurrent())return;
+      embeddedPreviewCueCache={source:video,streamIndex:track.streamIndex,times:extractPreviewCueTimes(sourceAss)};
+      logEl.textContent+='PREVIEW: 来源 ASS #'+track.streamIndex+'；仅为预览读取 '+fontFiles.length+' 个内封字体，不修改输出选择。\n';
+    } else sourceAss=await buildPreviewAss(track,fontFiles);
+    if(!stillCurrent())return;
     const previewFonts = await Promise.all(fontFiles.map(async (font) => {
       const identity = await identifyFontFile(font);
       if (!isSupportedFontIdentity(identity)) {
@@ -4427,11 +4465,7 @@ async function refreshSubtitlePreview() {
       }
       return { file: font, identity };
     }));
-    const sourceAss = await buildPreviewAss(track, fontFiles);
-
-    await ffmpeg.createDir(mountPoint);
-    await ffmpeg.mount(FFFSType.WORKERFS, { files: [video] }, mountPoint);
-    mounted = true;
+    if(!stillCurrent())return;
     await ffmpeg.createDir(fontDir);
 
     const previewProbePath = `/${prefix}-preview-probe.json`;
@@ -4557,7 +4591,7 @@ async function refreshSubtitlePreview() {
     previewStatus.textContent = '正在用 libass 渲染字幕到预览帧……';
     const filter = `ass=${assPath}:fontsdir=${fontDir}`;
     const renderCode = await ffmpeg.exec([
-      '-hide_banner', '-loglevel', 'error', '-y',
+      '-hide_banner', '-loglevel', track.embedded ? 'info' : 'error', '-y',
       '-loop', '1',
       '-framerate', '10',
       '-i', basePath,
@@ -4577,17 +4611,24 @@ async function refreshSubtitlePreview() {
     previewImage.src = previewImageURL;
     previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.file.name} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 内封字体 '+fontFiles.length+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();
     previewEmpty?.classList.remove('hidden');
-    previewStatus.textContent = `无法生成预览帧：${error?.message || error}`;
+    const embeddedErrorText={
+      EMBEDDED_PREVIEW_ATTACHMENT_INSPECTION_REQUIRED:'无法可靠检查来源附件，未载入内封字体。',
+      EMBEDDED_PREVIEW_FONT_HEADER_INVALID:'来源中声明的字体内容无法识别，未生成替代预览。',
+      EMBEDDED_PREVIEW_FONT_BUDGET_EXCEEDED:'内封字体超过预览范围：最多32项、单项8 MiB、合计32 MiB。',
+      EMBEDDED_PREVIEW_STALE_SOURCE:'来源已更换，请重新选择字幕预览。',
+    };
+    previewStatus.textContent = `无法生成预览帧：${embeddedErrorText[error?.message] || error?.message || error}`;
     logEl.textContent += `PREVIEW ERROR: ${error?.stack || error}\n`;
   } finally {
     await removeQuietly(outputPath);
     await removeQuietly(basePath);
     await removeQuietly(assPath);
+    await removeQuietly(embeddedAssPath);
     if (loaded) {
       for (const path of previewFontPaths) {
         await removeQuietly(path);
