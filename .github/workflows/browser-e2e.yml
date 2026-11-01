@@ -536,3 +536,12 @@ jobs:
           path: .e2e/output/bitmap-subtitles/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload source embedded ASS/font preview and final native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-ass-font-preview
+          path: .e2e/output/embedded-ass-preview/
+          if-no-files-found: error
+          retention-days: 14

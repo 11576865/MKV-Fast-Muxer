@@ -74,7 +74,9 @@
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
-          "tests/output-font-payload-audit.test.mjs"
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/embedded-preview.test.mjs",
+          "tests/e2e/embedded-ass-preview-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13069988223,
@@ -366,11 +368,13 @@
         "testPaths": [
           "tests/preview-ui.test.mjs",
           "tests/p3-final-ass-render-proof.test.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/e2e/browser-mux.e2e.mjs",
+          "tests/embedded-preview.test.mjs",
+          "tests/e2e/embedded-ass-preview-scenario.mjs"
         ],
         "currentEntry": "字幕预览及按时间/条目定位",
-        "remainingChecks": "已有外部 ASS/字体封装成 MKV 后的隔离 libass 渲染；仍须区分这与从导入 MKV 直接选择已有内封 ASS/字体的普通工作台路径，后者不能由前者证明。",
-        "classification": "PARTIAL_IMPLEMENTATION"
+        "remainingChecks": "0.1035 接通普通工作台导入 MKV 内已有 ASS/SSA 与内封字体的按需静态预览；受控独特字体、外部参考帧一致、来源切换和之后真实 MKV 已本地验证。完整 CI 的独立原生成品渲染及最终候选、复杂字体/缺字组合仍待核验，不自动签发 PASS。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },
     {
@@ -625,11 +629,13 @@
         "testPaths": [
           "tests/preview-ui.test.mjs",
           "tests/p3-final-ass-render-proof.test.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/e2e/browser-mux.e2e.mjs",
+          "tests/embedded-preview.test.mjs",
+          "tests/e2e/embedded-ass-preview-scenario.mjs"
         ],
         "currentEntry": "字幕预览及按时间/条目定位",
-        "remainingChecks": "现有 P3 隔离渲染证据从外部 ASS/字体生成 MKV 后再提取验证；这不等于普通工作台能从导入 MKV 中选取已有内封 ASS 和字体直接预览。需补该来源内封资源的用户路径及真实证明。",
-        "classification": "PARTIAL_IMPLEMENTATION"
+        "remainingChecks": "0.1035 接通普通工作台导入 MKV 内已有 ASS/SSA 与内封字体的按需静态预览；受控独特字体、外部参考帧一致、来源切换和之后真实 MKV 已本地验证。完整 CI 的独立原生成品渲染及最终候选、复杂字体/缺字组合仍待核验，不自动签发 PASS。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },
     {
