@@ -134,9 +134,11 @@
         "testPaths": [
           "tests/subtitle-format.test.mjs",
           "tests/subrip-output-audit.test.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/e2e/browser-mux.e2e.mjs",
+          "tests/e2e/bitmap-subtitle-scenario.mjs",
+          "tests/bitmap-subtitle-audit.test.mjs"
         ],
-        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "remainingChecks": "0.1034 新增自产 PGS/SUP 与 VobSub 有效夹具的正常工作台真实输出、原生 packet/PTS 和解码图像抽样核验，并修复时间偏移；仍需最终候选的格式/组合及复杂真实字幕覆盖，不据此判整个条目 PASS。",
         "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },

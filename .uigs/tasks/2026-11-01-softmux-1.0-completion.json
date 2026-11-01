@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "coverage_reconciliation_complete_pending_documentation_ci",
-  "current_bounded_work_unit": "Map all 44 legacy capabilities and 57 original cases to current entry/test/scenario coverage, retaining concrete implementation and evidence gaps",
+  "status": "bitmap_unit_complete_pending_external_validation",
+  "current_bounded_work_unit": "0.1034: real PGS/SUP and VobSub normal-workbench delivery, fix reproduced non-zero cue timeline shift, native payload/PTS/decoded-image/media-copy oracles",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -11,22 +11,23 @@
     "PR #209 exact head dea66f1 passed all three full workflows; merged @ ff20c2b8c8ef9fb2388ce0783f339183ab53eccd",
     "PR205 release gate integrated with 14 scenario implementation/test/artifact links; reviewer findings fixed: formal-version auto-deploy bypass and dirty attestation checkout; 781 Node tests/build passed locally",
     "PR #210 exact head c334d3d passed Deploy 41275180800, Browser 41275180606 and S12 41275180607; merged @ 83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
-    "All 44+57 rows now have item-level coverageReview; unchanged original identities/verdicts, all linked tests exist; reviewer corrected pure-container batch, source-internal ASS and read-only boundary mappings"
+    "All 44+57 rows now have item-level coverageReview; unchanged original identities/verdicts, all linked tests exist; reviewer corrected pure-container batch, source-internal ASS and read-only boundary mappings",
+    "PR #211 documentation build passed @98edca7; merged @4e024e5d7b0b0e2aa80337fe23d8426ef75d576d",
+    "PGS/VobSub actual-browser RED shifted PTS despite UI audit pass; same scenario GREEN after extending copyts/avoid_negative_ts protection; 785 Node tests/build and native decoded-frame/packet/source integrity checks passed locally"
   ],
   "next_units": [
-    "Add valid PGS/SUP/VobSub actual-mux fixtures and independent stream/timing readback for T-006 / S02",
-    "Address source-internal ASS/font workflow and pure-container batch implementation boundaries according to first-release scope; verify read-only versus writer-limit boundary",
+    "Validate full exact-head bitmap regression CI, then source-internal ASS/font workflow and pure-container batch implementation boundaries; verify read-only versus writer-limit boundary",
     "Collect target desktop/tablet S12/S13 evidence and complete exact-candidate site/rollback/formal promotion verification"
   ],
-  "branch": "docs/softmux-acceptance-reconciliation-20261101",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/211",
-  "latest_durable_commit": "da01ef48bbe5d1bc79e81b1f01bda400394b67bb",
+  "branch": "test/softmux-bitmap-subtitle-output-20261101",
+  "pr": null,
+  "latest_durable_commit": "4e024e5d7b0b0e2aa80337fe23d8426ef75d576d",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended @72e2cf559ce043eb1ce4dda6633c4eedad196f19; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended with bitmap timeline/repacketization proof; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -34,10 +35,12 @@
     "release_gate_local": "781/781 Node tests passed; build passed; audit correctly reports not ready with frozen 14/44/57 denominator",
     "release_gate_ci": "PR #210 submitted; final exact-head full workflows pending; stop at durable execution boundary",
     "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
-    "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance"
+    "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance",
+    "bitmap_local": "785 Node tests/build passed; actual Chromium PGS/VobSub MKV, versioned JSON report, original packets/times/decoded frames and video/audio bytes verified",
+    "bitmap_ci": "Not yet submitted; full CI scenario wired early with mandatory artifact"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T05:14:49.734Z"
+  "updated_at": "2026-11-01T08:40:16.613626+00:00"
 }

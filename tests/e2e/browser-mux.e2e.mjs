@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioBitmapSubtitles} from './bitmap-subtitle-scenario.mjs';
 import {scenarioMultiSourceDrafts} from './multi-source-drafts-scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -7677,6 +7678,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioBitmapSubtitles(browser,{root,outDir:path.join(outDir,'bitmap-subtitles'),baseUrl});
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
   await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
