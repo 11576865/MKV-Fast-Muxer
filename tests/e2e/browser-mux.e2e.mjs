@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioMultiSourceDrafts} from './multi-source-drafts-scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -3929,7 +3930,7 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
       path.join(root, 'source-with-attachments.mkv'),
     ]);
     await page.waitForFunction(() => document.querySelectorAll('.asset-entry[data-kind="container"]').length === 2);
-    assert.match(await page.locator('#assetImportStatus').textContent(), /请选择主源/);
+    assert.match(await page.locator('#assetImportStatus').textContent(), /请选择要打开的容器/);
     assert.equal(await page.locator('#videoInput').evaluate(el => el.files.length), 0);
     assert.equal(await page.locator('#muxBtn').isDisabled(), true);
 
@@ -7668,6 +7669,7 @@ const browser = await chromium.launch({
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioMultiSourceDrafts(browser,{root,outDir,baseUrl});
   await scenarioAttachmentOnlyWorkbench(browser,{root,outDir,baseUrl});
   await scenarioCandidateMembership(browser,{root,outDir,baseUrl});
   await scenarioS13SameMetadataCompositionSelection(browser);
