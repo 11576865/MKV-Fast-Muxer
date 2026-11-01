@@ -1,0 +1,193 @@
+{
+  "schema": "softmux-observed-ci-evidence-v1",
+  "productCommit": "dea66f1e069fdf111125f002000b184cdc8f3882",
+  "mergedAs": "ff20c2b8c8ef9fb2388ce0783f339183ab53eccd",
+  "runId": 41272675000,
+  "runUrl": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000",
+  "conclusion": "success",
+  "limits": "Historical exact-head CI observations only. Artifact metadata was queried; archive contents are not independently re-audited by this index. Not formal 1.0 PASS and not proof for later commits.",
+  "artifacts": [
+    {
+      "id": 13070326576,
+      "name": "p0-attachmentuid-target-relation-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070326576",
+      "digest": "sha256:2f34b4390386283a1e01df920b94d73997aff4d133afd22197b557a23aa5f18d",
+      "expiresAt": "2026-11-15T04:26:18Z"
+    },
+    {
+      "id": 13070257048,
+      "name": "p0-trackuid-target-relation-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070257048",
+      "digest": "sha256:4ca7659679713df6865616f3b6dd9c1909e8560b2f560884f814c4bacfe4dcc3",
+      "expiresAt": "2026-11-15T04:26:16Z"
+    },
+    {
+      "id": 13070201773,
+      "name": "s10-twenty-real-matroska-batch-evidence",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070201773",
+      "digest": "sha256:a895a2f10275c26488380d7a7d2733277943bd36434d8fc87a5979bc6d5e0ae0",
+      "expiresAt": "2026-11-15T04:21:53Z"
+    },
+    {
+      "id": 13070177339,
+      "name": "normal-attachment-only-delivery",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070177339",
+      "digest": "sha256:3a7972c5b9a31bb38d47781417f39bb32edb754e557299331bad3006ed700f47",
+      "expiresAt": "2026-11-15T04:25:41Z"
+    },
+    {
+      "id": 13070102890,
+      "name": "p2-existing-attachment-impact-browser-ui",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070102890",
+      "digest": "sha256:d17668f056393d9a17e2df86005360c6aedaa79c122ce3d0ffcf6b220cc57fa1",
+      "expiresAt": "2026-11-15T04:25:56Z"
+    },
+    {
+      "id": 13070082900,
+      "name": "p2-existing-mkv-append-attachment-candidate",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070082900",
+      "digest": "sha256:72667152879eb15f6996b01e28d8a832c42cf5f0268e10c70d4fe408cc26a785",
+      "expiresAt": "2026-11-15T04:26:07Z"
+    },
+    {
+      "id": 13070077921,
+      "name": "multi-source-drafts-real-output",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070077921",
+      "digest": "sha256:cc3abdb73a6f85212c992177618fdbd3761e253a228b680126f661e0f4c81a95",
+      "expiresAt": "2026-11-15T04:25:39Z"
+    },
+    {
+      "id": 13070073100,
+      "name": "p2-existing-attachment-relation-graph-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070073100",
+      "digest": "sha256:b4e8b09f4d9fd603ff206f0e113c8cc7e557dd6471c690dc2d9ad540caa0e043",
+      "expiresAt": "2026-11-15T04:26:04Z"
+    },
+    {
+      "id": 13070052974,
+      "name": "r02-png-only-matroska-experiment",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070052974",
+      "digest": "sha256:4b33bbfe55422b9c8e847f4fadfafcb75d667e6de39a75723d4416e5290a5d39",
+      "expiresAt": "2026-11-15T04:25:58Z"
+    },
+    {
+      "id": 13070008275,
+      "name": "s09-conflict-source-attachment-atomic-undo",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13070008275",
+      "digest": "sha256:b0e2589db3b3cf4534183f8ac7a2295ca6d1e6374bc6975dcfc369924458df80",
+      "expiresAt": "2026-11-15T04:25:45Z"
+    },
+    {
+      "id": 13069998397,
+      "name": "p2-complex-mkv-raw-protection-contract",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069998397",
+      "digest": "sha256:bf424081594eb975bd11f306b3ada0408efb8e255cf4828eb378092f259a6f68",
+      "expiresAt": "2026-11-15T04:26:05Z"
+    },
+    {
+      "id": 13069993334,
+      "name": "r02-candidate-jobplan-writer-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069993334",
+      "digest": "sha256:74a9428f960bb8736857f0128cf58f433c67243d2dce36a3c1d833c6e74c1d67",
+      "expiresAt": "2026-11-15T04:25:59Z"
+    },
+    {
+      "id": 13069988223,
+      "name": "p3-final-mkv-libass-render-proof",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069988223",
+      "digest": "sha256:5ec3b09dd7eb45bcda18528e9cc2db08e45f86749b47b14a5a135fa2abf511fa",
+      "expiresAt": "2026-11-15T04:25:48Z"
+    },
+    {
+      "id": 13069978320,
+      "name": "p2-browser-multi-attachment-independent-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069978320",
+      "digest": "sha256:4595fbb0036bd0e140b3977a52435c4beab7e9154f598047ec755e8db67d3c25",
+      "expiresAt": "2026-11-15T04:25:55Z"
+    },
+    {
+      "id": 13069968318,
+      "name": "mkv-ui-container-tree-viewports",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069968318",
+      "digest": "sha256:1ee0dc4f8a0a5712be156b0e25ccc3eaf9a6d36911e0d5a3cb5fb544a552a148",
+      "expiresAt": "2026-11-15T04:26:19Z"
+    },
+    {
+      "id": 13069863678,
+      "name": "s09-cross-reload-two-draft-real-mkv",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069863678",
+      "digest": "sha256:973e34e179f94381aa6e0fe898ae197d138d779095fed57cf162db5a8d08e5a4",
+      "expiresAt": "2026-11-15T04:25:47Z"
+    },
+    {
+      "id": 13069838670,
+      "name": "p2-existing-void-layout-independent-matrix",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069838670",
+      "digest": "sha256:ac81f174562c1877fd777e9222193e0d2e273dec17c086d0cf1e72e115a130e0",
+      "expiresAt": "2026-11-15T04:26:10Z"
+    },
+    {
+      "id": 13069818711,
+      "name": "s08-current-workbench-complex-mkv-safety",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069818711",
+      "digest": "sha256:a20de7fa32770f7a08b76f5bcbec92da12359e93d80c2e1faeb9e5c38fdb1f35",
+      "expiresAt": "2026-11-15T04:25:38Z"
+    },
+    {
+      "id": 13069808867,
+      "name": "p3-dynamic-mkv-ass-temporal-evidence",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069808867",
+      "digest": "sha256:a0a9310f79b7ef67078f29a70af3c239265c5b63a228beaf0385c25a16c40c66",
+      "expiresAt": "2026-11-15T04:25:52Z"
+    },
+    {
+      "id": 13069734045,
+      "name": "p2-generic-multi-attachment-writer-research",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069734045",
+      "digest": "sha256:6f64f13bb78ef6434ee661d09b0450347ebaf7d65d69aa56f14166aa6033d9c4",
+      "expiresAt": "2026-11-15T04:26:01Z"
+    },
+    {
+      "id": 13069729140,
+      "name": "p2-existing-attachment-edit-fail-closed",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069729140",
+      "digest": "sha256:eb06294f5810c32b157d455c9c4c2208c78bbc30c8abd753eaea03e0dde2db7f",
+      "expiresAt": "2026-11-15T04:26:02Z"
+    },
+    {
+      "id": 13069719042,
+      "name": "p2-cross-writer-decode-seek-matrix",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069719042",
+      "digest": "sha256:35fcba68c5b85010849eaa05b0055aefe81b34e39d055a03b25c13c0979e1d6e",
+      "expiresAt": "2026-11-15T04:26:15Z"
+    },
+    {
+      "id": 13069704090,
+      "name": "candidate-preview-output-membership",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069704090",
+      "digest": "sha256:95290670bacd500ee61a21d4d32d0b0572fbedb6cbe9e0ed88406aebd28be101",
+      "expiresAt": "2026-11-15T04:25:43Z"
+    },
+    {
+      "id": 13069704075,
+      "name": "wu03-fa-modern-workspace-actual-mkv-native-evidence",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069704075",
+      "digest": "sha256:1aebc6a19867f3c3c0ba9a7b550acb40d1c153e1838fad77b30419d3c820f632",
+      "expiresAt": "2026-11-15T04:25:36Z"
+    },
+    {
+      "id": 13069654353,
+      "name": "r02-browser-png-only-candidate-audit",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069654353",
+      "digest": "sha256:5b8d83c586d0ca14aa27b859df8afc61b732826899d9195d27cf6767a4bd3988",
+      "expiresAt": "2026-11-15T04:25:53Z"
+    },
+    {
+      "id": 13069634773,
+      "name": "five-step-container-recipe-workbench-evidence",
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41272675000/artifacts/13069634773",
+      "digest": "sha256:d06f0541341d17289c11b7ebfa6765381be79f654666944304346985722ab04d",
+      "expiresAt": "2026-11-15T04:25:50Z"
+    }
+  ]
+}

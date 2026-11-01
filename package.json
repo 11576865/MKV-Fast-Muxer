@@ -1,7 +1,7 @@
 {
   "name": "mkv-fast-muxer-v3",
   "private": true,
-  "version": "0.1032.0",
+  "version": "0.1033.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "postinstall": "node scripts/copy-core.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "node tests/e2e/browser-mux.e2e.mjs",
-    "test:e2e:batch20": "node tests/e2e/batch-20-real.e2e.mjs"
+    "test:e2e:batch20": "node tests/e2e/batch-20-real.e2e.mjs",
+    "release:audit": "node scripts/audit-softmux-1.0-release.mjs --audit",
+    "release:gate": "node scripts/audit-softmux-1.0-release.mjs --release"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "0.12.15",

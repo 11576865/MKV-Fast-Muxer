@@ -36,6 +36,13 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Audit 1.0 release evidence ledger (developer version remains allowed)
+        run: npm run release:audit
+
+      - name: Prevent automatic formal-release publication through developer workflow
+        if: github.event_name != 'pull_request'
+        run: npm run release:audit -- --deployment
+
       - name: Build
         run: npm run build
 
