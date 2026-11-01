@@ -563,3 +563,12 @@ jobs:
           path: .e2e/output/readonly-writer-boundary/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload retained original subtitle packet and timestamp proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-subtitle-timeline
+          path: .e2e/output/original-subtitle-timeline/
+          if-no-files-found: error
+          retention-days: 14

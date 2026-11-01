@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1",
+  "currentDevelopmentBaseline": "49101cc2acb0b83186a86874c1b2126c25c2e8ce",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -54,7 +54,8 @@
           "tests/subtitle-format.test.mjs",
           "tests/e2e/candidate-membership-scenario.mjs",
           "tests/e2e/bitmap-subtitle-scenario.mjs",
-          "tests/bitmap-subtitle-audit.test.mjs"
+          "tests/bitmap-subtitle-audit.test.mjs",
+          "tests/e2e/original-subtitle-timeline-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13069704090,
@@ -97,7 +98,8 @@
       "implementationEvidence": {
         "testPaths": [
           "tests/live-source-track-authority.test.mjs",
-          "tests/e2e/multi-source-drafts-scenario.mjs"
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/original-subtitle-timeline-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13070077921

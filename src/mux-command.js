@@ -44,10 +44,12 @@ export function buildMuxCommand({
   originalAttachmentCount = 0,
   fontAttachments = [],
 }) {
-  // Encoder-priming audio timestamps can shift newly delivered subtitles
+  // Encoder-priming audio timestamps can shift both retained and newly delivered subtitles
   // even under stream copy. Preserve the timeline for scoped ASS/SRT/WebVTT/PGS/VobSub
   // delivery; finished-output demux checks must still prove the actual times.
-  const needsSubtitleTimeline = newSubtitleTracks.some((track) =>
+  const retainsSourceSubtitles = preserveAllSourceStreams || preserveAllOriginalSubtitles
+    ? sourceSubtitleCount > 0 : originalSubtitleTracks.length > 0;
+  const needsSubtitleTimeline = retainsSourceSubtitles || newSubtitleTracks.some((track) =>
     ['ass', 'srt', 'webvtt', 'pgs', 'vobsub'].includes(track.format?.id) ||
     /\.(ass|srt|vtt|webvtt|sup|idx)$/i.test(String(track.path || '')));
   const args = needsSubtitleTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];
@@ -181,7 +183,7 @@ export function buildMuxCommand({
   });
 
   // -copyts alone does not override the Matroska muxer's automatic
-  // avoid_negative_ts shifting. Keep source timeline intact for new timed subtitle
+  // avoid_negative_ts shifting. Keep source timeline intact for retained or added subtitle
   // tracks; real browser output/packet evidence is the acceptance gate.
   if (needsSubtitleTimeline) args.push('-avoid_negative_ts', 'disabled');
   args.push(outputPath);
