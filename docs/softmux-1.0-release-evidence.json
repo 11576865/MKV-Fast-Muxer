@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "ff20c2b8c8ef9fb2388ce0783f339183ab53eccd",
+  "currentDevelopmentBaseline": "ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -1459,11 +1459,13 @@
         "testPaths": [
           "tests/preservation-preflight.test.mjs",
           "tests/matroska-raw-preservation-contract.test.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/e2e/browser-mux.e2e.mjs",
+          "tests/readonly-writer-boundary.test.mjs",
+          "tests/e2e/readonly-writer-boundary-scenario.mjs"
         ],
         "currentEntry": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
-        "remainingChecks": "本条要求只读观察与 writer 上限独立：需验证超 writer 准入预算/布局的来源仍可安全扫描和只读检查。现有 writer 拒绝用例及 data stream 讨论不能代替这条边界的 UI 正例。",
-        "classification": "EVIDENCE_GAP"
+        "remainingChecks": "0.1037 本地验证含61 MiB Void的无媒体 Matroska 文档、定向 AttachmentUID42 来源：实际 writer 分别因预算/UID引用拒绝，只读工具仍提取准确附件，批量生成部分结构报告；同路径新 File 的 cancel 重选不继承审核。完整 CI 的独立原生附件/Tag核验及最终候选仍待完成；不等于任意未知/损坏来源都可解析，也不作为 S12 大媒体/设备证据。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },
     {
