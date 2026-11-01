@@ -63,6 +63,17 @@ export async function scenarioCandidateMembership(browser,{root,outDir,baseUrl})
    return {dest,streams:parsed.streams};
   };
   const first=await save('candidate-excluded.mkv');
+  // A newly included generic attachment changes intended output even though
+  // the media-only displayed plan lacks a supported generic attachment writer.
+  const opaquePng=path.join(root,'media-currency-cover.png');
+  await fs.writeFile(opaquePng,Buffer.from([137,80,78,71,13,10,26,10,1]));
+  await page.setInputFiles('#unifiedAssetInput',opaquePng);
+  await page.waitForFunction(()=>document.querySelector('#assetInventory .asset-entry[data-kind="attachment"]'));
+  assert.equal(await page.locator('#muxBtn').isEnabled(),false);
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'false');
+  assert.equal(await page.locator('#outputIndexInspectBtn').isEnabled(),false);
+  await page.locator('#assetInventory .asset-entry[data-kind="attachment"] [data-asset-remove]').click();
+
   assert.equal(first.streams.filter(s=>s.codec_type==='subtitle').length,1);
   const source=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',path.join(root,'base.mp4')],{encoding:'utf8'}));
   assert.equal(first.streams.filter(s=>s.codec_type==='audio').length,source.streams.filter(s=>s.codec_type==='audio').length);

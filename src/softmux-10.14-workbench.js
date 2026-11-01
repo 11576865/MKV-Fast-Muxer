@@ -146,7 +146,15 @@ export function mountSoftmux1014Workbench(doc = document) {
   // Present the REAL finished-file evidence within object context, not a
   // hidden parallel badge or a fabricated success state.
   const finishedEvidence = get(doc,'outputEvidencePanel');
-  if (finishedEvidence) get(doc,'sf14Inspector').appendChild(finishedEvidence);
+  if (finishedEvidence) {
+    get(doc,'sf14Inspector').appendChild(finishedEvidence);
+    // Completed-result details belong with the artifact, not as nowrap flex
+    // children of the bounded Start/Cancel dock. Move the original nodes and
+    // preserve their handlers, save registry and download ownership.
+    for(const id of ['downloadLink','reportLink','singleDirectoryActions','auditResult']) {
+      const node=get(doc,id);if(node)finishedEvidence.appendChild(node);
+    }
+  }
   get(doc,'sf14Batch').appendChild(batch);
   // Tablet batch view: the EXISTING job matrix is the primary workspace.
   // Present source intake and recipe as optional drawers, reusing the same

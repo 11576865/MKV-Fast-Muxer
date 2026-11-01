@@ -195,3 +195,14 @@ test('excluded imported candidates remain addressable but do not count as new ou
   assert.equal(row.target.index,1);
   assert.deepEqual(result.changes.map(i=>i.title),['Chosen']);
 });
+
+test('generic attachment output has real resource members without inventing video tracks',()=>{
+ const result=buildOutputComposition({genericAttachments:[
+  {file:file('poster.png'),mimeType:'image/png'},
+  {file:file('notes.pdf'),mimeType:'application/pdf',include:false},
+ ]});
+ assert.equal(result.counts.video,0);
+ assert.equal(result.counts.attachment,1);
+ assert.equal(result.items.length,2);
+ assert.equal(result.items[1].included,false);
+});

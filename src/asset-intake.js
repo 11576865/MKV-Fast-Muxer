@@ -133,6 +133,15 @@ export function classifyAssetBytes(file, input) {
     };
   }
 
+  const png = [137,80,78,71,13,10,26,10].every((value,i)=>bytes[i]===value);
+  const pdf = bytes.length >= 5 && String.fromCharCode(...bytes.subarray(0,5)) === '%PDF-';
+  if (png || pdf) return {
+    file, key:assetIntakeKey(file),kind:'attachment',status:ASSET_STATUS.RECOGNIZED,
+    label:png?'PNG 附件':'PDF 附件',mimeType:png?'image/png':'application/pdf',
+    evidence:png?'png-signature':'pdf-signature',
+    detail:'作为附件保存原始字节；文件头不证明内容安全，不会自动预览或执行。',
+  };
+
   return {
     file,
     key: assetIntakeKey(file),

@@ -36,11 +36,11 @@ export function buildContainerDocument({
   newSubtitles = [],
   fonts = [],
   fontMode = 'preserve',
-  unsupportedAssets = [],
+  unsupportedAssets = [], genericAttachments = [],
 } = {}) {
   const composition = buildOutputComposition({
     video, trackState, appendMode, externalAudio, newSubtitles, fonts,
-    fontMode, unsupportedAssets,
+    fontMode, unsupportedAssets, genericAttachments,
   });
   const subtitleEditIntents = buildSubtitleEditIntentSnapshot({ source: video, newSubtitles });
   const sourceKey = outputCompositionFileKey(video);
