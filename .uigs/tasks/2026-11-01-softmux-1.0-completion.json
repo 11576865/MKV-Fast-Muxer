@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "container_batch_review_unit_complete_pending_external_validation",
-  "current_bounded_work_unit": "0.1036 independent read-only container review on existing batch inputs: no subtitles/remux, partial/failure/cancel states, stable per-item and aggregate JSON downloads",
+  "status": "readonly_writer_boundary_complete_pending_external_validation",
+  "current_bounded_work_unit": "0.1037 prove read-only inspection/extraction survives real writer budget/UID rejection; repair Chromium cancel-only new File reselection in bounded writer UI",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -18,21 +18,23 @@
     "PR #212 repaired head afc4810 passed Browser 41293961698, Deploy 41293961715, S12 41293961706; merged @82caab404295e0f833214a147b0a3ff889185f8f",
     "Embedded ASS/font preview implemented; local source-only MKV import, unique embedded font selection, exact external-reference PNG, cue manual-time RED/GREEN, unchanged source/plan and actual MKV passed; 789 Node tests/build passed",
     "PR #213 exact head b7b5437 passed Browser 41297966648, Deploy 41297966642, S12 41297966628; merged @9dd537ffd6322971ff418df2bb144caa9574620b",
-    "Read-only batch review implemented; local real browser valid/broken/attachment-only inputs, native FFprobe comparison, cancellation with retained first report, source SHA and single-project File isolation passed; 794 Node tests/build passed; independent review no material findings"
+    "Read-only batch review implemented; local real browser valid/broken/attachment-only inputs, native FFprobe comparison, cancellation with retained first report, source SHA and single-project File isolation passed; 794 Node tests/build passed; independent review no material findings",
+    "PR #214 exact head f89d4fa passed Deploy 41300920098, Browser 41300920218, S12 41300920188; merged @ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1",
+    "Actual 61 MiB Void source exceeds 60 MiB writer budget and targeted UID source refuses replacement; seek reader/real browser extraction and batch partial reports still work; distinct payloads, source hashes unchanged; Chromium cancel-only new File bug RED/GREEN; 796 tests/build passed"
   ],
   "next_units": [
-    "Full exact-head container-review CI, then verify read-only access for sources beyond writer layout/budget eligibility",
-    "Consolidate remaining scoped acceptance combinations, target desktop/tablet S12/S13 and exact candidate site/rollback/formal promotion"
+    "Full exact-head boundary CI; consolidate remaining MUST/legacy result receipts into an executable final-candidate acceptance matrix",
+    "Reference desktop/tablet S12/S13 evidence and exact candidate site/rollback/formal promotion"
   ],
-  "branch": "feat/softmux-container-batch-review-20261101",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/214",
-  "latest_durable_commit": "bcd1c0b6100cb485914860c36794ddd7b4bfd4ab",
+  "branch": "test/softmux-readonly-writer-boundary-20261101",
+  "pr": null,
+  "latest_durable_commit": "ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1",
   "external_validation_states": {
-    "node_build_local": "794/794 tests passed; build passed",
+    "node_build_local": "796/796 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #213 b7b5437 all three workflows passed; merged",
+    "full_exact_head_ci": "PR #214 f89d4fa all three full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended @3a11c17fc88fe5d1d3c2581a987e543ab875e1a9; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended @fdbb35f1a47471663aa00f13c25d1a51b8a4485e; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -47,10 +49,13 @@
     "embedded_preview_local": "Real Chromium: only source MKV imported, unique internal family selected, source preview PNG equals external reference; cached cue navigation RED/GREEN, source unchanged and actual MKV generated",
     "embedded_preview_ci": "PR #213 submitted; final exact-head full Browser/native/Deploy/S12 pending",
     "container_review_local": "4 real sources: inspected/failed/inspected/partial; second run inspected/cancelled/notRun/notRun; downloaded completed report retained; native metadata, original SHA and single-project File grants unchanged; 1440/1024 viewports",
-    "container_review_ci": "PR #214 submitted; final exact-head full Browser/Deploy/S12 pending"
+    "container_review_ci": "PR #214 submitted; final exact-head full Browser/Deploy/S12 pending",
+    "readonly_boundary_local": "Both actual writer refusal codes preserved before/after read-only extraction; different attachments extracted exactly, source SHA unchanged; only structural partial batch reports; bounded slice reads/no full-source load in unit test",
+    "same_path_reselect_local": "Actual Chromium: input/change first select vs cancel-only File replacement caused silent prepare refusal; fixed and same regression passed, same-path source invalidates consent, unchanged cancel preserves consent",
+    "readonly_boundary_ci": "Not yet submitted; default full E2E will run mkvmerge/mkvextract attachment and UID-tag checks (local unavailable)"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T11:13:16.900Z"
+  "updated_at": "2026-11-01T11:50:47.848531+00:00"
 }

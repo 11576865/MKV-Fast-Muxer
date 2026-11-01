@@ -554,3 +554,12 @@ jobs:
           path: .e2e/output/container-batch-review/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload read-only access versus writer denial boundary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readonly-writer-boundary
+          path: .e2e/output/readonly-writer-boundary/
+          if-no-files-found: error
+          retention-days: 14

@@ -26,11 +26,12 @@ export function setupExistingMkvRoutedEditorUI({
  }
  function update(){
   const eligible=review.checked && source && replacement &&
-    inspection?.state==='inspected'&&
+    sourceInput.files?.[0]===source && replacementInput.files?.[0]===replacement &&
+    reader?.isCurrentInspection(inspection) && inspection?.state==='inspected'&&
     inspection.attachments.some(item=>item.fileUid===targetSelect.value);
   prepareButton.disabled=Boolean(!eligible||busy);
  }
- sourceInput.addEventListener('change',async()=>{
+ async function bindSourceSelection(){
   expire();review.checked=false;
   source=sourceInput.files?.[0]||null;replacement=replacementInput.files?.[0]||null;
   reader=null;inspection=null;targetSelect.replaceChildren();
@@ -55,16 +56,29 @@ export function setupExistingMkvRoutedEditorUI({
    report('请选择 FileUID 和替换文件、审核并准备安全编辑。');
   }catch(err){report('无法审核来源：'+(err.message||String(err)),'blocked');}
   update();
+ }
+ sourceInput.addEventListener('change',bindSourceSelection);
+ sourceInput.addEventListener('cancel',()=>{
+  // Chromium may emit cancel for same-path reselection while returning a new
+  // File object. Unchanged dialog cancellation preserves the current review.
+  if(sourceInput.files?.[0]!==source)void bindSourceSelection();
  });
- replacementInput.addEventListener('change',()=>{
+ function bindReplacementSelection(){
   expire();replacement=replacementInput.files?.[0]||null;review.checked=false;update();
+ }
+ replacementInput.addEventListener('change',bindReplacementSelection);
+ replacementInput.addEventListener('cancel',()=>{
+  if(replacementInput.files?.[0]!==replacement)bindReplacementSelection();
  });
  targetSelect.addEventListener('change',()=>{expire();review.checked=false;update();});
  review.addEventListener('change',()=>{expire();update();});
  prepareButton.addEventListener('click',async()=>{
   if(busy)return;
   const token=epoch,uid=targetSelect.value;
-  if(!valid(token))return;
+  if(!valid(token)){
+   report('文件选择或审核已变化，请重新选择来源/替换文件并审核。','blocked');
+   update();return;
+  }
   busy=true;update();report('正在选择受限结构路径，并进行本地原文件与成品验证…');
   try{
    const plan=await prepareRoutedAttachmentReplacement({
