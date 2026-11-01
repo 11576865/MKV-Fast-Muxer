@@ -27,8 +27,8 @@
     "Reference desktop/tablet S12/S13 evidence and exact candidate site/rollback/formal promotion"
   ],
   "branch": "test/softmux-readonly-writer-boundary-20261101",
-  "pr": null,
-  "latest_durable_commit": "ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/215",
+  "latest_durable_commit": "14641736a002c1523c9e5333da75ab2b7f59558b",
   "external_validation_states": {
     "node_build_local": "796/796 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -52,10 +52,10 @@
     "container_review_ci": "PR #214 submitted; final exact-head full Browser/Deploy/S12 pending",
     "readonly_boundary_local": "Both actual writer refusal codes preserved before/after read-only extraction; different attachments extracted exactly, source SHA unchanged; only structural partial batch reports; bounded slice reads/no full-source load in unit test",
     "same_path_reselect_local": "Actual Chromium: input/change first select vs cancel-only File replacement caused silent prepare refusal; fixed and same regression passed, same-path source invalidates consent, unchanged cancel preserves consent",
-    "readonly_boundary_ci": "Not yet submitted; default full E2E will run mkvmerge/mkvextract attachment and UID-tag checks (local unavailable)"
+    "readonly_boundary_ci": "PR #215 submitted; final exact-head full Browser/native/Deploy/S12 pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T11:50:47.848531+00:00"
+  "updated_at": "2026-11-01T11:51:32.400Z"
 }
