@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createLiveExternalAssetSession} from '../src/live-external-asset-authority.js';
-import {createLiveWorkspaceAuthority,commitLiveWorkspaceChange} from '../src/live-container-workspace-authority.js';
+import {createLiveWorkspaceAuthority,commitLiveWorkspaceChange,inspectWorkspaceHistory} from '../src/live-container-workspace-authority.js';
 import {
  exportExternalMetadataCheckpoint,parseExternalMetadataCheckpoint,
  prepareExternalMetadataRecovery,applyPreparedExternalRecovery,undoAppliedExternalRecovery,
@@ -42,8 +42,10 @@ test('checkpoint is byte bound, explicitly authorized and recoverable with atomi
  assert.throws(()=>applyPreparedExternalRecovery(later.ws,later.context,safe),/EXPLICIT_CONFIRMATION_REQUIRED/);
  const receipt=applyPreparedExternalRecovery(later.ws,later.context,safe,{confirmed:true});
  assert.equal(later.context.audioRows[0].title,'Author audio');
+ assert.equal(inspectWorkspaceHistory(later.ws).undoCount,0,'imported recovery starts a new authoring history');
  assert.equal(receipt.writerAuthorized,false);
  undoAppliedExternalRecovery(later.ws,later.context,receipt.undo);
+ assert.equal(inspectWorkspaceHistory(later.ws).undoCount,0,'recovery inverse is separate from authoring undo/redo');
  assert.equal(later.context.audioRows[0].title,'Later edit');
  assert.equal(later.ws.project,later.ws.externalSession.project);
 });

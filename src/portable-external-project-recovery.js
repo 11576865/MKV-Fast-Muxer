@@ -8,7 +8,7 @@
  * detached-project replay remains a separate separately authorized operation.
  */
 import { hashBoundedProjectSource } from './container-project-source-proof.js';
-import { inspectLiveWorkspaceAuthority, commitLiveWorkspaceChange } from './live-container-workspace-authority.js';
+import { inspectLiveWorkspaceAuthority, commitLiveWorkspaceChange, resetWorkspaceHistory } from './live-container-workspace-authority.js';
 
 export const EXTERNAL_CHECKPOINT_SCHEMA = 'mkv-external-metadata-checkpoint-v1';
 export const EXTERNAL_CHECKPOINT_MAX_BYTES = 1024 * 1024;
@@ -190,6 +190,7 @@ export function applyPreparedExternalRecovery(workspace,ctx,prepared,{confirmed=
   const result=commitLiveWorkspaceChange(workspace,{
     ...ctx,kind:'external-tracks',changes,
   });
+  resetWorkspaceHistory(workspace);
   return frozen({
     status:result.status,applied:changes.length,writerAuthorized:false,
     undo:frozen({schema:'external-metadata-recovery-undo-v1',
@@ -201,7 +202,9 @@ export function undoAppliedExternalRecovery(workspace,ctx,receipt) {
   if(receipt?.schema!=='external-metadata-recovery-undo-v1'||
       workspace.project!==receipt.project)fail('UNDO_STALE_REVISION');
   assertWitness(receipt.references,ctx,workspace);
-  return commitLiveWorkspaceChange(workspace,{
+  const result=commitLiveWorkspaceChange(workspace,{
     ...ctx,kind:'external-tracks',changes:receipt.changes,
   });
+  resetWorkspaceHistory(workspace);
+  return result;
 }

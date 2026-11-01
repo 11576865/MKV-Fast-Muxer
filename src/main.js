@@ -82,7 +82,7 @@ import {
 } from './live-external-asset-authority.js';
 import {
   createLiveWorkspaceAuthority, commitLiveWorkspaceChange,
-  inspectLiveWorkspaceAuthority,
+  inspectLiveWorkspaceAuthority, inspectWorkspaceHistory, travelWorkspaceHistory,
 } from './live-container-workspace-authority.js';
 import {
   exportExternalMetadataCheckpoint, parseExternalMetadataCheckpoint,
@@ -329,6 +329,10 @@ const containerProjectRestoreStatus = $('containerProjectRestoreStatus');
 const editorMuxBtn = $('editorMuxBtn');
 const objectEditorBack = $('objectEditorBack');
 const objectSelectionHint = $('objectSelectionHint');
+const workspaceUndoBtn = $('workspaceUndoBtn');
+const workspaceRedoBtn = $('workspaceRedoBtn');
+const workspaceHistoryStatus = $('workspaceHistoryStatus');
+const workspaceHistoryList = $('workspaceHistoryList');
 const fontMode = $('fontMode');
 const fontModeHint = $('fontModeHint');
 const fontSubsetEnabled = $('fontSubsetEnabled');
@@ -945,6 +949,56 @@ function reconcileLiveWorkspaceAuthority() {
   });
   return liveWorkspaceAuthority;
 }
+function renderWorkspaceHistory() {
+  if(!workspaceUndoBtn)return;
+  const history=inspectWorkspaceHistory(liveWorkspaceAuthority);
+  const busy=isBusy()||batchRunning||batchStartPending||importInProgress||workspaceAtomicBusy;
+  workspaceUndoBtn.disabled=busy||!history.undoCount;
+  workspaceRedoBtn.disabled=busy||!history.redoCount;
+  workspaceUndoBtn.title=history.undoLabel?'撤销：'+history.undoLabel:'没有可撤销的修改';
+  workspaceRedoBtn.title=history.redoLabel?'重做：'+history.redoLabel:'没有可重做的修改';
+  workspaceHistoryStatus.textContent=history.undoCount||history.redoCount
+    ? '可撤销 '+history.undoCount+' 步 · 可重做 '+history.redoCount+' 步'+
+      (history.undoLabel?'；下一步撤销：'+history.undoLabel:'')
+    : '当前文件绑定尚无编辑记录';
+  workspaceHistoryList.replaceChildren(...history.entries.map(entry=>{
+    const li=document.createElement('li');li.textContent=(entry.applied?'已应用 · ':'待重做 · ')+entry.label;
+    li.dataset.applied=String(entry.applied);return li;
+  }));
+}
+function navigateWorkspaceHistory(direction) {
+  if(isBusy()||batchRunning||batchStartPending||importInProgress||workspaceAtomicBusy)return;
+  try{
+    const receipt=travelWorkspaceHistory(liveWorkspaceAuthority,{
+      ...liveWorkspaceContext(),appendMode:Boolean(appendPreserveAll?.checked&&currentVideoIsMatroska()),
+    },direction);
+    fontMode.value=receipt.mode;
+    // Previous one-shot recovery/attachment inverse receipts must not acquire
+    // renewed authority merely because old metadata values are visible again.
+    recentSourceAttachmentUndo=null;lastProjectRestore=null;
+    externalCheckpointUndo=null;workspaceAtomicUndo=null;
+    resetExternalCheckpointApproval();externalCheckpointControls.undo.disabled=true;
+    clearAtomicApproval();
+    externalAssetAuthorityEpoch++;
+    renderNewTrackLists();renderTrackList();renderAttachmentList();
+    destroySubtitlePreview();
+    updateUI();
+    status.textContent=(direction==='undo'?'已撤销：':'已重做：')+receipt.label+'。当前计划已更新；需重新封装生成对应成品。';
+  }catch(error){status.textContent='历史操作未执行：'+(error?.message||String(error))+'。未提交部分变更。';}
+}
+workspaceUndoBtn?.addEventListener('click',()=>navigateWorkspaceHistory('undo'));
+workspaceRedoBtn?.addEventListener('click',()=>navigateWorkspaceHistory('redo'));
+document.addEventListener('keydown',event=>{
+  if(event.defaultPrevented||event.altKey||!(event.ctrlKey||event.metaKey)||event.isComposing)return;
+  const target=event.target;
+  if(target?.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable=""]'))return;
+  const key=event.key.toLowerCase();
+  const direction=key==='z'?(event.shiftKey?'redo':'undo'):key==='y'&&!event.shiftKey?'redo':null;
+  if(!direction)return;
+  const button=direction==='undo'?workspaceUndoBtn:workspaceRedoBtn;
+  if(button?.disabled)return;
+  event.preventDefault();navigateWorkspaceHistory(direction);
+});
 function liveWorkspaceContext(mode = fontMode.value) {
   return {
     source: videoInput.files?.[0] || null,
@@ -5133,6 +5187,7 @@ function groupedPlanEntries(entries) {
 }
 
 function renderMuxPlan() {
+  renderWorkspaceHistory();
   if (!muxPlan || !planWarnings) return;
   const { entries, warnings } = buildMuxPlan();
   const groups = groupedPlanEntries(entries);

@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "95423a389503979a8cbfa7ec4af570d15fb3b283",
+  "currentDevelopmentBaseline": "e82616090805b0b2ffd94244d46ac923fb0a5f13",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -193,14 +193,16 @@
       "id": "S09",
       "title": "工程恢复与撤销",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "现有联合恢复、浏览器本地恢复点有真实 CI；不包含全部 S09 undo/redo 和所有编辑类型",
+      "openGap": "0.1041 已提供当前绑定下统一50步编辑历史、撤销/重做、分支与快捷键；6步跨领域历史对应3份真实成品已本地原生核验。完整 CI、最终候选与设备验收待完成；文件增删/绑定、子集/保留全部开关及实验性写入明确不属于历史，不自动 PASS。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
           "tests/portable-workspace-atomic-recovery.test.mjs",
-          "tests/workspace-checkpoint-shelf.test.mjs"
+          "tests/workspace-checkpoint-shelf.test.mjs",
+          "tests/live-container-workspace-authority.test.mjs",
+          "tests/e2e/workspace-history-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13069863678,
