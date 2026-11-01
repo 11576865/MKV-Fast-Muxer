@@ -181,3 +181,17 @@ test('deliberately adding the same subtitle File twice preserves two editable oc
   assert.equal(new Set(result.items.map(item => item.id)).size, 2);
   assert.deepEqual(result.items.map(item => item.target.index), [0, 1]);
 });
+
+test('excluded imported candidates remain addressable but do not count as new output tracks',()=>{
+  const included={file:file('chosen.ass'),format:{assLike:true},title:'Chosen'};
+  const candidate={file:file('candidate.ass'),format:{assLike:true},include:false,title:'Preview only'};
+  const result=buildOutputComposition({newSubtitles:[included,candidate],externalAudio:[{file:file('candidate.flac'),include:false}]});
+  assert.equal(result.items.length,3);
+  assert.equal(result.counts.subtitle,1);
+  assert.equal(result.counts.audio,0);
+  const row=result.items.find(i=>i.title==='Preview only');
+  assert.equal(row.included,false);
+  assert.equal(row.status,'candidate');
+  assert.equal(row.target.index,1);
+  assert.deepEqual(result.changes.map(i=>i.title),['Chosen']);
+});

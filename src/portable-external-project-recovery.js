@@ -44,7 +44,9 @@ function validateCheckpoint(input) {
       !Array.isArray(input.rows)||input.rows.length>160) fail('SCHEMA');
   const seen=new Set();
   for(const entry of input.rows) {
-    if(!exactKeys(entry,['kind','index','name','size','sha256','sidecarName','sidecarSize','sidecarSha256','attributes'])||
+    if(!exactKeys(entry,['kind','index','name','size','sha256','sidecarName','sidecarSize','sidecarSha256','attributes',
+          ...(Object.hasOwn(entry,'included')?['included']:[])])||
+        (Object.hasOwn(entry,'included')&&typeof entry.included!=='boolean')||
         !['audio','subtitle'].includes(entry.kind)||
         !Number.isSafeInteger(entry.index)||entry.index<0||
         !textOK(entry.name)||!Number.isSafeInteger(entry.size)||entry.size<0||
@@ -106,7 +108,7 @@ export async function exportExternalMetadataCheckpoint(workspace,ctx,{hashOption
       await digestFile(entry.row.sidecarFile,hashOptions):null;
     assertWitness(locked,ctx,workspace);
     if(workspace.generation!==generation)fail('DRAFT_CHANGED_DURING_HASH');
-    rows.push({...snap,sha256,sidecarSha256,attributes:attrs});
+    rows.push({...snap,sha256,sidecarSha256,attributes:attrs,included:entry.row.include!==false});
   }
   assertWitness(locked,ctx,workspace);
   if(workspace.generation!==generation)fail('DRAFT_CHANGED_DURING_HASH');
@@ -150,6 +152,10 @@ export async function prepareExternalMetadataRecovery(workspace,ctx,checkpoint,{
     assertWitness(locked,ctx,workspace);
     if(workspace.project!==owner||workspace.generation!==generation)
       fail('DRAFT_CHANGED_DURING_HASH');
+    // Legacy v1 checkpoints had no membership field and must not silently
+    // overwrite a current selection. New checkpoints carry explicit intent.
+    if(Object.hasOwn(saved,'included')&&(row.row.include!==false)!==saved.included)
+      changes.push({kind:row.kind,index:row.index,field:'include',value:saved.included});
     for(const field of fieldsFor(row.kind))
       if(row.row[field]!==saved.attributes[field])changes.push({
         kind:row.kind,index:row.index,field,value:saved.attributes[field],
@@ -177,7 +183,8 @@ export function applyPreparedExternalRecovery(workspace,ctx,prepared,{confirmed=
   const changes=prepared.changes;
   if(!changes.length)return frozen({status:'no-change',undo:null,writerAuthorized:false});
   const previous=changes.map(change=>({
-    ...change,value:rowsOf(ctx).find(r=>r.kind===change.kind&&r.index===change.index).row[change.field],
+    ...change,value:(row=>change.field==='include'?row.include!==false:row[change.field])(
+      rowsOf(ctx).find(r=>r.kind===change.kind&&r.index===change.index).row),
   }));
   const before=workspace.project;
   const result=commitLiveWorkspaceChange(workspace,{

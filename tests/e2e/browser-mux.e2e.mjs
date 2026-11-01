@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -7666,6 +7667,7 @@ const browser = await chromium.launch({
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioCandidateMembership(browser,{root,outDir,baseUrl});
   await scenarioS13SameMetadataCompositionSelection(browser);
   await scenarioS13UnifiedAdapterExactFileRebind(browser);
   await scenarioS13UnifiedIntakeIdentityCollision(browser);

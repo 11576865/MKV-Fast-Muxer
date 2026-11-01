@@ -99,7 +99,7 @@ test('S12 modern inspector wires real Blob, has stale-result guard and independe
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
   assert.match(html,/id="outputIndexInspectBtn"[^>]*disabled/);
   assert.match(html,/id="outputIndexResult"[^>]*role="status"/);
-  assert.match(main,/lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video,\s*outputBlob, report \}/);
+  assert.match(main,/lastActualOutput = \{ sourceKey: evidenceSourceAtExecution, sourceFile:video,\s*outputBlob, report, externalSelection \}/);
   assert.match(main,/outputIndexInspectBtn\?\.addEventListener\('click'/);
   assert.match(main,/source:owner\.sourceFile,finished:owner\.outputBlob/);
   assert.match(main,/inspectionSequence !== outputIndexAuditSequence/);

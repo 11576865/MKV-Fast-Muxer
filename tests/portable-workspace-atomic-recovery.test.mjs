@@ -214,3 +214,23 @@ test('S09 accepted multi-owner transaction remains inversible after history comp
  assert.equal(f.audioRows[0].title,'Local override');
  assert.equal(inspectLiveWorkspaceAuthority(f.workspace,f.context).sameImmutableDocument,true);
 });
+
+test('S09 atomic replay and undo share the external semantic include field',async()=>{
+ const f=fresh();
+ commitLiveWorkspaceChange(f.workspace,{...f.context,kind:'external-tracks',changes:[
+  {kind:'subtitle',index:0,field:'include',value:false},
+ ]});
+ const checkpoint=parseExternalMetadataCheckpoint(await exportExternalMetadataCheckpoint(f.workspace,f.context));
+ commitLiveWorkspaceChange(f.workspace,{...f.context,kind:'external-tracks',changes:[
+  {kind:'subtitle',index:0,field:'include',value:true},
+ ]});
+ const prepared=await prepareAtomicWorkspaceRecovery({workspace:f.workspace,context:f.context,
+  sourceDraft:sourceDraft(f.projection),sourceProof:proof,liveProjection:f.projection,
+  externalCheckpoint:checkpoint});
+ const receipt=applyAtomicWorkspaceRecovery(f.workspace,f.context,prepared,{confirmed:true});
+ assert.equal(f.subtitleRows[0].include,false);
+ inspectLiveWorkspaceAuthority(f.workspace,f.context);
+ undoAtomicWorkspaceRecovery(f.workspace,f.context,receipt.undo);
+ assert.equal(f.subtitleRows[0].include,true);
+ inspectLiveWorkspaceAuthority(f.workspace,f.context);
+});
