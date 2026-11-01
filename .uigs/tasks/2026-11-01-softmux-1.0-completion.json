@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "bitmap_unit_complete_pending_external_validation",
-  "current_bounded_work_unit": "0.1034: real PGS/SUP and VobSub normal-workbench delivery, fix reproduced non-zero cue timeline shift, native payload/PTS/decoded-image/media-copy oracles",
+  "status": "bitmap_ci_focus_repair_complete_pending_external_validation",
+  "current_bounded_work_unit": "One bounded repair of PR212 full-browser failure: preserve source-radio focus intent through disabled auto-scan redraw, cancel on user focus/pointer move",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -13,21 +13,22 @@
     "PR #210 exact head c334d3d passed Deploy 41275180800, Browser 41275180606 and S12 41275180607; merged @ 83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
     "All 44+57 rows now have item-level coverageReview; unchanged original identities/verdicts, all linked tests exist; reviewer corrected pure-container batch, source-internal ASS and read-only boundary mappings",
     "PR #211 documentation build passed @98edca7; merged @4e024e5d7b0b0e2aa80337fe23d8426ef75d576d",
-    "PGS/VobSub actual-browser RED shifted PTS despite UI audit pass; same scenario GREEN after extending copyts/avoid_negative_ts protection; 785 Node tests/build and native decoded-frame/packet/source integrity checks passed locally"
+    "PGS/VobSub actual-browser RED shifted PTS despite UI audit pass; same scenario GREEN after extending copyts/avoid_negative_ts protection; 785 Node tests/build and native decoded-frame/packet/source integrity checks passed locally",
+    "PR212 first CI: Deploy 41289901727 and S12 41289901738 passed; Browser 41289901730 passed bitmap native proof then failed source keyboard focus. Scoped repair locally RED/GREEN; 5 source selections and 2 no-steal checks, 785 tests/build passed; independent review no material findings"
   ],
   "next_units": [
-    "Validate full exact-head bitmap regression CI, then source-internal ASS/font workflow and pure-container batch implementation boundaries; verify read-only versus writer-limit boundary",
+    "Validate PR212 repaired exact-head full CI, then source-internal ASS/font preview path; pure-container batch and read-only/write-limit boundaries remain",
     "Collect target desktop/tablet S12/S13 evidence and complete exact-candidate site/rollback/formal promotion verification"
   ],
   "branch": "test/softmux-bitmap-subtitle-output-20261101",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/212",
-  "latest_durable_commit": "ebeda20dfbef98a3aa5c5def638c5f9f2a6bf312",
+  "latest_durable_commit": "0af66c2d08da616b00ed8ee2efd45c05bffabfff",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended @deb8c6e4c9929a0c5f9b51306ad1608fb91c609e; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended with bounded async focus-lifecycle repair; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -37,10 +38,11 @@
     "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
     "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance",
     "bitmap_local": "785 Node tests/build passed; actual Chromium PGS/VobSub MKV, versioned JSON report, original packets/times/decoded frames and video/audio bytes verified",
-    "bitmap_ci": "PR #212 submitted; exact final-head Deploy/Browser/S12 validation pending"
+    "bitmap_ci": "Native bitmap proof passed 41289901730; full Browser failed at existing source radio focus after asynchronous scan; bounded fix ready, next generation pending",
+    "source_focus_local": "Real browser: RED body focus and closed disclosure; GREEN 5 source selections plus keyboard-away and pointer-away cancellation; 785 Node tests/build passed"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T08:41:10.547Z"
+  "updated_at": "2026-11-01T09:37:09.682178+00:00"
 }

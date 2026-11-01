@@ -3939,14 +3939,16 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
       .filter({ hasText: 'source-with-attachments.mkv' }).locator('[data-asset-source]');
     await selectMkvSource.focus();
     await page.keyboard.press('Space');
-    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('data-asset-source')),
-      await selectMkvSource.getAttribute('data-asset-source'),
-      'switching source by keyboard must preserve the focused radio after inventory redraw');
+    const selectedSourceKey = await selectMkvSource.getAttribute('data-asset-source');
     await page.waitForFunction(() => {
       const source = document.querySelector('#videoInput').files[0];
       const btn = document.querySelector('#muxBtn');
       return source?.name === 'source-with-attachments.mkv' && btn && !btn.disabled;
     }, null, { timeout: 120_000 });
+    await page.waitForFunction(key => document.activeElement?.getAttribute('data-asset-source') === key,
+      selectedSourceKey, { timeout: 5000 });
+    assert.equal(await selectMkvSource.evaluate(el => el === document.activeElement), true,
+      'keyboard source focus must return after asynchronous scan and repeated inventory redraws');
     assert.equal(await page.locator('#subInput').evaluate(el => el.files.length), 0);
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
@@ -3958,6 +3960,33 @@ async function scenarioContentFirstSourceAmbiguity(browser) {
     console.log('Source ambiguity and MKV-only remux PASS');
   } finally {
     await context.close();
+  }
+}
+
+async function scenarioSourceFocusUserMoveDuringScan(browser) {
+  for (const mode of ['keyboard-away', 'pointer-away']) {
+    const {context,page} = await openApp(browser);
+    try {
+      await page.setInputFiles('#unifiedAssetInput', [
+        path.join(root,'base.mp4'),path.join(root,'source-with-attachments.mkv'),
+      ]);
+      await page.waitForFunction(() => document.querySelectorAll('[data-asset-source]').length === 2 &&
+        !document.querySelector('[data-asset-source]').disabled);
+      const radio = page.locator('.asset-entry[data-kind="container"]')
+        .filter({hasText:'source-with-attachments.mkv'}).locator('[data-asset-source]');
+      await radio.focus();
+      await page.keyboard.press('Space');
+      await page.waitForFunction(() => document.querySelector('[data-asset-source]:disabled'),null,{timeout:10000});
+      if (mode === 'keyboard-away') await page.locator('.batch-drawer > summary').focus();
+      else await page.locator('.brand-mark').click();
+      await page.waitForFunction(() => document.querySelector('#videoInput')?.files[0]?.name ===
+        'source-with-attachments.mkv' && !document.querySelector('#muxBtn').disabled,null,{timeout:120000});
+      assert.equal(await page.evaluate(() => Boolean(document.activeElement?.hasAttribute('data-asset-source'))),
+        false,'scan completion must not steal focus after an explicit user move');
+      if (mode === 'keyboard-away') assert.equal(await page.locator('.batch-drawer > summary')
+        .evaluate(el => el === document.activeElement),true);
+      console.log('Source scan '+mode+' focus cancellation PASS');
+    } finally { await context.close(); }
   }
 }
 
@@ -7691,6 +7720,7 @@ try {
   await scenarioTabletDesktopUi(browser);
   await scenarioContentFirstMkvIntake(browser);
   await scenarioContentFirstSourceAmbiguity(browser);
+  await scenarioSourceFocusUserMoveDuringScan(browser);
   await scenarioUnifiedWorkBenchZones(browser);
   await scenarioUnifiedContainerTreeEditing(browser);
   await scenarioLiveSourceTrackDomainToRealMux(browser);
