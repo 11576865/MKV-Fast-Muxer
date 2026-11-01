@@ -30,7 +30,7 @@ export function buildOutputComposition({
   newSubtitles = [],
   fonts = [],
   fontMode = 'preserve',
-  unsupportedAssets = [],
+  unsupportedAssets = [], genericAttachments = [],
 } = {}) {
   const items = [];
   // A metadata key is a display hint, not an exact File identity. Two
@@ -115,6 +115,12 @@ export function buildOutputComposition({
       status: 'add', included: true,
       target: { type: 'font', fileKey, index },
     });
+  }
+
+  for (const entry of genericAttachments) {
+    items.push({id:occurrenceId('generic-attachment:'+outputCompositionFileKey(entry.file)),
+      kind:'attachment',title:entry.file.name,detail:entry.mimeType+' · 原始字节附件',
+      status:entry.include===false?'candidate':'add',included:entry.include!==false,target:null});
   }
 
   const counts = { video: 0, audio: 0, subtitle: 0, font: 0, attachment: 0, source: 0 };

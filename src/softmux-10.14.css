@@ -740,3 +740,12 @@
   box-shadow:var(--shadow);
   z-index:10;
 }
+
+/* Artifact links retain text labels when rehosted beside finished evidence.
+ * The generic .icon-link 38px square is only appropriate for icon-only tools. */
+.sf14-inspector .output-evidence-panel .icon-link {
+  width:auto;height:auto;max-width:100%;min-height:38px;
+  display:inline-flex;gap:8px;padding:8px 11px;margin:8px 4px 0 0;
+  font-size:12px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;
+}
+.sf14-inspector .output-evidence-panel .icon-link::after {display:none;}

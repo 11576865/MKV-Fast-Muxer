@@ -1,27 +1,31 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "work_unit_complete_pending_external_validation",
-  "current_bounded_work_unit": "Explicit external track output membership with independent preview, real mux and portable recovery",
+  "status": "attachment_only_work_unit_complete_pending_external_validation",
+  "current_bounded_work_unit": "Normal-workbench PNG/PDF zero-track Matroska delivery with payload readback and shared artifact save",
   "completed_units": [
-    "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified"
+    "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
+    "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
+    "Normal-workbench attachment-only implementation; 764 Node tests/build and local real-browser attachment/media regressions passed; independent MKVToolNix verification pending CI"
   ],
   "next_units": [
-    "Attachment-only real writer integration and independent extraction",
     "Multiple container inspection and source draft preservation",
     "Full release evidence reconciliation and candidate verification"
   ],
-  "branch": "feat/softmux-1.0-completion-20261101",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/207",
-  "latest_durable_commit": "6dbbb06a881481d8aa959a6d1264c57e36a6c95b",
+  "branch": "feat/softmux-attachment-only-delivery-20261101",
+  "pr": null,
+  "latest_durable_commit": "b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9",
   "external_validation_states": {
-    "node_build_local": "757/757 passed; build passed",
+    "node_build_local": "764/764 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #207 submitted; pending exact final-head workflows",
+    "full_exact_head_ci": "Pending attachment-only PR submission",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Case saved in UIGS-Foundry: inbox/cases/2026-11-01-softmux-candidate-membership-capture-output-identity.md @ 0b5f4494281bed002da99bec4791ddbde7356944; no Canonical promotion"
+    "UIGS_Intake": "Existing family located; new evidence update pending",
+    "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
+    "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
+    "native_mkvtoolnix": "Pending exact-head full browser CI; not installed locally"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-10-31T20:14:57.984Z"
+  "updated_at": "2026-11-01T00:43:56.863979+00:00"
 }

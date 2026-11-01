@@ -24,9 +24,9 @@ const freezePlain = value => {
  */
 export function prepareMultiAttachmentOnlyPlan({
   attachments = [], outputName = 'attachments-only.mkv',
-  approveFilenameAdjustments = false,
+  approveFilenameAdjustments = false, minimumCount = 2,
 } = {}) {
-  if (!Array.isArray(attachments) || attachments.length < 2 ||
+  if (![1,2].includes(minimumCount) || !Array.isArray(attachments) || attachments.length < minimumCount ||
       attachments.length > MAX_ATTACHED_FILES) {
     throw new Error('MULTI_ATTACHMENT_COUNT_OUTSIDE_EXPERIMENT_LIMIT');
   }

@@ -103,6 +103,7 @@ import { setupExistingMkvRoutedEditorUI } from './p2-existing-mkv-writer-router-
 import { setupMatroskaInlineMetadataUI } from './p2-matroska-inline-metadata-ui.js';
 import { setupPngOnlyExperimentUI } from './png-only-experiment-ui.js';
 import { setupMultiAttachmentExperimentUI } from './multi-attachment-experiment-ui.js';
+import {generateAttachmentOnlyOutput,snapshotAttachmentSelection,attachmentSelectionCurrent,attachmentOnlyRouteEligible,attachmentOnlyReadiness} from './attachment-only-delivery.js';
 import { captureSubtitleExecutionWitness, validateSubtitleExecutionWitness, verifyStagedSubtitleCommandParity } from './subtitle-execution-gate.js';
 import { classifyBrowserWorkload, classifyMuxSourceSize, MUX_SOURCE_MEMORY_WARNING, formatBytes, sumFileSizes } from './workload.js';
 import { formatOperationError } from './error-feedback.js';
@@ -596,6 +597,11 @@ let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
+let attachmentOnlyRunning = false;
+const genericAttachmentEntries = () => importedAssetEntries.filter(entry=>entry.kind==='attachment');
+const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
+const attachmentOnlyMode = () => attachmentOnlyRouteEligible(importedAssetEntries,liveMediaAdapterFiles());
+const includedGenericAttachments = () => genericAttachmentEntries().filter(entry=>entry.include!==false);
 // The only save authority is the exact currently retained generated pair.
 const singleDirectorySession=createSingleOutputDirectorySaveSession();
 let singleDirectoryHandle=null;
@@ -848,8 +854,10 @@ const outputSubtitleTracks = () => externalOutputTracks(newSubtitleState);
 const outputAudioTracks = () => externalOutputTracks(externalAudioState);
 const externalOutputContext = () => ({audioRows:externalAudioState,
   subtitleRows:newSubtitleState,fonts:selectedFonts(),mode:fontMode.value});
-const currentOutputSelection = owner => Boolean(owner &&
-  isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()));
+const currentOutputSelection = owner => Boolean(owner && (owner.kind==='attachments-only'
+  ? attachmentOnlyMode() && attachmentSelectionCurrent(owner.attachmentSelection,importedAssetEntries)
+  : isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()) &&
+    attachmentSelectionCurrent(owner.genericAttachmentSelection||[],genericAttachmentEntries())));
 
 function selectedSubtitleFiles() {
   return selectedSubtitleTracks().map((track) => track.file);
@@ -1251,6 +1259,7 @@ function selectedInputFiles() {
     ...selectedExternalAudioFiles(),
     ...selectedSubtitleRawFiles(),
     ...selectedFonts(),
+    ...genericAttachmentEntries().map(entry=>entry.file),
   ];
 }
 
@@ -1589,7 +1598,7 @@ function updateUI() {
     : fontRecognition.ignored.length
       ? `${fontRecognition.ignored.length} 个字体内容无法识别`
       : formatFontSelection(fonts);
-  const outputLabel = video ? safeOutputName(video.name) : '—';
+  const outputLabel = video ? safeOutputName(video.name) : attachmentOnlyMode() ? 'attachments.mkv' : '—';
 
   $('videoName').textContent = videoLabel;
   $('videoName').title = video?.name || '';
@@ -1648,6 +1657,9 @@ function updateUI() {
     collectedSubs.invalid.length > 0 ||
     fontRecognition.ignored.length > 0 ||
     currentPreservationReadiness().blocking;
+  if(attachmentOnlyMode()) {
+    muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
+  } else if(includedGenericAttachments().length) muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -1953,6 +1965,24 @@ singleRetryDirectoryBtn?.addEventListener('click', () => {
 function renderActualOutputEvidence() {
   renderSingleDirectorySave();
   if (!outputEvidencePanel) return;
+  if(lastActualOutput?.kind==='attachments-only') {
+    const current=currentOutputSelection(lastActualOutput);
+    outputEvidencePanel.hidden=false;outputEvidencePanel.dataset.audit='pass';outputEvidencePanel.dataset.current=String(current);
+    outputEvidenceTitle.textContent='纯附件成品回读通过';outputEvidenceScopeState.textContent=current?'当前计划':'旧计划';
+    outputEvidenceName.textContent=lastActualOutput.report.output.name;
+    outputEvidenceFacts.textContent='零媒体轨道 · '+lastActualOutput.report.attachments.length+' 个附件 · 每项名称、MIME、UID 与 SHA-256 已核对 · 输出 SHA-256：'+lastActualOutput.report.output.sha256;
+    outputEvidenceIssues.textContent='浏览器完整附件回读一致；不证明文件内容安全或任意播放器可播放。';
+    outputEvidenceRevision.textContent=current?'对应当前附件选择':'附件选择已改变；此前成品不代表当前计划。';
+    const limits=outputEvidencePanel.querySelector('.output-evidence-limits');
+    if(limits)limits.textContent='附件的名称、MIME、UID 与原始字节已回读；无媒体轨道，不证明内容安全、播放器支持或文件已保存到设备。';
+    if(outputIndexInspectBtn)outputIndexInspectBtn.hidden=true;
+    if(outputIndexResult)outputIndexResult.hidden=true;
+    return;
+  }
+  const limits=outputEvidencePanel.querySelector('.output-evidence-limits');
+  if(limits)limits.textContent='ffprobe 审计不等于完整 EBML 或 UID 关系保留验证；成品生成不等于文件已保存到设备。';
+  if(outputIndexInspectBtn)outputIndexInspectBtn.hidden=false;
+  if(outputIndexResult)outputIndexResult.hidden=false;
   const model = lastActualOutput && projectActualOutputEvidence(lastActualOutput.report, {
     currentSourceKey: outputCompositionFileKey(videoInput.files?.[0] || null),
     sourceKeyAtExecution: lastActualOutput.sourceKey,
@@ -2118,6 +2148,7 @@ function renderOutputComposition() {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     externalAudio: externalAudioState,
     newSubtitles: newSubtitleState,
+    genericAttachments:genericAttachmentEntries(),
     fonts: selectedFonts(),
     fontMode: fontMode.value,
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
@@ -2318,6 +2349,16 @@ function renderOutputComposition() {
       }));
     }
   }
+  if(genericAttachmentEntries().length && containerCapabilitySummary) {
+    containerCapabilitySummary.textContent=attachmentOnlyMode()
+      ? attachmentOnlyReadiness(genericAttachmentEntries()).ready ? '纯附件容器：可生成 · 无可播放轨道' : attachmentOnlyReadiness(genericAttachmentEntries()).reason
+      : includedGenericAttachments().length ? '当前不支持普通附件与媒体一同写出；请排除普通附件或移除媒体。' : '普通附件均未加入输出';
+    if(attachmentOnlyMode()) {
+      containerCapabilitySummary.dataset.muxStatus=attachmentOnlyReadiness(genericAttachmentEntries()).ready?'available':'blocked';
+      containerCapabilitySummary.title='1–8 个非空附件；单项 16 MiB、合计 32 MiB；逐项完整 SHA-256 回读；不证明内容安全或已保存。';
+      if(containerCapabilityDetailsList){const li=document.createElement('li');li.textContent=containerCapabilitySummary.title;containerCapabilityDetailsList.replaceChildren(li);}
+    }
+  }
   selectedCompositionId = reconcileContainerSelection(containerDocument, lastCompositionSourceKey, selectedCompositionId);
   lastCompositionSourceKey = containerDocument.sourceKey;
   outputCompositionPanel.hidden = !model.items.length && !model.diagnostics.length;
@@ -2485,6 +2526,7 @@ document.addEventListener(
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       externalAudio: externalAudioState,
       newSubtitles: newSubtitleState,
+    genericAttachments:genericAttachmentEntries(),
       fonts: selectedFonts(),
       fontMode: fontMode.value,
     });
@@ -2508,6 +2550,7 @@ compositionTracks?.addEventListener('click', event => {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     externalAudio: externalAudioState,
     newSubtitles: newSubtitleState,
+    genericAttachments:genericAttachmentEntries(),
     fonts: selectedFonts(),
     fontMode: fontMode.value,
   });
@@ -3243,7 +3286,7 @@ function renderImportedAssetInventory() {
     const selected = roles.sourceKey === entry.key && entry.kind === 'container';
     const canChange = !isBusy() && !batchRunning && !importInProgress;
     const kindLabel = {
-      container: '媒体容器', subtitle: '字幕', font: '字体',
+      container: '媒体容器', subtitle: '字幕', font: '字体', attachment:'普通附件',
       audio: '独立音频', unknown: '未识别',
     }[entry.kind] || '未知';
     const externalRows = entry.kind === 'subtitle' ? newSubtitleState :
@@ -3276,6 +3319,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
       <div class="asset-entry-roles">
+        ${entry.kind==='attachment' ? `<label><input type="checkbox" data-generic-include="${escapeHtml(entry.key)}" ${entry.include!==false?'checked':''} ${canChange?'':'disabled'}> 参与输出</label>` : ''}
         ${external ? `<label><input type="checkbox" data-asset-include="${escapeHtml(entry.key)}" ${external.include !== false ? 'checked' : ''} ${canChange ? '' : 'disabled'}> 参与输出</label>` : ''}
         ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
         ${entry.kind === 'container' ? `<label class="asset-select-source">
@@ -3442,6 +3486,16 @@ for (const target of [assetInventory, assetInspectorHost]) {
 }
 
 assetInventory?.addEventListener('change', (event) => {
+  const generic=event.target.closest('[data-generic-include]');
+  if(generic) {
+    if(isBusy()||batchRunning||importInProgress)return;
+    const entry=importedAssetEntries.find(item=>item.key===generic.dataset.genericInclude&&item.kind==='attachment');
+    if(!entry)return;
+    entry.include=generic.checked;updateUI();
+    focusUpdatedInventoryItem(assetInventory,{selector:'[data-generic-include]',
+      keyAttribute:'data-generic-include',key:entry.key,fallback:assetDropzone});
+    return;
+  }
   const member = event.target.closest('[data-asset-include]');
   if(member) {
     if(isBusy() || batchRunning || importInProgress)return;
@@ -4755,6 +4809,9 @@ function defaultConflictWarnings() {
 }
 
 function buildMuxPlan() {
+  if(attachmentOnlyMode())return {entries:includedGenericAttachments().map(entry=>({kind:'附件',
+    title:entry.file.name,meta:entry.mimeType+' · 原始字节',flags:''})),warnings:[
+    '纯附件 Matroska：无媒体轨道；当前写入器限 1–8 个非空附件，单项 16 MiB、合计 32 MiB。']};
   const video = videoInput.files[0];
   const fonts = selectedFonts();
   const mode = fontMode.value || 'preserve';
@@ -5546,6 +5603,7 @@ function cancelCurrentMuxTask() {
   // Directory writes are not an ffmpeg task and must never terminate Wasm.
   if (!(running || scanning || previewing)) return;
   cancelRequested = true;
+  if(attachmentOnlyRunning){status.textContent='正在取消纯附件生成……';return;}
   if (scanning) containerAutoScanSuppressedKey = fileKey(videoInput.files[0]);
   status.textContent = '正在取消当前操作……';
   logEl.textContent += 'CANCEL: 用户请求终止当前操作。\n';
@@ -5553,6 +5611,37 @@ function cancelCurrentMuxTask() {
   loaded = false;
 }
 cancelBtn.addEventListener('click', cancelCurrentMuxTask);
+
+async function executeCurrentAttachmentOnlyTask() {
+  if(isBusy()||batchRunning||importInProgress||!attachmentOnlyMode())return;
+  const selection=snapshotAttachmentSelection(importedAssetEntries);
+  running=true;attachmentOnlyRunning=true;cancelRequested=false;updateUI();
+  status.textContent='正在生成纯附件容器并逐项核对完整字节……';
+  try {
+    const result=await generateAttachmentOnlyOutput(importedAssetEntries,{isCurrent:()=>
+      !cancelRequested && attachmentOnlyMode() && attachmentSelectionCurrent(selection,importedAssetEntries)});
+    const report={...result.report,productVersion:PRODUCT_PACKAGE_VERSION,plan:buildMuxPlan()};
+    const reportBlob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'});
+    if(outputURL)URL.revokeObjectURL(outputURL);
+    if(reportURL)URL.revokeObjectURL(reportURL);
+    outputURL=URL.createObjectURL(result.blob);reportURL=URL.createObjectURL(reportBlob);
+    downloadLink.href=outputURL;downloadLink.download=result.outputName;
+    downloadLink.textContent='保存成品 · '+result.outputName;downloadLink.classList.remove('hidden');
+    reportLink.href=reportURL;reportLink.download=reportFilename(result.outputName);
+    reportLink.textContent='保存封装报告';reportLink.classList.remove('hidden');
+    ++outputIndexAuditSequence;lastOutputIndexAudit=null;outputIndexAuditPending=false;
+    lastActualOutput={kind:'attachments-only',sourceKey:'',sourceFile:null,outputBlob:result.blob,report,attachmentSelection:selection};
+    singleDirectorySession.replace(lastActualOutput,{blob:result.blob,outputName:result.outputName,reportBlob,
+      reportName:reportFilename(result.outputName),outputSha256:result.outputSha256});
+    singleDirectoryHandle=null;singleDirectoryStatusMessage='';
+    bar.style.width='100%';auditResult.className='audit-result hidden';
+    status.textContent='完成。纯附件容器包含 '+report.attachments.length+' 个附件，零媒体轨道；完整 SHA-256 回读一致。请选择下载或保存到目录。';
+  } catch(error) {
+    status.textContent=cancelRequested?'已取消纯附件生成；此前成品保留。':
+      /FILENAME_REVIEW_REQUIRED/.test(error?.message||'')?'附件名称需要调整；请重命名含路径、保留名称或重名冲突的来源后重新导入。未生成新成品。':
+      '纯附件生成失败：'+(error?.message||String(error))+'；此前成品保留。';
+  } finally {running=false;attachmentOnlyRunning=false;updateUI();}
+}
 
 // One mux operation returns the actual in-memory artifacts to its caller.
 // The single-task button and batch adapter share this executor without
@@ -5562,6 +5651,13 @@ async function executeCurrentMuxTask(explicit = null) {
   // The batch owns the shared FFmpeg instance across all prepare/mux/save
   // phases. A synthetic single-task click must not start between jobs.
   if (isBusy() || (batchRunning && !independent)) return;
+  if(!independent && genericAttachmentEntries().length) {
+    if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
+    if(includedGenericAttachments().length){
+      status.textContent='普通附件目前只支持创建无媒体轨道的新容器；请移除媒体资源，或排除这些附件后继续原封装。';
+      return;
+    }
+  }
   const video = independent ? explicit.source : videoInput.files[0];
   const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
@@ -5625,8 +5721,10 @@ async function executeCurrentMuxTask(explicit = null) {
     fontRecognition.recognized.map((entry) => [fileKey(entry.file), entry.identity])
   );
   const externalSelection = independent ? null : captureExternalOutputSelection(externalOutputContext());
+  const genericAttachmentSelection = independent ? null : snapshotAttachmentSelection(genericAttachmentEntries());
   const assertExternalSelection = () => {
-    if(!independent && !isExternalOutputSelectionCurrent(externalSelection,externalOutputContext()))
+    if(!independent && (!isExternalOutputSelectionCurrent(externalSelection,externalOutputContext()) ||
+        !attachmentSelectionCurrent(genericAttachmentSelection,genericAttachmentEntries())))
       throw Error('执行准备期间输出成员或其来源已变化，请重新核对后封装。');
   };
   const subtitleTracks = independent ? explicit.subtitles : outputSubtitleTracks();
@@ -6614,7 +6712,7 @@ async function executeCurrentMuxTask(explicit = null) {
       // structure inspection; the existing output object URL already retains
       // these bytes until the next task clears it.
       lastActualOutput = { sourceKey: evidenceSourceAtExecution, sourceFile:video,
-        outputBlob, report, externalSelection };
+        outputBlob, report, externalSelection, genericAttachmentSelection };
       singleDirectorySession.replace(lastActualOutput,{
         blob:outputBlob,outputName,reportBlob,
         reportName:reportFilename(outputName),outputSha256,

@@ -53,7 +53,7 @@ export async function executeMultiAttachmentOnlyCandidate(plan) {
       plan.output?.expectedTrackCount !== 0 ||
       plan.output?.expectedClusterCount !== 0 ||
       plan.output?.expectedAttachmentCount !== plan.attachments?.length ||
-      plan.attachments.length < 2 ||
+      plan.attachments.length < 1 ||
       plan.attachments.length > 8 ||
       plan.attachments.some((a, i) =>
         a.fileUid !== String(i + 1) || !a.filename || !a.declaredMimeType)) {

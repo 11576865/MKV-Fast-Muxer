@@ -151,3 +151,17 @@ test('S13: multiple incoming collisions preserve one removable record per user-s
   assert.equal(new Set(failures.map(item => item.file)).size, 2);
   assert.equal(planIncomingAssetIntake([files[0],files[0]]).length, 1);
 });
+
+test('PNG and PDF content become generic attachment resources without MIME trust or media roles',()=>{
+ for(const [name,data,mime] of [
+  ['renamed.data',new Uint8Array([137,80,78,71,13,10,26,10,0]),'image/png'],
+  ['renamed.other',bytes('%PDF-1.7\n'),'application/pdf'],
+ ]) {
+  const result=classifyAssetBytes(fixture(name,data),data);
+  assert.equal(result.kind,'attachment');
+  assert.equal(result.mimeType,mime);
+  const roles=resolveImportedRoles([result]);
+  assert.equal(roles.video,null);
+  assert.equal(roles.unknown.length,0);
+ }
+});
