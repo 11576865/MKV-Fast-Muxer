@@ -19,14 +19,14 @@
     "Collect target desktop/tablet S12/S13 evidence and complete exact-candidate site/rollback/formal promotion verification"
   ],
   "branch": "docs/softmux-acceptance-reconciliation-20261101",
-  "pr": null,
-  "latest_durable_commit": "83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/211",
+  "latest_durable_commit": "da01ef48bbe5d1bc79e81b1f01bda400394b67bb",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case updated with bounded item-level proof distinctions; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended @72e2cf559ce043eb1ce4dda6633c4eedad196f19; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -34,10 +34,10 @@
     "release_gate_local": "781/781 Node tests passed; build passed; audit correctly reports not ready with frozen 14/44/57 denominator",
     "release_gate_ci": "PR #210 submitted; final exact-head full workflows pending; stop at durable execution boundary",
     "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
-    "coverage_documentation_ci": "Not yet submitted"
+    "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T05:14:16.030886+00:00"
+  "updated_at": "2026-11-01T05:14:49.734Z"
 }
