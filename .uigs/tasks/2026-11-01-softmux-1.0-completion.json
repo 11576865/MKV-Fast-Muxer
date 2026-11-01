@@ -12,14 +12,14 @@
     "Full release evidence reconciliation and candidate verification"
   ],
   "branch": "feat/softmux-attachment-only-delivery-20261101",
-  "pr": null,
-  "latest_durable_commit": "b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/208",
+  "latest_durable_commit": "d29d17c1eddba333d99f9ffa7a799c9179d3b14b",
   "external_validation_states": {
     "node_build_local": "764/764 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "Pending attachment-only PR submission",
+    "full_exact_head_ci": "PR #208 submitted; exact final-head workflow receipts pending",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing family located; new evidence update pending",
+    "UIGS_Intake": "Existing Case updated in UIGS-Foundry @ e2366173eb19cf737e047828f528bc07ea330e70; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "Pending exact-head full browser CI; not installed locally"
@@ -27,5 +27,5 @@
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T00:43:56.863979+00:00"
+  "updated_at": "2026-11-01T00:45:05.131Z"
 }
