@@ -8,440 +8,1002 @@
       "originalCapability": "已完成视频 + 字幕 + 字体的一键 MKV 封装",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-002",
       "originalCapability": "MP4/MOV/M4V/MKV/WebM 等输入识别",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "统一导入入口及素材列表",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S13"
+        ],
+        "testPaths": [
+          "tests/asset-intake.test.mjs",
+          "tests/media-identity-integration.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需补目标设备文件/目录/拖放和格式全集的实际导入记录。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-003",
       "originalCapability": "文件/文件夹/拖放/多选资源导入",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "统一导入入口及素材列表",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S13"
+        ],
+        "testPaths": [
+          "tests/asset-intake.test.mjs",
+          "tests/media-identity-integration.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需补目标设备文件/目录/拖放和格式全集的实际导入记录。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-004",
       "originalCapability": "容器内容未扫描的“未知/待确认”状态",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源扫描、来源轨道检查器及素材切换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-005",
       "originalCapability": "外部单独音频导入与 stream copy",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-006",
       "originalCapability": "新字幕 ASS/SSA/SRT/WebVTT/PGS/VobSub 导入",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字幕导入、内容识别及字幕检查器",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/subtitle-format.test.mjs",
+          "tests/subrip-output-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-007",
       "originalCapability": "字幕 UTF-8/UTF-16 及实际格式检测",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字幕导入、内容识别及字幕检查器",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/subtitle-format.test.mjs",
+          "tests/subrip-output-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-008",
       "originalCapability": "WebVTT 到 SubRip 适配",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字幕导入、内容识别及字幕检查器",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/subtitle-format.test.mjs",
+          "tests/subrip-output-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-009",
       "originalCapability": "视频和音频不主动转码",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-010",
       "originalCapability": "新字幕 language/title/Default/Forced 等",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-011",
       "originalCapability": "原 MKV 音轨/字幕轨扫描与选择",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源扫描、来源轨道检查器及素材切换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-012",
       "originalCapability": "原 MKV 音轨/字幕轨排序、排除、属性修改",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源扫描、来源轨道检查器及素材切换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-013",
       "originalCapability": "多项原轨批量改语言、Default、恢复扫描值",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源扫描、来源轨道检查器及素材切换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-014",
       "originalCapability": "原 MKV “保留全部，仅追加”",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "复杂结构的安全拒绝不能写成通用无损 remux 已支持；data/other stream 的完整正例仍需专用有效来源。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-015",
       "originalCapability": "旧兼容模式“保留音频但默认不保留原字幕”等",
       "proposedDisposition": "REPLACE_IMPLICIT_BEHAVIOR",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源扫描、来源轨道检查器及素材切换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-016",
       "originalCapability": "原附件的扫描、保留/排除、文件名和 MIME",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源附件列表、受限编辑及独立成品附件核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06"
+        ],
+        "testPaths": [
+          "tests/existing-attachment-edit-intent.test.mjs",
+          "tests/matroska-attachment-reader.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "只覆盖当前 writer 准入布局/预算；需按具体修改核对 UID、MIME、FileData SHA 和无关字节，不扩称任意结构可写。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-017",
       "originalCapability": "章（Chapters）和标签（Tags）",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "章节/标签观察 → 安全导航 → 等 UTF-8 字节长度替换",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S07",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/p2-matroska-inline-metadata-writer.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 AUDIO-ONLY 原生 ChapString/TagString 场景；仍需在最终候选复核不等长、未知 UID、嵌套/定向标签拒绝，不能扩称任意章节树编辑。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-018",
       "originalCapability": "原附属 data/other stream",
       "proposedDisposition": "PRESERVE_OR_BLOCK",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "复杂结构的安全拒绝不能写成通用无损 remux 已支持；data/other stream 的完整正例仍需专用有效来源。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-019",
       "originalCapability": "字幕/音频/附件同名和输出冲突处理",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "附件导出策略、内容识别、输出防覆盖及异常恢复",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06",
+          "S11"
+        ],
+        "testPaths": [
+          "tests/attachment-export-policy.test.mjs",
+          "tests/attachment-signature.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需分别核对当前条目的真实恶意/竞态/权限负例；安全拒绝的范围不能由其他类型负例替代。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-020",
       "originalCapability": "ASS/SSA + libass 按需静态帧预览",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字幕预览及按时间/条目定位",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/preview-ui.test.mjs",
+          "tests/p3-final-ass-render-proof.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需确认目标字体、故意缺字/缺字体负例和成品隔离 libass 输出；静态帧不等于全部播放器视觉一致。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-021",
       "originalCapability": "预览按时间点或字幕条目跳转",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字幕预览及按时间/条目定位",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/preview-ui.test.mjs",
+          "tests/p3-final-ass-render-proof.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需确认目标字体、故意缺字/缺字体负例和成品隔离 libass 输出；静态帧不等于全部播放器视觉一致。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-022",
       "originalCapability": "ASS 字体识别、字体名称别名、字形覆盖、字体匹配",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-023",
       "originalCapability": "外部 TTF/OTF/TTC/OTC 与实际字体结构检测",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-024",
       "originalCapability": "强制统一字体模式",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-025",
       "originalCapability": "HarfBuzz 字体子集化",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-026",
       "originalCapability": "字体文件按内容哈希去重及名称冲突处理",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-027",
       "originalCapability": "字体交付报告",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "字体检查器、匹配诊断和字体交付报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-028",
       "originalCapability": "codec 组合兼容性解析及兼容性证据矩阵",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "兼容性矩阵及成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/compatibility-evidence.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "仅对实际执行过的 codec 组合成立；AV1 等可选夹具跳过不能算该组合验收通过。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-029",
       "originalCapability": "FFprobe 封装后审计",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-030",
       "originalCapability": "JSON 封装报告",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "成品区域：下载/目录保存/保存重试及报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-031",
       "originalCapability": "输出文件及报告保存/下载",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "成品区域：下载/目录保存/保存重试及报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-032",
       "originalCapability": "批量剧集字幕自动匹配",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-033",
       "originalCapability": "无歧义匹配、冲突阻断、无效文件列明",
       "proposedDisposition": "IMPROVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-034",
       "originalCapability": "原批量完整字体、逐任务子集、Group 子集",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-035",
       "originalCapability": "逐项执行、单项失败后继续、取消、异常报告",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-036",
       "originalCapability": "批量目录输出、已存在文件预检、保存失败下载回退",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "成品区域：下载/目录保存/保存重试及报告",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-037",
       "originalCapability": "批次 Blob URL 生命周期",
       "proposedDisposition": "PRESERVE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "批次结果 Blob URL 管理",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-result-urls.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "需最终候选连续批次资源释放和下载后结果有效性；单测释放次数不等于长时内存峰值验收。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-038",
       "originalCapability": "现有“01 素材—02 调整—03 输出”的展开式主 UI",
       "proposedDisposition": "REPLACE_UI",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-039",
       "originalCapability": "同一轨道在来源树、编辑器、输出计划重复展示",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-040",
       "originalCapability": "批处理长期处于主页面底部折叠区",
       "proposedDisposition": "REPLACE_UI",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-041",
       "originalCapability": "批量通过设置隐藏输入、触发 change 和 muxBtn.click()",
       "proposedDisposition": "REPLACE_EXECUTION",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-042",
       "originalCapability": "UI 内过多静态说明文字",
       "proposedDisposition": "INTEGRATE",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-043",
       "originalCapability": "空状态的大导入区域",
       "proposedDisposition": "CONTEXTUAL_UI",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "L-044",
       "originalCapability": "手机四阶段互斥标签与无限长滚动",
       "proposedDisposition": "REPLACE_UI",
       "outcome": "UNASSESSED",
-      "migrationPath": null,
+      "migrationPath": "主工作台对象/检查器/计划/成品区域及独立批次入口",
       "actualOutputEvidence": [],
       "verifiedCommit": null,
-      "formalRemovalApproved": false
+      "formalRemovalApproved": false,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     }
   ]
 }

@@ -738,3 +738,5 @@ MKV Fast Muxer 的代码实现、调试、测试、文档及部分工程工作�
 - `jassub` 2.5.15 — 见其复合许可证与上游 libass 相关条款
 
 详细说明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
+
+逐项实现定位与明确缺口见 [44 旧能力 / 57 历史场景核对](docs/softmux-1.0-coverage-reconciliation-20261101.md)。该映射不替代正式验收；图形字幕实际成品、来源内封 ASS/字体预览及批量纯容器路径分别保留未完成边界。
