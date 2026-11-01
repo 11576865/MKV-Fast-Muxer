@@ -581,3 +581,12 @@ jobs:
           path: .e2e/output/font-strategies/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload single output directory receipt and save-only retry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-save-receipt
+          path: .e2e/output/single-save-receipt/
+          if-no-files-found: error
+          retention-days: 14
