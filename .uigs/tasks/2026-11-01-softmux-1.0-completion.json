@@ -25,8 +25,8 @@
     "Consolidate remaining scoped acceptance combinations, target desktop/tablet S12/S13 and exact candidate site/rollback/formal promotion"
   ],
   "branch": "feat/softmux-container-batch-review-20261101",
-  "pr": null,
-  "latest_durable_commit": "9dd537ffd6322971ff418df2bb144caa9574620b",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/214",
+  "latest_durable_commit": "bcd1c0b6100cb485914860c36794ddd7b4bfd4ab",
   "external_validation_states": {
     "node_build_local": "794/794 tests passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -47,10 +47,10 @@
     "embedded_preview_local": "Real Chromium: only source MKV imported, unique internal family selected, source preview PNG equals external reference; cached cue navigation RED/GREEN, source unchanged and actual MKV generated",
     "embedded_preview_ci": "PR #213 submitted; final exact-head full Browser/native/Deploy/S12 pending",
     "container_review_local": "4 real sources: inspected/failed/inspected/partial; second run inspected/cancelled/notRun/notRun; downloaded completed report retained; native metadata, original SHA and single-project File grants unchanged; 1440/1024 viewports",
-    "container_review_ci": "Not yet submitted; mandatory early browser scenario and artifacts wired"
+    "container_review_ci": "PR #214 submitted; final exact-head full Browser/Deploy/S12 pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T11:12:42.235040+00:00"
+  "updated_at": "2026-11-01T11:13:16.900Z"
 }
