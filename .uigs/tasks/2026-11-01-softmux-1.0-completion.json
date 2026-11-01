@@ -20,14 +20,14 @@
     "Collect target desktop/tablet S12/S13 evidence and complete exact-candidate site/rollback/formal promotion verification"
   ],
   "branch": "test/softmux-bitmap-subtitle-output-20261101",
-  "pr": null,
-  "latest_durable_commit": "4e024e5d7b0b0e2aa80337fe23d8426ef75d576d",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/212",
+  "latest_durable_commit": "ebeda20dfbef98a3aa5c5def638c5f9f2a6bf312",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended with bitmap timeline/repacketization proof; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended @deb8c6e4c9929a0c5f9b51306ad1608fb91c609e; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -37,10 +37,10 @@
     "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
     "coverage_documentation_ci": "PR #211 submitted; developer build validation pending; documentation-only change does not request new browser/S12 media acceptance",
     "bitmap_local": "785 Node tests/build passed; actual Chromium PGS/VobSub MKV, versioned JSON report, original packets/times/decoded frames and video/audio bytes verified",
-    "bitmap_ci": "Not yet submitted; full CI scenario wired early with mandatory artifact"
+    "bitmap_ci": "PR #212 submitted; exact final-head Deploy/Browser/S12 validation pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T08:40:16.613626+00:00"
+  "updated_at": "2026-11-01T08:41:10.547Z"
 }
