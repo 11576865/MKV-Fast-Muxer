@@ -527,3 +527,12 @@ jobs:
       - name: Print preview log on failure
         if: failure()
         run: cat /tmp/mkvfm-preview.log || true
+
+      - name: Upload graphic subtitle native packet and decoded-image evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitmap-subtitle-native-output
+          path: .e2e/output/bitmap-subtitles/
+          if-no-files-found: error
+          retention-days: 14

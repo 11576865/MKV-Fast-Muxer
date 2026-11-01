@@ -52,7 +52,9 @@
       "implementationEvidence": {
         "testPaths": [
           "tests/subtitle-format.test.mjs",
-          "tests/e2e/candidate-membership-scenario.mjs"
+          "tests/e2e/candidate-membership-scenario.mjs",
+          "tests/e2e/bitmap-subtitle-scenario.mjs",
+          "tests/bitmap-subtitle-audit.test.mjs"
         ],
         "historicalArtifactIds": [
           13069704090,
@@ -570,10 +572,12 @@
         "testPaths": [
           "tests/subtitle-format.test.mjs",
           "tests/subrip-output-audit.test.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/e2e/browser-mux.e2e.mjs",
+          "tests/e2e/bitmap-subtitle-scenario.mjs",
+          "tests/bitmap-subtitle-audit.test.mjs"
         ],
         "currentEntry": "字幕导入、内容识别及字幕检查器",
-        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "remainingChecks": "0.1034 自产图形字幕正例已通过本地真实浏览器封装、独立原生 payload/PTS 和显示前/中/后完整帧核验，来源与媒体 packet 字节不变；完整 CI 及最终冻结候选仍待验证，复杂/损坏图形字幕组合未由此全部覆盖。",
         "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },

@@ -268,3 +268,15 @@ test('SRT and WebVTT preserve input timestamps before AAC priming can shift cues
     assert.equal(args[args.indexOf('-c') + 1], 'copy');
   }
 });
+
+test('PGS and VobSub preserve non-zero subtitle start and AAC priming timestamps',()=>{
+ for(const track of [
+  {path:'graphic.sup'},{path:'graphic.idx'},
+  {path:'staged.data',format:{id:'pgs'}},{path:'staged.data',format:{id:'vobsub'}},
+ ]){
+  const args=buildMuxCommand({mainInputPath:'aac-priming.mp4',outputPath:'out.mkv',newSubtitleTracks:[{...track,inputIndex:1}]});
+  assert.equal(args[0],'-copyts');
+  assert.equal(args[args.indexOf('-avoid_negative_ts')+1],'disabled');
+  assert.equal(args[args.indexOf('-c')+1],'copy');
+ }
+});

@@ -596,6 +596,12 @@ let showAdvancedSourceTools = false;
 let sourceInspectorMarkup = '';
 let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
+let pendingSourceRadioFocusKey = '';
+// A disabled source radio temporarily cannot own focus during auto-scan.
+// An explicit pointer move outside the inventory cancels restoration intent.
+document.addEventListener('pointerdown', event => {
+  if (!assetInventory?.contains(event.target)) pendingSourceRadioFocusKey = '';
+}, true);
 let selectedCompositionId = '';
 let lastActualOutput = null;
 const sourceDraftShelf=createSourceDraftShelf();
@@ -3303,8 +3309,16 @@ function renderImportedAssetInventory() {
   // Choosing a source may clear the ambiguity that opened this disclosure.
   // Do not collapse it under a focused keyboard control: that would remove
   // the active radio from the accessibility tree mid-interaction.
-  const focusedSourceRadio = sourceFilesDetails?.contains(document.activeElement)
-    ? document.activeElement?.getAttribute('data-asset-source') : null;
+  const active = document.activeElement;
+  const activeRadioKey = sourceFilesDetails?.contains(active)
+    ? active?.getAttribute('data-asset-source') : null;
+  // Keep a bookmark only while the browser has dropped focus to body after
+  // remounting a disabled radio. Never take focus back from another control.
+  if (activeRadioKey) pendingSourceRadioFocusKey = activeRadioKey;
+  else if (active && active !== document.body) pendingSourceRadioFocusKey = '';
+  if (!entries.some(entry => entry.kind === 'container' &&
+      entry.key === pendingSourceRadioFocusKey)) pendingSourceRadioFocusKey = '';
+  const focusedSourceRadio = pendingSourceRadioFocusKey;
   if (sourceFilesDetails && !sourceFilesDetails.dataset.userToggled) {
     sourceFilesDetails.open = Boolean(
       roles.needsSourceChoice || roles.unknown.length || focusedSourceRadio
