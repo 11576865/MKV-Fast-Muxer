@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "76a211add5f3c9e0134544d19983f3e98c57e7b8",
+  "currentDevelopmentBaseline": "95423a389503979a8cbfa7ec4af570d15fb3b283",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -234,14 +234,15 @@
       "id": "S11",
       "title": "成品核验与持久化收据",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "已有单工程和批次保存回读/重试；不等于目标系统实际磁盘持久性验收",
+      "openGap": "0.1040 单工程真实成品/API 故障注入覆盖跨目录冲突后重试、报告权限失效、损坏回读与下载回退；待完整 CI、最终候选和目标系统磁盘/设备验收，不自动 PASS。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
           "tests/single-output-directory-save.test.mjs",
-          "tests/batch-output.test.mjs"
+          "tests/batch-output.test.mjs",
+          "tests/e2e/single-save-receipt-scenario.mjs"
         ],
         "historicalArtifactIds": [],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",

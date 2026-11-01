@@ -151,3 +151,19 @@ test('single delivery: only current generation owner may save; replacement and r
   assert.equal(s.has(current),false);
   await assert.rejects(s.save(current,dir),/授权已失效/);
 });
+
+test('single delivery: failed new-directory attempt revokes the old visible success receipt and remains retryable',async()=>{
+  const session=createSingleOutputDirectorySaveSession(),owner={},a=await fixture();
+  const first=new Directory(),second=new Directory();
+  session.replace(owner,a);
+  assert.equal((await session.save(owner,first)).savedToDirectory,true);
+  second.files.set(a.outputName,new Blob(['preexisting user file']));
+  await assert.rejects(session.save(owner,second),/已存在/);
+  assert.equal(session.receipt,null,'a failed attempt in another directory must not expose the previous directory success');
+  assert.equal(session.has(owner),true,'generated output stays authorized for save-only recovery');
+  assert.equal(await second.files.get(a.outputName).text(),'preexisting user file');
+  second.files.delete(a.outputName);
+  assert.equal((await session.save(owner,second)).savedToDirectory,true);
+  assert.equal(first.writes.get(a.outputName),1);
+  assert.equal(second.writes.get(a.outputName),1);
+});

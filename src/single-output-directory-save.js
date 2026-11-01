@@ -40,6 +40,10 @@ export function createSingleOutputDirectorySaveSession() {
         throw Error('此前的成品保存授权已失效，必须重新生成后再保存');
       if (!directory) throw Error('没有有效的输出目录授权');
       busy=true;
+      // This attempt now targets the selected directory. A prior successful
+      // receipt must not hide retry if the new attempt throws before returning.
+      // Picker cancellation occurs before save(), so its prior receipt survives.
+      receipt=null;
       try {
         // The batch save-only registry independently rechecks previously
         // saved exact files; different directory grants do not inherit them.
