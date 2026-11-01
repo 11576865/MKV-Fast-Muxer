@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "embedded_preview_unit_complete_pending_external_validation",
-  "current_bounded_work_unit": "0.1035 normal-workbench source-internal ASS/SSA and bounded validated embedded-font static preview; same selector, no output mutation, File-bound cues and stale completion rejection",
+  "status": "container_batch_review_unit_complete_pending_external_validation",
+  "current_bounded_work_unit": "0.1036 independent read-only container review on existing batch inputs: no subtitles/remux, partial/failure/cancel states, stable per-item and aggregate JSON downloads",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -16,21 +16,23 @@
     "PGS/VobSub actual-browser RED shifted PTS despite UI audit pass; same scenario GREEN after extending copyts/avoid_negative_ts protection; 785 Node tests/build and native decoded-frame/packet/source integrity checks passed locally",
     "PR212 first CI: Deploy 41289901727 and S12 41289901738 passed; Browser 41289901730 passed bitmap native proof then failed source keyboard focus. Scoped repair locally RED/GREEN; 5 source selections and 2 no-steal checks, 785 tests/build passed; independent review no material findings",
     "PR #212 repaired head afc4810 passed Browser 41293961698, Deploy 41293961715, S12 41293961706; merged @82caab404295e0f833214a147b0a3ff889185f8f",
-    "Embedded ASS/font preview implemented; local source-only MKV import, unique embedded font selection, exact external-reference PNG, cue manual-time RED/GREEN, unchanged source/plan and actual MKV passed; 789 Node tests/build passed"
+    "Embedded ASS/font preview implemented; local source-only MKV import, unique embedded font selection, exact external-reference PNG, cue manual-time RED/GREEN, unchanged source/plan and actual MKV passed; 789 Node tests/build passed",
+    "PR #213 exact head b7b5437 passed Browser 41297966648, Deploy 41297966642, S12 41297966628; merged @9dd537ffd6322971ff418df2bb144caa9574620b",
+    "Read-only batch review implemented; local real browser valid/broken/attachment-only inputs, native FFprobe comparison, cancellation with retained first report, source SHA and single-project File isolation passed; 794 Node tests/build passed; independent review no material findings"
   ],
   "next_units": [
-    "Full exact-head embedded preview verification, then pure-container batch implementation and read-only versus writer-limit boundary",
-    "Target desktop/tablet S12/S13, exact candidate acceptance reconciliation and verified formal site/rollback path"
+    "Full exact-head container-review CI, then verify read-only access for sources beyond writer layout/budget eligibility",
+    "Consolidate remaining scoped acceptance combinations, target desktop/tablet S12/S13 and exact candidate site/rollback/formal promotion"
   ],
-  "branch": "feat/softmux-embedded-ass-preview-20261101",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/213",
-  "latest_durable_commit": "c118385a8bc24770cf7374292d5a3d31dafcb3c0",
+  "branch": "feat/softmux-container-batch-review-20261101",
+  "pr": null,
+  "latest_durable_commit": "9dd537ffd6322971ff418df2bb144caa9574620b",
   "external_validation_states": {
-    "node_build_local": "789/789 passed; build passed",
+    "node_build_local": "794/794 tests passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #212 afc4810 passed all three full workflows; merged",
+    "full_exact_head_ci": "PR #213 b7b5437 all three workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended @b9bdeb8f3ba6cb344523d0d6bab4f6cbeae1ee47; no Canonical promotion",
+    "UIGS_Intake": "Existing Case extended @3a11c17fc88fe5d1d3c2581a987e543ab875e1a9; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -43,10 +45,12 @@
     "bitmap_ci": "Repair pushed to PR #212 @69d26b6d63577af25dcae27b75b678b91d993999; next full CI generation Pending External Validation; not polled after bounded repair",
     "source_focus_local": "Real browser: RED body focus and closed disclosure; GREEN 5 source selections plus keyboard-away and pointer-away cancellation; 785 Node tests/build passed",
     "embedded_preview_local": "Real Chromium: only source MKV imported, unique internal family selected, source preview PNG equals external reference; cached cue navigation RED/GREEN, source unchanged and actual MKV generated",
-    "embedded_preview_ci": "PR #213 submitted; final exact-head full Browser/native/Deploy/S12 pending"
+    "embedded_preview_ci": "PR #213 submitted; final exact-head full Browser/native/Deploy/S12 pending",
+    "container_review_local": "4 real sources: inspected/failed/inspected/partial; second run inspected/cancelled/notRun/notRun; downloaded completed report retained; native metadata, original SHA and single-project File grants unchanged; 1440/1024 viewports",
+    "container_review_ci": "Not yet submitted; mandatory early browser scenario and artifacts wired"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T10:32:47.683Z"
+  "updated_at": "2026-11-01T11:12:42.235040+00:00"
 }

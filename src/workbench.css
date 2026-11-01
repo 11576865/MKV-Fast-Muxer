@@ -1956,3 +1956,24 @@ body { background: var(--bg); }
   color: var(--text-muted, var(--text));
   overflow-wrap: anywhere;
 }
+
+/* Read-only batch reports have their own completion and download semantics. */
+.container-batch-review { margin-top: 12px; padding: 16px; min-width: 0; }
+.container-batch-review h3 { margin: 0 0 8px; }
+.container-batch-review p { color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.container-review-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px;
+  padding: 12px; margin-top: 8px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--surface-1); min-width: 0;
+}
+.container-review-row strong, .container-review-row p { grid-column: 1; margin: 0; overflow-wrap: anywhere; }
+.container-review-row a.button {
+  grid-column: 2; grid-row: 1 / 3; display: inline-flex; align-items: center;
+  justify-content: center; align-self: center; width: auto; height: auto; min-height: 38px; padding: 8px 12px;
+}
+#batchInspectDownload[hidden] { display: none; }
+#batchInspectDownload:not([hidden]) { display: inline-flex; align-items: center; min-height: 38px; height: auto; padding: 8px 12px; margin-top: 12px; }
+@media (max-width: 600px) {
+  .container-review-row { grid-template-columns: minmax(0, 1fr); }
+  .container-review-row a.button { grid-column: 1; grid-row: auto; justify-self: start; }
+}

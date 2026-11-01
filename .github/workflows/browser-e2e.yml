@@ -545,3 +545,12 @@ jobs:
           path: .e2e/output/embedded-ass-preview/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload read-only container batch reports and native metadata evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: read-only-container-batch-review
+          path: .e2e/output/container-batch-review/
+          if-no-files-found: error
+          retention-days: 14

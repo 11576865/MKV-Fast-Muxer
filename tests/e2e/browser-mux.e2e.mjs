@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioContainerBatchReview} from './container-batch-review-scenario.mjs';
 import {scenarioEmbeddedAssPreview} from './embedded-ass-preview-scenario.mjs';
 import {scenarioBitmapSubtitles} from './bitmap-subtitle-scenario.mjs';
 import {scenarioMultiSourceDrafts} from './multi-source-drafts-scenario.mjs';
@@ -7708,6 +7709,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioContainerBatchReview(browser,{root,outDir:path.join(outDir,'container-batch-review'),baseUrl});
   await scenarioEmbeddedAssPreview(browser,{root,outDir:path.join(outDir,'embedded-ass-preview'),baseUrl});
   await scenarioBitmapSubtitles(browser,{root,outDir:path.join(outDir,'bitmap-subtitles'),baseUrl});
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
