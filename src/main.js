@@ -71,6 +71,7 @@ import { auditDetachedContainerProjectIntentChain } from './container-project-in
 import { previewDetachedProjectIntentConflicts } from './container-project-conflict-preview.js';
 import { prepareVerifiedTrackReplay, applyPreparedTrackReplay, revertPreparedTrackReplay } from './container-project-restore.js';
 import { createLiveSourceTrackSession } from './live-source-track-authority.js';
+import {createSourceDraftShelf} from './source-draft-shelf.js';
 import {
   createLiveExternalAssetSession, commitLiveExternalAssetChanges,
   inspectLiveExternalAssets, rebindLiveExternalFontInventory, externalOutputTracks,
@@ -597,6 +598,8 @@ let chosenImportSourceKey = '';
 let focusedImportedAssetKey = '';
 let selectedCompositionId = '';
 let lastActualOutput = null;
+const sourceDraftShelf=createSourceDraftShelf();
+let sourceDraftRestoreBlocked=null;
 let attachmentOnlyRunning = false;
 const genericAttachmentEntries = () => importedAssetEntries.filter(entry=>entry.kind==='attachment');
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
@@ -1221,6 +1224,7 @@ async function inspectSelectedVideoHeader() {
       appendPreserveAll.checked = detectedMkv;
     }
     preserveAttachments.checked = detectedMkv;
+    if(detectedMkv)restoreRememberedSourceDraft(video);
   } catch (error) {
     if (generation !== videoSniffGeneration || fileKey(videoInput.files[0]) !== key) return;
     videoSniffState = {
@@ -1660,6 +1664,7 @@ function updateUI() {
   if(attachmentOnlyMode()) {
     muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
   } else if(includedGenericAttachments().length) muxBtn.disabled=true;
+  if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -1735,8 +1740,47 @@ function setAdapterFiles(input, files) {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+function restoreRememberedSourceDraft(source) {
+  if(videoInput.files?.[0]!==source ||
+      !importedAssetEntries.some(entry=>entry.kind==='container'&&entry.file===source))return false;
+  try {
+    const saved=sourceDraftShelf.take(source);
+    if(!saved)return false;
+    trackState=saved.trackState;scannedSourceFile=source;liveSourceTrackSession=saved.session;
+    appendPreserveAll.checked=saved.appendMode;
+    appendPreserveAll.dataset.userTouched=saved.userTouched?'1':'0';
+    preserveAttachments.checked=saved.preserveAttachments;
+    reconcileLiveWorkspaceAuthority();
+    status.textContent='已恢复该容器在当前会话中的轨道和附件草稿；没有自动生成文件。';
+    return true;
+  } catch(error) {
+    sourceDraftRestoreBlocked=source;
+    containerAutoScanSuppressedKey=fileKey(source);
+    status.textContent='该容器缓存草稿校验失败，未恢复或执行；请明确重新扫描（'+(error?.message||String(error))+'）。';
+    return false;
+  }
+}
+function rememberOutgoingSourceDraft() {
+  const source=scannedSourceFile;
+  if(!source||!trackState||!liveSourceTrackSession||
+      !importedAssetEntries.some(entry=>entry.kind==='container'&&entry.file===source))return;
+  try {
+    sourceDraftShelf.remember({source,trackState,session:liveSourceTrackSession,
+      appendMode:Boolean(appendPreserveAll?.checked),
+      preserveAttachments:Boolean(preserveAttachments.checked),
+      userTouched:appendPreserveAll?.dataset.userTouched==='1'});
+  } catch(error) {
+    sourceDraftShelf.drop(source);
+    logEl.textContent+='WARNING: 旧来源草稿没有通过领域校验，未缓存：'+(error?.message||String(error))+'\n';
+  }
+}
 function applyImportedAssetRoles() {
+  // Importing another container does not abandon the one already opened.
+  const current=videoInput.files?.[0];
+  const active=importedAssetEntries.find(entry=>entry.kind==='container'&&entry.file===current);
+  if(!chosenImportSourceKey&&active)chosenImportSourceKey=active.key;
   const roles = resolveImportedRoles(importedAssetEntries, chosenImportSourceKey);
+  if(roles.sourceKey)chosenImportSourceKey=roles.sourceKey;
   setAdapterFiles(videoInput, roles.video ? [roles.video] : []);
   setAdapterFiles(subInput, roles.subtitles);
   setAdapterFiles(audioInput, roles.audio);
@@ -3272,7 +3316,7 @@ function renderImportedAssetInventory() {
     ? `正在按内容识别 ${importPendingCount} 个文件…`
     : !entries.length
       ? '尚未导入文件'
-      : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${identityCollisions ? ` · ${identityCollisions} 项文件身份冲突` : ''}${roles.needsSourceChoice ? ' · 请选择主源' : ''}`;
+      : `${entries.length} 项资源 · ${roles.unknown.length} 项未识别${identityCollisions ? ` · ${identityCollisions} 项文件身份冲突` : ''}${roles.needsSourceChoice ? ' · 请选择要打开的容器' : ''}`;
   if (!entries.length) {
     assetInventory.innerHTML = '<div class="track-empty">暂无文件</div>';
     if (assetInspectorHost) {
@@ -3307,7 +3351,7 @@ function renderImportedAssetInventory() {
         ).map(([type, count]) => `${containerKindLabel(type)} ${count}`).join(' · ')
       : '';
     const sourceNote = entry.kind === 'container' && !selected
-      ? '未设为主源'
+      ? '尚未打开'
       : '';
     return `<div class="asset-entry" data-kind="${entry.kind}" ${focusedImportedAssetKey === entry.key ? 'data-focused="true"' : ''}>
       <div class="asset-entry-main">
@@ -3323,8 +3367,8 @@ function renderImportedAssetInventory() {
         ${external ? `<label><input type="checkbox" data-asset-include="${escapeHtml(entry.key)}" ${external.include !== false ? 'checked' : ''} ${canChange ? '' : 'disabled'}> 参与输出</label>` : ''}
         ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
         ${entry.kind === 'container' ? `<label class="asset-select-source">
-          <input type="radio" name="assetMainSource" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
-          设为主源
+          <input type="radio" name="assetMainSource" aria-label="打开容器：${escapeHtml(entry.file.name)}" data-asset-source="${escapeHtml(entry.key)}" ${selected ? 'checked' : ''} ${canChange ? '' : 'disabled'} />
+          打开
         </label>` : ''}
         <button type="button" class="asset-remove" data-asset-remove="${escapeHtml(entry.key)}" ${canChange ? '' : 'disabled'}>移除</button>
       </div>
@@ -3608,6 +3652,8 @@ assetInventory?.addEventListener('click', (event) => {
   if (!button || isBusy() || batchRunning || importInProgress) return;
   const key = button.dataset.assetRemove;
   const previousIndex = [...assetInventory.querySelectorAll('button[data-asset-remove]')].indexOf(button);
+  const removed=importedAssetEntries.find(entry=>entry.key===key);
+  if(removed?.kind==='container')sourceDraftShelf.drop(removed.file);
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
   if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';
@@ -3620,6 +3666,8 @@ assetInventory?.addEventListener('click', (event) => {
 });
 
 videoInput.addEventListener('change', () => {
+  rememberOutgoingSourceDraft();
+  sourceDraftRestoreBlocked=null;
   // Selecting another primary media begins a different task authorization
   // generation. In particular, cancelled/restarted tasks must not retain
   // an external-domain inventory snapshot from the previous source.
@@ -5337,7 +5385,11 @@ async function scanSourceContainer({ automatic = false } = {}) {
 
   const sourceKey = fileKey(video);
   if (automatic && (trackState?.fileKey === sourceKey || containerAutoScanSuppressedKey === sourceKey)) return;
-  if (!automatic) containerAutoScanSuppressedKey = '';
+  if (!automatic) {
+    containerAutoScanSuppressedKey = '';
+    sourceDraftRestoreBlocked=null;
+    sourceDraftShelf.drop(video);
+  }
 
 
   const scanGeneration = ++containerScanGeneration;
@@ -5659,6 +5711,9 @@ async function executeCurrentMuxTask(explicit = null) {
     }
   }
   const video = independent ? explicit.source : videoInput.files[0];
+  if(!independent && video && sourceDraftRestoreBlocked===video){
+    status.textContent='该容器的缓存草稿校验失败，请先明确重新扫描；没有执行写入。';return;
+  }
   const evidenceSourceAtExecution = outputCompositionFileKey(video || null);
 
   if (!independent) {
