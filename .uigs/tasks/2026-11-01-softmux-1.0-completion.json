@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "release_gate_unit_complete_pending_external_validation",
-  "current_bounded_work_unit": "Integrate PR205 release audit on current main; map 14 scenarios to historical test/artifact observations; block formal-version auto-deploy and dirty evidence acceptance",
+  "status": "coverage_reconciliation_complete_pending_documentation_ci",
+  "current_bounded_work_unit": "Map all 44 legacy capabilities and 57 original cases to current entry/test/scenario coverage, retaining concrete implementation and evidence gaps",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -9,30 +9,35 @@
     "PR #208 exact head cd54b391 passed full browser/native MKVToolNix/S12/build; merged @ e9f9066966cc55fc9c3f30f7f60f5454b3ed2d11",
     "Multiple imported MKV source-side drafts implemented; 767 Node/build and real A/B native-output plus 1024/768 switching verified locally",
     "PR #209 exact head dea66f1 passed all three full workflows; merged @ ff20c2b8c8ef9fb2388ce0783f339183ab53eccd",
-    "PR205 release gate integrated with 14 scenario implementation/test/artifact links; reviewer findings fixed: formal-version auto-deploy bypass and dirty attestation checkout; 781 Node tests/build passed locally"
+    "PR205 release gate integrated with 14 scenario implementation/test/artifact links; reviewer findings fixed: formal-version auto-deploy bypass and dirty attestation checkout; 781 Node tests/build passed locally",
+    "PR #210 exact head c334d3d passed Deploy 41275180800, Browser 41275180606 and S12 41275180607; merged @ 83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
+    "All 44+57 rows now have item-level coverageReview; unchanged original identities/verdicts, all linked tests exist; reviewer corrected pure-container batch, source-internal ASS and read-only boundary mappings"
   ],
   "next_units": [
-    "Reconcile individual 44 legacy and 57 historical behaviors against executed outputs; fill remaining local/CI acceptance combinations",
-    "Collect real target desktop/tablet S12/S13 evidence; freeze an accepted candidate; validated formal promotion path and rollback"
+    "Add valid PGS/SUP/VobSub actual-mux fixtures and independent stream/timing readback for T-006 / S02",
+    "Address source-internal ASS/font workflow and pure-container batch implementation boundaries according to first-release scope; verify read-only versus writer-limit boundary",
+    "Collect target desktop/tablet S12/S13 evidence and complete exact-candidate site/rollback/formal promotion verification"
   ],
-  "branch": "feat/softmux-release-reconciliation-20261101",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/210",
-  "latest_durable_commit": "024cddb8762e8c61e0fc8a9476685fe56e60dff3",
+  "branch": "docs/softmux-acceptance-reconciliation-20261101",
+  "pr": null,
+  "latest_durable_commit": "83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
   "external_validation_states": {
     "node_build_local": "767/767 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #209 verified success: Deploy 41272674994, Browser 41272675000, S12 41272675088",
+    "full_exact_head_ci": "PR #210 exact c334d3d verified success in all three workflows",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Case extended @ 432ea860b24ca71139c8c6072b064ef96680bbaa; no Canonical promotion",
+    "UIGS_Intake": "Existing Case updated with bounded item-level proof distinctions; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
     "multi_source_drafts_local": "A/B distinct native FFprobe outputs, same-File event, removal/reimport and 3 viewports passed",
     "release_gate_local": "781/781 Node tests passed; build passed; audit correctly reports not ready with frozen 14/44/57 denominator",
-    "release_gate_ci": "PR #210 submitted; final exact-head full workflows pending; stop at durable execution boundary"
+    "release_gate_ci": "PR #210 submitted; final exact-head full workflows pending; stop at durable execution boundary",
+    "coverage_reconciliation_local": "781/781 tests passed; 101 rows checked against original IDs/verdicts; all referenced test paths exist; release audit remains not ready",
+    "coverage_documentation_ci": "Not yet submitted"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T04:59:50.754Z"
+  "updated_at": "2026-11-01T05:14:16.030886+00:00"
 }

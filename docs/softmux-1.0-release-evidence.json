@@ -306,7 +306,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
+        "remainingChecks": "复杂结构的安全拒绝不能写成通用无损 remux 已支持；data/other stream 的完整正例仍需专用有效来源。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "R-02",
@@ -318,7 +332,19 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05"
+        ],
+        "testPaths": [
+          "tests/attachment-only-delivery.test.mjs",
+          "tests/e2e/attachment-only-workbench-scenario.mjs"
+        ],
+        "currentEntry": "普通工作台选择附件 → Start → 零媒体轨 Matroska → 核验/保存",
+        "remainingChecks": "当前范围 1–8 项、单项16 MiB/合计32 MiB；混合媒体+通用附件未接入该路径；不扩称任意附件或全部恢复类型。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "R-03",
@@ -330,7 +356,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/preview-ui.test.mjs",
+          "tests/p3-final-ass-render-proof.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "字幕预览及按时间/条目定位",
+        "remainingChecks": "已有外部 ASS/字体封装成 MKV 后的隔离 libass 渲染；仍须区分这与从导入 MKV 直接选择已有内封 ASS/字体的普通工作台路径，后者不能由前者证明。",
+        "classification": "PARTIAL_IMPLEMENTATION"
+      }
     },
     {
       "id": "R-04",
@@ -342,7 +381,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10",
+          "S12"
+        ],
+        "testPaths": [
+          "tests/workload.test.mjs",
+          "tests/ffmpeg-browser-source-staging.test.mjs",
+          "tests/e2e/s12-real-large-mkv.e2e.mjs"
+        ],
+        "currentEntry": "有界大媒体执行及错误/取消恢复",
+        "remainingChecks": "仍缺目标设备 >1 GB、接近引擎边界和长时批次实际内存、权限、保存证据；十次/20 项短素材不等于这些条件。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "R-05",
@@ -354,7 +407,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-001",
@@ -366,7 +433,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-002",
@@ -378,7 +459,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-003",
@@ -390,7 +485,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源扫描、来源轨道检查器及素材切换",
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-004",
@@ -402,7 +511,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
+        "remainingChecks": "需在最终候选复核支持的容器/轨道/属性组合及实际码流、时间轴；不能从参数单测推断成品保真。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-005",
@@ -414,7 +537,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/subtitle-format.test.mjs",
+          "tests/subrip-output-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "字幕导入、内容识别及字幕检查器",
+        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-006",
@@ -426,7 +562,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02"
+        ],
+        "testPaths": [
+          "tests/subtitle-format.test.mjs",
+          "tests/subrip-output-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "字幕导入、内容识别及字幕检查器",
+        "remainingChecks": "已有 SSA/SRT/WebVTT 成品场景；PGS/SUP/VobSub 当前定位到识别/配对单测，仍缺独立有效二进制夹具的真实封装和内容/时间轴回读。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-007",
@@ -438,7 +587,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/font-identity.test.mjs",
+          "tests/font-content-identity-integration.test.mjs",
+          "tests/output-font-payload-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "字体检查器、匹配诊断和字体交付报告",
+        "remainingChecks": "已有 TTC/强制字体/子集路径；OTC、多 face、缺字/缺字体及各策略的完整负例和独立成品提取仍需逐项补齐。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-008",
@@ -450,7 +613,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S03"
+        ],
+        "testPaths": [
+          "tests/preview-ui.test.mjs",
+          "tests/p3-final-ass-render-proof.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "字幕预览及按时间/条目定位",
+        "remainingChecks": "现有 P3 隔离渲染证据从外部 ASS/字体生成 MKV 后再提取验证；这不等于普通工作台能从导入 MKV 中选取已有内封 ASS 和字体直接预览。需补该来源内封资源的用户路径及真实证明。",
+        "classification": "PARTIAL_IMPLEMENTATION"
+      }
     },
     {
       "id": "T-009",
@@ -462,7 +638,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
+        "remainingChecks": "复杂结构的安全拒绝不能写成通用无损 remux 已支持；data/other stream 的完整正例仍需专用有效来源。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-010",
@@ -474,7 +664,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
+        "remainingChecks": "复杂结构的安全拒绝不能写成通用无损 remux 已支持；data/other stream 的完整正例仍需专用有效来源。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-011",
@@ -486,7 +690,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S02",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/mux-command.test.mjs",
+          "tests/mux-audit.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "普通工作台：来源/外部资源 → 轨道检查器 → 封装 → 成品核验",
+        "remainingChecks": "已有 AUDIO-ONLY 原生章节/标签受限写入场景；仍需单独验证普通音频-only 来源的领域计划/准入与实际封装，不能由带视频 mux 或章节工具代替。",
+        "classification": "EVIDENCE_GAP"
+      }
     },
     {
       "id": "T-012",
@@ -498,7 +716,19 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05"
+        ],
+        "testPaths": [
+          "tests/attachment-only-delivery.test.mjs",
+          "tests/e2e/attachment-only-workbench-scenario.mjs"
+        ],
+        "currentEntry": "普通工作台选择附件 → Start → 零媒体轨 Matroska → 核验/保存",
+        "remainingChecks": "当前范围 1–8 项、单项16 MiB/合计32 MiB；混合媒体+通用附件未接入该路径；不扩称任意附件或全部恢复类型。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-013",
@@ -510,7 +740,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S13"
+        ],
+        "testPaths": [
+          "tests/asset-intake.test.mjs",
+          "tests/media-identity-integration.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "统一导入入口及素材列表",
+        "remainingChecks": "需补目标设备文件/目录/拖放和格式全集的实际导入记录。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-014",
@@ -522,7 +766,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06"
+        ],
+        "testPaths": [
+          "tests/existing-attachment-edit-intent.test.mjs",
+          "tests/matroska-attachment-reader.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源附件列表、受限编辑及独立成品附件核验",
+        "remainingChecks": "只覆盖当前 writer 准入布局/预算；需按具体修改核对 UID、MIME、FileData SHA 和无关字节，不扩称任意结构可写。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "T-015",
@@ -534,7 +792,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S01",
+          "S04"
+        ],
+        "testPaths": [
+          "tests/live-source-track-authority.test.mjs",
+          "tests/e2e/multi-source-drafts-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源扫描、来源轨道检查器及素材切换",
+        "remainingChecks": "需最终候选逐属性、同类型顺序、保留/排除和重新扫描的实际输出核对。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-001",
@@ -546,7 +818,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-002",
@@ -558,7 +844,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-003",
@@ -570,7 +870,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-004",
@@ -582,7 +896,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-005",
@@ -594,7 +922,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "成品区域：下载/目录保存/保存重试及报告",
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-006",
@@ -606,7 +947,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "成品区域：下载/目录保存/保存重试及报告",
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-007",
@@ -618,7 +972,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-008",
@@ -630,7 +998,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-009",
@@ -642,7 +1024,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-010",
@@ -654,7 +1050,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-011",
@@ -666,7 +1076,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-012",
@@ -678,7 +1102,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "20 项实际短素材和若干故障路径已有覆盖；仍需逐项核对当前条目要求的精确失败位置、配对/字体及恢复组合。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-013",
@@ -690,7 +1128,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10",
+          "S11"
+        ],
+        "testPaths": [
+          "tests/batch-save-retry.test.mjs",
+          "tests/batch-runner.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "批次结果：失败任务重试或已生成文件仅重新保存",
+        "remainingChecks": "需核对重试的冻结身份及已成功成品不丢失；不能把 mux 重试冒充 save-only。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-014",
@@ -702,7 +1154,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-result-urls.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "批次结果 Blob URL 管理",
+        "remainingChecks": "需最终候选连续批次资源释放和下载后结果有效性；单测释放次数不等于长时内存峰值验收。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-015",
@@ -714,7 +1179,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S09"
+        ],
+        "testPaths": [
+          "tests/portable-workspace-atomic-recovery.test.mjs",
+          "tests/workspace-checkpoint-shelf.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "工程元数据导出/导入、来源重选、明确核验和恢复",
+        "remainingChecks": "仅支持明确列出的元数据范围；不恢复 File/目录权限、字体授权、成品或完整撤销栈。批次刷新配方需独立核实，不能由单工程恢复代替。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-016",
@@ -726,7 +1204,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10",
+          "S12"
+        ],
+        "testPaths": [
+          "tests/workload.test.mjs",
+          "tests/ffmpeg-browser-source-staging.test.mjs",
+          "tests/e2e/s12-real-large-mkv.e2e.mjs"
+        ],
+        "currentEntry": "有界大媒体执行及错误/取消恢复",
+        "remainingChecks": "仍缺目标设备 >1 GB、接近引擎边界和长时批次实际内存、权限、保存证据；十次/20 项短素材不等于这些条件。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "B-017",
@@ -738,7 +1230,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10"
+        ],
+        "testPaths": [
+          "tests/batch-review-matrix.test.mjs",
+          "tests/batch-job-plan.test.mjs",
+          "tests/e2e/batch-20-real.e2e.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
+        "remainingChecks": "当前 batch.js 任务构建过滤无字幕任务；字幕配对批次测试不能证明批量纯容器审查/报告。需先确定首发范围，再实现或取得明确范围裁决，不能仅补最终候选复测。",
+        "classification": "IMPLEMENTATION_GAP"
+      }
     },
     {
       "id": "S-001",
@@ -750,7 +1256,23 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06",
+          "S11"
+        ],
+        "testPaths": [
+          "tests/attachment-export-policy.test.mjs",
+          "tests/attachment-signature.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "附件导出策略、内容识别、输出防覆盖及异常恢复",
+        "remainingChecks": "需分别核对当前条目的真实恶意/竞态/权限负例；安全拒绝的范围不能由其他类型负例替代。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-002",
@@ -762,7 +1284,23 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06",
+          "S11"
+        ],
+        "testPaths": [
+          "tests/attachment-export-policy.test.mjs",
+          "tests/attachment-signature.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "附件导出策略、内容识别、输出防覆盖及异常恢复",
+        "remainingChecks": "需分别核对当前条目的真实恶意/竞态/权限负例；安全拒绝的范围不能由其他类型负例替代。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-003",
@@ -774,7 +1312,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10",
+          "S12"
+        ],
+        "testPaths": [
+          "tests/workload.test.mjs",
+          "tests/ffmpeg-browser-source-staging.test.mjs",
+          "tests/e2e/s12-real-large-mkv.e2e.mjs"
+        ],
+        "currentEntry": "有界大媒体执行及错误/取消恢复",
+        "remainingChecks": "仍缺目标设备 >1 GB、接近引擎边界和长时批次实际内存、权限、保存证据；十次/20 项短素材不等于这些条件。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-004",
@@ -786,7 +1338,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S10",
+          "S12"
+        ],
+        "testPaths": [
+          "tests/workload.test.mjs",
+          "tests/ffmpeg-browser-source-staging.test.mjs",
+          "tests/e2e/s12-real-large-mkv.e2e.mjs"
+        ],
+        "currentEntry": "有界大媒体执行及错误/取消恢复",
+        "remainingChecks": "仍缺目标设备 >1 GB、接近引擎边界和长时批次实际内存、权限、保存证据；十次/20 项短素材不等于这些条件。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-005",
@@ -798,7 +1364,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "成品区域：下载/目录保存/保存重试及报告",
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-006",
@@ -810,7 +1389,20 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S11"
+        ],
+        "testPaths": [
+          "tests/single-output-directory-save.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "成品区域：下载/目录保存/保存重试及报告",
+        "remainingChecks": "需目标系统的实际权限撤销、名称竞态、失败回读及保存收据；浏览器 API 模拟不证明真实磁盘持久性。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-007",
@@ -822,7 +1414,23 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S06",
+          "S11"
+        ],
+        "testPaths": [
+          "tests/attachment-export-policy.test.mjs",
+          "tests/attachment-signature.test.mjs",
+          "tests/batch-output.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "附件导出策略、内容识别、输出防覆盖及异常恢复",
+        "remainingChecks": "需分别核对当前条目的真实恶意/竞态/权限负例；安全拒绝的范围不能由其他类型负例替代。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "S-008",
@@ -834,7 +1442,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S05",
+          "S08"
+        ],
+        "testPaths": [
+          "tests/preservation-preflight.test.mjs",
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "来源保真预检；不可证明安全的 remux 在生成正式成品前拒绝",
+        "remainingChecks": "本条要求只读观察与 writer 上限独立：需验证超 writer 准入预算/布局的来源仍可安全扫描和只读检查。现有 writer 拒绝用例及 data stream 讨论不能代替这条边界的 UI 正例。",
+        "classification": "EVIDENCE_GAP"
+      }
     },
     {
       "id": "U-001",
@@ -846,7 +1468,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-002",
@@ -858,7 +1494,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-003",
@@ -870,7 +1520,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-004",
@@ -882,7 +1546,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-005",
@@ -894,7 +1572,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-006",
@@ -906,7 +1598,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-007",
@@ -918,7 +1624,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-008",
@@ -930,7 +1650,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-009",
@@ -942,7 +1676,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-010",
@@ -954,7 +1702,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-011",
@@ -966,7 +1728,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "桌面和平板视口回归不能代替实体触控；仍缺目标设备可达性、键鼠/触控、焦点、任务耗时及误操作对照。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
+      }
     },
     {
       "id": "U-012",
@@ -978,7 +1754,21 @@
       "outcome": "UNASSESSED",
       "evidence": [],
       "verifiedCommit": null,
-      "releaseExceptionApproval": null
+      "releaseExceptionApproval": null,
+      "coverageReview": {
+        "scenarioIds": [
+          "S13"
+        ],
+        "testPaths": [
+          "tests/workbench-shell.test.mjs",
+          "tests/mobile-work-areas.test.mjs",
+          "tests/composition-workspace.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
+        ],
+        "currentEntry": "主工作台对象/检查器/计划/成品区域及独立批次入口",
+        "remainingChecks": "现有工作台测试只定位任务入口；尚无旧/新流程任务时间及误操作率的对照实验，自动化步骤数不能替代该测量。",
+        "classification": "EVIDENCE_GAP"
+      }
     }
   ],
   "contractApproval": {
@@ -987,5 +1777,15 @@
     "approvalUrl": null,
     "approvedBy": null,
     "approvedAt": null
+  },
+  "coverageReviewPolicy": {
+    "reviewedBaseline": "83efdb649b8ba53bdf9255f778b8f0c6c67d2537",
+    "testedHistoricalHead": "c334d3daee7f32fc901355860a976da012b7f996",
+    "runUrls": [
+      "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41275180800",
+      "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41275180606",
+      "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41275180607"
+    ],
+    "limits": "101 item-level discovery mappings, not acceptance adjudication. Paths are inspected existing test sources; individual checks may be conditional, skipped, synthetic or partial. No exact release candidate or owner-approved scope exception is asserted. releaseScope/outcome/evidence/verifiedCommit retain their independent meaning."
   }
 }
