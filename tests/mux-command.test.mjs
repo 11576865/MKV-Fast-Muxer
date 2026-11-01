@@ -53,7 +53,7 @@ test('builds deterministic multi-audio multi-subtitle mux command', () => {
   assert.equal(args.at(-1), 'out.mkv');
 });
 
-test('timed text delivery requests timestamp copy while tasks without added timed text stay unchanged', () => {
+test('timed text delivery copies timestamps while jobs with no retained or added subtitles keep their existing command', () => {
   const base = { mainInputPath: 'source.mp4', outputPath: 'out.mkv' };
   const plain = buildMuxCommand({ ...base,
     newSubtitleTracks: [] });
@@ -279,4 +279,19 @@ test('PGS and VobSub preserve non-zero subtitle start and AAC priming timestamps
   assert.equal(args[args.indexOf('-avoid_negative_ts')+1],'disabled');
   assert.equal(args[args.indexOf('-c')+1],'copy');
  }
+});
+
+test('retained original subtitles protect their source timeline even without any new subtitle',()=>{
+ for(const options of [
+  {preserveAllSourceStreams:true,sourceSubtitleCount:1},
+  {preserveAllOriginalSubtitles:true,sourceSubtitleCount:1},
+  {originalSubtitleTracks:[{index:2,language:'zho',title:'Source',default:true}]},
+ ]){
+  const args=buildMuxCommand({mainInputPath:'original-negative-aac.mkv',outputPath:'out.mkv',...options});
+  assert.equal(args[0],'-copyts');
+  assert.equal(args[args.indexOf('-avoid_negative_ts')+1],'disabled');
+  assert.equal(args[args.indexOf('-c')+1],'copy');
+ }
+ const excluded=buildMuxCommand({mainInputPath:'source.mkv',outputPath:'out.mkv',sourceSubtitleCount:1,originalSubtitleTracks:[]});
+ assert.equal(excluded.includes('-copyts'),false,'excluding every original subtitle retains the existing no-subtitle command behavior');
 });
