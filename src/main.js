@@ -1,3 +1,5 @@
+import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_SOURCES} from './container-batch-review.js';
+import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
 import './style.css';
 import './workbench.css';
@@ -561,6 +563,10 @@ let batchOutputDirectoryHandle = null;
 const batchResultUrls = createBatchResultUrlRegistry();
 const batchSaveRetries = createBatchSaveRetryRegistry();
 let batchSaveRetryBusy = false;
+let containerReviewRunning = false;
+let containerReviewCancelled = false;
+let containerReviewUrls = [];
+const containerReviewLinks = new Map();
 let retainedBatchResults = [];
 let retainedBatchLedger = null;
 let retainedBatchExecution = null;
@@ -1317,13 +1323,13 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning || previewing || batchSaveRetryBusy || singleDirectorySaveBusy;
+  return running || scanning || previewing || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning;
 }
 
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy || singleDirectorySaveBusy;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -1704,6 +1710,7 @@ function updateUI() {
   if (!batchRunning) requestBatchPlanSync();
   // FFmpeg completion clears running in a later finally block; refresh this
   // action after every state change rather than leaving it disabled forever.
+  syncContainerReviewControls();
   renderActualOutputEvidence();
 }
 
@@ -6980,6 +6987,7 @@ async function importBatchUnifiedAssets(files) {
   if (!incoming.length && !conflicts.length) return;
   batchImportInProgress = true;
   batchStartBtn.disabled = true;
+  syncContainerReviewControls();
   ++batchPlanGeneration; // Stale preflight results may not re-enable execution.
   renderBatchAssetInventory();
   try {
@@ -7038,6 +7046,105 @@ batchAssetInventory?.addEventListener('click', (event) => {
     previousIndex,
     fallback: batchAssetDropzone,
   });
+});
+
+function syncContainerReviewControls(){
+  const button=$('batchInspectBtn'),cancel=$('batchInspectCancelBtn');
+  if(!button||!cancel)return;
+  const sources=batchVideoFiles();
+  button.disabled=isBusy()||batchRunning||batchStartPending||batchImportInProgress||!sources.length||sources.length>MAX_CONTAINER_REVIEW_SOURCES;
+  button.textContent='检查 '+sources.length+' 个容器';
+  cancel.disabled=!containerReviewRunning||containerReviewCancelled;
+}
+function clearContainerReviewReports(){
+  for(const url of containerReviewUrls)URL.revokeObjectURL(url);
+  containerReviewUrls=[];containerReviewLinks.clear();$('batchInspectResults').replaceChildren();
+  const download=$('batchInspectDownload');download.hidden=true;download.removeAttribute('href');
+}
+function containerReviewDownload(data,name,label){
+  const link=document.createElement('a');link.className='button button-secondary';
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}));
+  containerReviewUrls.push(url);link.href=url;link.download=name;link.textContent=label;
+  return link;
+}
+function renderContainerReviewRows(rows,runId){
+  // URLs are rebuilt only from this independent observation run, never from
+  // retained mux results or its save receipts.
+  const names={queued:'等待检查',inspecting:'正在检查',inspected:'已检查（结构观察）',partial:'部分观察',failed:'检查失败',cancelled:'已停止',interrupted:'来源选择已变化',notRun:'未检查'};
+  $('batchInspectResults').replaceChildren(...rows.map((row,index)=>{
+    const item=document.createElement('article');item.className='container-review-row';item.dataset.containerReviewState=row.state;
+    const title=document.createElement('strong');title.textContent=row.source.name+' · '+(names[row.state]||row.state);item.append(title);
+    const info=document.createElement('p');info.textContent=row.error||(!row.observation?'':
+      row.observation.streams.length+' 个流 · '+row.observation.chapters.length+' 个章节'+
+      (row.observation.attachmentInventory?' · '+row.observation.attachmentInventory.attachments.length+' 个附件':'')+
+      (row.observation.probeError?'；'+row.observation.probeError:''));item.append(info);
+    if(row.observation){
+      if(!containerReviewLinks.has(row.id)){
+        const link=containerReviewDownload({schema:'softmux-container-review-item-v1',application:{version:PRODUCT_PACKAGE_VERSION},operation:'read-only-container-review',runId,...row},'container-review-'+runId+'-'+index+'.json','下载检查报告');
+        containerReviewLinks.set(row.id,{href:link.href,download:link.download});
+      }
+      const link=document.createElement('a');Object.assign(link,containerReviewLinks.get(row.id));
+      link.className='button button-secondary';link.textContent='下载检查报告';item.append(link);
+    }
+    return item;
+  }));
+}
+async function inspectContainerForBatch(file,index){
+  const prefix=taskPrefix()+'-inspect-'+index,probePath='/'+prefix+'.json';
+  let staged=null;
+  try{
+    await loadFFmpeg();
+    staged=await stageBrowserPrimarySource({ffmpeg,file,prefix,fallbackPath:'/unused-'+prefix,
+      workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,minMountBytes:0});
+    const identity=sniffedVideoIdentity(file,await sniffFileContainer(file));
+    let attachments=null,preservation=null;
+    if(isMatroskaIdentity(identity)){
+      const reader=createMatroskaAttachmentReader(file),inventory=await reader.inspect();
+      if(inventory.state==='inspected')attachments=inventory;
+      preservation=await inspectMatroskaPreservation(file);
+    }
+    let raw;
+    try{raw=await runProbe(staged.path,probePath,{decodeStreams:false});}
+    catch(error){
+      if(!attachments)throw error;
+      return {...containerObservationReport({streams:[],chapters:[],format:null},{attachments,preservation}),partial:true,probeError:error?.message||String(error)};
+    }
+    if(!Array.isArray(raw.streams)||!raw.streams.length){
+      if(!attachments)throw Error('没有确认实际轨道或独立附件结构，不能记为检查完成');
+      return {...containerObservationReport({streams:[],chapters:raw.chapters||[],format:raw.format},{attachments,preservation}),partial:true,probeError:'未确认媒体轨道；仅有独立 Matroska 结构观察'};
+    }
+    const report=containerObservationReport(raw,{attachments,preservation});
+    if(isMatroskaIdentity(identity)&&!attachments)return {...report,partial:true,probeError:'未能可靠读取 Matroska 附件结构'};
+    return report;
+  }finally{
+    await removeQuietly(probePath);
+    if(staged)await staged.cleanup();
+  }
+}
+$('batchInspectCancelBtn')?.addEventListener('click',()=>{
+  if(!containerReviewRunning)return;
+  containerReviewCancelled=true;syncContainerReviewControls();
+  $('batchInspectStatus').textContent='正在停止；当前读取结束后生效，已完成报告会保留。';
+});
+$('batchInspectBtn')?.addEventListener('click',async()=>{
+  if(isBusy()||batchRunning||batchStartPending||batchImportInProgress)return;
+  const sources=Object.freeze([...batchVideoFiles()]);
+  if(!sources.length||sources.length>MAX_CONTAINER_REVIEW_SOURCES)return;
+  const runId=taskPrefix();containerReviewRunning=true;containerReviewCancelled=false;
+  clearContainerReviewReports();updateUI();
+  const current=()=>{const now=batchVideoFiles();return now.length===sources.length&&now.every((f,i)=>f===sources[i]);};
+  try{
+    const result=await runContainerBatchReview(sources,{runId,inspect:inspectContainerForBatch,
+      shouldCancel:()=>containerReviewCancelled,isCurrent:current,
+      onUpdate:rows=>{renderContainerReviewRows(rows,runId);
+        if(!containerReviewCancelled)$('batchInspectStatus').textContent='正在检查：'+rows.filter(r=>['inspected','partial','failed'].includes(r.state)).length+'/'+rows.length;
+      }});
+    const counts=state=>result.rows.filter(r=>r.state===state).length;
+    $('batchInspectStatus').textContent='检查已结束：已检查 '+counts('inspected')+' · 部分 '+counts('partial')+' · 失败 '+counts('failed')+' · 未完成 '+result.rows.filter(r=>['cancelled','interrupted','notRun'].includes(r.state)).length+'；未生成 MKV，下载不代表已确认保存。';
+    const link=containerReviewDownload({...result,application:{version:PRODUCT_PACKAGE_VERSION}},'container-review-'+runId+'.json','下载汇总报告');
+    const target=$('batchInspectDownload');target.href=link.href;target.download=link.download;target.hidden=false;
+  }catch(error){$('batchInspectStatus').textContent='检查中断：'+(error?.message||String(error));}
+  finally{containerReviewRunning=false;updateUI();}
 });
 
 function batchVideoFiles() {
@@ -7138,6 +7245,7 @@ async function syncBatchPlan() {
 
   const generation = ++batchPlanGeneration;
   const candidateVideos = batchVideoFiles();
+  syncContainerReviewControls();
   const subtitles = batchSubtitleFiles();
   const fontCandidates = batchFontCandidates();
   const unifiedRoles = batchUnifiedMode ? resolveBatchImportedAssets(batchImportEntries) : null;

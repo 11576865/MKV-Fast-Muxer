@@ -1246,14 +1246,12 @@
           "S10"
         ],
         "testPaths": [
-          "tests/batch-review-matrix.test.mjs",
-          "tests/batch-job-plan.test.mjs",
-          "tests/e2e/batch-20-real.e2e.mjs",
-          "tests/e2e/browser-mux.e2e.mjs"
+          "tests/container-batch-review.test.mjs",
+          "tests/e2e/container-batch-review-scenario.mjs"
         ],
-        "currentEntry": "独立批量工作区：匹配 → 审核/冻结 → 顺序执行",
-        "remainingChecks": "当前 batch.js 任务构建过滤无字幕任务；字幕配对批次测试不能证明批量纯容器审查/报告。需先确定首发范围，再实现或取得明确范围裁决，不能仅补最终候选复测。",
-        "classification": "IMPLEMENTATION_GAP"
+        "currentEntry": "现有批量资源入口 → 仅检查容器 → 逐项/汇总 JSON 报告；不重封装",
+        "remainingChecks": "0.1036 已实现独立只读批量容器检查，不要求字幕；本地浏览器与原生 FFprobe 核对正常/损坏/仅附件组合、失败继续、取消保留已完成报告、单工程隔离和来源字节不变。完整精确候选 CI/更多复杂来源仍待验收；不把结构观察当解码/保真/保存证明。",
+        "classification": "IMPLEMENTATION_LOCATED_NOT_ACCEPTED"
       }
     },
     {

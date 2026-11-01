@@ -812,6 +812,17 @@
                   <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消</button>
                 </div>
                 <div id="batchResults" class="new-track-list"></div>
+                <section class="editor-card container-batch-review" aria-labelledby="containerBatchReviewTitle">
+                  <h3 id="containerBatchReviewTitle">仅检查容器</h3>
+                  <p>检查当前批量容器的轨道、附件、章节和标签，不要求外部字幕，不生成 MKV。每次最多100个容器。</p>
+                  <div class="actions">
+                    <button id="batchInspectBtn" class="button button-secondary" type="button" disabled>检查容器</button>
+                    <button id="batchInspectCancelBtn" class="button button-secondary" type="button" disabled>停止检查</button>
+                  </div>
+                  <p id="batchInspectStatus" role="status" aria-live="polite">尚未检查</p>
+                  <div id="batchInspectResults" class="new-track-list"></div>
+                  <a id="batchInspectDownload" class="button button-secondary" hidden>下载汇总报告</a>
+                </section>
               </div>
             </div>
           </div>
