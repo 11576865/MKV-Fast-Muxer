@@ -40,8 +40,8 @@
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "feat/softmux-batch-execution-selection-20261102",
-  "pr": null,
-  "latest_durable_commit": "b1ef09510064369aaf5702c24b1735b9cfa76dec",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/221",
+  "latest_durable_commit": "8e20b96dd22890e80c1ce32d0a54c4591a68cefe",
   "external_validation_states": {
     "node_build_local": "819/819 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -77,10 +77,10 @@
     "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
     "batch_run_console_ci": "PR #220 a405a56 all full workflows passed; merged",
     "batch_execution_selection_local": "passed: 3 actual outputs/native subtitle text/title/report hash, retained excluded edits, recipe retains3 jobs, runtime scopes2 then1, selected conflict refusal/unselected sentinel retained, all/none/invert and execution locks; console pause/resume/stop/cancel compatibility passed",
-    "batch_execution_selection_ci": "Not yet submitted; mandatory actual output and viewport artifacts wired"
+    "batch_execution_selection_ci": "PR #221 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T10:25:10.384642+00:00"
+  "updated_at": "2026-11-02T10:26:05.803Z"
 }
