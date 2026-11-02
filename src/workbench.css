@@ -1994,3 +1994,11 @@ body { background: var(--bg); }
 .batch-run-console .batch-run-actions {display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
 .batch-run-console button {min-height:44px;}
 .batch-run-console small {color:#a6bdc9;line-height:1.6;display:block;}
+
+.batch-selection-tools {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0;}
+.batch-selection-tools button {min-height:44px;}
+.batch-selection-tools small {flex-basis:100%;line-height:1.6;color:#a6bdc9;}
+.batch-selection-row {display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px;align-items:stretch;}
+.batch-job-check {display:flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer;}
+.batch-job-check input {width:18px;height:18px;accent-color:#78d7c5;}
+.batch-selection-row[data-included="false"] .batch-job-row {opacity:.65;}

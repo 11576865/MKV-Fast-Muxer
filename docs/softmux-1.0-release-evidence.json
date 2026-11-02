@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "9cd9fef6cf2b413558b7221780d853206b5ca1a0",
+  "currentDevelopmentBaseline": "b1ef09510064369aaf5702c24b1735b9cfa76dec",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -216,7 +216,7 @@
       "id": "S10",
       "title": "20 个实际封装批量任务",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "0.1042 运行控制台支持当前项完成后暂停/继续/停止、暂停时取消和运行记录；本地3任务继续及停止/取消共5份实际成品已核验。完整 CI、原20任务/fault组合在最终候选的统一收据与实体设备验收仍待完成；不自动 PASS。",
+      "openGap": "0.1043 批量执行范围选择已提供逐项/全选/全不选/反选；真实浏览器先执行1+3再补做保留编辑的2，选中目标冲突仍阻断，未选目标不写入。完整CI、最终20任务/fault/实体设备统一验收仍待完成，不自动 PASS。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -225,7 +225,9 @@
           "tests/e2e/batch-20-real.e2e.mjs",
           "tests/batch-save-retry.test.mjs",
           "tests/batch-run-control.test.mjs",
-          "tests/e2e/batch-run-console-scenario.mjs"
+          "tests/e2e/batch-run-console-scenario.mjs",
+          "tests/batch-execution-selection.test.mjs",
+          "tests/e2e/batch-execution-selection-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13070201773
