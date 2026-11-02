@@ -47,14 +47,14 @@
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "feat/softmux-media-generic-attachments-20261103",
-  "pr": null,
-  "latest_durable_commit": "f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/224",
+  "latest_durable_commit": "6a8296514fc9d7d5606e1d424b51e3a54ef7e9c8",
   "external_validation_states": {
     "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #221 repaired d766418 all full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Pending: searched Foundry attachment/image/attached_pic, no exact match; prepare one narrow Observation of demuxer object projection vs physical Matroska FileData; no Canonical promotion",
+    "UIGS_Intake": "Completed: searched/de-duplicated and wrote one Observation inbox/observations/2026-11-03-matroska-image-attachment-demuxer-projection.md to UIGS-Foundry @08d2820622a409e3ad1b570d0da5b126d784f053; no Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -92,10 +92,10 @@
     "audio_only_mux_ci": "PR #223 cabbd371 all full workflows passed; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
     "media_ordinary_attachments_local": "passed: 5 actual mixed video/audio outputs +2 zero-track +1 legacy-video regression; complete native PNG/PDF/opaque JSON payload SHA; source PNG FileData reattachment; source/new-font/new-ordinary collision names; selective image name/font exclusion; exact source media packets/PTS; final SHA receipts and input unchanged",
     "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
-    "media_ordinary_attachments_ci": "Pending submission"
+    "media_ordinary_attachments_ci": "PR #224 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T16:34:38.551091+00:00"
+  "updated_at": "2026-11-02T16:36:18.043Z"
 }

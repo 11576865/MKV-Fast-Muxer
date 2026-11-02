@@ -28,7 +28,7 @@
 - [x] Implement bounded planning, preserve font audit behavior through shared audit, integrate mixed staging/readback/report and final witness.
 - [x] Real browser: source has original note+font name conflicts; new PNG/PDF/explicit JSON+ASS/font -> exact bytes, unchanged media hashes/PTS; exclude/remove/re-enable; audio-only source; legacy-picker compatibility and pure-attachment regression.
 - [x] Full tests/build and independent native actual output proof; fresh reviewer; fix material findings.
-- [ ] Persist branch/PR, bounded UIGS Intake and one immediate CI status, then stop pending.
+- [x] Persisted implementation6a82965 and PR #224; bounded Observation intake completed; one immediate checkpoint-head CI read then stop pending.
 
 Decision: unknown opaque resources require explicit user assignment, keep application/octet-stream, and are never interpreted as a recognized format. Existing source/font collision allocation runs first; ordinary names use remaining namespace. Output .mkv and report/save flow stay shared.
 
@@ -43,3 +43,5 @@ Fresh reviewer passed13 focused tests and found one inherited late-cancel public
 839/839 full Node tests and build passed. Five actual mixed video/audio MKVs check independent media packet/PTS, original/new PNG FileData, native ordinary payload extraction, source/font/ordinary name namespace, ASS/font readback, exclusion/staleness/reinclude, selective source image edits and audio+PDF. Pure-attachment regression generated two actual zero-track outputs, then legacy picker media+attachments produced an actual playable-track MKV. Full hosted CI pending;14/44/57 verdicts unchanged.
 
 Ruling: unknown resources require explicit opaque assignment and application/octet-stream; they are not promoted to media/font format recognition. Ruling: ordinary collision names may change automatically, with source/final names in report and preview disclosure. Ruling: source image FileData follows mapped original attachments on output; UID/description/target-relation preservation is outside the existing FFmpeg contract, which keeps the original preservation preflight. These are bounded delivery choices, not general Matroska conformance or content-safety claims.
+
+Durable delivery: https://github.com/11576865/MKV-Fast-Muxer/pull/224. UIGS Observation written @08d2820622a409e3ad1b570d0da5b126d784f053; no Canonical change. Final0.1046 real browser run and original pure/legacy regression passed; 839/839 full suite/build passed.
