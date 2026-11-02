@@ -6,6 +6,7 @@
 export function formatBatchTerminalStatus({
   results = [],
   cancelled = false,
+  stopped = false,
   fatalError = '',
 } = {}) {
   // A generated Blob is not automatically audited or durably saved.
@@ -37,7 +38,7 @@ export function formatBatchTerminalStatus({
     ? '存在独立审计未通过或未完成的产物，不得视为已核验成品。'
     : '';
   const prefix = fatalError ? `批量中断：${fatalError}。` :
-    cancelled ? '批量已取消：' : '批量完成：';
+    stopped ? '批量已停止（保留已生成成品）：' : cancelled ? '批量已取消：' : '批量完成：';
   return prefix + totals + saveStatus + saveWarning + auditWarning;
 }
 
@@ -45,6 +46,7 @@ export function formatBatchTerminalStatus({
 export function combineBatchRetryTerminal(previous = {}, current = {}) {
   return Object.freeze({
     cancelled: Boolean(previous.cancelled || current.cancelled),
+    ...(previous.stopped || current.stopped ? {stopped:true} : {}),
     fatalError: String(current.fatalError || previous.fatalError || ''),
   });
 }

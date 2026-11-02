@@ -121,3 +121,8 @@ test('S11: saving MKV alone is not complete pair persistence', () => {
   assert.match(message,/1 项 MKV 已写入目录，但审计报告尚未写入/);
   assert.match(message,/审计通过 1，待复核 0/);
 });
+
+test('finish-current stop is distinguished from immediate cancellation and keeps output counts',()=>{
+ const text=formatBatchTerminalStatus({stopped:true,results:[{ok:true,auditStatus:'pass'}]});
+ assert.match(text,/批量已停止/);assert.match(text,/已生成 1/);assert.doesNotMatch(text,/批量已取消/);
+});

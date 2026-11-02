@@ -265,3 +265,38 @@ test('failed-job retry cancellation leaves previous successes and unselected fai
   assert.equal(outcome.cancelled,true);
   assert.deepEqual(ledger.snapshot().map(e=>e.state),['succeeded','cancelled','failed']);
 });
+
+test('queue boundary stop retains current published output and never prepares the next job',async()=>{
+ const {plan,ledger}=fixture();const prepared=[];
+ const outcome=await runFrozenBatchQueue(plan,{ledger,
+  beforeNextJob:async(_job,index)=>index===1?'stop':'continue',
+  prepare:async job=>prepared.push(job.jobId),execute:async job=>artifact(job),publish:async()=>({savedToDirectory:false})});
+ assert.equal(outcome.stopped,true);assert.equal(outcome.cancelled,false);
+ assert.equal(outcome.results.length,1);assert.deepEqual(prepared,[plan.jobs[0].jobId]);
+ assert.deepEqual(ledger.snapshot().map(x=>x.state),['awaitingSave','cancelled','cancelled']);
+});
+
+test('paused queue leaves next job queued and resumes without duplicate preparation or publication',async()=>{
+ const {createBatchRunControl}=await import('../src/batch-run-control.js');
+ const {plan,ledger}=fixture();let signal;const paused=new Promise(resolve=>signal=resolve);
+ let c;c=createBatchRunControl(()=>{if(c.phase==='paused')signal();});
+ const prepared=[],published=[];
+ const pending=runFrozenBatchQueue(plan,{ledger,beforeNextJob:job=>c.beforeNextJob(job),
+  prepare:async job=>prepared.push(job.jobId),execute:async job=>artifact(job),
+  publish:async job=>{published.push(job.jobId);if(published.length===1)c.pause();return{};}});
+ await paused;assert.deepEqual(prepared,[plan.jobs[0].jobId]);
+ assert.deepEqual(ledger.snapshot().map(x=>x.state),['awaitingSave','queued','queued']);
+ c.resume();const result=await pending;assert.equal(result.results.length,3);
+ assert.deepEqual(prepared,plan.jobs.map(j=>j.jobId));assert.deepEqual(published,prepared);
+});
+
+test('hard cancellation at a paused boundary releases queue and retains completed output',async()=>{
+ const {createBatchRunControl}=await import('../src/batch-run-control.js');const{plan,ledger}=fixture();
+ let signal;const paused=new Promise(resolve=>signal=resolve);let cancelled=false;
+ let c;c=createBatchRunControl(()=>{if(c.phase==='paused')signal();});
+ const pending=runFrozenBatchQueue(plan,{ledger,shouldCancel:()=>cancelled,beforeNextJob:job=>c.beforeNextJob(job),
+  prepare:async()=>{},execute:async job=>artifact(job),publish:async()=>{c.pause();return{};}});
+ await paused;cancelled=true;c.cancel();const result=await pending;
+ assert.equal(result.cancelled,true);assert.equal(result.stopped,false);assert.equal(result.results.length,1);
+ assert.deepEqual(ledger.snapshot().map(x=>x.state),['awaitingSave','cancelled','cancelled']);
+});
