@@ -451,6 +451,17 @@
                 <button id="editorMuxBtn" type="button" class="button button-primary" disabled>封装 MKV</button>
               </div>
             </header>
+            <section id="workspaceHistoryPanel" class="workspace-history" aria-label="编辑历史">
+              <div class="workspace-history-actions">
+                <button id="workspaceUndoBtn" type="button" class="button button-small" disabled>撤销</button>
+                <button id="workspaceRedoBtn" type="button" class="button button-small" disabled>重做</button>
+                <details><summary>操作记录</summary><ol id="workspaceHistoryList"></ol>
+                  <p>当前文件绑定下最近 50 步属性修改；连续文字输入合并。重新绑定文件或应用恢复草稿会重置历史。文件增删、子集开关、保留全部开关与章节/标签实验性写入不在此历史中。</p>
+                  <p>快捷键：Ctrl/⌘ Z 撤销；Ctrl/⌘ Shift Z 或 Ctrl Y 重做。文本框内保留浏览器原生文字撤销。</p>
+                </details>
+              </div>
+              <p id="workspaceHistoryStatus" aria-live="polite">当前文件绑定尚无编辑记录</p>
+            </section>
             <div id="objectSelectionHint" class="object-selection-hint">选择一条轨道</div>
 
             <section id="assetInspectorHost" class="asset-inspector-host" aria-label="当前容器对象属性" hidden></section>

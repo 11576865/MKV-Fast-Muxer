@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioWorkspaceHistory} from './workspace-history-scenario.mjs';
 import {scenarioSingleSaveReceipt} from './single-save-receipt-scenario.mjs';
 import {scenarioFontStrategies} from './font-strategy-scenario.mjs';
 import {scenarioOriginalSubtitleTimeline} from './original-subtitle-timeline-scenario.mjs';
@@ -7713,6 +7714,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioWorkspaceHistory(browser,{root,outDir:path.join(outDir,'workspace-history'),baseUrl});
   await scenarioSingleSaveReceipt(browser,{root,outDir:path.join(outDir,'single-save-receipt'),baseUrl});
   await scenarioFontStrategies(browser,{root,outDir:path.join(outDir,'font-strategies'),baseUrl});
   await scenarioOriginalSubtitleTimeline(browser,{root,outDir:path.join(outDir,'original-subtitle-timeline'),baseUrl});

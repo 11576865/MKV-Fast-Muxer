@@ -11,10 +11,12 @@
  */
 import { createContainerProject } from './container-project.js';
 import {
+  LIVE_SOURCE_FIELDS,
   inspectLiveSourceTrackSession, commitLiveSourceTrackChanges,
   commitLiveSourceAttachmentChanges, moveLiveSourceTrack,
 } from './live-source-track-authority.js';
 import {
+  EXTERNAL_AUDIO_FIELDS, EXTERNAL_SUBTITLE_FIELDS,
   inspectLiveExternalAssets, commitLiveExternalAssetChanges,
   commitExternalFontMode,
 } from './live-external-asset-authority.js';
@@ -119,6 +121,7 @@ export function commitLiveWorkspaceChange(workspace, {
   audioRows = [], subtitleRows = [], fonts = [], mode = 'preserve',
   changes, appendMode = false, index, delta, previousMode, nextMode,
 } = {}) {
+  const history = historyFor(workspace);
   const verifyingMode = kind === 'font-mode' ? previousMode : mode;
   inspectLiveWorkspaceAuthority(workspace,{
     source,trackState,audioRows,subtitleRows,fonts,mode:verifyingMode,
@@ -164,6 +167,7 @@ export function commitLiveWorkspaceChange(workspace, {
     if (e) e.project = next;
     workspace.project = next;
     workspace.generation++;
+    recordWorkspaceEdit(history, before, next, {kind,changes,index});
   }
   return Object.freeze({
     ...receipt, workspaceRevision: workspace.project.revision,
@@ -171,4 +175,108 @@ export function commitLiveWorkspaceChange(workspace, {
     singleDomainDocument: true,
     writerAuthorized: false,
   });
+}
+
+
+// Only in-session accepted revisions are replayable. Exported JSON and public
+// history summaries cannot manufacture an executable revision or File grant.
+const workspaceHistories = new WeakMap();
+const HISTORY_LIMIT = 50;
+const historyLabels = Object.freeze({
+  'source-tracks':'原轨道属性', 'source-attachments':'原附件属性',
+  'source-order':'原轨道排序', 'external-tracks':'外部轨道属性',
+  'font-mode':'字体策略',
+});
+const fieldLabels = Object.freeze({title:'标题',language:'语言',include:'输出选择',
+  default:'默认标记',forced:'强制标记',original:'原始标记',commentary:'评论标记',
+  hearingImpaired:'听障标记',filename:'附件名称',mimetype:'附件 MIME'});
+function historyFor(workspace) {
+  if (!workspace) return null;
+  let h=workspaceHistories.get(workspace);
+  // Recovery operations have their own transactional inverse. They cannot
+  // silently become replayable authoring history or be overwritten by it.
+  if (!h || h.expected !== workspace.project) {
+    h={undo:[],redo:[],expected:workspace.project};
+    workspaceHistories.set(workspace,h);
+  }
+  return h;
+}
+function recordWorkspaceEdit(h,before,after,{kind,changes,index}) {
+  const edit=changes?.length===1?changes[0]:null;
+  const target=edit?' #'+edit.index:kind==='source-order'?' #'+index:'';
+  const label=historyLabels[kind]+target+(edit?' · '+(fieldLabels[edit.field]||edit.field):'');
+  const mergeKey=edit && typeof edit.value==='string'
+    ? kind+':'+(edit.kind||'')+':'+edit.index+':'+edit.field : null;
+  const now=Date.now(),last=h.undo.at(-1);
+  if (!h.redo.length && mergeKey && last?.mergeKey===mergeKey &&
+      last.after===before && now-last.time<800) {
+    last.after=after;last.time=now;
+  } else {
+    h.undo.push({before,after,kind,label,mergeKey,time:now});
+    if(h.undo.length>HISTORY_LIMIT)h.undo.shift();
+  }
+  h.redo=[];h.expected=after;
+}
+export function resetWorkspaceHistory(workspace) {
+  if(workspace)workspaceHistories.delete(workspace);
+}
+export function inspectWorkspaceHistory(workspace) {
+  const h=historyFor(workspace);
+  return Object.freeze({undoCount:h?.undo.length||0,redoCount:h?.redo.length||0,
+    undoLabel:h?.undo.at(-1)?.label||'',redoLabel:h?.redo.at(-1)?.label||'',
+    limit:HISTORY_LIMIT,entries:Object.freeze([
+      ...(h?.undo||[]).map(e=>Object.freeze({label:e.label,applied:true})),
+      ...(h?.redo||[]).slice().reverse().map(e=>Object.freeze({label:e.label,applied:false})),
+    ])});
+}
+export function travelWorkspaceHistory(workspace,context,direction) {
+  if(!['undo','redo'].includes(direction))throw Error('WORKSPACE_HISTORY_DIRECTION');
+  const h=historyFor(workspace),from=h?.[direction],entry=from?.at(-1);
+  if(!entry)throw Error('WORKSPACE_HISTORY_EMPTY');
+  inspectLiveWorkspaceAuthority(workspace,context);
+  if(context.appendMode && entry.kind.startsWith('source-'))
+    throw Error('请先关闭保留全部原流，再撤销或重做原轨道/附件修改');
+  const expected=direction==='undo'?entry.after:entry.before;
+  // Equality of semantic objects is needed after an intervening history travel
+  // creates a fresh revision. Exact File grants were separately checked above.
+  if(JSON.stringify(workspace.project.objects)!==JSON.stringify(expected.objects))
+    throw Error('WORKSPACE_HISTORY_CONFLICT');
+  const target=direction==='undo'?entry.before:entry.after;
+  const next=createContainerProject({documentId:workspace.project.documentId,
+    sources:normalized(target.sources),objects:target.objects});
+  const objects=new Map(next.objects.map(o=>[o.id,o]));
+  const updates=[];
+  const source=workspace.sourceSession,external=workspace.externalSession;
+  if(source){
+    for(const row of context.trackState.tracks){
+      const object=objects.get(source.targets.get(row.type+':'+row.index));
+      if(!object)throw Error('WORKSPACE_HISTORY_TRACK_MISSING');
+      updates.push([row,{...Object.fromEntries(LIVE_SOURCE_FIELDS.map(field=>
+        [field,field==='include'?object.included:object.attributes[field]])),order:object.order}]);
+    }
+    for(const row of context.trackState.attachments||[]){
+      const object=objects.get(source.attachmentTargets.get('attachment:'+row.index));
+      if(!object)throw Error('WORKSPACE_HISTORY_ATTACHMENT_MISSING');
+      updates.push([row,{include:object.included,filename:object.attributes.name,mimetype:object.attributes.mime}]);
+    }
+  }
+  let mode=context.mode;
+  if(external){
+    for(const {kind,index,row} of external.rows){
+      const object=objects.get(external.keys.get(kind+':'+index));
+      if(!object)throw Error('WORKSPACE_HISTORY_EXTERNAL_MISSING');
+      const fields=['include',...(kind==='audio'?EXTERNAL_AUDIO_FIELDS:EXTERNAL_SUBTITLE_FIELDS)];
+      updates.push([row,Object.fromEntries(fields.map(field=>
+        [field,field==='include'?object.included:object.attributes[field]]))]);
+    }
+    mode=objects.get('external-policy:font').attributes.value;
+  }
+  // All identity, conflict, target and structural checks precede publication.
+  for(const [row,values] of updates)Object.assign(row,values);
+  if(source){source.project=next;source.generation++;}
+  if(external){external.project=next;external.mode=mode;external.generation++;}
+  workspace.project=next;workspace.generation++;
+  from.pop();h[direction==='undo'?'redo':'undo'].push(entry);h.expected=next;
+  return Object.freeze({direction,label:entry.label,mode,generation:workspace.generation,
+    writerAuthorized:false,muxStarted:false,fileWritten:false});
 }

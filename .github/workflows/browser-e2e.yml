@@ -590,3 +590,12 @@ jobs:
           path: .e2e/output/single-save-receipt/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload unified workspace history and actual output evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-history
+          path: .e2e/output/workspace-history/
+          if-no-files-found: error
+          retention-days: 14

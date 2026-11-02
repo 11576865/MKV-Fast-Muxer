@@ -1977,3 +1977,13 @@ body { background: var(--bg); }
   .container-review-row { grid-template-columns: minmax(0, 1fr); }
   .container-review-row a.button { grid-column: 1; grid-row: auto; justify-self: start; }
 }
+
+.workspace-history {border:1px solid #34505a;border-radius:10px;padding:10px;margin:10px 0;background:#14242e;}
+.workspace-history-actions {display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;}
+.workspace-history button,.workspace-history summary {min-height:44px;}
+.workspace-history details {flex:1;min-width:110px;font-size:12px;}
+.workspace-history summary {display:flex;align-items:center;cursor:pointer;}
+.workspace-history ol {max-height:180px;overflow:auto;padding-left:24px;}
+.workspace-history li {padding:4px;overflow-wrap:anywhere;}
+.workspace-history li[data-applied="false"] {color:#8ea5b2;}
+.workspace-history p {font-size:11px;line-height:1.6;margin:5px 0;color:#b2c6d1;}

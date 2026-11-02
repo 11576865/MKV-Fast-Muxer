@@ -5,10 +5,10 @@ import {createLiveSourceTrackSession} from '../src/live-source-track-authority.j
 import {createLiveExternalAssetSession} from '../src/live-external-asset-authority.js';
 import {
   createLiveWorkspaceAuthority,inspectLiveWorkspaceAuthority,
-  commitLiveWorkspaceChange,
+  commitLiveWorkspaceChange, inspectWorkspaceHistory, travelWorkspaceHistory,
 } from '../src/live-container-workspace-authority.js';
 
-function fixture({withSource=true}={}) {
+function fixture({withSource=true,rich=false}={}) {
   const source={name:'series.mkv',size:2100,lastModified:44};
   const fileKey='series.mkv|2100|44';
   const stream=(index,codec_type,title,language)=>({
@@ -20,6 +20,7 @@ function fixture({withSource=true}={}) {
     stream(1,'audio','Original audio','jpn'),
     stream(2,'subtitle','Original subtitle','zho'),
   ];
+  if(rich)streams.push(stream(3,'audio','Second audio','eng'));
   const trackState={
     fileKey,streams,tracks:streams.slice(1).map(s=>({
       index:s.index,type:s.codec_type,stream:s,include:true,order:s.index,
@@ -31,6 +32,11 @@ function fixture({withSource=true}={}) {
       originalCommentary:false,originalHearingImpaired:false,
     })),attachments:[],chapters:[],format:{tags:{}},
   };
+  if(rich){
+    const attachment={index:4,codec_type:'attachment',codec_name:'ttf',tags:{filename:'main.ttf',mimetype:'font/ttf'},disposition:{}};
+    trackState.streams.push(attachment);
+    trackState.attachments.push({index:4,stream:attachment,include:true,filename:'main.ttf',mimetype:'font/ttf',originalFilename:'main.ttf',originalMimetype:'font/ttf'});
+  }
   const sourceSession=withSource?createLiveSourceTrackSession({
     source,trackState,projection:buildContainerDocument({video:source,trackState}),
   }):null;
@@ -185,4 +191,86 @@ test('all domains retain one immutable revision under sustained edits/history co
   assert.equal(f.externalSession.project,f.workspace.project);
   assert.ok(f.workspace.project.history.length<=85);
   assert.equal(inspectLiveWorkspaceAuthority(f.workspace,f.context).generation,115);
+});
+
+
+test('workspace history undoes and redoes interleaved source/external/font edits in one sequence',()=>{
+ const f=fixture();
+ f.change('source-tracks',{changes:[{index:1,field:'title',value:'Edited audio'}]});
+ f.change('external-tracks',{changes:[{kind:'subtitle',index:0,field:'include',value:false}]});
+ f.change('font-mode',{previousMode:'preserve',nextMode:'force'});f.context.mode='force';
+ assert.equal(inspectWorkspaceHistory(f.workspace).undoCount,3);
+ travelWorkspaceHistory(f.workspace,f.context,'undo');f.context.mode=f.externalSession.mode;
+ assert.equal(f.context.mode,'preserve');
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.subtitleRows[0].include,true);
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.trackState.tracks[0].title,'Original audio');
+ assert.equal(inspectWorkspaceHistory(f.workspace).redoCount,3);
+ for(let i=0;i<3;i++){travelWorkspaceHistory(f.workspace,f.context,'redo');f.context.mode=f.externalSession.mode;}
+ assert.equal(f.trackState.tracks[0].title,'Edited audio');assert.equal(f.subtitleRows[0].include,false);assert.equal(f.context.mode,'force');
+ assert.equal(inspectLiveWorkspaceAuthority(f.workspace,f.context).sameImmutableDocument,true);
+});
+
+test('workspace history restores flags cleared by exclusion and rejects row/File drift atomically',()=>{
+ const f=fixture();f.change('source-tracks',{changes:[{index:1,field:'include',value:false}]});
+ assert.equal(f.trackState.tracks[0].original,false);
+ const before=f.workspace.project;f.audioRows[0].title='bypass';
+ assert.throws(()=>travelWorkspaceHistory(f.workspace,f.context,'undo'),/DRIFT/);
+ assert.equal(f.workspace.project,before);assert.equal(f.trackState.tracks[0].include,false);
+ f.audioRows[0].title='Extra audio';f.audioRows[0].file={...f.files.audio};
+ assert.throws(()=>travelWorkspaceHistory(f.workspace,f.context,'undo'),/SOURCE_CHANGED/);
+ f.audioRows[0].file=f.files.audio;
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.trackState.tracks[0].include,true);assert.equal(f.trackState.tracks[0].original,true);
+ assert.notEqual(f.workspace.project,before);
+});
+
+test('workspace history truncates redo branch, ignores no-ops and resets on a new binding',()=>{
+ const f=fixture();f.change('source-tracks',{changes:[{index:1,field:'title',value:'First'}]});
+ travelWorkspaceHistory(f.workspace,f.context,'undo');
+ f.change('external-tracks',{changes:[{kind:'audio',index:0,field:'language',value:'jpn'}]});
+ assert.equal(inspectWorkspaceHistory(f.workspace).redoCount,0);
+ f.change('external-tracks',{changes:[{kind:'audio',index:0,field:'language',value:'jpn'}]});
+ assert.equal(inspectWorkspaceHistory(f.workspace).undoCount,1);
+ const fresh=createLiveWorkspaceAuthority({sourceSession:f.sourceSession,externalSession:f.externalSession});
+ assert.equal(inspectWorkspaceHistory(fresh).undoCount,0);
+ assert.throws(()=>travelWorkspaceHistory(fresh,f.context,'undo'),/EMPTY/);
+});
+
+
+test('workspace history restores source ordering and attachment metadata across multiple travels',()=>{
+ const f=fixture({rich:true});
+ f.change('source-order',{index:3,delta:-1});
+ f.change('source-attachments',{changes:[{index:4,field:'filename',value:'renamed.ttf'}]});
+ assert.equal(f.trackState.tracks.filter(t=>t.type==='audio').sort((a,b)=>a.order-b.order)[0].index,3);
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.trackState.attachments[0].filename,'main.ttf');
+ travelWorkspaceHistory(f.workspace,f.context,'undo');
+ assert.equal(f.trackState.tracks.filter(t=>t.type==='audio').sort((a,b)=>a.order-b.order)[0].index,1);
+ travelWorkspaceHistory(f.workspace,f.context,'redo');travelWorkspaceHistory(f.workspace,f.context,'redo');
+ assert.equal(f.trackState.attachments[0].filename,'renamed.ttf');
+ inspectLiveWorkspaceAuthority(f.workspace,f.context);
+ const before=f.workspace.project;
+ assert.throws(()=>travelWorkspaceHistory(f.workspace,{...f.context,appendMode:true},'undo'),/保留全部/);
+ assert.equal(f.workspace.project,before);
+});
+
+test('workspace history merges continuous text typing but does not merge different fields or travel branches',()=>{
+ const f=fixture();
+ for(const value of ['T','Ty','Typed'])f.change('source-tracks',{changes:[{index:1,field:'title',value}]});
+ assert.equal(inspectWorkspaceHistory(f.workspace).undoCount,1);
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.trackState.tracks[0].title,'Original audio');
+ f.change('source-tracks',{changes:[{index:1,field:'title',value:'Branch'}]});
+ assert.equal(inspectWorkspaceHistory(f.workspace).redoCount,0);
+ travelWorkspaceHistory(f.workspace,f.context,'undo');assert.equal(f.trackState.tracks[0].title,'Original audio');
+});
+
+test('workspace history bounds retained steps and treats externally restored projects as a new history',()=>{
+ const f=fixture();
+ for(let i=0;i<61;i++)f.change('external-tracks',{changes:[{kind:'subtitle',index:0,field:'forced',value:i%2===0}]});
+ assert.equal(inspectWorkspaceHistory(f.workspace).undoCount,50);
+ for(let i=0;i<50;i++)travelWorkspaceHistory(f.workspace,f.context,'undo');
+ assert.equal(inspectWorkspaceHistory(f.workspace).undoCount,0);
+ assert.equal(inspectWorkspaceHistory(f.workspace).redoCount,50);
+ const restored=createLiveWorkspaceAuthority({sourceSession:f.sourceSession,externalSession:f.externalSession});
+ f.workspace.project=restored.project;f.sourceSession.project=restored.project;f.externalSession.project=restored.project;
+ assert.equal(inspectWorkspaceHistory(f.workspace).redoCount,0);
+ assert.throws(()=>travelWorkspaceHistory(f.workspace,f.context,'redo'),/EMPTY/);
 });
