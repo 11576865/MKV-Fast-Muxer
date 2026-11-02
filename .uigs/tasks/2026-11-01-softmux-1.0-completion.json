@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "unified_history_feature_complete_pending_external_validation",
-  "current_bounded_work_unit": "0.1041 deliver unified cross-domain editing history: 50 steps, undo/redo, branch truncation, typing coalescing, visible timeline, shortcuts, actual outputs",
+  "status": "batch_run_console_feature_complete_pending_external_validation",
+  "current_bounded_work_unit": "0.1042 complete current-session batch run console: boundary pause/resume/stop, live progress/current/next and timestamped observation export",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -28,22 +28,24 @@
     "PR #217 exact head 0be3ff4 passed Browser 41336529452, Deploy 41336529200 and S12 41336529123; merged @95423a389503979a8cbfa7ec4af570d15fb3b283",
     "0.1040 unit and actual browser RED/GREEN: successful directory A receipt no longer hides retry after B collision. Actual MKV/report exact hashes across three successful destinations, report-only permission retry, corrupt readback no overwrite, unchanged mux log/download/source; 800 tests/build passed",
     "PR #218 exact head 44f05f1 passed Browser 41339211341, Deploy 41339211310 and S12 41339211295; merged @e82616090805b0b2ffd94244d46ac923fb0a5f13",
-    "0.1041 substantive feature: one 50-step session history for source tracks/order/attachments, external tracks and font policy; visible Undo/Redo and timeline, keyboard outside text inputs, coalesced typing and branch truncation. Six cross-domain edits -> actual edited/undone/redone MKVs independently validate original/external titles, audio order, subtitle membership and exact attachment bytes. 806 Node tests/build/history browser passed; fresh review no material findings; recovery/history reset integration RED/GREEN"
+    "0.1041 substantive feature: one 50-step session history for source tracks/order/attachments, external tracks and font policy; visible Undo/Redo and timeline, keyboard outside text inputs, coalesced typing and branch truncation. Six cross-domain edits -> actual edited/undone/redone MKVs independently validate original/external titles, audio order, subtitle membership and exact attachment bytes. 806 Node tests/build/history browser passed; fresh review no material findings; recovery/history reset integration RED/GREEN",
+    "PR #219 exact head eeeaecc passed Deploy 41342764804, Browser 41342764832, S12 41342764893; merged @9cd9fef6cf2b413558b7221780d853206b5ca1a0",
+    "0.1042 running console: pause finishes current publication, resumes exact frozen queue without repeats; finish-current stop and paused immediate cancel preserve completed outputs. 3-job continued run + 2 one-output stopped/cancelled runs independently native-checked, saved/downloaded hashes equal, standalone draft unchanged;815 tests/build passed; fresh review no material issues"
   ],
   "next_units": [
-    "Full exact-head unified history CI and complete supported edit/recovery coverage for S09",
+    "Full exact-head batch console CI; complete remaining S10 actual20/fault combinations and S03 OTC/multi-face/shaping acceptance workflows",
     "Complete remaining S10 actual batch fault/retry workflow and S03 OTC/multi-face/shaping acceptance combinations as full usable workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "feat/softmux-workspace-history-20261102",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/219",
-  "latest_durable_commit": "619689673985967adcbf053933b6d92c51a0b67f",
+  "branch": "feat/softmux-batch-queue-controls-20261102",
+  "pr": null,
+  "latest_durable_commit": "9cd9fef6cf2b413558b7221780d853206b5ca1a0",
   "external_validation_states": {
-    "node_build_local": "806/806 passed; build passed",
+    "node_build_local": "815/815 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #218 44f05f1 all full workflows passed; merged",
+    "full_exact_head_ci": "PR #219 eeeaecc all full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Pending: bounded triage for private accepted-revision history across workspace domains; no Canonical promotion",
+    "UIGS_Intake": "Pending: bounded triage for queue boundary control and completion-time observation snapshots; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -69,10 +71,12 @@
     "single_save_receipt_local": "passed: actual browser RED/GREEN collision/retry, three byte-identical saved pairs, report permission failure, corrupt readback/refused overwrite and native-verified unchanged download; directory API simulated, no physical disk durability claim",
     "single_save_receipt_ci": "PR #218 44f05f1 all full workflows passed; merged",
     "workspace_history_local": "passed: 6 cross-domain steps and 3 native-verified actual MKVs;50-step bound,flags/order/attachment restoration,typing merge,File/projection conflicts,branch,keyboard,reload,external recovery reset; simulated3viewports not physical-device acceptance; candidate preview/membership regression passed; execution locks controls and old-output evidence correctly stale after travel",
-    "workspace_history_ci": "PR #219 submitted; full exact checkpoint-head workflows pending"
+    "workspace_history_ci": "PR #219 eeeaecc all full workflows passed; merged",
+    "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
+    "batch_run_console_ci": "Not yet submitted; mandatory full browser scenario/artifact wired"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-01T19:38:31.703Z"
+  "updated_at": "2026-11-02T05:03:50.152296+00:00"
 }

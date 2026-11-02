@@ -9,6 +9,7 @@ export async function runFrozenBatchQueue(plan, {
   ledger,
   jobIds = plan?.jobs?.map(job => job.jobId),
   shouldCancel = () => false,
+  beforeNextJob = async () => 'continue',
   prepare,
   execute,
   publish,
@@ -17,7 +18,7 @@ export async function runFrozenBatchQueue(plan, {
   if (plan?.schema !== BATCH_JOB_PLAN_SCHEMA || !ledger || ledger.plan !== plan) {
     throw new Error('批次执行器需要与状态台账一致的冻结计划');
   }
-  if (![prepare, execute, publish, onResults, shouldCancel].every((fn) => typeof fn === 'function')) {
+  if (![prepare, execute, publish, onResults, shouldCancel, beforeNextJob].every((fn) => typeof fn === 'function')) {
     throw new Error('批次执行器缺少必要的操作回调');
   }
 
@@ -32,11 +33,16 @@ export async function runFrozenBatchQueue(plan, {
   const results = [];
   let fatalError = '';
   let cancelled = false;
+  let stopped = false;
   try {
     for (let index = 0; index < plan.jobs.length; index += 1) {
       const job = plan.jobs[index];
       if (!selected.has(job.jobId)) continue;
       if (shouldCancel()) { cancelled = true; break; }
+      const boundary = await beforeNextJob(job,index,plan);
+      if (shouldCancel()) { cancelled = true; break; }
+      if (boundary === 'stop') { stopped = true; break; }
+      if (boundary !== 'continue') throw Error('无效的批量队列边界动作');
       ledger.transition(job.jobId, 'preparing');
       // Adapter staging errors are batch-fatal: the inherited single-job
       // inputs may be partially changed and cannot be trusted for later jobs.
@@ -95,9 +101,9 @@ export async function runFrozenBatchQueue(plan, {
   } finally {
     cancelled = cancelled || shouldCancel();
     ledger.interruptRemaining(cancelled ? '用户取消后尚未运行'
-      : fatalError || '队列已结束', { cancelled });
+      : stopped ? '用户停止后尚未运行' : fatalError || '队列已结束', { cancelled:cancelled||stopped });
   }
   return Object.freeze({
-    results: Object.freeze([...results]), cancelled, fatalError,
+    results: Object.freeze([...results]), cancelled, stopped, fatalError,
   });
 }

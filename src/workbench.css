@@ -1987,3 +1987,10 @@ body { background: var(--bg); }
 .workspace-history li {padding:4px;overflow-wrap:anywhere;}
 .workspace-history li[data-applied="false"] {color:#8ea5b2;}
 .workspace-history p {font-size:11px;line-height:1.6;margin:5px 0;color:#b2c6d1;}
+
+.batch-run-console {margin:14px 0;padding:14px;border:1px solid #34505a;border-radius:10px;background:#14242e;}
+.batch-run-console p {line-height:1.6;overflow-wrap:anywhere;}
+.batch-run-console progress {display:block;width:100%;height:12px;accent-color:#78d7c5;}
+.batch-run-console .batch-run-actions {display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+.batch-run-console button {min-height:44px;}
+.batch-run-console small {color:#a6bdc9;line-height:1.6;display:block;}

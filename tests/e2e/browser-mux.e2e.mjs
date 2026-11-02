@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
 import {scenarioAttachmentOnlyWorkbench} from './attachment-only-workbench-scenario.mjs';
+import {scenarioBatchRunConsole} from './batch-run-console-scenario.mjs';
 import {scenarioWorkspaceHistory} from './workspace-history-scenario.mjs';
 import {scenarioSingleSaveReceipt} from './single-save-receipt-scenario.mjs';
 import {scenarioFontStrategies} from './font-strategy-scenario.mjs';
@@ -7714,6 +7715,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioBatchRunConsole(browser,{root,outDir:path.join(outDir,'batch-run-console'),baseUrl});
   await scenarioWorkspaceHistory(browser,{root,outDir:path.join(outDir,'workspace-history'),baseUrl});
   await scenarioSingleSaveReceipt(browser,{root,outDir:path.join(outDir,'single-save-receipt'),baseUrl});
   await scenarioFontStrategies(browser,{root,outDir:path.join(outDir,'font-strategies'),baseUrl});

@@ -60,6 +60,7 @@ import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-out
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { createBatchSaveRetryRegistry } from './batch-save-retry.js';
 import { createSingleOutputDirectorySaveSession } from './single-output-directory-save.js';
+import {createBatchRunControl} from './batch-run-control.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
 import { formatBatchTerminalStatus, combineBatchRetryTerminal } from './batch-status.js';
@@ -358,6 +359,12 @@ const batchReviewSummary = $('batchReviewSummary');
 const batchJobInspector = $('batchJobInspector');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
+const batchPauseBtn = $('batchPauseBtn');
+const batchResumeBtn = $('batchResumeBtn');
+const batchStopAfterBtn = $('batchStopAfterBtn');
+const batchRunExportBtn = $('batchRunExportBtn');
+const batchRunStatus = $('batchRunStatus');
+const batchRunProgress = $('batchRunProgress');
 const batchPreserveAttachments = $('batchPreserveAttachments');
 const batchFontSubsetEnabled = $('batchFontSubsetEnabled');
 const batchSubsetScope = $('batchSubsetScope');
@@ -560,6 +567,9 @@ let batchImportInProgress = false;
 let batchUnifiedMode = false;
 let batchInternalAdapterUpdate = false;
 let batchRunning = false;
+let activeBatchRunControl=null;
+let activeBatchRunScope=[];
+let retainedBatchRunRecord=null;
 let batchStartPending = false;
 let batchStartCancelled = false;
 let batchCancelRequested = false;
@@ -1765,6 +1775,7 @@ function updateUI() {
   // FFmpeg completion clears running in a later finally block; refresh this
   // action after every state change rather than leaving it disabled forever.
   syncContainerReviewControls();
+  renderBatchRunConsole();
   renderActualOutputEvidence();
 }
 
@@ -7586,6 +7597,7 @@ function requestBatchPlanSync() {
 // Running results update only the derived matrix and inspector, never edit
 // current subtitle assignments or any source-track state.
 function refreshBatchExecutionViews() {
+  renderBatchRunConsole();
   const ledger = activeBatchJobLedger;
   if (!ledger) return;
   const bySource = indexBatchExecutionBySource();
@@ -7886,6 +7898,50 @@ batchRecipeV2ConfirmBtn?.addEventListener('click',()=>{
 
 batchOutputDirBtn?.addEventListener('click', chooseBatchOutputDirectory);
 
+function currentBatchRunRecord(){
+  return {
+    schema:'softmux-batch-run-control-v1',version:PRODUCT_PACKAGE_VERSION,
+    capturedAt:new Date().toISOString(),scope:'execution snapshot; later save-only retries are not included',
+    scopeJobIds:[...activeBatchRunScope],
+    control:activeBatchRunControl?.snapshot()||null,
+    jobs:(activeBatchJobLedger?.snapshot()||[]).filter(row=>activeBatchRunScope.includes(row.jobId)),
+    permissions:'not-exported; observation only, cannot resume after reload',
+  };
+}
+function renderBatchRunConsole(){
+  if(!batchRunStatus)return;
+  const record=activeBatchRunControl?currentBatchRunRecord():retainedBatchRunRecord;
+  const phase=activeBatchRunControl?.phase||'finished';
+  const active=Boolean(batchRunning&&activeBatchRunControl);
+  batchPauseBtn.disabled=!active||phase!=='running';
+  batchResumeBtn.disabled=!active||!['pause-requested','paused'].includes(phase);
+  batchStopAfterBtn.disabled=!active||['stop-requested','cancelled','finished'].includes(phase);
+  batchRunExportBtn.disabled=!record;
+  if(!record){batchRunStatus.textContent='尚未启动批次';return;}
+  const jobs=record.jobs;
+  const done=jobs.filter(x=>['succeeded','awaitingSave','saveWarning','auditWarning','failed'].includes(x.state)).length;
+  const generated=jobs.filter(x=>['succeeded','awaitingSave','saveWarning','auditWarning'].includes(x.state)).length;
+  const current=jobs.find(x=>['preparing','muxing','saving'].includes(x.state));
+  const next=jobs.find(x=>x.state==='queued');
+  const labels={running:'运行中', 'pause-requested':'将在当前项完成后暂停',paused:'已暂停，等待继续',
+    'stop-requested':'将在当前项完成后停止',cancelled:'正在取消',finished:'本次运行已结束'};
+  batchRunStatus.dataset.phase=phase;
+  batchRunStatus.textContent=labels[phase]+' · 已处理 '+done+'/'+jobs.length+' · 已生成 '+generated+
+    (current?'；当前：'+current.outputName+'（'+(BATCH_JOB_STATES[current.state]||current.state)+'）':'')+
+    (next?'；下一项：'+next.outputName:'');
+  batchRunProgress.max=Math.max(1,jobs.length);batchRunProgress.value=done;
+}
+batchPauseBtn?.addEventListener('click',()=>activeBatchRunControl?.pause());
+batchResumeBtn?.addEventListener('click',()=>activeBatchRunControl?.resume());
+batchStopAfterBtn?.addEventListener('click',()=>activeBatchRunControl?.stop());
+batchRunExportBtn?.addEventListener('click',()=>{
+  const record=activeBatchRunControl?currentBatchRunRecord():retainedBatchRunRecord;
+  if(!record)return;
+  const url=URL.createObjectURL(new Blob([JSON.stringify(record,null,2)+'\n'],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='softmux-batch-run-record.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+});
+
 batchCancelBtn?.addEventListener('click', () => {
   if (batchStartPending) {
     batchStartCancelled = true;
@@ -7894,6 +7950,7 @@ batchCancelBtn?.addEventListener('click', () => {
   }
   if (!batchRunning) return;
   batchCancelRequested = true;
+  activeBatchRunControl?.cancel();
   if (running || scanning || previewing) cancelCurrentMuxTask();
   batchStatus.textContent = '正在取消批量任务……';
 });
@@ -8177,12 +8234,18 @@ async function executeFrozenBatch(preparation, retryIds = null) {
   } else {
     activeBatchJobLedger = retainedBatchLedger;
   }
+  activeBatchRunScope=retryIds?[...retryIds]:frozenPlan.jobs.map(job=>job.jobId);
+  const control=createBatchRunControl(renderBatchRunConsole);
+  activeBatchRunControl=control;
+  retainedBatchRunRecord=null;
   renderRetainedBatchResults();
+  renderBatchRunConsole();
   requestBatchPlanSync();
 
   const requestedBatchFonts = frozenPlan.fonts;
   const results = [];
   let batchFatalError = '';
+  let batchStopped = false;
   let jobFonts = requestedBatchFonts;
   let activeBatchMuxContext = null;
 
@@ -8201,6 +8264,7 @@ async function executeFrozenBatch(preparation, retryIds = null) {
       ledger: activeBatchJobLedger,
       ...(retryIds ? { jobIds: retryIds } : {}),
       shouldCancel: () => batchCancelRequested,
+      beforeNextJob: job=>control.beforeNextJob(job),
       prepare: async (job, index) => {
         batchStatus.textContent = `${retryIds ? '重试失败任务' : '批量任务'}：${index + 1} / ${frozenPlan.jobs.length} · ${job.video.name}`;
         activeBatchMuxContext = null;
@@ -8263,6 +8327,7 @@ async function executeFrozenBatch(preparation, retryIds = null) {
     results.push(...outcome.results);
     batchFatalError = outcome.fatalError;
     if (outcome.cancelled) batchCancelRequested = true;
+    batchStopped=outcome.stopped;
   } catch (error) {
     // Preparation (notably Group font subsetting) and per-job setup happen
     // outside the per-item mux try/catch. These failures must be visible, not
@@ -8277,7 +8342,8 @@ async function executeFrozenBatch(preparation, retryIds = null) {
   } finally {
     activeBatchJobLedger?.interruptRemaining(batchCancelRequested ? '用户取消后尚未运行' : batchFatalError || '队列已结束', { cancelled: batchCancelRequested });
     batchRunning = false;
-    const currentTerminal = { cancelled: batchCancelRequested, fatalError: batchFatalError };
+    control.finish();
+    const currentTerminal = { cancelled: batchCancelRequested, ...(batchStopped?{stopped:true}:{}), fatalError: batchFatalError };
     retainedBatchTerminal = retryIds
       ? combineBatchRetryTerminal(previousTerminal, currentTerminal) : currentTerminal;
     const combinedResults = mergeResults(results);
@@ -8286,6 +8352,9 @@ async function executeFrozenBatch(preparation, retryIds = null) {
       results: combinedResults,
       ...retainedBatchTerminal,
     });
+    retainedBatchRunRecord=Object.freeze({...currentBatchRunRecord(),
+      terminal:Object.freeze({...currentTerminal}),batchTerminal:Object.freeze({...retainedBatchTerminal})});
+    activeBatchRunControl=null;
     batchCancelRequested = false;
     // Batch did not modify the user's source, subtitle, font or audio inputs.
     updateUI();

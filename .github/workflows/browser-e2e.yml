@@ -599,3 +599,12 @@ jobs:
           path: .e2e/output/workspace-history/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload batch run control console and native output evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-run-console
+          path: .e2e/output/batch-run-console/
+          if-no-files-found: error
+          retention-days: 14

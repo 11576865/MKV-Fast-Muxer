@@ -822,6 +822,18 @@
                   <button id="batchStartBtn" class="button button-primary" type="button" disabled>开始批量封装</button>
                   <button id="batchCancelBtn" class="button button-secondary" type="button" disabled>取消</button>
                 </div>
+                <section id="batchRunConsole" class="batch-run-console" aria-label="批量运行控制台">
+                  <strong>运行控制台</strong>
+                  <p id="batchRunStatus" role="status" aria-live="polite">尚未启动批次</p>
+                  <progress id="batchRunProgress" max="1" value="0" aria-label="批量任务处理进度"></progress>
+                  <div class="actions batch-run-actions">
+                    <button id="batchPauseBtn" type="button" class="button button-small" disabled>完成当前项后暂停</button>
+                    <button id="batchResumeBtn" type="button" class="button button-small" disabled>继续执行</button>
+                    <button id="batchStopAfterBtn" type="button" class="button button-small" disabled>完成当前项后停止</button>
+                    <button id="batchRunExportBtn" type="button" class="button button-small" disabled>导出运行记录</button>
+                  </div>
+                  <small>暂停会完成当前项的封装与保存，再等待继续；暂停期间可下载已生成成品。停止保留当前及此前成品，取消会中断当前操作。仅当前页面会话有效，暂停仍可能占用内存。运行记录是当时快照，后续仅保存重试以成品保存收据为准。</small>
+                </section>
                 <div id="batchResults" class="new-track-list"></div>
                 <section class="editor-card container-batch-review" aria-labelledby="containerBatchReviewTitle">
                   <h3 id="containerBatchReviewTitle">仅检查容器</h3>
