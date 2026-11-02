@@ -42,7 +42,7 @@
   ],
   "branch": "feat/softmux-batch-execution-selection-20261102",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/221",
-  "latest_durable_commit": "704516bb8a3f5955b38fa14ba693787450e6dcd5",
+  "latest_durable_commit": "c108e1d5bfebbf580dbad6c602cfa8e14fbada3b",
   "external_validation_states": {
     "node_build_local": "820/820 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -78,11 +78,11 @@
     "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
     "batch_run_console_ci": "PR #220 a405a56 all full workflows passed; merged",
     "batch_execution_selection_local": "passed: 3 actual outputs/native subtitle text/title/report hash, retained excluded edits, recipe retains3 jobs, runtime scopes2 then1, selected conflict refusal/unselected sentinel retained, all/none/invert and execution locks; console pause/resume/stop/cancel compatibility passed",
-    "batch_execution_selection_ci": "Initial head704516b: Deploy41428795717/S1241428795741 passed; Browser41428795748 failed report-only conflict. One scoped repair locally verified; repaired CI pending, do not poll next generation",
+    "batch_execution_selection_ci": "PR #221 repair c108e1d pushed; final checkpoint-head CI pending, no next-generation polling",
     "batch_selection_ci_repair_local": "Original CI scenarioBatchDirectoryConflict reproduced RED and GREEN in real Chromium; selected report-only collision retained while unselected pair scoped out;5 selector tests and820 full suite pass"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T11:07:39.079959+00:00"
+  "updated_at": "2026-11-02T11:08:24.758Z"
 }
