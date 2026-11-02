@@ -25,3 +25,10 @@ test('selected destinations scope collision checks without dropping unresolved i
  s.set(b,false);const p=s.project(pairing);assert.equal(p.outputNameCollisions.length,0);
  assert.deepEqual(p.directoryConflicts,[a.outputName]);assert.deepEqual(p.invalidSubtitles,['bad']);
 });
+
+test('selected report-only conflicts stay blocking while unselected MKV/report conflicts are scoped out',()=>{
+ const s=createBatchExecutionSelection(),a=job(1),b=job(2);s.reconcile([a,b]);s.set(b,false);
+ const conflicts=['1.mux-report.json','2.mkv','2.mux-report.json'];
+ const p=s.project({jobs:[a,b],directoryConflicts:conflicts});
+ assert.deepEqual(p.directoryConflicts,['1.mux-report.json']);
+});

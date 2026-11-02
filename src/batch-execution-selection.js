@@ -1,3 +1,4 @@
+import {plannedBatchFilenames,normalizedDestinationName} from './batch-output.js';
 /** Session-only execution choices, never a File/recipe/writer permission. */
 export function createBatchExecutionSelection(){
  let entries=new Map(),revision=0;
@@ -24,10 +25,11 @@ export function createBatchExecutionSelection(){
   invert(jobs){const list=jobs.map(get);list.forEach(e=>e.included=!e.included);if(list.length)revision++;},
   project(pairing){
    const jobs=chosen(pairing.jobs||[]);if(!jobs.length)throw Error('请至少选择一个批量任务');
-   const videos=new Set(jobs.map(j=>j.video)),names=new Set(jobs.map(j=>j.outputName));
+   const videos=new Set(jobs.map(j=>j.video));
+   const names=new Set(plannedBatchFilenames(jobs).map(normalizedDestinationName));
    return {...pairing,jobs,
     outputNameCollisions:(pairing.outputNameCollisions||[]).filter(c=>c.videos.filter(v=>videos.has(v)).length>1),
-    directoryConflicts:(pairing.directoryConflicts||[]).filter(name=>names.has(name))};
+    directoryConflicts:(pairing.directoryConflicts||[]).filter(name=>names.has(normalizedDestinationName(name)))};
   },
  });
 }

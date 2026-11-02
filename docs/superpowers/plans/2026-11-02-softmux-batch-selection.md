@@ -12,3 +12,5 @@ Architecture: a session-only selection owner binds each job to exact source/subt
 Unresolved ambiguous/invalid input warnings remain blockers. Unselected targets are not written or checked as destination conflicts; selected collisions remain blocking. Selection is current-session/File-bound, not an imported recipe grant. Formal S10/device verdicts unchanged.
 
 Verification:819/819 Node tests, production build and actual selection scenario passed; console pause/resume/stop/paused-cancel regression passed. Fresh review no material findings, focused4 selector tests independently passed.3 actualMKVs prove1+3 then edited2, retained files/metadata, recipe3jobs and runtime2/1 scopes. Full CI pending.
+
+CI repair: Browser41428795748 failed existing report-only directory conflict scenario. Selected scope had discarded .mux-report.json collisions. Reused plannedBatchFilenames and normalizedDestinationName (same output pair as writer); unit and exact real-browser case RED→GREEN.820 full tests/build passed. One bounded repair pushed; no next-generation polling.
