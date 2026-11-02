@@ -49,7 +49,7 @@
   ],
   "branch": "feat/softmux-media-generic-attachments-20261103",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/224",
-  "latest_durable_commit": "cf3782e08f993e3303e854e2acc28732e631827f",
+  "latest_durable_commit": "d859064b9e921f5c4f091ccf60bc7e6d2278bdaa",
   "external_validation_states": {
     "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -93,11 +93,11 @@
     "audio_only_mux_ci": "PR #223 cabbd371 all full workflows passed; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
     "media_ordinary_attachments_local": "passed: 5 actual mixed video/audio outputs +2 zero-track +1 legacy-video regression; complete native PNG/PDF/opaque JSON payload SHA; source PNG FileData reattachment; source/new-font/new-ordinary collision names; selective image name/font exclusion; exact source media packets/PTS; final SHA receipts and input unchanged",
     "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
-    "media_ordinary_attachments_ci": "Original cf3782e: Deploy41483148334/S1241483148371 passed; Browser41483148386 failed obsolete pre-feature generic-attachment refusal expectation; bounded repair ready to push, next generation must remain Pending",
+    "media_ordinary_attachments_ci": "PR224 bounded repaired head submitted; full next-generation CI Pending External Validation. No status read after repair push.",
     "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T16:56:01.780378+00:00"
+  "updated_at": "2026-11-02T16:56:22.384Z"
 }
