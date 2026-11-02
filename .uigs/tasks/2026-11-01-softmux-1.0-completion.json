@@ -43,8 +43,8 @@
     "Exact-candidate acceptance/site/rollback and target desktop/tablet S12/S13 evidence"
   ],
   "branch": "feat/softmux-original-track-extraction-20261102",
-  "pr": null,
-  "latest_durable_commit": "a86a26c837bf5134c8aa471cb498a8dd8f439c78",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/222",
+  "latest_durable_commit": "3a21f2974d4981455a6817bf60e63f02a7045364",
   "external_validation_states": {
     "node_build_local": "825/825 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -83,10 +83,10 @@
     "batch_execution_selection_ci": "PR #221 repaired d766418 all full workflows passed; merged",
     "batch_selection_ci_repair_local": "Original CI scenarioBatchDirectoryConflict reproduced RED and GREEN in real Chromium; selected report-only collision retained while unselected pair scoped out;5 selector tests and820 full suite pass",
     "original_track_extraction_local": "passed:14 requested exports from9codecs plus startup cancel/recovery and audio-only MKA-source extraction. Native payload/count equality (AAC ADTS normalized, PGS grouped), container PTS/private-data equality, raw source metadata not pending edits, unchanged main output/plan/source and stale-source links invalidated. No font/Tag/UID or generic raw timeline guarantee",
-    "original_track_extraction_ci": "Not yet submitted; mandatory actual output/native evidence scenario wired"
+    "original_track_extraction_ci": "PR #222 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T12:54:10.346888+00:00"
+  "updated_at": "2026-11-02T12:55:53.391Z"
 }
