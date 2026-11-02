@@ -60,6 +60,7 @@ import { findExistingBatchOutputs, writeNewBatchArtifactPair } from './batch-out
 import { createBatchResultUrlRegistry } from './batch-result-urls.js';
 import { createBatchSaveRetryRegistry } from './batch-save-retry.js';
 import { createSingleOutputDirectorySaveSession } from './single-output-directory-save.js';
+import {createBatchExecutionSelection} from './batch-execution-selection.js';
 import {createBatchRunControl} from './batch-run-control.js';
 import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
@@ -359,6 +360,10 @@ const batchReviewSummary = $('batchReviewSummary');
 const batchJobInspector = $('batchJobInspector');
 const batchStartBtn = $('batchStartBtn');
 const batchCancelBtn = $('batchCancelBtn');
+const batchSelectAllBtn=$('batchSelectAllBtn');
+const batchSelectNoneBtn=$('batchSelectNoneBtn');
+const batchInvertSelectionBtn=$('batchInvertSelectionBtn');
+const batchSelectionStatus=$('batchSelectionStatus');
 const batchPauseBtn = $('batchPauseBtn');
 const batchResumeBtn = $('batchResumeBtn');
 const batchStopAfterBtn = $('batchStopAfterBtn');
@@ -566,6 +571,7 @@ let batchImportEntries = [];
 let batchImportInProgress = false;
 let batchUnifiedMode = false;
 let batchInternalAdapterUpdate = false;
+const batchExecutionSelection=createBatchExecutionSelection();
 let batchRunning = false;
 let activeBatchRunControl=null;
 let activeBatchRunScope=[];
@@ -1775,6 +1781,7 @@ function updateUI() {
   // FFmpeg completion clears running in a later finally block; refresh this
   // action after every state change rather than leaving it disabled forever.
   syncContainerReviewControls();
+  renderBatchSelectionControls();
   renderBatchRunConsole();
   renderActualOutputEvidence();
 }
@@ -7377,13 +7384,16 @@ async function syncBatchPlan() {
   });
 
   pairing.ignoredVideos = recognition.ignored.map((entry) => entry.file);
+  batchExecutionSelection.reconcile(pairing.jobs);
+  const selectedJobs=pairing.jobs.filter(job=>batchExecutionSelection.included(job));
+
 
   pairing.directoryConflicts = [];
   pairing.directoryCheckError = '';
-  if (batchOutputDirectoryHandle && pairing.jobs.length) {
+  if (batchOutputDirectoryHandle && selectedJobs.length) {
     try {
       pairing.directoryConflicts = await findExistingBatchOutputs(
-        batchOutputDirectoryHandle, pairing.jobs
+        batchOutputDirectoryHandle, selectedJobs
       );
     } catch (error) {
       pairing.directoryCheckError = error?.message || String(error);
@@ -7396,16 +7406,20 @@ async function syncBatchPlan() {
   if (!pairing.jobs.some((job) => job.video === selectedBatchVideoFile)) {
     selectedBatchVideoFile = pairing.jobs[0]?.video || null;
   }
+  const executionPreview=selectedJobs.length?batchExecutionSelection.project(pairing):{...pairing,jobs:[],outputNameCollisions:[],directoryConflicts:[]};
   const executionBySource = indexBatchExecutionBySource();
   const rows = pairing.jobs.map((job, index) => {
-    const outputCollision = pairing.outputNameCollisions.some((entry) => entry.videos.includes(job.video));
+    const outputCollision = executionPreview.outputNameCollisions.some((entry) => entry.videos.includes(job.video));
     const directoryCollision = pairing.directoryConflicts.includes(job.outputName);
     const hasTie = pairing.ambiguousPairings.some((entry) => entry.candidates.includes(job.video));
     const state = outputCollision || directoryCollision ? '输出冲突' : hasTie ? '待确认' : '待执行';
     const selected = selectedBatchVideoFile === job.video;
     const indexed = executionBySource.get(job.video);
     const executionState = indexed?.outputName === job.outputName ? indexed.state : null;
+    const included=batchExecutionSelection.included(job);
     return `
+    <div class="batch-selection-row" data-included="${included}">
+    <label class="batch-job-check"><input type="checkbox" data-batch-execute-index="${index}" data-batch-generation="${generation}" aria-label="执行任务 ${escapeHtml(job.outputName)}" ${included?'checked':''} ${batchRunning||batchStartPending||batchSaveRetryBusy?'disabled':''}></label>
     <button type="button" class="plan-row plan-video batch-job-row" data-batch-job-index="${index}"
       data-selected="${selected}" aria-pressed="${selected}" aria-label="检查任务 ${escapeHtml(job.outputName)}${classifyMuxSourceSize(job.video).warning ? " · 文件超过 1 GB，可能占用较多内存，仍允许尝试封装" : ""}">
       <span class="plan-kind">#${index + 1}</span>
@@ -7414,8 +7428,8 @@ async function syncBatchPlan() {
         <small>${escapeHtml(job.video.webkitRelativePath || job.video.name)} · 实际：${escapeHtml(job.videoIdentity?.containerLabel || "未识别")} · ${escapeHtml(batchSubtitleSummary(job))}
           · ${job.subtitleTracks.map((track) => escapeHtml(track.displayName || track.file.name)).join('、')}</small>
       </span>
-      <span class="plan-flags batch-review-state" data-state="${executionState ? executionState.state : state === '待执行' ? 'review' : 'blocked'}">${executionState ? escapeHtml(BATCH_JOB_STATES[executionState.state] || executionState.state) : state}</span>
-    </button>`;
+      <span class="plan-flags batch-review-state" data-state="${executionState ? executionState.state : state === '待执行' ? 'review' : 'blocked'}">${executionState ? escapeHtml(BATCH_JOB_STATES[executionState.state] || executionState.state)+(!included?' · 本次不执行':'') : (!included?'本次不执行':state)}</span>
+    </button></div>`;
   }).join('');
 
   const tieReview = pairing.ambiguousPairings.length ? `
@@ -7446,8 +7460,8 @@ async function syncBatchPlan() {
     );
     notes.push(`${pairing.ambiguousPairings.length} 条字幕匹配多个视频（${examples.join('；')}）；请调整文件名或分批处理，未自动选择第一个`);
   }
-  if (pairing.outputNameCollisions.length) {
-    const examples = pairing.outputNameCollisions.map(({ outputName, videos }) =>
+  if (executionPreview.outputNameCollisions.length) {
+    const examples = executionPreview.outputNameCollisions.map(({ outputName, videos }) =>
       `${outputName} ← ${videos.map((video) => video.webkitRelativePath || video.name).join(' / ')}`
     );
     notes.push(`输出文件名冲突（${examples.join('；')}）；请调整文件名或分批处理，以免覆盖已有任务产物`);
@@ -7472,13 +7486,13 @@ async function syncBatchPlan() {
 
   batchPlan.innerHTML = (rows || '<div class="track-empty">没有形成可执行配对。</div>') + tieReview;
   if (batchReviewSummary) {
-    const globalProblems = pairing.ambiguousPairings.length + pairing.outputNameCollisions.length +
-      pairing.directoryConflicts.length + Number(Boolean(pairing.directoryCheckError)) +
+    const globalProblems = pairing.ambiguousPairings.length + executionPreview.outputNameCollisions.length +
+      executionPreview.directoryConflicts.length + Number(Boolean(pairing.directoryCheckError)) +
       pairing.invalidSubtitles.length + (pairing.fontRecognition?.ignored?.length || 0) +
       (unifiedRoles?.unsupported.length || 0) + recognition.ignored.length;
     const readiness = !pairing.jobs.length ? '无可执行任务'
       : globalProblems ? `${globalProblems} 项待处理` : '配对无阻断';
-    batchReviewSummary.textContent = `${pairing.jobs.length} 个拟输出 · ${readiness}` +
+    batchReviewSummary.textContent = `${pairing.jobs.length} 个拟输出 · 本次选择 ${selectedJobs.length} 个 · ${readiness}` +
       ` · ${pairing.manuallyAssignedPairings.length} 项已人工确认`;
   }
   renderBatchJobInspector(pairing);
@@ -7489,10 +7503,10 @@ async function syncBatchPlan() {
     batchImportInProgress ||
     (batchUnifiedMode && Boolean(unifiedRoles?.unsupported.length || recognition.ignored.length)) ||
     isBusy() ||
-    !pairing.jobs.length ||
+    !selectedJobs.length ||
     pairing.ambiguousPairings.length > 0 ||
-    pairing.outputNameCollisions.length > 0 ||
-    pairing.directoryConflicts.length > 0 ||
+    executionPreview.outputNameCollisions.length > 0 ||
+    executionPreview.directoryConflicts.length > 0 ||
     Boolean(pairing.directoryCheckError) ||
     pairing.invalidSubtitles.length > 0 ||
     fontRecognition.ignored.length > 0;
@@ -7500,6 +7514,7 @@ async function syncBatchPlan() {
   if (batchSubsetScope) batchSubsetScope.disabled = batchRunning || batchStartPending || !batchFontSubsetEnabled?.checked;
 
   latestBatchPairing = pairing;
+  renderBatchSelectionControls(pairing);
   // Never silently carry recipe approval to a different File selection.
   if(approvedBatchRecipeV2 &&
       !verifyBatchRecipeV2Binding(approvedBatchRecipeV2,pairing)) {
@@ -7536,6 +7551,40 @@ batchPlan?.addEventListener('change', (event) => {
   selectedBatchVideoFile = video;
   requestBatchPlanSync();
 });
+function batchSelectionLocked(){return batchRunning||batchStartPending||batchImportInProgress||batchSaveRetryBusy||isBusy();}
+function renderBatchSelectionControls(pairing=latestBatchPairing){
+  if(!batchSelectionStatus)return;
+  let count=0,valid=Boolean(pairing?.jobs?.length);
+  try{if(valid)count=batchExecutionSelection.count(pairing.jobs);}catch{valid=false;}
+  const locked=batchSelectionLocked()||!valid;
+  for(const button of [batchSelectAllBtn,batchSelectNoneBtn,batchInvertSelectionBtn])button.disabled=locked;
+  for(const input of batchPlan.querySelectorAll('[data-batch-execute-index]'))input.disabled=locked;
+  batchSelectionStatus.textContent=valid?'本次执行 '+count+' / '+pairing.jobs.length+' 个任务':'尚无可选任务';
+}
+function updateBatchSelection(action){
+  if(batchSelectionLocked()||!latestBatchPairing)return;
+  try{
+    action(latestBatchPairing.jobs);activeBatchJobLedger=null;
+    void requestBatchPlanSync();
+  }catch(error){batchStatus.textContent='执行选择未修改：'+(error?.message||String(error));}
+}
+batchSelectAllBtn?.addEventListener('click',()=>updateBatchSelection(jobs=>batchExecutionSelection.setAll(jobs,true)));
+batchSelectNoneBtn?.addEventListener('click',()=>updateBatchSelection(jobs=>batchExecutionSelection.setAll(jobs,false)));
+batchInvertSelectionBtn?.addEventListener('click',()=>updateBatchSelection(jobs=>batchExecutionSelection.invert(jobs)));
+batchPlan.addEventListener('change',event=>{
+  const control=event.target.closest('[data-batch-execute-index]');
+  if(!control||batchSelectionLocked()||Number(control.dataset.batchGeneration)!==batchPlanGeneration)return;
+  const index=Number(control.dataset.batchExecuteIndex),job=latestBatchPairing?.jobs[index];
+  if(!job)return;
+  try{
+    batchExecutionSelection.set(job,control.checked);activeBatchJobLedger=null;
+    void requestBatchPlanSync().then(()=>{
+      if(document.activeElement===document.body||document.activeElement===control)
+        batchPlan.querySelector('[data-batch-execute-index="'+index+'"]')?.focus({preventScroll:true});
+    });
+  }catch(error){control.checked=batchExecutionSelection.included(job);batchStatus.textContent='执行选择未修改：'+(error?.message||String(error));}
+});
+
 batchPlan?.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-batch-job-index]');
   if (!button || !latestBatchPairing) return;
@@ -7976,6 +8025,8 @@ async function prepareBatchStart() {
       batchStatus.textContent = '批量计划已被新的输入选择替代，请确认更新后的配对再开始。';
       return null;
     }
+    const executionPairing=batchExecutionSelection.project(pairing);
+    const selectionRevision=batchExecutionSelection.revision;
     const generation = batchPlanGeneration;
     const currentRecipeV2Approval=approvedBatchRecipeV2;
     if(pendingBatchRecipeV2&&!currentRecipeV2Approval){
@@ -8000,6 +8051,7 @@ async function prepareBatchStart() {
     };
     const isCurrent = () => !batchStartCancelled &&
       generation === batchPlanGeneration &&
+      selectionRevision === batchExecutionSelection.revision &&
       approvedBatchRecipeV2 === currentRecipeV2Approval &&
       isApprovedBatchRecipeV2SelectionCurrent(currentRecipeV2Approval,pairing) &&
       selectedOutputDirectory === batchOutputDirectoryHandle &&
@@ -8019,10 +8071,10 @@ async function prepareBatchStart() {
     };
     if (refuseStale()) return null;
     if (
-      !pairing.jobs.length ||
+      !executionPairing.jobs.length ||
       pairing.ambiguousPairings.length ||
-      pairing.outputNameCollisions.length ||
-      pairing.directoryConflicts.length ||
+      executionPairing.outputNameCollisions.length ||
+      executionPairing.directoryConflicts.length ||
       pairing.directoryCheckError ||
       pairing.invalidSubtitles.length ||
       pairing.fontRecognition?.ignored?.length ||
@@ -8033,7 +8085,7 @@ async function prepareBatchStart() {
     }
     if (selectedOutputDirectory) {
       try {
-        const conflicts = await findExistingBatchOutputs(selectedOutputDirectory, pairing.jobs);
+        const conflicts = await findExistingBatchOutputs(selectedOutputDirectory, executionPairing.jobs);
         if (refuseStale()) return null;
         if (conflicts.length) {
           batchStatus.textContent = '批量未开始：输出目录已有 ' +
@@ -8051,7 +8103,7 @@ async function prepareBatchStart() {
     }
 
     // Revalidate after each awaited source sniff and EBML read.
-    for (const job of pairing.jobs) {
+    for (const job of executionPairing.jobs) {
       if (refuseStale()) return null;
       try {
         const inspected = await sniffFileContainer(job.video);
@@ -8079,8 +8131,8 @@ async function prepareBatchStart() {
     // preservation preflight; do not let the legacy executor read live batch
     // settings once the run has started.
     const approvedPairing=currentRecipeV2Approval
-      ? applyBatchRecipeV2ToPairing(currentRecipeV2Approval.recipe,pairing)
-      : pairing;
+      ? batchExecutionSelection.project(applyBatchRecipeV2ToPairing(currentRecipeV2Approval.recipe,pairing))
+      : batchExecutionSelection.project(pairing);
     const frozenPlan = freezeBatchJobPlan(approvedPairing, {
       generation,
       preserveAttachments: batchPreserveAttachments?.checked,

@@ -608,3 +608,12 @@ jobs:
           path: .e2e/output/batch-run-console/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload selected execution range and native output evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-execution-selection
+          path: .e2e/output/batch-execution-selection/
+          if-no-files-found: error
+          retention-days: 14
