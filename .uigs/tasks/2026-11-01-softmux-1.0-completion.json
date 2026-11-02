@@ -38,8 +38,8 @@
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "feat/softmux-batch-queue-controls-20261102",
-  "pr": null,
-  "latest_durable_commit": "9cd9fef6cf2b413558b7221780d853206b5ca1a0",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/220",
+  "latest_durable_commit": "9c48c5d4ffe172f6f1ea74d940ebd3705b1f668a",
   "external_validation_states": {
     "node_build_local": "815/815 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -73,10 +73,10 @@
     "workspace_history_local": "passed: 6 cross-domain steps and 3 native-verified actual MKVs;50-step bound,flags/order/attachment restoration,typing merge,File/projection conflicts,branch,keyboard,reload,external recovery reset; simulated3viewports not physical-device acceptance; candidate preview/membership regression passed; execution locks controls and old-output evidence correctly stale after travel",
     "workspace_history_ci": "PR #219 eeeaecc all full workflows passed; merged",
     "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
-    "batch_run_console_ci": "Not yet submitted; mandatory full browser scenario/artifact wired"
+    "batch_run_console_ci": "PR #220 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T05:03:50.152296+00:00"
+  "updated_at": "2026-11-02T05:05:53.432Z"
 }
