@@ -91,3 +91,14 @@ test('P0 preservation refusals are explicitly classified and never imply an outp
   assert.match(feedback.cause, /嵌套章节/);
   assert.match(feedback.action, /当前任务已在写入前停止/);
 });
+
+test('actual composition refusal takes precedence over successful probe log history',()=>{
+ const raw='组合兼容性不支持：无视频来源必须至少保留或加入一条音频轨；当前输出没有音频。';
+ const feedback=describeOperationError(new Error(raw),{logText:'INFO: ffprobe wrapper 返回 -1，但结构化结果文件有效，继续使用该结果。'});
+ assert.equal(feedback.category,'composition-unsupported');assert.equal(feedback.cause,raw);assert.equal(feedback.canSave,false);
+});
+test('unsupported primary media explains source requirement despite prior successful ffprobe',()=>{
+ const raw='实际检测到的媒体容器“Matroska / MKV”没有当前支持的音视频来源；不支持纯字幕来源。';
+ const feedback=describeOperationError(new Error(raw),{logText:'ffprobe result valid'});
+ assert.equal(feedback.category,'primary-media-unsupported');assert.equal(feedback.cause,raw);
+});
