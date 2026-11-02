@@ -31,6 +31,7 @@ export function buildMuxCommand({
   mainInputPath,
   outputPath,
   sourceAudioCount = 0,
+  preserveSourceTimeline = false,
   sourceSubtitleCount = 0,
   preserveAllSourceStreams = false,
   originalAudioTracks = null,
@@ -49,7 +50,7 @@ export function buildMuxCommand({
   // delivery; finished-output demux checks must still prove the actual times.
   const retainsSourceSubtitles = preserveAllSourceStreams || preserveAllOriginalSubtitles
     ? sourceSubtitleCount > 0 : originalSubtitleTracks.length > 0;
-  const needsSubtitleTimeline = retainsSourceSubtitles || newSubtitleTracks.some((track) =>
+  const needsSubtitleTimeline = preserveSourceTimeline || retainsSourceSubtitles || newSubtitleTracks.some((track) =>
     ['ass', 'srt', 'webvtt', 'pgs', 'vobsub'].includes(track.format?.id) ||
     /\.(ass|srt|vtt|webvtt|sup|idx)$/i.test(String(track.path || '')));
   const args = needsSubtitleTimeline ? ['-copyts', '-i', mainInputPath] : ['-i', mainInputPath];

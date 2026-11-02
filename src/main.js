@@ -32,6 +32,7 @@ import {
   identityMismatchMessage,
   isMatroskaIdentity,
   isSupportedVideoIdentity,
+  isSupportedPrimaryMediaIdentity,
   sniffFileContainer,
   sniffedVideoIdentity,
   sourceVirtualSuffix,
@@ -2471,6 +2472,7 @@ function renderOutputComposition() {
       sourceContainer: selectedVideoHeaderIdentity(source)?.container || 'unknown',
       sourceInspected: Boolean(scanned),
       hasVideo: Boolean(scanned?.streams?.some(stream => stream.codec_type === 'video')),
+      hasAudio: Boolean(scanned?.streams?.some(stream => stream.codec_type === 'audio')),
       preservationStatus: currentPreservationReadiness().status,
     });
     const items = summarizeContainerCapability(caps);
@@ -5086,11 +5088,11 @@ function buildMuxPlan() {
   const warnings = appendMode ? [] : defaultConflictWarnings();
 
   if (video) {
-    entries.push({
-      kind: '视频',
-      title: video.name,
-      meta: '原视频轨 · stream copy',
-      flags: '',
+    // An unscanned source is a container observation, never a fabricated video track.
+    const observedVideos = trackState?.streams?.filter(stream => stream.codec_type === 'video');
+    if (!observedVideos) entries.push({kind:'容器',title:video.name,meta:'实际音视频流将在执行时核验',flags:''});
+    else for (const stream of observedVideos) entries.push({
+      kind:'视频',title:video.name,meta:'原视频轨 · '+(stream.codec_name || 'unknown')+' · stream copy',flags:'',
     });
   }
 
@@ -6004,7 +6006,7 @@ async function executeCurrentMuxTask(explicit = null) {
   const subtitleTracks = independent ? explicit.subtitles : outputSubtitleTracks();
   const externalAudioTracks = independent ? explicit.externalAudio : outputAudioTracks();
   // A source-only remux is valid: existing MKV tracks, chapters and attachments
-  // do not require an extra subtitle file. ffprobe still checks video presence.
+  // do not require an extra subtitle file. ffprobe still checks actual media presence.
   if (!video || (!independent && importInProgress)) return;
 
   const headerVideoIdentity = independent ? explicit.headerIdentity :
@@ -6342,17 +6344,15 @@ async function executeCurrentMuxTask(explicit = null) {
     status.textContent = '正在读取输入容器结构……';
     const inputProbe = await probeInput(videoPath, probePath);
     const inputIdentity = videoIdentityFromProbe(video, inputProbe, headerVideoIdentity);
-    if (!inputIdentity.hasVideo) {
-      throw new Error(`“${video.name}”没有检测到可用视频轨。`);
-    }
-    if (!isSupportedVideoIdentity(inputIdentity)) {
-      throw new Error(`实际检测到的媒体容器“${inputIdentity.containerLabel}”不在当前 MP4 / MOV / M4V / MKV / WebM Stream Copy 支持范围内。`);
+    if (!(independent ? isSupportedVideoIdentity(inputIdentity)
+        : isSupportedPrimaryMediaIdentity(inputIdentity))) {
+      throw new Error(`实际检测到的媒体容器“${inputIdentity.containerLabel}”没有当前支持的音视频来源（MP4 / M4A / MOV / MKV / MKA / WebM）；不支持纯字幕来源或没有实际音视频流的输入。`);
     }
     const inputIdentityMismatch = identityMismatchMessage(inputIdentity);
     if (inputIdentityMismatch) {
       logEl.textContent += `WARNING: ${inputIdentityMismatch}；后续封装以 ffprobe 实际内容为准。\n`;
     } else {
-      logEl.textContent += `INFO: 实际媒体身份：${inputIdentity.containerLabel} · ${inputIdentity.videoStreams.map((stream) => stream.codec_name || 'unknown').join(' / ')}。\n`;
+      logEl.textContent += `INFO: 实际媒体身份：${inputIdentity.containerLabel} · ${[...inputIdentity.videoStreams, ...inputIdentity.audioStreams].map((stream) => stream.codec_name || 'unknown').join(' / ')}。\n`;
     }
 
     const originalAttachmentCount = inputProbe.attachmentCount;
@@ -6419,6 +6419,7 @@ async function executeCurrentMuxTask(explicit = null) {
       : selectedSubtitles.map((track) => track.stream);
     const compatibility = resolveMuxCompatibility({
       targetContainer: 'matroska',
+      allowAudioOnlySource: !independent,
       videoStreams: sourceVideos,
       sourceAudioStreams: compatibilitySourceAudio,
       externalAudioTracks: runtimeExternalAudio,
@@ -6460,6 +6461,7 @@ async function executeCurrentMuxTask(explicit = null) {
       mainInputPath: videoPath,
       outputPath,
       sourceAudioCount: sourceAudios.length,
+      preserveSourceTimeline: !independent && sourceVideos.length === 0,
       sourceSubtitleCount: sourceSubtitles.length,
       preserveAllSourceStreams,
       originalAudioTracks: selectedAudio,

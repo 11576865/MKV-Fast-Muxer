@@ -9,7 +9,7 @@ const result = (status, reason, code, proof = 'none') =>
 
 export function resolveContainerCapabilities({
   hasSource = false, sourceContainer = 'unknown', sourceInspected = false,
-  hasVideo = false, preservationStatus = 'checking',
+  hasVideo = false, hasAudio = false, preservationStatus = 'checking',
   writerEligibility = 'unverified',
 } = {}) {
   const matroska = ['matroska','matroska-webm'].includes(sourceContainer);
@@ -26,15 +26,15 @@ export function resolveContainerCapabilities({
   if (!hasSource) mux = result('blocked', '还没有经过授权的源文件。', 'SOURCE_MISSING');
   else if (!identityKnown) mux = result('blocked', '来源容器身份未知，拒绝封装。', 'IDENTITY_UNKNOWN');
   else if (!sourceInspected) mux = result('requires-preflight',
-    '尚未确认实际视频流和来源保留风险，不能承诺成功。', 'SOURCE_NOT_PROBED');
-  else if (!hasVideo) mux = result('unsupported',
-    '目前的浏览器 FFmpeg 封装入口仍要求视频轨；领域模型允许无视频计划。',
-    'NO_VIDEO_BACKEND');
+    '尚未确认实际音视频流和来源保留风险，不能承诺成功。', 'SOURCE_NOT_PROBED');
+  else if (!hasVideo && !hasAudio) mux = result('unsupported',
+    '当前媒体封装入口要求实际音频或视频轨；纯字幕或资源对象须使用受支持的专用路径。',
+    'NO_MEDIA_BACKEND');
   else if (matroska && ['blocked','checking','idle'].includes(preservationStatus))
     mux = result('blocked', 'MKV 来源保留风险未解除；运行时仍须再次独立审核。',
       'PRESERVATION_NOT_CLEARED');
   else mux = result('requires-preflight',
-    '可进入视频 Stream Copy 封装路径，但必须在执行时复核来源、轨道、身份和写入后成品。',
+    '可进入音视频 Stream Copy 封装路径，但必须在执行时复核来源、轨道、身份和写入后成品。',
     'RUNTIME_AUDIT_REQUIRED', 'browser-fixture-matrix');
 
   const attachments = !hasSource

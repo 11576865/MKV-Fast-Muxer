@@ -1,7 +1,7 @@
 {
   "name": "mkv-fast-muxer-v3",
   "private": true,
-  "version": "0.1044.0",
+  "version": "0.1045.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

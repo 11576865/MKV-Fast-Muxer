@@ -35,6 +35,17 @@ export function describeOperationError(error, { phase = 'mux', logText = '' } = 
     );
   }
 
+  // An intentional composition/source refusal must not be mistaken for probe
+  // failure merely because the preceding successful inventory log says ffprobe.
+  if (/^组合兼容性不支持：/.test(raw)) return result(
+    'composition-unsupported', raw,
+    '请调整参与输出的轨道后重试；不会自动加入轨道或转码。'
+  );
+  if (/^实际检测到的媒体容器/.test(raw)) return result(
+    'primary-media-unsupported', raw,
+    '请选用实际包含音频或视频的受支持容器作为主来源。'
+  );
+
   if (/外部音频.*没有可用音频轨/.test(raw)) {
     return result(
       'external-audio-no-stream',

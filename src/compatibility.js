@@ -133,6 +133,7 @@ function activeAssLikeSubtitle({
 
 export function resolveMuxCompatibility({
   targetContainer = 'matroska',
+  allowAudioOnlySource = false,
   videoStreams = [],
   sourceAudioStreams = [],
   externalAudioTracks = [],
@@ -154,12 +155,15 @@ export function resolveMuxCompatibility({
     ));
   }
 
-  if (!Array.from(videoStreams || []).length) {
+  if (!Array.from(videoStreams || []).length &&
+      !(allowAudioOnlySource && (Array.from(sourceAudioStreams || []).length ||
+        Array.from(externalAudioTracks || []).length))) {
     issues.push(issue(
       COMPATIBILITY_STATE.UNSUPPORTED,
       'video',
       'missing-video-stream',
-      '没有可用视频轨，不能按当前视频封装工作流执行。',
+      allowAudioOnlySource ? '无视频来源必须至少保留或加入一条音频轨；当前输出没有音频。'
+        : '没有可用视频轨，不能按当前视频封装工作流执行。',
     ));
   } else {
     assessCodecList(videoStreams, 'video', issues, evidence, 'source-video');

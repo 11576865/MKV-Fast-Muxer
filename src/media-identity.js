@@ -9,10 +9,10 @@ const SUPPORTED_VIDEO_CONTAINERS = new Set([
 ]);
 
 const VIDEO_EXTENSION_MAP = {
-  matroska: new Set(['.mkv']),
+  matroska: new Set(['.mkv', '.mka', '.mks', '.mk3d']),
   webm: new Set(['.webm']),
-  'matroska-webm': new Set(['.mkv', '.webm']),
-  'iso-bmff': new Set(['.mp4', '.m4v', '.mov']),
+  'matroska-webm': new Set(['.mkv', '.mka', '.mks', '.mk3d', '.webm']),
+  'iso-bmff': new Set(['.mp4', '.m4v', '.m4a', '.mov']),
   mov: new Set(['.mov']),
 };
 
@@ -151,6 +151,14 @@ export function isMatroskaIdentity(identity) {
 
 export function isSupportedVideoIdentity(identity) {
   return Boolean(identity?.supported);
+}
+
+// Single-task media composition also accepts actual audio-only sources.
+// Keep isSupportedVideoIdentity unchanged: batch and preview retain that contract.
+export function isSupportedPrimaryMediaIdentity(identity) {
+  return Boolean(identity?.evidence === 'ffprobe' &&
+    SUPPORTED_VIDEO_CONTAINERS.has(identity.container) &&
+    (identity.videoStreams?.length || identity.audioStreams?.length));
 }
 
 export function sourceVirtualSuffix(identity) {

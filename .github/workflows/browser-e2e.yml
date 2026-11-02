@@ -626,3 +626,12 @@ jobs:
           path: .e2e/output/original-track-extraction/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload audio-only mux actual media and native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audio-only-mux
+          path: .e2e/output/audio-only-mux/
+          if-no-files-found: error
+          retention-days: 14
