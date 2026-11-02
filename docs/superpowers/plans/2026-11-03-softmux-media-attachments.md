@@ -45,3 +45,13 @@ Fresh reviewer passed13 focused tests and found one inherited late-cancel public
 Ruling: unknown resources require explicit opaque assignment and application/octet-stream; they are not promoted to media/font format recognition. Ruling: ordinary collision names may change automatically, with source/final names in report and preview disclosure. Ruling: source image FileData follows mapped original attachments on output; UID/description/target-relation preservation is outside the existing FFmpeg contract, which keeps the original preservation preflight. These are bounded delivery choices, not general Matroska conformance or content-safety claims.
 
 Durable delivery: https://github.com/11576865/MKV-Fast-Muxer/pull/224. UIGS Observation written @08d2820622a409e3ad1b570d0da5b126d784f053; no Canonical change. Final0.1046 real browser run and original pure/legacy regression passed; 839/839 full suite/build passed.
+
+## PR224 bounded CI repair
+
+Exact checkpoint cf3782e: Deploy41483148334 and S1241483148371 passed; Browser41483148386/job125406950429 failed candidate-membership-scenario.mjs:72. The old regression asserted that adding a generic PNG disables media muxing. This was the old unsupported capability boundary that0.1046 intentionally removed; membership/output-currency guards themselves remained active.
+
+The repair changes that assertion to enabled, retains old-result/index-inspection stale checks, and delivers an actual PNG+candidate-subtitle MKV with independent physical FileData SHA and report SHA/readback checks. Removal must stale the mixed artifact. A fresh actual media-only baseline is then generated before the existing equal-label member-swap assertion, so the retained generic snapshot cannot accidentally satisfy that identity test. The preview exclusion and subtitle counts remain covered; fixture PNG is valid content. No product behavior or version changed.
+
+UIGS Intake Check: no new reusable knowledge beyond the delivered capability/observation; this synchronizes an obsolete negative-capability test with the already documented contract. No new Canonical or duplicate Candidate.
+
+Repair local verification: four actual candidate MKVs, excluded-candidate preview, exact mixed PNG/report hashes, restored media-only baseline and equal-label swap staleness pass at1440/1024/768;839/839 Node suite passes. Product implementation/version unchanged. One bounded repaired branch update; no next-generation CI polling.
