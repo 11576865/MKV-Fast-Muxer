@@ -466,6 +466,13 @@
 
             <section id="assetInspectorHost" class="asset-inspector-host" aria-label="当前容器对象属性" hidden></section>
 
+            <section id="originalTrackExtractionPanel" class="original-track-extraction" aria-label="原轨道提取结果" hidden>
+              <strong>原轨道提取</strong>
+              <p id="originalTrackExtractionStatus" role="status" aria-live="polite"></p>
+              <a id="originalTrackDownload" class="button button-small" hidden>保存提取文件</a>
+              <a id="originalTrackReport" class="button button-small" hidden>提取报告</a>
+              <small>仅提取所选原轨道，不包含字体附件、章节、全局标签或 UID 关系。ASS 可能需要另行提取字体。单轨 Matroska 沿用原时间轴；原生文件不能据此保证原容器的绝对时间轴与元数据。</small>
+            </section>
             <section class="subtitle-preview-card" aria-labelledby="preview-title">
               <div class="preview-head">
                 <div>

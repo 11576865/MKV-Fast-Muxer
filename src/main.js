@@ -1,3 +1,4 @@
+import {planOriginalTrackExtraction,originalTrackExtractionCurrent,buildTrackExtractionCommand,auditExtractedOriginalTrack} from './original-track-extraction.js';
 import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_SOURCES} from './container-batch-review.js';
 import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
@@ -547,6 +548,8 @@ const ffmpeg = new FFmpeg();
 let loaded = false;
 let running = false;
 let scanning = false;
+let extractingOriginalTrack=false;
+let originalTrackResult=null;
 let containerScanGeneration = 0;
 let containerAutoScanSuppressedKey = '';
 let containerScanPromise = Promise.resolve();
@@ -1393,13 +1396,13 @@ function setBulkToolsDisabled(disabled) {
 }
 
 function isBusy() {
-  return running || scanning || previewing || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning;
+  return running || scanning || previewing || extractingOriginalTrack || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning;
 }
 
 function setInputsDisabled(disabled) {
   // A background MKV inventory scan may be expensive, but it should not block
   // selection of the remaining inputs. Mux/preview still lock source changes.
-  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning;
+  const sourceLocked = running || previewing || batchStartPending || batchRunning || batchSaveRetryBusy || singleDirectorySaveBusy || containerReviewRunning || extractingOriginalTrack;
   videoInput.disabled = sourceLocked;
   audioInput.disabled = sourceLocked;
   subInput.disabled = sourceLocked;
@@ -1751,7 +1754,7 @@ function updateUI() {
     muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
   } else if(includedGenericAttachments().length) muxBtn.disabled=true;
   if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
-  cancelBtn.disabled = !(running || scanning || previewing);
+  cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
   renderNewTrackLists();
@@ -1781,6 +1784,7 @@ function updateUI() {
   // FFmpeg completion clears running in a later finally block; refresh this
   // action after every state change rather than leaving it disabled forever.
   syncContainerReviewControls();
+  renderOriginalTrackResult();
   renderBatchSelectionControls();
   renderBatchRunConsole();
   renderActualOutputEvidence();
@@ -1892,7 +1896,7 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
     metadataTags: preservableFormatTags(trackState.format?.tags || {}),
   });
   if (!model) return '';
-  const locked = isBusy() || batchRunning;
+  const locked = isBusy() || batchRunning || batchStartPending;
   const disabled = locked || appendMode;
   const open = containerTreeExpansion.get(entry.key) ?? true;
   const badge = (status) => containerStatusBadge(status);
@@ -1973,6 +1977,17 @@ function renderSourceContainerTree(entry, selected, sourceScanned) {
           </div>
         </details>
       </div>`;
+      if(stream?.codec_name&&stream.codec_name!=='unknown'){
+        const extraction=planOriginalTrackExtraction(entry.file,stream);
+        actions+=`<div class="source-track-extraction-actions">
+          <label>导出格式 <select data-original-track-format="${item.index}" ${locked?'disabled':''}>
+            <option value="matroska">单轨 Matroska (${extraction.extension})</option>
+            ${extraction.nativeAvailable?'<option value="native">编码原生文件</option>':''}
+          </select></label>
+          <button type="button" class="button button-small" data-extract-original-track-index="${item.index}" ${locked?'disabled':''}>提取此原轨道</button>
+          <small>按原扫描内容导出，不应用尚未封装的属性修改。</small>
+        </div>`;
+      }
     } else if (attachment) {
       const inputDisabled = disabled || !attachment.include ? 'disabled' : '';
       actions = `<div class="asset-tree-controls">
@@ -3678,6 +3693,75 @@ function handleInspectorTrackMove(event) {
   renderMuxPlan();
   return true;
 }
+function clearOriginalTrackResult(){
+  if(originalTrackResult){URL.revokeObjectURL(originalTrackResult.url);URL.revokeObjectURL(originalTrackResult.reportUrl);}
+  originalTrackResult=null;
+  $('originalTrackExtractionPanel').hidden=true;$('originalTrackExtractionStatus').textContent='';
+  for(const id of ['originalTrackDownload','originalTrackReport']){const a=$(id);a.hidden=true;a.removeAttribute('href');}
+}
+function renderOriginalTrackResult(){
+  if(originalTrackResult&&!originalTrackExtractionCurrent(originalTrackResult.plan,videoInput.files?.[0],trackState?.streams))clearOriginalTrackResult();
+  const panel=$('originalTrackExtractionPanel');
+  if(!panel)return;
+  if(originalTrackResult){
+    panel.hidden=false;
+    $('originalTrackExtractionStatus').textContent='已提取 '+originalTrackResult.plan.outputName+'；单轨编码/参数回读通过。输出 SHA-256：'+originalTrackResult.sha256;
+    const a=$('originalTrackDownload'),r=$('originalTrackReport');
+    a.href=originalTrackResult.url;a.download=originalTrackResult.plan.outputName;a.hidden=false;
+    r.href=originalTrackResult.reportUrl;r.download=originalTrackResult.plan.outputName+'.extraction.json';r.hidden=false;
+  }
+}
+async function extractOriginalTrack(index,format){
+  if(isBusy()||batchRunning||batchStartPending||importInProgress)return;
+  const source=videoInput.files?.[0],stream=trackState?.streams?.find(s=>s.index===index);
+  if(!source||source!==scannedSourceFile||!stream)return;
+  let plan;
+  try{plan=planOriginalTrackExtraction(source,stream,{format});}catch(error){status.textContent='无法提取：'+error.message;return;}
+  const prefix='original-extract-'+Date.now()+'-'+index,output=prefix+plan.extension,probePath=prefix+'.probe.json';
+  let staged=null;
+  const current=()=>!cancelRequested&&scannedSourceFile===source&&originalTrackExtractionCurrent(plan,videoInput.files?.[0],trackState?.streams);
+  extractingOriginalTrack=true;cancelRequested=false;clearOriginalTrackResult();
+  $('originalTrackExtractionPanel').hidden=false;$('originalTrackExtractionStatus').textContent='正在读取并提取原轨道…';
+  updateUI();
+  try{
+    await loadFFmpeg();if(!current())throw Error('来源已改变或操作已取消');
+    staged=await stageBrowserPrimarySource({ffmpeg,file:source,prefix,fallbackPath:prefix+'.source',workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,minMountBytes:0});
+    if(!current())throw Error('来源已改变或操作已取消');
+    const observed=await probeInput(staged.path,probePath,{allowDecodeFallback:false});
+    const actual=observed.streams.find(s=>s.index===plan.index);
+    if(!actual||actual.codec_name!==plan.codec||actual.codec_type!==plan.kind)throw Error('原轨道实际身份与扫描不符');
+    if(!current())throw Error('来源已改变或操作已取消');
+    status.textContent='正在 Stream Copy 提取原'+(plan.kind==='audio'?'音频':'字幕')+' #'+index+'…';
+    const result=await execWithCapturedLogs(buildTrackExtractionCommand(plan,staged.path,output));
+    if(result.code!==0)throw Error('原轨道提取失败：'+usefulLogTail(result.logs));
+    if(!current())throw Error('来源已改变或操作已取消');
+    const outputProbe=await probeInput(output,probePath,{allowDecodeFallback:false});
+    const audit=auditExtractedOriginalTrack(plan,outputProbe);if(!audit.ok)throw Error(audit.issues.join('；'));
+    const bytes=await ffmpeg.readFile(output);if(!(bytes instanceof Uint8Array)||!bytes.byteLength)throw Error('未生成提取内容');
+    const hash=await sha256Hex(bytes);if(!current())throw Error('来源已改变或操作已取消');
+    const report={schema:'softmux-original-track-extraction-v1',applicationVersion:PRODUCT_PACKAGE_VERSION,
+      generatedAt:new Date().toISOString(),source:{name:source.name,size:source.size,streamIndex:index,codec:plan.codec,kind:plan.kind,title:plan.title,language:plan.language},
+      output:{name:plan.outputName,size:bytes.byteLength,sha256:hash,format:plan.format},audit,
+      policy:{streamCopy:true,applyPendingEdits:false,includeAttachments:false,includeChapters:false,includeGlobalTags:false,
+        timeline:plan.timelinePreserved?'copyts protected; every-packet equality not verified in browser':'native file; source container absolute timeline not guaranteed'},
+    };
+    originalTrackResult={plan,sha256:hash,url:URL.createObjectURL(new Blob([bytes],{type:plan.mime})),
+      reportUrl:URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'}))};
+    renderOriginalTrackResult();status.textContent='原轨道已提取；来源文件和当前封装计划未修改。';
+  }catch(error){
+    const text=cancelRequested?'原轨道提取已取消；未发布不完整结果。':'原轨道提取未完成：'+(error?.message||String(error));
+    status.textContent=text;$('originalTrackExtractionStatus').textContent=text;
+  }finally{
+    await removeQuietly(output);await removeQuietly(probePath);await staged?.cleanup();
+    extractingOriginalTrack=false;updateUI();
+  }
+}
+assetInspectorHost?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-extract-original-track-index]');if(!button)return;
+  const index=Number(button.dataset.extractOriginalTrackIndex);
+  const format=assetInspectorHost.querySelector('[data-original-track-format="'+index+'"]')?.value||'matroska';
+  void extractOriginalTrack(index,format);
+});
 assetInspectorHost?.addEventListener('click', (event) => {
   handleInspectorTrackMove(event);
 });
@@ -5788,7 +5872,7 @@ function getScannedSelection(video) {
 
 function cancelCurrentMuxTask() {
   // Directory writes are not an ffmpeg task and must never terminate Wasm.
-  if (!(running || scanning || previewing)) return;
+  if (!(running || scanning || previewing || extractingOriginalTrack)) return;
   cancelRequested = true;
   if(attachmentOnlyRunning){status.textContent='正在取消纯附件生成……';return;}
   if (scanning) containerAutoScanSuppressedKey = fileKey(videoInput.files[0]);
