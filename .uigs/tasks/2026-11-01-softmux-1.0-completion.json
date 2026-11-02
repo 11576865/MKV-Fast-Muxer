@@ -40,19 +40,19 @@
     "0.1045 single-task audio-only mux: preserve/edited/external-only/M4A/WebM actual zero-video outputs; native AAC/FLAC/Opus packet hashes, retained MKA PTS/private, ASS/font bytes, empty-audio/subtitle-source refusals and recovery.832 tests/build passed; independent focused review40/40 no material findings; expected refusal diagnostics RED/GREEN"
   ],
   "next_units": [
-    "Full exact-head audio-only CI and normal video/history regression; next substantive media capability based on remaining 1.0 requirements",
+    "Full exact-head audio-only CI; continue the next bounded substantive media capability based on remaining 1.0 requirements",
     "Complete remaining S10 actual batch fault/retry workflow and S03 OTC/multi-face/shaping acceptance combinations as full usable workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "feat/softmux-audio-only-mux-20261102",
-  "pr": null,
-  "latest_durable_commit": "0f8153123ea5eadcc60d00a94b8c140062398e00",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/223",
+  "latest_durable_commit": "a384eacb8eb79a71724242fa5abc7a4674687459",
   "external_validation_states": {
     "node_build_local": "832/832 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #221 repaired d766418 all full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Pending: de-duplicated against existing generalized media workspace legacy output assumptions Candidate; append one bounded observation after durable feature submission",
+    "UIGS_Intake": "Completed: de-duplicated, appended one observation to existing generalized-media-workspace-legacy-output-assumptions Candidate in UIGS-Foundry @d82ccbcdf0c0fe954b28cc83ad5995e4b930bef3; no Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -77,7 +77,7 @@
     "font_strategy_ci": "PR #217 0be3ff4 all full workflows passed; merged",
     "single_save_receipt_local": "passed: actual browser RED/GREEN collision/retry, three byte-identical saved pairs, report permission failure, corrupt readback/refused overwrite and native-verified unchanged download; directory API simulated, no physical disk durability claim",
     "single_save_receipt_ci": "PR #218 44f05f1 all full workflows passed; merged",
-    "workspace_history_local": "passed: 6 cross-domain steps and 3 native-verified actual MKVs;50-step bound,flags/order/attachment restoration,typing merge,File/projection conflicts,branch,keyboard,reload,external recovery reset; simulated3viewports not physical-device acceptance; candidate preview/membership regression passed; execution locks controls and old-output evidence correctly stale after travel",
+    "workspace_history_local": "0.1045 actual regression passed: six cross-domain edits, undo/redo/branch/shortcuts and three native-checked video MKVs",
     "workspace_history_ci": "PR #219 eeeaecc all full workflows passed; merged",
     "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
     "batch_run_console_ci": "PR #220 a405a56 all full workflows passed; merged",
@@ -87,10 +87,10 @@
     "original_track_extraction_local": "passed:14 requested exports from9codecs plus startup cancel/recovery and audio-only MKA-source extraction. Native payload/count equality (AAC ADTS normalized, PGS grouped), container PTS/private-data equality, raw source metadata not pending edits, unchanged main output/plan/source and stale-source links invalidated. No font/Tag/UID or generic raw timeline guarantee",
     "original_track_extraction_ci": "PR #222 cd3da94 all full workflows passed; merged @0f8153123ea5eadcc60d00a94b8c140062398e00",
     "audio_only_mux_local": "passed: five actual zero-video browser outputs (MKA retained/edited/external-replacement,AAC M4A,Opus WebM), native audio packet hashes/counts, retained source PTS/private, actual ASS/font extraction, report SHA, source bytes unchanged and two refusals/recovery",
-    "audio_only_mux_ci": "Pending submission"
+    "audio_only_mux_ci": "PR #223 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T15:51:59.065181+00:00"
+  "updated_at": "2026-11-02T15:53:38.600Z"
 }

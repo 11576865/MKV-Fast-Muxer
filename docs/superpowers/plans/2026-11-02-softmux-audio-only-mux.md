@@ -28,10 +28,12 @@
 - [x] Real browser RED/GREEN: MKA source -> retained copy; edited dual audio + ASS/font -> native checked output; audio exclusion refusal and external-audio-only replacement; M4A -> output, unknown and subtitle-only refusal. Unchanged inputs and no fake video.
 - [x] Run full npm test/build and scoped real browser; independent native packet hashes/PTS, codec private data, metadata/subtitle/font payload.
 - [x] Fresh whole-branch review: no material findings,40 focused tests passed; later real refusal case exposed error-feedback precedence, two unit cases RED/GREEN fixed. Bounded UIGS append to existing Candidate prepared.
-- [ ] Push branch/PR and one immediate CI read, stop pending.
+- [x] Pushed code a384eac and PR #223; checkpoint records pending exact-head CI, with one immediate status read at turn boundary.
 
 ## Evidence and decisions
 
 832/832 Node tests/build passed. Actual Chromium five zero-video Matroska outputs passed independent FFprobe audio packet checks; retained MKA every-packet PTS/private, actual font bytes and ASS text/events checked. Runtime expected-refusal errors now take precedence over preceding successful ffprobe log lines; browser RED and two unit RED/GREEN cases cover this finding. WebM actual Opus added after initial review to cover the previously identity-only case.
 
 Ruling: outputs remain `.mkv` to preserve existing report/destination naming contracts; the container stream set is zero-video and no synthetic media is generated. Costs: audio-specific MKA naming remains a later UX choice. Raw elementary audio primary, batch-only-audio, pure subtitle composition and video-frame preview without video remain out of scope. No 14/44/57 formal verdict promotion or device claim.
+
+Final video regression: six cross-domain history steps and three real video MKVs passed on0.1045. UIGS Intake completed: existing Candidate observation appended @d82ccbcdf0c0fe954b28cc83ad5995e4b930bef3; no Canonical change. PR #223: https://github.com/11576865/MKV-Fast-Muxer/pull/223.
