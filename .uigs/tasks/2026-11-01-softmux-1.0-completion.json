@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "batch_selection_ci_repair_complete_pending_external_validation",
-  "current_bounded_work_unit": "One bounded PR221 repair: selected report-only destination collision must remain blocking; then core original audio/subtitle extraction",
+  "status": "original_track_extraction_core_complete_pending_external_validation",
+  "current_bounded_work_unit": "0.1044 CORE original audio/subtitle extraction: actual MKA/MKS and native bitstreams, exact raw stream source, independent payload/PTS/private-data verification",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -33,22 +33,24 @@
     "0.1042 running console: pause finishes current publication, resumes exact frozen queue without repeats; finish-current stop and paused immediate cancel preserve completed outputs. 3-job continued run + 2 one-output stopped/cancelled runs independently native-checked, saved/downloaded hashes equal, standalone draft unchanged;815 tests/build passed; fresh review no material issues",
     "PR #220 exact head a405a56 passed Browser 41392041090, S12 41392041125 and Deploy 41392041204; merged @b1ef09510064369aaf5702c24b1735b9cfa76dec",
     "0.1043 batch selection: retain full reviewed jobs/metadata while freezing only checked tasks. Actual 1+3 then edited2 without reimport; selected collisions block, unselected existing files untouched; native subtitles/report hashes, runtime scope and recipe-all-jobs checked.819 tests/build/selection browser and console regression passed; fresh review no material issues",
-    "PR221 first browser CI41428795748 passed new selection scenario and S10 twenty actual deliveries but failed existing report-only destination conflict case. Reproduced actual case and selector unit RED; scoped destinations now share plannedBatchFilenames+normalization with writer. GREEN exact browser case,820 tests/build; independent review no material issues."
+    "PR221 first browser CI41428795748 passed new selection scenario and S10 twenty actual deliveries but failed existing report-only destination conflict case. Reproduced actual case and selector unit RED; scoped destinations now share plannedBatchFilenames+normalization with writer. GREEN exact browser case,820 tests/build; independent review no material issues.",
+    "PR #221 repaired d766418 passed Deploy41434392097, Browser41434392087, S1241434392166; merged @a86a26c837bf5134c8aa471cb498a8dd8f439c78",
+    "0.1044 CORE: original AAC/FLAC/MP3/AC3/EAC3/ASS/SRT/PGS/VobSub extraction,14 actual format outputs plus cancel-recovery output and audio-only MKA-source extraction; native packet hashes/counts, MKA/MKS PTS and codec private data, PGS segment grouping, AAC ADTS header normalization. Source, pending plan/history and main completed output unchanged.825 tests/build/history compatibility and fresh review passed"
   ],
   "next_units": [
-    "CORE: original audio/subtitle track extraction into standalone media outputs, from exact observed raw stream selection; native packet/timestamp verification, no new workflow infrastructure detour",
-    "Verify repaired PR221 CI once on next continuation before integration; complete remaining core S03/container handling and exact-candidate acceptance",
-    "Target desktop/tablet S12/S13 evidence and exact candidate release/site/rollback verification"
+    "Verify exact-head original track extraction CI before integration",
+    "CORE: assess next container/media capability from existing scope, including multi-source track composition and remaining complex font/container preservation gaps; do not substitute queue/history controls",
+    "Exact-candidate acceptance/site/rollback and target desktop/tablet S12/S13 evidence"
   ],
-  "branch": "feat/softmux-batch-execution-selection-20261102",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/221",
-  "latest_durable_commit": "c108e1d5bfebbf580dbad6c602cfa8e14fbada3b",
+  "branch": "feat/softmux-original-track-extraction-20261102",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/222",
+  "latest_durable_commit": "3a21f2974d4981455a6817bf60e63f02a7045364",
   "external_validation_states": {
-    "node_build_local": "820/820 passed; build passed",
+    "node_build_local": "825/825 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #220 a405a56 all full workflows passed; merged",
+    "full_exact_head_ci": "PR #221 repaired d766418 all full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Pending: selected output-pair conflict projection must retain report-only names; no Canonical promotion",
+    "UIGS_Intake": "Pending: bounded triage for exact observed-track extraction separate from pending remux authoring; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -78,11 +80,13 @@
     "batch_run_console_local": "passed: real pause/download/resume, boundary stop, paused cancel;5 actual outputs/native subtitle text/stream inventories; saved/downloaded SHA equality; no duplicate writes; single draft untouched. Directory backpressure injected, no disk/tablet guarantee; 0.1042 actual workspace-history regression passed",
     "batch_run_console_ci": "PR #220 a405a56 all full workflows passed; merged",
     "batch_execution_selection_local": "passed: 3 actual outputs/native subtitle text/title/report hash, retained excluded edits, recipe retains3 jobs, runtime scopes2 then1, selected conflict refusal/unselected sentinel retained, all/none/invert and execution locks; console pause/resume/stop/cancel compatibility passed",
-    "batch_execution_selection_ci": "PR #221 repair c108e1d pushed; final checkpoint-head CI pending, no next-generation polling",
-    "batch_selection_ci_repair_local": "Original CI scenarioBatchDirectoryConflict reproduced RED and GREEN in real Chromium; selected report-only collision retained while unselected pair scoped out;5 selector tests and820 full suite pass"
+    "batch_execution_selection_ci": "PR #221 repaired d766418 all full workflows passed; merged",
+    "batch_selection_ci_repair_local": "Original CI scenarioBatchDirectoryConflict reproduced RED and GREEN in real Chromium; selected report-only collision retained while unselected pair scoped out;5 selector tests and820 full suite pass",
+    "original_track_extraction_local": "passed:14 requested exports from9codecs plus startup cancel/recovery and audio-only MKA-source extraction. Native payload/count equality (AAC ADTS normalized, PGS grouped), container PTS/private-data equality, raw source metadata not pending edits, unchanged main output/plan/source and stale-source links invalidated. No font/Tag/UID or generic raw timeline guarantee",
+    "original_track_extraction_ci": "PR #222 submitted; full exact checkpoint-head workflows pending"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T11:08:24.758Z"
+  "updated_at": "2026-11-02T12:55:53.391Z"
 }

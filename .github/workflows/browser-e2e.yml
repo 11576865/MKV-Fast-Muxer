@@ -617,3 +617,12 @@ jobs:
           path: .e2e/output/batch-execution-selection/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload original audio subtitle extraction and native packet evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: original-track-extraction
+          path: .e2e/output/original-track-extraction/
+          if-no-files-found: error
+          retention-days: 14

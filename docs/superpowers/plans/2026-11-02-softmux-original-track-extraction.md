@@ -20,4 +20,4 @@ Acceptance:
 - Source bytes and authored remux plan unchanged; stale-source and cancellation recovery tested with actual current workbench.
 - Ship the capability and its result files; no claim of generic player compatibility or full original Matroska structural preservation.
 
-Deferred until PR221 bounded repair validation: exact file formats and per-codec cases must be settled from native/backend reproduction before implementation. This plan is not a completion claim.
+Implemented after repaired PR221 passed all full workflows and merged. Default MKA/MKS, native AAC/FLAC/MP3/AC3/EAC3/ASS/SRT/SUP; VobSub MKS only.14 actual format outputs plus startup cancellation recovery and audio-only MKA source were verified. Native packet hashes/counts, container PTS and codec private data checked; AAC ADTS transport normalized and PGS packetization canonicalized.825 Node tests/build and actual unified history regression passed. Independent review no material issues. Complete exact-head CI pending.
