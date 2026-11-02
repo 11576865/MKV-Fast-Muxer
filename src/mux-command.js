@@ -43,6 +43,7 @@ export function buildMuxCommand({
   preserveAllOriginalAttachments = false,
   preserveOriginalDataStreams = false,
   originalAttachmentCount = 0,
+  excludedSourceStreamIndices = [],
   fontAttachments = [],
 }) {
   // Encoder-priming audio timestamps can shift both retained and newly delivered subtitles
@@ -106,6 +107,11 @@ export function buildMuxCommand({
     if (preserveOriginalDataStreams) {
       args.push('-map', '0:d?');
     }
+  }
+
+  for(const index of excludedSourceStreamIndices) {
+    if(!Number.isSafeInteger(index)||index<0)throw Error('SOURCE_STREAM_EXCLUSION_INVALID');
+    args.push('-map','-0:'+index);
   }
 
   args.push('-map_metadata', '0', '-map_chapters', '0', '-c', 'copy');

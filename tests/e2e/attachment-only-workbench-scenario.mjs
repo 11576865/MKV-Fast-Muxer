@@ -71,18 +71,25 @@ export async function scenarioAttachmentOnlyWorkbench(browser,{root,outDir,baseU
    assert.ok(bounds.panelHeight<=bounds.dockHeight,JSON.stringify(bounds));
    await page.screenshot({path:path.join(outDir,`normal-attachment-only-${width}.png`)});
   }
-  // Legacy diagnostic pickers also grant real media. They must never be
-  // silently ignored merely because the unified inventory still contains PNG/PDF.
-  const retainedHref=await page.locator('#downloadLink').getAttribute('href');
+  // A real media grant from the legacy picker must participate in the new
+  // mixed writer rather than being silently ignored by the attachment-only route.
   await page.setInputFiles('#videoInput',path.join(root,'base.mp4'));
-  await page.waitForFunction(()=>document.querySelector('#muxBtn').disabled&&
-    document.querySelector('#outputEvidencePanel').dataset.current==='false');
-  await page.locator('#muxBtn').dispatchEvent('click');
-  assert.match(await page.locator('#status').textContent(),/普通附件目前只支持/);
-  assert.equal(await page.locator('#downloadLink').getAttribute('href'),retainedHref);
+  await page.waitForFunction(()=>!document.querySelector('#muxBtn').disabled&&
+    document.querySelector('#outputEvidencePanel').dataset.current==='false',null,{timeout:120000});
+  await page.locator('#muxBtn').click();
+  await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('完成。')&&!document.querySelector('#muxBtn').disabled,null,{timeout:180000});
+  const mixed=path.join(outDir,'normal-legacy-media-with-attachments.mkv');
+  const [mixedDownload]=await Promise.all([page.waitForEvent('download'),page.locator('#downloadLink').click()]);await mixedDownload.saveAs(mixed);
+  const mixedBytes=await fs.readFile(mixed),mixedReader=createMatroskaAttachmentReader(new Blob([mixedBytes])),mixedInv=await mixedReader.inspect();
+  assert.equal(mixedInv.state,'inspected');assert.equal(mixedInv.structure.hasTracksElement,true);assert.equal(mixedInv.structure.hasClusterElement,true);assert.equal(mixedInv.attachments.length,2);
+  const mixedProbe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',mixed],{encoding:'utf8'}));
+  assert.equal(mixedProbe.streams.filter(s=>s.codec_type==='video'&&!s.disposition?.attached_pic).length,1);assert.equal(mixedProbe.streams.filter(s=>s.codec_type==='audio').length,1);
+  for(const expected of sources){const actual=mixedInv.attachments.find(a=>a.filename===expected.name);assert.ok(actual);assert.equal(sha(Buffer.from(await mixedReader.openAttachment(actual.id).data.arrayBuffer())),sha(expected.bytes));}
+  const [mixedReportDownload]=await Promise.all([page.waitForEvent('download'),page.locator('#reportLink').click()]);const mixedReportPath=mixed+'.json';await mixedReportDownload.saveAs(mixedReportPath);
+  const mixedReport=JSON.parse(await fs.readFile(mixedReportPath,'utf8'));assert.equal(mixedReport.audit.genericAttachmentPayloadAudit.status,'pass');assert.equal(mixedReport.output.sha256,sha(mixedBytes));
   assert.deepEqual(errors,[]);
   await fs.writeFile(path.join(outDir,'normal-attachment-only-evidence.json'),JSON.stringify({
-   outputs,normalImportAndStart:true,noVideoRoot:true,mixedLegacyMediaRefused:true,physicalTablet:false,
+   outputs,normalImportAndStart:true,noVideoRoot:true,mixedLegacyMediaIncluded:true,physicalTablet:false,
    nativeParseAndExtraction:nativeAudit?'passed':'not-run-local',
   },null,2));
  } catch(error) {
