@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "remaining_pr_integration_validation_complete",
-  "current_bounded_work_unit": "Close PR225 integration validation: exact-head browser/S12 success, merged-main browser success, latest68d5bb4 Pages build+deployment success; record real Void feasibility without promoting repair authorization",
+  "status": "s10_combined_recovery_implementation_pending_real_validation",
+  "current_bounded_work_unit": "S10/S11 default-workbench20-job combined fault scenario: two execution failures, one report-only directory failure, frozen retry after live changes, independent native20outputs",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -50,9 +50,9 @@
     "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "main",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/225",
-  "latest_durable_commit": "ac6dd1b617bcf4bc94e879c9c4b04e0f28db168e",
+  "branch": "test/softmux-s10-combined-recovery-20261103",
+  "pr": null,
+  "latest_durable_commit": "2b5249473a1feecd0ee8817495327cc9c1354c5e",
   "external_validation_states": {
     "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -102,7 +102,8 @@
     "branch_integration": "Complete: PR225 merged; nine old PRs closed with exact SHA checks and supersession notes; repository open PR inventory empty",
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
     "remaining_pr_consolidation_native_browser": "Complete for integrated scoped S12 matrix and production browser regression; manual research dual-path matrix remains unrerun, not newly accepted",
-    "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report"
+    "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report",
+    "s10_combined_recovery": "Standalone scenario and mandatory CI step implemented; actual local Chromium run in progress, no PASS claim"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"

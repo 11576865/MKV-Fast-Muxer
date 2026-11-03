@@ -147,6 +147,23 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: S10 - combined twenty-job execution and save recovery
+        run: node tests/e2e/batch-recovery-real.e2e.mjs
+
+      - name: Upload S10 combined recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s10-combined-fault-recovery-native-evidence
+          path: |
+            .e2e/batch-recovery-output/s10-combined-recovery-evidence.json
+            .e2e/batch-recovery-output/Recovery S10E01.mkv
+            .e2e/batch-recovery-output/Recovery S10E02.mkv
+            .e2e/batch-recovery-output/Recovery S10E11.mkv
+            .e2e/batch-recovery-output/*.mux-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
