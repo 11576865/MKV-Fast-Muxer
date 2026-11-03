@@ -1,0 +1,787 @@
+{
+  "base": "a1f4e0aa3af33c2459d8a66569b9043e75feec21",
+  "url": "http://127.0.0.1:4173/",
+  "viewports": [
+    {
+      "name": "tablet-landscape-empty-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 747.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": false,
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-landscape-source-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 747.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-landscape-source-1024",
+      "width": 1024,
+      "height": 768,
+      "documentWidth": 1024,
+      "viewportWidth": 1024,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 255,
+        "height": 506.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 256,
+        "y": 141.453125,
+        "width": 439.3125,
+        "height": 506.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 696.3125,
+        "y": 141.453125,
+        "width": 327.671875,
+        "height": 506.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 239.09375,
+        "y": 695.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "desktop-source-1440",
+      "width": 1440,
+      "height": 900,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 330.1875,
+        "height": 638.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 331.1875,
+        "y": 141.453125,
+        "width": 690.203125,
+        "height": 638.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 1022.390625,
+        "y": 141.453125,
+        "width": 417.59375,
+        "height": 638.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 537.375,
+        "y": 821.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-portrait-source-820",
+      "width": 820,
+      "height": 1180,
+      "documentWidth": 820,
+      "viewportWidth": 820,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 1,
+        "y": 182.453125,
+        "width": 408,
+        "height": 885.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 410,
+        "y": 182.453125,
+        "width": 410,
+        "height": 885.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 14,
+        "y": 1149.140625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": false
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "phone-composition-390",
+      "width": 390,
+      "height": 844,
+      "documentWidth": 390,
+      "viewportWidth": 390,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 1,
+        "y": 208.984375,
+        "width": 388,
+        "height": 511,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 161.265625,
+        "y": 763.984375,
+        "width": 134.734375,
+        "height": 42,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "phone-composition-360",
+      "width": 360,
+      "height": 780,
+      "documentWidth": 360,
+      "viewportWidth": 360,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 1,
+        "y": 252.734375,
+        "width": 358,
+        "height": 447,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 14,
+        "y": 776.75,
+        "width": 134.734375,
+        "height": 42,
+        "visible": true,
+        "insideViewport": false
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-attachments-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 747.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-edited-audio-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 747.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-delivery-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 682.90625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    },
+    {
+      "name": "tablet-batch-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "visible": false,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "source-multitrack.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 0
+        },
+        {
+          "text": "附件",
+          "height": 0
+        },
+        {
+          "text": "章节",
+          "height": 0
+        },
+        {
+          "text": "标签",
+          "height": 0
+        }
+      ]
+    },
+    {
+      "name": "tablet-complex-source-blocked-1180",
+      "width": 1180,
+      "height": 820,
+      "documentWidth": 1180,
+      "viewportWidth": 1180,
+      "duplicateIds": [],
+      "source": {
+        "x": 0,
+        "y": 141.453125,
+        "width": 270.390625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "composition": {
+        "x": 271.390625,
+        "y": 141.453125,
+        "width": 565.40625,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "inspector": {
+        "x": 837.796875,
+        "y": 141.453125,
+        "width": 342.203125,
+        "height": 558.546875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "mux": {
+        "x": 341.953125,
+        "y": 747.640625,
+        "width": 140.734375,
+        "height": 42.71875,
+        "visible": true,
+        "insideViewport": true
+      },
+      "fileIdentity": true,
+      "fileName": "p0-independent-mkvtoolnix.mkv",
+      "smallTabs": [
+        {
+          "text": "轨道",
+          "height": 38
+        },
+        {
+          "text": "附件",
+          "height": 38
+        },
+        {
+          "text": "章节",
+          "height": 38
+        },
+        {
+          "text": "标签",
+          "height": 38
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "attachmentNotice": "↗\n输出附件\n\n当前来源附件的检查、保留、名称与 MIME 编辑由真实来源对象检查器负责；独立的输出附件编排界面尚未接入。字体附件可通过现有资源导入工作流处理。\n\n查看现有来源证据\n返回轨道工作区\n此入口已保留。当前真实读写能力由原有工作台与执行前验证决定，不会伪造容器修改。",
+  "editedTitleSurvivedResize": true,
+  "mux": {
+    "status": "完成。共新增 0 条字幕；未附加字体；新增 0 条外部音频；视频/音频未重新编码。",
+    "streams": [
+      {
+        "index": 0,
+        "type": "video",
+        "codec": "mpeg4"
+      },
+      {
+        "index": 1,
+        "type": "audio",
+        "codec": "aac",
+        "title": "Japanese AAC"
+      },
+      {
+        "index": 2,
+        "type": "audio",
+        "codec": "opus",
+        "title": "UI audit English track"
+      },
+      {
+        "index": 3,
+        "type": "subtitle",
+        "codec": "ass",
+        "title": "Original Signs"
+      }
+    ],
+    "chapters": 0,
+    "output": ".e2e/ui-audit/edited-source.mkv",
+    "sha256": "61b2412b316aa1f7a76746601bb95889cdc69a299301cc4bdee9b8027de3c79f"
+  },
+  "batchGeometry": {
+    "input": {
+      "top": 170.828125,
+      "bottom": 647.21875,
+      "width": 1132.8125,
+      "height": 476.390625
+    },
+    "matrix": {
+      "top": 759.171875,
+      "bottom": 931.609375,
+      "width": 1130.8125,
+      "height": 172.4375
+    },
+    "actions": {
+      "top": 1255.09375,
+      "bottom": 1310.09375,
+      "width": 1130.8125,
+      "height": 55
+    },
+    "display": "grid",
+    "columns": "1132.81px"
+  },
+  "batchPlan": "#1\nBatch S01E01.mkv\nBatch S01E01.mp4 · 实际：ISO BMFF / MP4 · 1 ASS · Batch S01E01.zh-Hans.ass\n待执行\n#2\nBatch S01E02.mkv\nBatch S01E02.mp4 · 实际：ISO BMFF / MP4 · 1 SRT · Batch S01E02.en.srt\n待执行",
+  "complexSource": {
+    "blocked": true,
+    "description": "嵌套章节；指向特定章节 UID 的标签。执行器无法证明保留这些结构；源文件不会被修改。"
+  },
+  "completed": true
+}

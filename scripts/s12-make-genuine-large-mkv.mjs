@@ -80,7 +80,10 @@ if(KIND==='pcm'){
 // (0x465C above 0x10000000); do not misattribute that parser cap to
 // ffmpeg.wasm. The same genuinely written total payload is sharded into
 // 64 MiB individual, independently hashable original MKV attachments.
-const ATTACHMENT_CHUNK_BYTES=64*1024*1024;
+const ATTACHMENT_CHUNK_MIB=Number(process.env.S12_ATTACHMENT_CHUNK_MIB||'64');
+if(![32,64,128].includes(ATTACHMENT_CHUNK_MIB))
+ throw Error('S12_INVALID_ATTACHMENT_CHUNK_MIB:'+String(process.env.S12_ATTACHMENT_CHUNK_MIB));
+const ATTACHMENT_CHUNK_BYTES=ATTACHMENT_CHUNK_MIB*1024*1024;
 const aggregate=createHash('sha256');
 const attachments=[];
 const buffer=Buffer.allocUnsafe(1024*1024);
@@ -139,11 +142,11 @@ const saved={
  generatedAt:new Date().toISOString(),
  source:path.basename(source),sourceBytes:sourceStat.size,
  payloadBytes:inputBytes,payloadSha256:aggregate.digest('hex'),
- attachmentCount:attachments.length,
+ attachmentCount:attachments.length,attachmentChunkMiB:ATTACHMENT_CHUNK_MIB,
  attachments:attachments.map(({name,bytes,sha256})=>({name,bytes,sha256})),
- mediaNote:'2 seconds real MPEG-4/AAC; large byte volume is independently generated random attached-file data in 64 MiB EBML FileData elements, NOT long-duration media packets',
+ mediaNote:'2 seconds real MPEG-4/AAC; large byte volume is independently generated random attached-file data in controlled 32/64/128 MiB EBML FileData elements, NOT long-duration media packets',
  sparseFile:false,generator:'randomFillSync and sequential fs.write, native mkvmerge',
- shardingRationale:'ffprobe reports invalid length above 0x10000000 for one FileData element; sharding avoids a fixture decoder cap',
+ shardingRationale:'ffprobe rejects FileData above 0x10000000; 32/64/128 MiB per-attachment variants isolate aggregate payload volume versus number of EBML attachment objects',
  nativeInputStreamKinds:probe.streams.map(s=>s.codec_type),
  sourceFilePath:source
 };
