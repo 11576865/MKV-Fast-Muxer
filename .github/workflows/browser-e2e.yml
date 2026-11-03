@@ -225,6 +225,22 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+
+      - name: Upload P3 cross-source browser-created MKV and independent proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-cross-mkv-attachedfile-to-target-browser-proof
+          path: |
+            .e2e/output/cross-source-attachments/A-with-guide.mkv
+            .e2e/output/cross-source-attachments/B-clean.mkv
+            .e2e/output/cross-source-attachments/B-with-A-guide-browser.mkv
+            .e2e/output/cross-source-attachments/extracted-guide.bin
+            .e2e/output/cross-source-attachments/cross-source-attachment-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
+
       # P1: the existing P2-A browser scenario has already downloaded two
       # actual MKV outputs. The expected manifest is derived from *selected
       # user input bytes*, not from the produced attachment inventory.

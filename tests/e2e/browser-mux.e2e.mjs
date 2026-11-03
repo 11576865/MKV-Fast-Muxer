@@ -1,4 +1,5 @@
 import {scenarioMediaAttachments} from './media-attachments-scenario.mjs';
+import {scenarioCrossSourceAttachmentReuse} from './cross-source-attachment-reuse-scenario.mjs';
 import {scenarioAudioOnlyMux} from './audio-only-mux-scenario.mjs';
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
@@ -7737,6 +7738,7 @@ const browser = await chromium.launch({
 });
 try {
   await scenarioMultiSourceDrafts(browser,{root,outDir,baseUrl});
+  await scenarioCrossSourceAttachmentReuse(browser,{root,outDir:path.join(outDir,'cross-source-attachments'),baseUrl});
   await scenarioAttachmentOnlyWorkbench(browser,{root,outDir,baseUrl});
   await scenarioCandidateMembership(browser,{root,outDir,baseUrl});
   await scenarioS13SameMetadataCompositionSelection(browser);
