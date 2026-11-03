@@ -3,6 +3,7 @@ import {planOriginalTrackExtraction,originalTrackExtractionCurrent,buildTrackExt
 import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_SOURCES} from './container-batch-review.js';
 import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
 import {embeddedAttachmentEligibility,createEmbeddedAttachmentOutputEntry,pruneEmbeddedAttachmentsForRemovedSource} from './embedded-attachment-composition.js';
+import {secondarySubripEligibility,createSecondarySubripEntry,pruneSecondarySubtitlesForSource,MAX_EMBEDDED_SUBRIP_BYTES} from './embedded-subtitle-composition.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
 import './style.css';
 import './workbench.css';
@@ -644,6 +645,8 @@ const genericAttachmentEntries = () => importedAssetEntries.filter(entry=>entry.
 // Only a source-file scoped, read-only view; no independent resource library.
 const embeddedSourceInventories = new Map();
 const embeddedSourceBusy = new Set();
+const secondarySubtitleInventories = new Map();
+const secondarySubtitleBusy = new Set();
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
 const attachmentOnlyMode = () => attachmentOnlyRouteEligible(importedAssetEntries,liveMediaAdapterFiles());
 const includedGenericAttachments = () => genericAttachmentEntries().filter(entry=>entry.include!==false);
@@ -3436,6 +3439,43 @@ function renderEmbeddedSourceAttachments(entry, selected, canChange) {
   </section>`;
 }
 
+function renderSecondarySourceSubtitles(entry, selected, canChange) {
+  if (entry.kind !== 'container' || selected || !currentVideoIsMatroska(entry.file)) return '';
+  const snapshot=secondarySubtitleInventories.get(entry.key);
+  const observed=snapshot?.sourceFile===entry.file ? snapshot : null;
+  const busy=secondarySubtitleBusy.has(entry.key);
+  const disabled=!canChange||busy;
+  const text=observed?.state==='inspected'
+    ? observed.streams.filter(stream=>stream.codec_type==='subtitle').length+
+        ' 条实际字幕轨 · SubRip 可直接加入'
+    : observed?.state==='unverified' ? '读取失败：'+observed.reason
+    : busy ? '正在读取来源轨道…'
+    : '读取原字幕轨信息，不改变当前拟输出来源。';
+  const streams=observed?.state==='inspected'
+    ? observed.streams.filter(stream=>stream.codec_type==='subtitle').slice(0,64) : [];
+  const rows=streams.map(stream=>{
+    const eligible=secondarySubripEligibility(stream,importedAssetEntries,entry.file);
+    return `<div class="embedded-source-attachment-row" data-secondary-subtitle-row="${stream.index}">
+      <div class="embedded-source-attachment-info">
+        <strong>${escapeHtml(String(stream.tags?.title||'字幕轨 #'+stream.index))}</strong>
+        <small>${escapeHtml(stream.codec_name)} · ${escapeHtml(String(stream.tags?.language||'und'))} · 来源轨 #${stream.index}</small>
+      </div>
+      <button type="button" data-secondary-subtitle-add="${escapeHtml(entry.key)}"
+        data-stream-index="${stream.index}"
+        ${eligible.allowed&&!disabled?'':'disabled'}>加入拟输出</button>
+      ${eligible.allowed?'':`<small class="embedded-source-attachment-reason">${escapeHtml(eligible.reason)}</small>`}
+    </div>`;
+  }).join('');
+  return `<section class="embedded-source-attachments" data-secondary-subtitles="${escapeHtml(entry.key)}"
+    data-state="${observed?.state||(busy?'inspecting':'not-inspected')}"
+    aria-label="${escapeHtml(entry.file.name)} 的内封字幕">
+    <button type="button" data-secondary-subtitle-inspect="${escapeHtml(entry.key)}"
+      ${disabled?'disabled':''}>${observed?.state==='inspected'?'重新检查字幕':'查看内封字幕'}</button>
+    <small role="status">${escapeHtml(text)}</small>
+    ${rows}
+  </section>`;
+}
+
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
   // Preserve both disclosure levels when replacing the list after a checkbox
@@ -3537,6 +3577,7 @@ function renderImportedAssetInventory() {
       </div>
       ${renderSourceContainerTree(entry, selected, sourceScanned)}
       ${renderEmbeddedSourceAttachments(entry, selected, canChange)}
+      ${renderSecondarySourceSubtitles(entry, selected, canChange)}
     </div>`;
   }).join('');
   if (focusedSourceRadio) {
@@ -3741,6 +3782,105 @@ assetInventory?.addEventListener('click', async event => {
   } finally {
     embeddedSourceBusy.delete(sourceKey);
     if(stillCurrent())renderImportedAssetInventory();
+  }
+});
+
+assetInventory?.addEventListener('click', async event => {
+  const inspect=event.target.closest('button[data-secondary-subtitle-inspect]');
+  const add=event.target.closest('button[data-secondary-subtitle-add]');
+  if ((!inspect&&!add)||isBusy()||batchRunning||batchStartPending||importInProgress) return;
+  const key=inspect?.dataset.secondarySubtitleInspect||add?.dataset.secondarySubtitleAdd;
+  if(secondarySubtitleBusy.has(key))return;
+  const source=importedAssetEntries.find(e=>e.kind==='container'&&e.key===key);
+  const mainSource=videoInput.files?.[0];
+  if(!source||!mainSource||mainSource===source.file)return;
+  const current=()=>!cancelRequested && videoInput.files?.[0]===mainSource &&
+    importedAssetEntries.some(e=>e.kind==='container'&&e.key===key&&e.file===source.file);
+  secondarySubtitleBusy.add(key);
+  extractingOriginalTrack=true;cancelRequested=false;
+  let staged=null;
+  const prefix='secondary-subtitle-'+Date.now();
+  const probePath=prefix+'.probe.json', output=prefix+'.srt';
+  try {
+    if(inspect)secondarySubtitleInventories.set(key,{
+      sourceFile:source.file,state:'inspecting',streams:[],
+    });
+    updateUI();
+    await loadFFmpeg();if(!current())throw Error('来源已改变或操作已取消');
+    staged=await stageBrowserPrimarySource({ffmpeg,file:source.file,prefix,
+      fallbackPath:prefix+'.mkv',workerFsType:FFFSType.WORKERFS,
+      loadBytes:fetchFile,minMountBytes:0});
+    if(!current())throw Error('来源已改变或操作已取消');
+    const observed=await probeInput(staged.path,probePath,{allowDecodeFallback:false});
+    if(!current())throw Error('来源已改变或操作已取消');
+    if(inspect) {
+      secondarySubtitleInventories.set(key,{
+        sourceFile:source.file,state:'inspected',streams:observed.streams||[],
+      });
+      status.textContent='已读取 '+source.file.name+' 的原字幕轨；当前输出来源未改变。';
+    } else {
+      const snapshot=secondarySubtitleInventories.get(key);
+      if(snapshot?.state!=='inspected'||snapshot.sourceFile!==source.file)
+        throw Error('请先重新检查来源字幕。');
+      const index=Number(add.dataset.streamIndex);
+      const stream=observed.streams?.find(item=>item.index===index);
+      const previous=snapshot.streams.find(item=>item.index===index);
+      if(!stream||!previous||stream.codec_name!==previous.codec_name ||
+          stream.codec_type!==previous.codec_type)
+        throw Error('来源轨道已变化，无法复用此前的轨道索引。');
+      const eligible=secondarySubripEligibility(stream,importedAssetEntries,source.file);
+      if(!eligible.allowed)throw Error(eligible.reason);
+      const plan=planOriginalTrackExtraction(source.file,stream,{format:'native'});
+      const extracted=await execWithCapturedLogs(
+        buildTrackExtractionCommand(plan,staged.path,output));
+      if(extracted.code!==0)throw Error('字幕 Stream Copy 失败：'+usefulLogTail(extracted.logs));
+      if(!current())throw Error('来源已改变或操作已取消');
+      const check=await probeInput(output,probePath,{allowDecodeFallback:false});
+      const audit=auditExtractedOriginalTrack(plan,check);
+      if(!audit.ok)throw Error('来源字幕回读失败：'+audit.issues.join('；'));
+      const bytes=await ffmpeg.readFile(output);
+      if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>MAX_EMBEDDED_SUBRIP_BYTES)
+        throw Error('来源 SubRip 字幕超过当前 16 MiB 范围或未生成内容。');
+      if(!current())throw Error('来源已改变或操作已取消');
+      const member=createSecondarySubripEntry({
+        sourceEntry:source,stream,bytes,existingEntries:importedAssetEntries,
+      });
+      if(!current())throw Error('来源已改变或操作已取消');
+      importedAssetEntries=[...importedAssetEntries,member];
+      applyImportedAssetRoles();
+      const position=newSubtitleState.findIndex(item=>item.file===member.file);
+      if(position<0)throw Error('字幕未能进入原有字幕封装路径。');
+      const changes=[];
+      const language=String(stream.tags?.language||'');
+      const title=String(stream.tags?.title||'');
+      if(/^[a-zA-Z]{2,3}$/.test(language))
+        changes.push({kind:'subtitle',index:position,field:'language',value:language.toLowerCase()});
+      if(title&&title.length<=160)
+        changes.push({kind:'subtitle',index:position,field:'title',value:title});
+      if(changes.length&&!changeExternalAssetFields(changes))
+        throw Error('来源字幕属性无法与目标轨道保持一致。');
+      status.textContent='已将 '+source.file.name+' 的 SubRip 轨 #'+index+
+        ' 加入拟输出；目标来源保持 '+mainSource.name+'。';
+    }
+  } catch(error) {
+    const message=error?.message||String(error);
+    if(inspect)secondarySubtitleInventories.set(key,{
+      sourceFile:source.file,state:'unverified',streams:[],reason:message,
+    });
+    status.textContent='来源字幕处理未完成：'+message;
+    if(add){
+      importedAssetEntries=importedAssetEntries.filter(e=>!(
+        e.embeddedOrigin?.kind==='subtitle'&&e.embeddedOrigin.sourceFile===source.file&&
+        e.embeddedOrigin.streamIndex===Number(add.dataset.streamIndex)));
+      applyImportedAssetRoles();
+    }
+  } finally {
+    await removeQuietly(output);
+    await removeQuietly(probePath);
+    await staged?.cleanup();
+    secondarySubtitleBusy.delete(key);
+    extractingOriginalTrack=false;
+    updateUI();
   }
 });
 
@@ -3949,10 +4089,13 @@ assetInventory?.addEventListener('click', (event) => {
   if(removed?.kind==='container'){
     sourceDraftShelf.drop(removed.file);
     embeddedSourceInventories.delete(removed.key);
+    secondarySubtitleInventories.delete(removed.key);
   }
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
-  if(removed?.kind==='container')
+  if(removed?.kind==='container'){
     importedAssetEntries=pruneEmbeddedAttachmentsForRemovedSource(importedAssetEntries,removed.file);
+    importedAssetEntries=pruneSecondarySubtitlesForSource(importedAssetEntries,removed.file);
+  }
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
   if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';
   applyImportedAssetRoles();
