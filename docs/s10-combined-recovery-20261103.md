@@ -28,3 +28,9 @@ Initial harness corrections: unmatched inputs correctly yield zero job rows, and
 ## Independent review and evidence correction
 
 One Important finding was a stale failure receipt copied after an earlier concurrent local run overwrote the shared output path. The successful rerun now uses an isolated `E2E_BATCH_RECOVERY_OUTPUT_DIR`, and its receipt is checked for PASS/20verified/22attempts/40writes/zeroerrors before publication. One deferred Minor remains: attachment count does not prove the shared font identity; the claim above is narrowed accordingly. No production defect was inferred.
+
+## Exact-head CI and main integration
+
+PR #226 exact head `66f5745d36180f62e4fc9f4c373a0bb4076e5750`: Node/build workflow41598812039 and full Browser41598811773 succeeded. Browser job125792654738 includes both original20-output baseline and combined recovery plus the entire existing E2E suite. Actual CI logs show initial18good/twofailed, then19good/onefailed and20good/zerofailed, followed by `20 native-verified MKVs,22 mux attempts,40 unique directory members` and `All browser E2E scenarios PASS`.
+
+Squash merged into main as `9cabaf7e6bf762f3a44884f4d6c062b7a7e01441`. Post-merge deployment remains separate. No formal acceptance row or device/physical-save claim is promoted.
