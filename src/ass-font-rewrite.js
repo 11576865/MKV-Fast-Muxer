@@ -1,6 +1,43 @@
 // ASS font helpers: OpenType name/cmap parsing, font dependency analysis,
 // face matching (weight/italic), forced-font rewriting, and glyph coverage.
 
+// Derive the canonical composition repertoire from this runtime's Unicode
+// implementation once. The fixed Unicode-scalar scan is independent of input
+// length; it avoids quadratic normalization of every growing text prefix.
+let canonicalCompositionsByStarter = null;
+let canonicalSubsetSegmenter = null;
+function addCanonicalSubsetClosure(visible, addText, seenClusters) {
+  const decomposed = visible.normalize('NFD');
+  addText(decomposed);
+  if (!decomposed) return;
+  if (!canonicalCompositionsByStarter) {
+    canonicalCompositionsByStarter = new Map();
+    for (let cp = 0; cp <= 0x10ffff; cp += 1) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue;
+      const composed = String.fromCodePoint(cp);
+      const partsText = composed.normalize('NFD');
+      if (partsText === composed || composed.normalize('NFC') !== composed) continue;
+      const parts = [...partsText];
+      const entries = canonicalCompositionsByStarter.get(parts[0]) || [];
+      entries.push({ composed, parts });
+      canonicalCompositionsByStarter.set(parts[0], entries);
+    }
+    canonicalSubsetSegmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+  }
+  for (const { segment } of canonicalSubsetSegmenter.segment(decomposed)) {
+    if (seenClusters.has(segment)) continue;
+    seenClusters.add(segment);
+    const members = new Set(segment);
+    for (const starter of members) {
+      for (const candidate of canonicalCompositionsByStarter.get(starter) || []) {
+        // Conservative within one grapheme: retain intermediate compositions
+        // even when another non-composing mark occurs between their parts.
+        if (candidate.parts.every(char => members.has(char))) addText(candidate.composed);
+      }
+    }
+  }
+}
+
 export async function readFontDescriptors(file) {
   const view = new DataView(await file.arrayBuffer());
   const tag = view.byteLength >= 4 ? readTag(view, 0) : '';
@@ -241,6 +278,7 @@ export function analyzeAssFontUsage(text) {
   // Diagnostics omit whitespace, but subset closure must preserve its glyphs
   // and advance widths. Keep a separate visible-text repertoire.
   const subsetCharacters = new Set();
+  const seenCanonicalClusters = new Set();
   section = '';
   let eventFormat = [];
 
@@ -262,15 +300,22 @@ export function analyzeAssFontUsage(text) {
     return item;
   };
 
-  const addVisibleText = (face, value, source) => {
-    const item = ensureUsage(face, source);
-    if (!item) return;
-
-    for (const char of decodeAssVisibleText(value)) {
+  const addSubsetText = (value) => {
+    for (const char of value) {
       const cp = char.codePointAt(0);
       if (cp >= 0x20 && !(cp >= 0x7f && cp <= 0x9f) && !/[\u2028\u2029]/u.test(char)) {
         subsetCharacters.add(char);
       }
+    }
+  };
+
+  const addVisibleText = (face, value, source) => {
+    const item = ensureUsage(face, source);
+    if (!item) return;
+
+    const visible = decodeAssVisibleText(value);
+    addSubsetText(visible);
+    for (const char of visible) {
       if (!isMeaningfulCharacter(char)) continue;
       item.characters.add(char);
       allCharacters.add(char);
@@ -307,6 +352,7 @@ export function analyzeAssFontUsage(text) {
     let currentFace = { ...baseFace };
     let transformFaces = [];
     let drawingMode = 0;
+    let subsetVisibleText = '';
 
     if (currentFace.name) {
       ensureUsage(currentFace, `style:${eventStyleName || baseStyle?.name || 'Default'}`);
@@ -378,12 +424,18 @@ export function analyzeAssFontUsage(text) {
       }
 
       if (drawingMode === 0 && currentFace.name) {
+        subsetVisibleText += decodeAssVisibleText(piece);
         addVisibleText(currentFace, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
         for (const transformed of transformFaces) {
           addVisibleText(transformed, piece, 'transform:\\t');
         }
       }
     }
+    // Keep authored diagnostics/ASS unchanged. Canonical closure includes
+    // intermediate glyph candidates (a -> â -> ấ), not just NFC/NFD endpoints;
+    // compatibility normalization is excluded. Override-separated visible
+    // spans contribute, while drawing and Comment text never enter this run.
+    addCanonicalSubsetClosure(subsetVisibleText, addSubsetText, seenCanonicalClusters);
   }
 
   return {
