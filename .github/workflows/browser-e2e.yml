@@ -635,3 +635,12 @@ jobs:
           path: .e2e/output/audio-only-mux/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload media plus ordinary attachment exact payload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-attachments
+          path: .e2e/output/media-attachments/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,3 +1,4 @@
+import {scenarioMediaAttachments} from './media-attachments-scenario.mjs';
 import {scenarioAudioOnlyMux} from './audio-only-mux-scenario.mjs';
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
@@ -7718,6 +7719,7 @@ try {
   await scenarioS13UnifiedIntakeIdentityCollision(browser);
   await scenarioGigabyteSourceAdvisory(browser);
   await scenarioS09CrossReloadConflictAtomicUndo(browser);
+  await scenarioMediaAttachments(browser,{root,outDir:path.join(outDir,'media-attachments'),baseUrl});
   await scenarioAudioOnlyMux(browser,{root,outDir:path.join(outDir,'audio-only-mux'),baseUrl});
   await scenarioOriginalTrackExtraction(browser,{root,outDir:path.join(outDir,'original-track-extraction'),baseUrl});
   await scenarioBatchExecutionSelection(browser,{root,outDir:path.join(outDir,'batch-execution-selection'),baseUrl});

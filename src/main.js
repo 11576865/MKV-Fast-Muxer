@@ -1,3 +1,4 @@
+import {planMediaAttachments,mediaAttachmentReadiness,verifyMediaAttachments,normalizeMatroskaAttachmentPictures,readSourceImageAttachments} from './media-attachment-delivery.js';
 import {planOriginalTrackExtraction,originalTrackExtractionCurrent,buildTrackExtractionCommand,auditExtractedOriginalTrack} from './original-track-extraction.js';
 import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_SOURCES} from './container-batch-review.js';
 import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
@@ -68,7 +69,7 @@ import { runFrozenBatchQueue } from './batch-runner.js';
 import { createFrozenBatchMuxContext } from './batch-mux-context.js';
 import { formatBatchTerminalStatus, combineBatchRetryTerminal } from './batch-status.js';
 import { freezeBatchJobPlan, createBatchJobLedger, BATCH_JOB_STATES } from './batch-job-plan.js';
-import { identifyImportedAsset, assetIntakeKey, planIncomingAssetIntake, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
+import { identifyImportedAsset, assignOpaqueAttachmentRole, assetIntakeKey, planIncomingAssetIntake, resolveImportedRoles, resolveBatchImportedAssets, ASSET_STATUS } from './asset-intake.js';
 import { buildContainerTreeModel } from './container-tree.js';
 import { outputCompositionFileKey } from './output-composition.js';
 import { buildContainerDocument, reconcileContainerSelection } from './container-document.js';
@@ -1753,7 +1754,7 @@ function updateUI() {
     currentPreservationReadiness().blocking;
   if(attachmentOnlyMode()) {
     muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
-  } else if(includedGenericAttachments().length) muxBtn.disabled=true;
+  } else if(!mediaAttachmentReadiness(genericAttachmentEntries()).ready) muxBtn.disabled=true;
   if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
@@ -2198,6 +2199,9 @@ function renderActualOutputEvidence() {
       : model.fontPayload && model.fontPayload.status !== 'not-requested'
         ? `新字体附件字节验证：待复核（${model.fontPayload.verified}/${model.fontPayload.total}）`
         : '新字体附件字节验证：无新增字体',
+    model.genericAttachmentPayload?.status === 'pass'
+      ? `新增普通附件字节验证：${model.genericAttachmentPayload.verified}/${model.genericAttachmentPayload.total} · SHA-256 一致`
+      : '新增普通附件字节验证：无新增普通附件',
     model.originalAttachmentPayload?.status === 'pass'
       ? model.originalAttachmentPayload.evidence === 'source-vs-final-mkv-ebml-filedata-byte-compare-v2'
         ? `原附件字节验证：${model.originalAttachmentPayload.verified}/${model.originalAttachmentPayload.total} · SHA-256 或完整分块逐字节比较一致（部分附件无 SHA-256；不含 UID 关联）`
@@ -2502,7 +2506,9 @@ function renderOutputComposition() {
   if(genericAttachmentEntries().length && containerCapabilitySummary) {
     containerCapabilitySummary.textContent=attachmentOnlyMode()
       ? attachmentOnlyReadiness(genericAttachmentEntries()).ready ? '纯附件容器：可生成 · 无可播放轨道' : attachmentOnlyReadiness(genericAttachmentEntries()).reason
-      : includedGenericAttachments().length ? '当前不支持普通附件与媒体一同写出；请排除普通附件或移除媒体。' : '普通附件均未加入输出';
+      : includedGenericAttachments().length ? mediaAttachmentReadiness(genericAttachmentEntries()).ready
+        ? '普通附件将随媒体写入；成品逐项完整 SHA-256 回读。' : mediaAttachmentReadiness(genericAttachmentEntries()).reason
+        : '普通附件均未加入输出';
     if(attachmentOnlyMode()) {
       containerCapabilitySummary.dataset.muxStatus=attachmentOnlyReadiness(genericAttachmentEntries()).ready?'available':'blocked';
       containerCapabilitySummary.title='1–8 个非空附件；单项 16 MiB、合计 32 MiB；逐项完整 SHA-256 回读；不证明内容安全或已保存。';
@@ -3477,6 +3483,7 @@ function renderImportedAssetInventory() {
         <div class="asset-entry-desc">${escapeHtml(counts || sourceNote || entry.detail || '')}</div>
       </div>
       <div class="asset-entry-roles">
+        ${entry.kind==='unknown' && entry.evidence==='no-known-content-signature' ? `<button type="button" data-asset-as-attachment="${escapeHtml(entry.key)}" ${canChange?'':'disabled'} title="不解析内容，以 application/octet-stream 保存原始字节">作为普通附件</button>` : ''}
         ${entry.kind==='attachment' ? `<label><input type="checkbox" data-generic-include="${escapeHtml(entry.key)}" ${entry.include!==false?'checked':''} ${canChange?'':'disabled'}> 参与输出</label>` : ''}
         ${external ? `<label><input type="checkbox" data-asset-include="${escapeHtml(entry.key)}" ${external.include !== false ? 'checked' : ''} ${canChange ? '' : 'disabled'}> 参与输出</label>` : ''}
         ${['subtitle', 'audio', 'font'].includes(entry.kind) ? `<button type="button" class="asset-focus" data-asset-focus-key="${escapeHtml(entry.key)}" aria-label="编辑 ${escapeHtml(entry.file.name)}">编辑</button>` : ''}
@@ -3642,6 +3649,15 @@ for (const target of [assetInventory, assetInspectorHost]) {
     }
   });
 }
+
+assetInventory?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-asset-as-attachment]');
+  if(!button||isBusy()||batchRunning||batchStartPending||importInProgress)return;
+  const index=importedAssetEntries.findIndex(entry=>entry.key===button.dataset.assetAsAttachment);
+  if(index<0)return;
+  try{importedAssetEntries[index]=assignOpaqueAttachmentRole(importedAssetEntries[index]);applyImportedAssetRoles();}
+  catch(error){status.textContent=error.message;}
+});
 
 assetInventory?.addEventListener('change', (event) => {
   const generic=event.target.closest('[data-generic-include]');
@@ -4840,6 +4856,7 @@ async function runProbe(path, probePath, { decodeStreams = false } = {}) {
     logEl.textContent += `INFO: ffprobe wrapper 返回 ${code}，但结构化结果文件有效，继续使用该结果。\n`;
   }
 
+  json=normalizeMatroskaAttachmentPictures(json);
   const streams = Array.isArray(json.streams) ? json.streams : [];
 
   return {
@@ -5207,6 +5224,9 @@ function buildMuxPlan() {
       flags: '',
     });
   }
+
+  for(const entry of includedGenericAttachments())entries.push({kind:'附件',title:entry.file.name,
+    meta:entry.mimeType+' · 原始字节 · 重名自动增加序号并记录成品名',flags:'new'});
 
   const hasAssLikeSubtitle = outputSubtitleTracks().some((track) => track.format?.assLike);
   const attachedFonts = mode === 'force' && hasAssLikeSubtitle ? fonts.slice(0, 1) : fonts;
@@ -5926,10 +5946,8 @@ async function executeCurrentMuxTask(explicit = null) {
   if (isBusy() || (batchRunning && !independent)) return;
   if(!independent && genericAttachmentEntries().length) {
     if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
-    if(includedGenericAttachments().length){
-      status.textContent='普通附件目前只支持创建无媒体轨道的新容器；请移除媒体资源，或排除这些附件后继续原封装。';
-      return;
-    }
+    const readiness=mediaAttachmentReadiness(genericAttachmentEntries());
+    if(!readiness.ready){status.textContent=readiness.reason;return;}
   }
   const video = independent ? explicit.source : videoInput.files[0];
   if(!independent && video && sourceDraftRestoreBlocked===video){
@@ -6139,6 +6157,8 @@ async function executeCurrentMuxTask(explicit = null) {
   const auditPath = `${prefix}-audit.json`;
   const outputName = independent ? explicit.outputName : safeOutputName(video.name);
   const fontPaths = [];
+  const genericPaths = [];
+  const runtimeGenericAttachments = [];
   const audioPaths = [];
   const subtitlePaths = [];
   const subtitlePrimaryPaths = [];
@@ -6382,6 +6402,28 @@ async function executeCurrentMuxTask(explicit = null) {
       attachments[index].attachmentName = named.attachmentName;
     });
 
+    const sourcePictureStreams=sourceAttachments.filter(stream=>stream.matroskaImageAttachment);
+    const keptPictures=(preserveAllOriginalAttachments ? sourcePictureStreams.map(stream=>({index:stream.index,stream,
+      filename:stream.tags.filename,mimetype:stream.tags.mimetype})) : originalAttachments.filter(row=>row.stream.matroskaImageAttachment));
+    const originalPictureAttachments=await readSourceImageAttachments(video,keptPictures);assertExternalSelection();
+    for(const [index,item] of originalPictureAttachments.entries()){
+      const path=prefix+'-source-picture-'+index+'.data';genericPaths.push(path);
+      await ffmpeg.writeFile(path,await fetchFile(item.file));assertExternalSelection();item.path=path;
+    }
+    const ordinaryPlan=planMediaAttachments(genericAttachmentSelection || [],[
+      ...reservedAttachmentNames,...attachments.map(item=>item.attachmentName),
+    ]);
+    for(const [index,item] of ordinaryPlan.entries()){
+      assertExternalSelection();
+      const path=prefix+'-ordinary-'+index+'.data';genericPaths.push(path);
+      const bytes=await fetchFile(item.file);assertExternalSelection();
+      const sizeBytes=bytes.byteLength;
+      const sha256=await sha256Hex(bytes);assertExternalSelection();
+      // writeFile transfers the buffer to the worker; capture byte length first.
+      await ffmpeg.writeFile(path,bytes);assertExternalSelection();
+      runtimeGenericAttachments.push({...item,path,sha256,sizeBytes});
+    }
+
     const runtimeExternalAudio = [];
     for (let index = 0; index < externalAudioTracks.length; index += 1) {
       const probeOutput = `${prefix}-audio-${index}-probe.json`;
@@ -6451,11 +6493,11 @@ async function executeCurrentMuxTask(explicit = null) {
     status.textContent = '正在使用 FFmpeg 重封装 MKV……';
     bar.style.width = '40%';
 
-    const fontAttachments = attachments.map((item, index) => ({
+    const fontAttachments = originalPictureAttachments.map(item=>({path:item.path,mimeType:item.mimeType,filename:item.filename})).concat(attachments.map((item, index) => ({
       path: fontPaths[index],
       mimeType: fontMimeType(item.fontIdentity),
       filename: item.attachmentName,
-    }));
+    }))).concat(runtimeGenericAttachments.map(item=>({path:item.path,mimeType:item.mimeType,filename:item.filename})));
 
     const commandOptions = {
       mainInputPath: videoPath,
@@ -6469,10 +6511,11 @@ async function executeCurrentMuxTask(explicit = null) {
       newSubtitleTracks: runtimeSubtitles,
       originalSubtitleTracks: selectedSubtitles,
       preserveAllOriginalSubtitles,
-      originalAttachments,
+      originalAttachments: originalAttachments.filter(row=>!row.stream.matroskaImageAttachment),
       preserveAllOriginalAttachments,
       preserveOriginalDataStreams: isMatroskaIdentity(inputIdentity),
-      originalAttachmentCount,
+      originalAttachmentCount: originalAttachmentCount-sourcePictureStreams.length,
+      excludedSourceStreamIndices: sourcePictureStreams.map(stream=>stream.index),
       fontAttachments,
     };
     const args = buildMuxCommand(commandOptions);
@@ -6524,7 +6567,7 @@ async function executeCurrentMuxTask(explicit = null) {
       })),
     ];
 
-    const expectedOriginalAttachments = scanned
+    let expectedOriginalAttachments = scanned
       ? originalAttachments.map((item) => ({
           filename: item.filename || '',
           mimetype: item.mimetype || '',
@@ -6535,6 +6578,9 @@ async function executeCurrentMuxTask(explicit = null) {
               mimetype: String(stream.tags?.mimetype || ''),
             }))
           : []);
+    // Reattached FileData follows the still-mapped original attachments.
+    expectedOriginalAttachments=expectedOriginalAttachments.filter(item=>!originalPictureAttachments.some(p=>
+      p.filename===item.filename&&p.mimeType===item.mimetype)).concat(originalPictureAttachments.map(item=>({filename:item.filename,mimetype:item.mimeType})));
     const expectedOriginalAttachmentNames = expectedOriginalAttachments
       .map((item) => item.filename)
       .filter(Boolean);
@@ -6609,8 +6655,8 @@ async function executeCurrentMuxTask(explicit = null) {
       chapters: inputProbe.chapters.map(chapterAuditExpectation),
       formatTitle: inputProbe.format?.tags?.title || '',
       formatTags: preservableFormatTags(inputProbe.format?.tags || {}),
-      attachmentCount: expectedOriginalAttachments.length + expectedFontAttachments.length,
-      attachments: [...expectedOriginalAttachments, ...expectedFontAttachments],
+      attachmentCount: expectedOriginalAttachments.length + expectedFontAttachments.length + runtimeGenericAttachments.length,
+      attachments: [...expectedOriginalAttachments, ...expectedFontAttachments, ...runtimeGenericAttachments.map(item=>({filename:item.filename,mimetype:item.mimeType}))],
       attachmentFilenames: expectedOriginalAttachmentNames,
       newFontFilenames: attachments.map((item) => item.attachmentName),
     };
@@ -6688,6 +6734,9 @@ async function executeCurrentMuxTask(explicit = null) {
       completionNote += '；成品字体附件字节核验待复核';
     }
     finalAudit.fontPayloadAudit = fontPayloadAudit;
+    finalAudit.genericAttachmentPayloadAudit=await verifyMediaAttachments(outputBlob,runtimeGenericAttachments);
+    assertExternalSelection();
+    if(runtimeGenericAttachments.length)logEl.textContent+='AUDIT: '+runtimeGenericAttachments.length+' 个新增普通附件已从成品逐项回读，完整 SHA-256/MIME/名称/字节数一致。\n';
     const originalAttachmentClaims = scanned
       ? originalAttachments.map((item) => ({
           sourceFilename: item.originalFilename || item.stream?.tags?.filename || '',
@@ -6868,6 +6917,9 @@ async function executeCurrentMuxTask(explicit = null) {
       completionNote += '；新增 SRT/WebVTT 成品条目未验证';
       logEl.textContent += 'AUDIT UNAVAILABLE: ' + subripCueAudit.issues.join('；') + '\n';
     }
+    assertCurrentSubtitleWitness();assertExternalSelection();
+    if(cancelRequested||(independent&&batchCancelRequested))throw Error('成品核验已取消，未发布新成品。');
+    if(!independent&&videoInput.files?.[0]!==video)throw Error('来源已改变，拒绝发布过期成品。');
     if (!independent) outputURL = URL.createObjectURL(outputBlob);
 
     const report = createMuxReport({
@@ -6957,6 +7009,8 @@ async function executeCurrentMuxTask(explicit = null) {
         originalAttachmentSelectionCount: originalAttachments.length,
       },
     });
+    report.genericAttachments=runtimeGenericAttachments.map(item=>({sourceName:item.originalName,filename:item.filename,
+      mimeType:item.mimeType,sizeBytes:item.sizeBytes,sha256:item.sha256,renamed:item.renamed,contentSafetyVerified:false}));
     report.externalAudio = runtimeExternalAudio.map((track) => ({
       name: track.file.name,
       codec: track.codec,
@@ -7008,7 +7062,7 @@ async function executeCurrentMuxTask(explicit = null) {
           : `已附加 ${attachments.length} 个字体文件`)
       : '未附加字体';
     const webvttNote = webvttCount ? `；${webvttCount} 条 WebVTT 已转换为 Matroska 兼容 SubRip 字幕流` : '';
-    status.textContent = `完成。共新增 ${runtimeSubtitles.length} 条字幕；${modeText}${webvttNote}${completionNote}；新增 ${runtimeExternalAudio.length} 条外部音频；视频/音频未重新编码。`;
+    status.textContent = `完成。共新增 ${runtimeSubtitles.length} 条字幕；${modeText}${webvttNote}${completionNote}；新增 ${runtimeExternalAudio.length} 条外部音频；新增 ${runtimeGenericAttachments.length} 个普通附件；视频/音频未重新编码。`;
 
     if (dependencyWarningCount) {
       logEl.textContent += `完成，但存在 ${dependencyWarningCount} 组字体 face / 字形覆盖警告。请在发布前检查日志。\n`;
@@ -7058,6 +7112,7 @@ async function executeCurrentMuxTask(explicit = null) {
       for (const path of audioPaths) await removeQuietly(path);
       for (const path of subtitlePaths) await removeQuietly(path);
       for (const path of fontPaths) await removeQuietly(path);
+      for (const path of genericPaths) await removeQuietly(path);
       for (const path of extraProbePaths) await removeQuietly(path);
       await removeQuietly(outputPath);
       await removeQuietly(probePath);

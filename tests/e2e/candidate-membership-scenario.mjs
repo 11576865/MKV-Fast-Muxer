@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {createMatroskaAttachmentReader} from '../../src/matroska-attachment-reader.js';
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -63,16 +65,34 @@ export async function scenarioCandidateMembership(browser,{root,outDir,baseUrl})
    return {dest,streams:parsed.streams};
   };
   const first=await save('candidate-excluded.mkv');
-  // A newly included generic attachment changes intended output even though
-  // the media-only displayed plan lacks a supported generic attachment writer.
+  // Ordinary attachments now have a media writer. Their addition still makes
+  // the preceding artifact stale; only a newly generated artifact certifies it.
   const opaquePng=path.join(root,'media-currency-cover.png');
-  await fs.writeFile(opaquePng,Buffer.from([137,80,78,71,13,10,26,10,1]));
+  execFileSync('ffmpeg',['-v','error','-y','-f','lavfi','-i','color=c=blue:s=16x16','-frames:v','1','-threads','1',opaquePng]);
   await page.setInputFiles('#unifiedAssetInput',opaquePng);
   await page.waitForFunction(()=>document.querySelector('#assetInventory .asset-entry[data-kind="attachment"]'));
-  assert.equal(await page.locator('#muxBtn').isEnabled(),false);
+  assert.equal(await page.locator('#muxBtn').isEnabled(),true,'ordinary attachment delivery is now supported');
   assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'false');
   assert.equal(await page.locator('#outputIndexInspectBtn').isEnabled(),false);
+  const mixed=await save('candidate-with-cover.mkv');
+  assert.equal(mixed.streams.filter(stream=>stream.codec_type==='subtitle').length,1,'candidate remains excluded in actual mixed output');
+  const mixedBytes=await fs.readFile(mixed.dest),reader=createMatroskaAttachmentReader(new Blob([mixedBytes]));
+  const observed=await reader.inspect();assert.equal(observed.state,'inspected');
+  const cover=observed.attachments.filter(item=>item.filename==='media-currency-cover.png');assert.equal(cover.length,1);
+  const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+  const coverSha256=hash(await fs.readFile(opaquePng));
+  assert.equal(hash(Buffer.from(await reader.openAttachment(cover[0].id).data.arrayBuffer())),coverSha256);
+  const[reportDownload]=await Promise.all([page.waitForEvent('download'),page.locator('#reportLink').click()]);
+  const mixedReportPath=path.join(outDir,'candidate-with-cover.mux-report.json');await reportDownload.saveAs(mixedReportPath);
+  const mixedReport=JSON.parse(await fs.readFile(mixedReportPath,'utf8'));
+  assert.equal(mixedReport.output.sha256,hash(mixedBytes));assert.equal(mixedReport.audit.genericAttachmentPayloadAudit.status,'pass');
+  assert.equal(mixedReport.audit.genericAttachmentPayloadAudit.verified,1);
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'true');
   await page.locator('#assetInventory .asset-entry[data-kind="attachment"] [data-asset-remove]').click();
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'false','removing an included attachment also stales the mixed output');
+  const mediaOnly=await save('candidate-cover-removed.mkv');
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'true',
+   'restore an actually current media-only baseline before testing equal-label member swaps');
 
   assert.equal(first.streams.filter(s=>s.codec_type==='subtitle').length,1);
   const source=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',path.join(root,'base.mp4')],{encoding:'utf8'}));
@@ -99,6 +119,8 @@ export async function scenarioCandidateMembership(browser,{root,outDir,baseUrl})
    previewRetainedWhileExcluded:true,previewDoesNotInclude:true,
    excludedOutputSubtitleCount:1,reincludedOutputSubtitleCount:2,
    excludedExternalAudioAbsent:true,authoredMetadataRetained:true,equalLabelSwapStalesEvidence:true,
+   genericAttachmentDeliverySupported:true,genericAdditionAndRemovalStaleEvidence:true,
+   genericPayloadSha256:coverSha256,mixed:mixed.dest,mediaOnlyBaseline:mediaOnly.dest,
    first:first.dest,second:second.dest,physicalTabletVerified:false,
   },null,2));
  } catch(error) {

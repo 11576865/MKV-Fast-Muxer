@@ -209,3 +209,14 @@ export function resolveBatchImportedAssets(entries) {
   }
   return { containers, subtitles, fonts, unsupported };
 }
+
+
+// Explicit opaque role assignment grants no media decoder or content-safety claim.
+export function assignOpaqueAttachmentRole(entry) {
+  if(entry?.kind!=='unknown'||entry.evidence!=='no-known-content-signature'||!entry.file?.slice)
+    throw Error('OPAQUE_ATTACHMENT_ROLE_NOT_ELIGIBLE');
+  return {...entry,kind:'attachment',status:ASSET_STATUS.UNVERIFIED,
+    mimeType:'application/octet-stream',label:'普通附件（未解析）',
+    evidence:'user-assigned-opaque-attachment',
+    detail:'已明确作为普通附件保存原始字节；未验证内容格式，不自动解码或执行。'};
+}

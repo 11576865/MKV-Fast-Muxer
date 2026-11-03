@@ -1,7 +1,7 @@
 {
   "schema": "softmux-1.0-evidence-gate-v1",
   "authority": "proposal-only: docs/softmux-1.0-product-acceptance-contract-20261020.md",
-  "currentDevelopmentBaseline": "0f8153123ea5eadcc60d00a94b8c140062398e00",
+  "currentDevelopmentBaseline": "f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
   "release": {
     "targetVersion": "1.0.0",
     "candidateCommit": null,
@@ -36,7 +36,9 @@
           "tests/original-track-extraction.test.mjs",
           "tests/e2e/original-track-extraction-scenario.mjs",
           "tests/audio-only-mux.test.mjs",
-          "tests/e2e/audio-only-mux-scenario.mjs"
+          "tests/e2e/audio-only-mux-scenario.mjs",
+          "tests/media-attachment-delivery.test.mjs",
+          "tests/e2e/media-attachments-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13070077921
@@ -63,7 +65,9 @@
           "tests/original-track-extraction.test.mjs",
           "tests/e2e/original-track-extraction-scenario.mjs",
           "tests/audio-only-mux.test.mjs",
-          "tests/e2e/audio-only-mux-scenario.mjs"
+          "tests/e2e/audio-only-mux-scenario.mjs",
+          "tests/media-attachment-delivery.test.mjs",
+          "tests/e2e/media-attachments-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13069704090,

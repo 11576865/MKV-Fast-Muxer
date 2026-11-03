@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "audio_only_mux_core_complete_pending_external_validation",
-  "current_bounded_work_unit": "0.1045 audio-only single-workbench Matroska composition from observed audio containers, with existing source editing/external audio/subtitle/font/save paths",
+  "status": "media_attachments_ci_repair_complete_pending_external_validation",
+  "current_bounded_work_unit": "PR224 bounded CI repair: replace obsolete mixed-attachment refusal assertion, preserve output-currency guards and add actual PNG mixed-delivery proof plus fresh equal-label swap baseline",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -37,22 +37,25 @@
     "PR #221 repaired d766418 passed Deploy41434392097, Browser41434392087, S1241434392166; merged @a86a26c837bf5134c8aa471cb498a8dd8f439c78",
     "0.1044 CORE: original AAC/FLAC/MP3/AC3/EAC3/ASS/SRT/PGS/VobSub extraction,14 actual format outputs plus cancel-recovery output and audio-only MKA-source extraction; native packet hashes/counts, MKA/MKS PTS and codec private data, PGS segment grouping, AAC ADTS header normalization. Source, pending plan/history and main completed output unchanged.825 tests/build/history compatibility and fresh review passed",
     "PR #222 exact head cd3da94 passed Browser 41448690068, S12 41448690109 and Deploy 41448690063; merged @0f8153123ea5eadcc60d00a94b8c140062398e00",
-    "0.1045 single-task audio-only mux: preserve/edited/external-only/M4A/WebM actual zero-video outputs; native AAC/FLAC/Opus packet hashes, retained MKA PTS/private, ASS/font bytes, empty-audio/subtitle-source refusals and recovery.832 tests/build passed; independent focused review40/40 no material findings; expected refusal diagnostics RED/GREEN"
+    "0.1045 single-task audio-only mux: preserve/edited/external-only/M4A/WebM actual zero-video outputs; native AAC/FLAC/Opus packet hashes, retained MKA PTS/private, ASS/font bytes, empty-audio/subtitle-source refusals and recovery.832 tests/build passed; independent focused review40/40 no material findings; expected refusal diagnostics RED/GREEN",
+    "PR #223 exact cabbd371 passed Browser41476109147, Deploy41476109617 and S1241476109285; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
+    "0.1046 five actual mixed video/audio outputs plus two zero-track attachment-only and one legacy-picker media regression output: PNG/PDF/explicit JSON full native payloads, original image preserved as FileData, shared source/font/ordinary name allocation, selective source image metadata/font exclusion, media packet hashes/PTS, generic membership stale/reinclude.839 tests/build; fresh review13 focus tests. Late ASS audit cancellation browser RED published, GREEN final guard refuses and retry succeeds.",
+    "PR224 cf3782e: Deploy41483148334 and S1241483148371 success; Browser41483148386 failed obsolete candidate line72 expected Start disabled for generic attachment. Scoped repair updates capability expectation, retains add/remove/index staleness checks, independently verifies new actual PNG FileData/report SHA, and regenerates current media-only baseline before equal-label File swap. Four actual candidate outputs/preview and three viewports pass locally;839 unit tests pass; no product version/behavior change."
   ],
   "next_units": [
-    "Full exact-head audio-only CI; continue the next bounded substantive media capability based on remaining 1.0 requirements",
+    "Next continue: inspect repaired exact-head full CI once; merge only on success, otherwise one bounded visible-failure repair",
     "Complete remaining S10 actual batch fault/retry workflow and S03 OTC/multi-face/shaping acceptance combinations as full usable workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "feat/softmux-audio-only-mux-20261102",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/223",
-  "latest_durable_commit": "a384eacb8eb79a71724242fa5abc7a4674687459",
+  "branch": "feat/softmux-media-generic-attachments-20261103",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/224",
+  "latest_durable_commit": "d859064b9e921f5c4f091ccf60bc7e6d2278bdaa",
   "external_validation_states": {
-    "node_build_local": "832/832 passed; build passed",
+    "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR #221 repaired d766418 all full workflows passed; merged",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Completed: de-duplicated, appended one observation to existing generalized-media-workspace-legacy-output-assumptions Candidate in UIGS-Foundry @d82ccbcdf0c0fe954b28cc83ad5995e4b930bef3; no Canonical change",
+    "UIGS_Intake": "Checked: no new reusable knowledge beyond PR224 capability and existing Observation; this repair replaces an obsolete negative-capability assertion while strengthening the same real output/identity checks. No new duplicate record or Canonical change.",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -87,10 +90,14 @@
     "original_track_extraction_local": "passed:14 requested exports from9codecs plus startup cancel/recovery and audio-only MKA-source extraction. Native payload/count equality (AAC ADTS normalized, PGS grouped), container PTS/private-data equality, raw source metadata not pending edits, unchanged main output/plan/source and stale-source links invalidated. No font/Tag/UID or generic raw timeline guarantee",
     "original_track_extraction_ci": "PR #222 cd3da94 all full workflows passed; merged @0f8153123ea5eadcc60d00a94b8c140062398e00",
     "audio_only_mux_local": "passed: five actual zero-video browser outputs (MKA retained/edited/external-replacement,AAC M4A,Opus WebM), native audio packet hashes/counts, retained source PTS/private, actual ASS/font extraction, report SHA, source bytes unchanged and two refusals/recovery",
-    "audio_only_mux_ci": "PR #223 submitted; full exact checkpoint-head workflows pending"
+    "audio_only_mux_ci": "PR #223 cabbd371 all full workflows passed; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
+    "media_ordinary_attachments_local": "passed: 5 actual mixed video/audio outputs +2 zero-track +1 legacy-video regression; complete native PNG/PDF/opaque JSON payload SHA; source PNG FileData reattachment; source/new-font/new-ordinary collision names; selective image name/font exclusion; exact source media packets/PTS; final SHA receipts and input unchanged",
+    "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
+    "media_ordinary_attachments_ci": "PR224 bounded repaired head submitted; full next-generation CI Pending External Validation. No status read after repair push.",
+    "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T15:53:38.600Z"
+  "updated_at": "2026-11-02T16:56:22.384Z"
 }

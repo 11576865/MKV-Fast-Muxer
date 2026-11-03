@@ -37,6 +37,7 @@ export function describeOperationError(error, { phase = 'mux', logText = '' } = 
 
   // An intentional composition/source refusal must not be mistaken for probe
   // failure merely because the preceding successful inventory log says ffprobe.
+  if (/^普通附件交付：/.test(raw)) return result('ordinary-attachment-delivery',raw,'请调整普通附件选择或检查文件后重试；当前成品未发布。');
   if (/^组合兼容性不支持：/.test(raw)) return result(
     'composition-unsupported', raw,
     '请调整参与输出的轨道后重试；不会自动加入轨道或转码。'

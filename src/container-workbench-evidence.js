@@ -74,6 +74,7 @@ export function projectActualOutputEvidence(report, {
     issues,
     counts: report.audit?.counts || null,
     fontPayload: report.audit?.fontPayloadAudit || null,
+    genericAttachmentPayload: report.audit?.genericAttachmentPayloadAudit || null,
     assEvent: report.audit?.assEventAudit || null,
     assStyle: report.audit?.assStyleAudit || null,
     subripCue: report.audit?.subripCueAudit || null,
