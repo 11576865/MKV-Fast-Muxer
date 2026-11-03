@@ -135,6 +135,40 @@ def main():
                 missing_tag_xml)
     edit("mkvpropedit", missing, "--tags", "all:" + str(missing_tag_xml))
 
+    # Prove that the native writer really changed on-disk UIDs/targets.
+    # A test that passes on unmodified copied files is not a UID-remap test.
+    def actual_xml(file, kind, label):
+        result = out_dir / ("p1-uid-role-" + label + "-" + kind + ".xml")
+        edit("mkvextract", file, kind, result)
+        return ET.parse(result).getroot()
+
+    actual_chapters = actual_xml(positive, "chapters", "remapped")
+    if [
+        actual_chapters.findtext("./EditionEntry/EditionUID"),
+        actual_chapters.findtext("./EditionEntry/ChapterAtom/ChapterUID"),
+        actual_chapters.findtext("./EditionEntry/ChapterAtom/ChapterAtom/ChapterUID"),
+    ] != [remapped_edition, remapped_parent, remapped_nested]:
+        raise AssertionError("Actual native remux did not preserve authored UID remap")
+
+    def director_tag(root):
+        for tag in root.findall("Tag"):
+            s = tag.find("Simple")
+            if s is not None and s.findtext("Name") == "DIRECTOR":
+                return tag
+        raise AssertionError("Native MKV missing unmarked DIRECTOR Tag")
+
+    remapped_director = director_tag(actual_xml(positive, "tags", "remapped"))
+    wrong_director = director_tag(actual_xml(wrong, "tags", "wrong"))
+    missing_director = director_tag(actual_xml(missing, "tags", "missing"))
+    if remapped_director.findtext("./Targets/ChapterUID") != remapped_nested:
+        raise AssertionError("Actual positive Tag target does not use new nested ChapterUID")
+    if wrong_director.findtext("./Targets/ChapterUID") != remapped_parent:
+        raise AssertionError("Actual negative Tag target did not switch to parent ChapterUID")
+    if not remapped_director.findall("./Simple/Simple"):
+        raise AssertionError("Actual positive MKV has no nested SimpleTag")
+    if missing_director.findall("./Simple/Simple"):
+        raise AssertionError("Actual negative MKV still contains removed nested SimpleTag")
+
     results = {}
     for label, output in [("remapped", positive), ("wrongChapter", wrong),
                           ("missingNested", missing)]:
