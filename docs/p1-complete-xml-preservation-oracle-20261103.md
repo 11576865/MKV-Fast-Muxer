@@ -44,6 +44,26 @@ node --test tests/p0-complete-xml-preservation.test.mjs
 
 For real-file acceptance, execute the command on an independently authored complex MKV and its altered/remuxed counterpart. Require one known-safe control and independently removed nested Tag and edition negatives. Store the actual input, output, external tool versions, report and execution SHA; a synthetic XML test alone is **not** a real MKV acceptance.
 
+## Real native MKV gate
+
+`scripts/p1-complete-xml-real-audit.mjs` is now invoked **after the independent
+Matroska fixture generator** in `.github/workflows/browser-e2e.yml`.
+It copies the existing mkvmerge-authored nested-ChapterUID source and uses
+native `mkvpropedit` to author one non-P0 DIRECTOR Tag with an inner COMMENT.
+A second copy is native-edited to remove only the inner COMMENT.
+
+Three independent checks must run on those **real MKV files**:
+
+1. Strict complete XML source vs byte-identical copy → checked fields match;
+2. Historical `--deep` source vs altered file → does not notice the
+   unmarked nested Tag loss, demonstrating the old oracle's known blind spot;
+3. New `--complete-xml` source vs altered → reports `tagXmlTree` difference.
+
+The required runner generates the files and uploads both real inputs and a
+JSON receipt, including the native tool versions, even if the E2E pipeline
+later fails. Evidence requires the **exact PR head** complete workflow; authored
+tests alone do not constitute a passed delivery.
+
 ## Next implementation slice
 
 Using this independent extracted-tree oracle as a regression baseline, construct a **resolved semantic graph** connecting tag target UIDs to actual Track, Attachment, Chapter and Edition objects. Accept legitimate UID renumbering when references still resolve to the same logical object; flag dangling or changed target relations. It is not safe to treat strict raw UID equality as universal semantic preservation. Then compare actual generated MKVs under this graph and connect scoped evidence to user-facing output verification, without allowing a diagnostic comparison to widen the writer's safety envelope automatically.
