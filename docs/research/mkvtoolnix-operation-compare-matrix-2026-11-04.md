@@ -18,9 +18,9 @@
 
 | ID | 同一用户意图与真实源样本 | MKVToolNix 基准 | Softmux 现有路径/关注点 | 关键验收 |
 | --- | --- | --- | --- | --- |
-| MTX-01 | MKV 含 1 张 JPEG，设为默认封面 | 附件更名为 cover.jpg，适用时 mkvpropedit | 普通附件数据模型 + 拟输出文件名方案；拟议 UI 快捷动作 | 原始图片字节不变、仅一个默认封面候选、播放器显示单独记为未知 |
+| MTX-01 | MKV 含 1 张 JPEG，设为默认封面 | 附件更名为 cover.jpg，适用时 mkvpropedit | 现有通用附件名称/MIME 编辑；不新增封面按钮或预设 | 原始图片字节不变、仅一个默认封面候选、播放器显示单独记为未知 |
 | MTX-02 | 3 张图片分别普通/默认/横版 | mkvmerge/mkvpropedit 的附件命名和顺序 | 附件清单、多图像 Matroska 归类 | 按不同文件名保留三份 FileData；不可自动覆盖 |
-| MTX-03 | 存在 cover.jpg 再要求另一张作默认封面 | 对比重复名与选择器语义 | 只生成冲突待审核意图 | 不静默替换、不无提示增加第二默认封面、不使用同名判断对象身份 |
+| MTX-03 | 存在 cover.jpg 再要求另一张作默认封面 | 对比重复名与选择器语义 | 沿用现有普通附件命名/冲突审查，检查多同名对象行为 | 不静默替换、不无提示增加第二默认封面、不使用同名判断对象身份 |
 | MTX-04 | 已有 MKV 修改音轨名称/语言/default | mkvpropedit 属性编辑 vs mkvmerge 新输出 | live source-track authority + 有界 writer | 不重编码；正确修改目标 TrackUID；其他媒体包与关系有证据 |
 | MTX-05 | 已有 MKV 替换字体附件，不动音视频 | mkvpropedit replace-attachment | p2-existing-mkv-writer-router 4 路 | 替换唯一 FileUID；旧内容不出现在成品；原其他对象保留 |
 | MTX-06 | 已有 MKV 增加任意 TXT/PDF 附件 | mkvpropedit add-attachment | 有界附件新增流程/执行能力检查 | 新增真实 AttachedFile；原附件与媒体 SHA/PTS/关系保留 |
@@ -47,7 +47,7 @@
 2. 对每一项确认 MKVToolNix CLI 具体操作是否**适用**，并明确是原地修改还是新文件；原地编辑只能作用于输入的安全副本。
 3. 对 softmux 的相同用户意图执行当前已支持的路径；不支持时记录 BLOCKED_BY_DESIGN 而不是临时绕过门禁。
 4. 先独立检查输出字节/EBML/UID，再做 UI 操作可发现性与用户端浏览器测试；不以自家 writer 的成功返回作为同一 writer 的验证。
-5. 最后形成保留、收敛、复用 upstream 方案或自研必需的逐模块决策，并单独评估许可（当前产品 MIT；MKVToolNix GPL 系列）及浏览器移植成本。
+5. 最后形成保留、收敛、复用 upstream 方案或自研必需的逐模块决策（不以任何新增 UI 快捷方式作为阶段目标），并单独评估许可（当前产品 MIT；MKVToolNix GPL 系列）及浏览器移植成本。
 
 ## 4. 对实现 PR 的硬约束（建议，需按项目现行合同审查）
 
