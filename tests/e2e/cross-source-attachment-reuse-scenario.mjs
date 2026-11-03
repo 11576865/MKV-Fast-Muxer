@@ -94,12 +94,34 @@ export async function scenarioCrossSourceAttachmentReuse(browser,{
       String(observed.attachments[0].id)+':'+extracted]);
     assert.deepEqual(await fs.readFile(extracted),payload);
     const bPackets=packets(sourceB),oPackets=packets(output);
-    assert.deepEqual(oPackets.map(x=>x.data_hash),bPackets.map(x=>x.data_hash),
-      'selected B track compressed payload unchanged');
-    assert.equal(oPackets.length,bPackets.length);
-    for(let i=0;i<bPackets.length;i++){
-      assert.ok(Math.abs(Number(oPackets[i].pts_time)-Number(bPackets[i].pts_time))<=0.0011,
-        'B packet PTS within one Matroska timebase tick');
+    // Stream Copy permits different *cross-stream interleaving*: compare
+    // packet identities in each actual track's decode order, not a global
+    // ffprobe -show_packets sequence spanning both audio and video tracks.
+    const byStream=rows=>{
+      const streams=new Map();
+      for(const row of rows){
+        if(!streams.has(row.stream_index))streams.set(row.stream_index,[]);
+        streams.get(row.stream_index).push(row);
+      }
+      return streams;
+    };
+    const bStreams=byStream(bPackets),oStreams=byStream(oPackets);
+    assert.deepEqual([...oStreams.keys()].sort((a,b)=>a-b),
+      [...bStreams.keys()].sort((a,b)=>a-b));
+    for(const [index,sourcePackets] of bStreams){
+      const actualPackets=oStreams.get(index)||[];
+      assert.deepEqual(actualPackets.map(x=>x.data_hash),
+        sourcePackets.map(x=>x.data_hash),
+        'B stream '+index+' compressed packet payload sequence unchanged');
+      for(let i=0;i<sourcePackets.length;i++){
+        for(const key of ['pts_time','dts_time']){
+          const before=Number(sourcePackets[i][key]);
+          const after=Number(actualPackets[i][key]);
+          if(Number.isFinite(before)&&Number.isFinite(after))
+            assert.ok(Math.abs(after-before)<=0.0011,
+              'B stream '+index+' '+key+' preserved to one Matroska timebase tick');
+        }
+      }
     }
     assert.equal(sha(await fs.readFile(sourceA)),beforeA);
     assert.equal(sha(await fs.readFile(sourceB)),beforeB);
