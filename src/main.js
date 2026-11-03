@@ -9,10 +9,12 @@ import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
+import './softmux-v3.css';
 import {
   mountSoftmux1014Workbench,
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
+import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
 import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
@@ -8824,5 +8826,10 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
     })));
+    // V3 is an explicit, review-only presentation pilot until the full design
+    // and real-media gates pass. The existing product remains the default.
+    if (new URLSearchParams(window.location.search).get('ui') === 'v3') {
+      mountSoftmuxV3Surface(document);
+    }
   }
 }
