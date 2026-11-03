@@ -41,11 +41,18 @@ jobs:
           else
             npx playwright install --with-deps chromium
           fi
-          command -v ffmpeg
-          if ! command -v fc-list >/dev/null 2>&1 || [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y fontconfig fonts-noto-cjk
+          packages=()
+          if ! command -v ffmpeg >/dev/null 2>&1; then packages+=(ffmpeg); fi
+          if ! command -v fc-list >/dev/null 2>&1; then
+            packages+=(fontconfig fonts-noto-cjk)
+          elif [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
+            packages+=(fonts-noto-cjk)
           fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          command -v ffmpeg
           fc-cache -f
           test -n "$(fc-list :lang=zh-cn family)"
       - name: Start preview
