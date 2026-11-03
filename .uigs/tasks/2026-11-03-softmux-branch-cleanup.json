@@ -14,7 +14,7 @@
   ],
   "branch": "maintenance/archive-reviewed-merged-pr-refs",
   "pr": null,
-  "latest_durable_commit": "1a162b0f7e6f56b8b11b7520296a96dfa6e85d3f",
+  "latest_durable_commit": "d05aa206fc79ed306fb829a94bcc8ad3c76a0bf3",
   "external_validation_states": {
     "branch_cleanup_execution": "Pending push-triggered one-time archive and cleanup; do not claim remote deletion before log verification",
     "UIGS_Intake": "Checked; existing rule reuse, no new knowledge"
