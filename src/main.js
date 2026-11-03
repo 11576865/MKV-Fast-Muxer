@@ -3848,6 +3848,13 @@ assetInventory?.addEventListener('click', async event => {
       if(!current())throw Error('来源已改变或操作已取消');
       importedAssetEntries=[...importedAssetEntries,member];
       applyImportedAssetRoles();
+      // setAdapterFiles(subInput, ...) starts async content-sniff inspection.
+      // Until that promise finishes the canonical newSubtitleState is empty;
+      // treating the pending state as a missing/unsupported track discards
+      // the actual imported source subtitle. Hold the shared execution lock
+      // and await the same inspection that normal picker input uses.
+      await subtitleInspectPromise;
+      if(!current())throw Error('来源已改变或操作已取消');
       const position=newSubtitleState.findIndex(item=>item.file===member.file);
       if(position<0)throw Error('字幕未能进入原有字幕封装路径。');
       const changes=[];
