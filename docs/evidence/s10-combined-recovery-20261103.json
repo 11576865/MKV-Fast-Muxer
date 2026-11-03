@@ -1,0 +1,207 @@
+{
+  "schema": "softmux-s10-combined-recovery-v1",
+  "status": "PASS",
+  "startedAt": "2026-11-03T07:45:21.232Z",
+  "verifiedJobs": 20,
+  "files": [
+    {
+      "jobId": "batch:23:0:Recovery S10E01.mp4|188328|1793691921235",
+      "outputName": "Recovery S10E01.mkv",
+      "sha256": "e2a7e7ca7623e74c635f73402320349bacd2880628e9509b9145a3df5207ba48",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:1:Recovery S10E02.mp4|188328|1793691921241",
+      "outputName": "Recovery S10E02.mkv",
+      "sha256": "7fd72ff7f98d098aacc72a71ee91015229dfce8810a4838661ef5f86b914c3f3",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:2:Recovery S10E03.mp4|188328|1793691921244",
+      "outputName": "Recovery S10E03.mkv",
+      "sha256": "edc7da04dbd81419fbf0e12875b086a16ed5f5b9f6e2cfa3b49e5a68f0027e10",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:3:Recovery S10E04.mp4|188328|1793691921254",
+      "outputName": "Recovery S10E04.mkv",
+      "sha256": "d8f275aead61c64f54c27cca6c3b6082452d76454ee6e9cfd56489c8393bbfdc",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:4:Recovery S10E05.mp4|188328|1793691921258",
+      "outputName": "Recovery S10E05.mkv",
+      "sha256": "158963e01f5fb447b9aaa6472f6ab8f4b054d861107e592b79b040124feb34e3",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:5:Recovery S10E06.mp4|188328|1793691921260",
+      "outputName": "Recovery S10E06.mkv",
+      "sha256": "ea7c59f3ebc46464f8e657eff5748274524d74eaadb627305f429f08daae97ec",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:6:Recovery S10E07.mp4|188328|1793691921261",
+      "outputName": "Recovery S10E07.mkv",
+      "sha256": "65b9fe63aa602495466d7b1853015e42d1e6d17c1dd2e64e95229642b6cf4d3b",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:7:Recovery S10E08.mp4|188328|1793691921263",
+      "outputName": "Recovery S10E08.mkv",
+      "sha256": "6070c9a7a04f65247301a7dda90e4a8f1e01a3b79ee111fa81357e22288c20a0",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:8:Recovery S10E09.mp4|188328|1793691921266",
+      "outputName": "Recovery S10E09.mkv",
+      "sha256": "4d81906c6dc32831c34928fd52a55e0fd7556e514abf5c1df59a1defab0512a9",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:9:Recovery S10E10.mp4|188328|1793691921267",
+      "outputName": "Recovery S10E10.mkv",
+      "sha256": "7b7486a6f1e3673f26d20fa73b9cac6b9babb01b27aaea0a57e1351387c36fd5",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:10:Recovery S10E11.mp4|188328|1793691921269",
+      "outputName": "Recovery S10E11.mkv",
+      "sha256": "d6f2008b55e5dcae11129465de9986396bacc0fc8afaed3e4241b1126a958849",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:11:Recovery S10E12.mp4|188328|1793691921270",
+      "outputName": "Recovery S10E12.mkv",
+      "sha256": "1845d3c6e75e14adfc86d0001e123892775b507871eec2261de01633c1390d35",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:12:Recovery S10E13.mp4|188328|1793691921272",
+      "outputName": "Recovery S10E13.mkv",
+      "sha256": "797fbb50ce24f450964315b3a6be268cd72769b0a79fc75f6e06d5523adc4a2d",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:13:Recovery S10E14.mp4|188328|1793691921273",
+      "outputName": "Recovery S10E14.mkv",
+      "sha256": "a071fd9f81f6ab7f762e7f0483c4e471def6b726ee85636358333f547e75a567",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:14:Recovery S10E15.mp4|188328|1793691921275",
+      "outputName": "Recovery S10E15.mkv",
+      "sha256": "0cffcdb8c66695db6762e9a75a3df977b410e38d1b2c81ff2211e684ce28a9ab",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:15:Recovery S10E16.mp4|188328|1793691921276",
+      "outputName": "Recovery S10E16.mkv",
+      "sha256": "c3580133e34bbdc626c15249286c699c661fee22057efde9bb7314c8cadceeba",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:16:Recovery S10E17.mp4|188328|1793691921278",
+      "outputName": "Recovery S10E17.mkv",
+      "sha256": "4f4cc3bc5c9fad92582cee4eb4c3d2121c274158355077a463678452a26fe13b",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:17:Recovery S10E18.mp4|188328|1793691921280",
+      "outputName": "Recovery S10E18.mkv",
+      "sha256": "07d4e380ef7438c9f475268b869c01ef20d45111660a9bb48cb5c92bd4c3be1e",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:18:Recovery S10E19.mp4|188328|1793691921281",
+      "outputName": "Recovery S10E19.mkv",
+      "sha256": "bf78a38358982af23307c8c527ca34452a000dd275428f2f98044554f161416e",
+      "bytes": 948408,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    },
+    {
+      "jobId": "batch:23:19:Recovery S10E20.mp4|188328|1793691921283",
+      "outputName": "Recovery S10E20.mkv",
+      "sha256": "e5eb88b8bde59f88a42987a701ca0d5f51647749c1f5785be2b5deffc69967f2",
+      "bytes": 947908,
+      "nativePacketsAndSubtitleVerified": true,
+      "directoryAndReportHashesVerified": true,
+      "sourceUnchanged": true
+    }
+  ],
+  "errors": [],
+  "scope": "20 real default-workbench jobs, two worker execution faults, one report-only directory failure",
+  "limits": [
+    "Two short real media templates, not20heterogeneous films",
+    "Directory handle/write failures simulated in memory; no physical disk/tablet/power-loss guarantee",
+    "Worker faults injected only before selected mux EXEC; successful outputs use the real Wasm worker"
+  ],
+  "invalidPairRefusedWithoutExecution": true,
+  "initialTerminal": "批量完成：已生成 18，审计通过 18，待复核 0，执行失败 2。完整写入目录 17/18 项。其中 1 项未完整写入目录，可通过下载链接另存。其中 1 项 MKV 已写入目录，但审计报告尚未写入。",
+  "reportOnlyRecovery": {
+    "muxAttempts": 20,
+    "mkvWrites": 1,
+    "reportWrites": 1
+  },
+  "finalAttempts": 22,
+  "finalDirectoryWrites": 40,
+  "singleProjectFileIdentityUnchanged": true,
+  "retainedSuccesses": 18,
+  "completedAt": "2026-11-03T07:45:42.398Z"
+}
