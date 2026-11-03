@@ -21,6 +21,7 @@ export async function scenarioContainerBatchReview(browser,{root,outDir,baseUrl}
   await page.waitForFunction(()=>!document.querySelector('#muxBtn').disabled);
   await page.evaluate(()=>{window.__reviewSingleVideo=document.querySelector('#videoInput').files[0];window.__reviewSingleSub=document.querySelector('#subInput').files[0];});
   const composition=await page.locator('#compositionCount').textContent();
+  await page.locator('#sf14More > summary').click();
   await page.locator('[data-sf-view="batch"]').click();
   await page.setInputFiles('#batchUnifiedInput',files);
   await page.waitForFunction(()=>!document.querySelector('#batchInspectBtn').disabled,null,{timeout:60000});
