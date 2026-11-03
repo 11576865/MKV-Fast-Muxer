@@ -33,6 +33,8 @@ export function secondaryAssEligibility(stream,entries=[],sourceFile=null) {
 export async function prepareSecondaryAssFontBundle({
   sourceEntry,stream,bytes,existingEntries=[],
   readerFactory=createMatroskaAttachmentReader,
+  fontInspector=identifyFontFile,descriptorReader=readFontDescriptors,
+  glyphChecker=checkFontCharacters,
   createFile=(parts,name,options)=>new File(parts,name,options),
   isCurrent=()=>true,
 }={}) {
@@ -94,9 +96,9 @@ export async function prepareSecondaryAssFontBundle({
     });
     if(!file?.slice||file.size!==item.byteLength||file.name!==item.filename)
       throw Error('CROSS_SOURCE_ASS_FONT_FILE_BINDING_FAILED');
-    const identity=await identifyFontFile(file);check();
+    const identity=await fontInspector(file);check();
     if(!identity.valid)throw Error('CROSS_SOURCE_ASS_FONT_STRUCTURE_INVALID');
-    const descriptors=await readFontDescriptors(file);check();
+    const descriptors=await descriptorReader(file);check();
     fonts.push({file,item,identity,descriptors});
     total+=item.byteLength;
   }
@@ -120,7 +122,7 @@ export async function prepareSecondaryAssFontBundle({
     if(best.length!==1)
       throw Error('CROSS_SOURCE_ASS_AMBIGUOUS_FONT_FACE: '+face.name);
     const hit=best[0];
-    const coverage=await checkFontCharacters(hit.font.file,face.characters,hit.descriptor.collectionIndex);
+    const coverage=await glyphChecker(hit.font.file,face.characters,hit.descriptor.collectionIndex);
     check();
     if(coverage.missing.length)
       throw Error('CROSS_SOURCE_ASS_MISSING_FONT_GLYPHS: '+face.name+' / '+coverage.missing.length);
