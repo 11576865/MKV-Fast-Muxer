@@ -17,3 +17,5 @@ Observed RED: CFF subset changed a+combining-acute from one composed glyph to tw
 Four-mode isolated final run PASS; receipt validated PASS/fourmodes/18nativevectors/pixel positive+negative controls. Preview external loglevel error cannot support informational selected-face assertion; preview PNG only is claimed, selected faces proven independently on final artifacts. Exact-head CI/review still separate.
 
 Final review: Important NFC/NFD endpoint closure omitted intermediate â for a+circumflex+acute (actual subset1->3glyphs). One repair pass adds canonical candidate closure per grapheme with a cached fixed Unicode table; two new RED tests ->7focusedGREEN. Actual native multi-stage corpus rerun required; no compatibility or source normalization.
+
+PR227 exact64fd7db all three full CI workflows passed; merged main0160bf0. Canonical intermediate closure repair validated; deployment/device/formal verdicts remain separate.

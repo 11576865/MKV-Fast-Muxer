@@ -36,3 +36,7 @@ An initial ASS fixture accidentally used `AngleStyle` instead of standard `Angle
 ## Independent review and one repair pass
 
 Fresh review found one Important counterexample: `a` + U+0302 + U+0301 requires intermediate `â` for HarfBuzz sequential composition. NFC/NFD endpoints alone omitted it, producing1→3glyphs in an actual hb-subset-wasm/native HarfBuzz reproduction. Added two failing tests for intermediate/multi-mark/override composition and Hangul/grapheme boundaries; all7focused tests now pass. Actual native corpus includes multi-stage accents and a non-composing intervening mark. The original authored text, diagnostic repertoire and compatibility exclusions remain unchanged. Review repair is verified by tests and native outputs, without claiming universal script/font acceptance.
+
+## Exact-head CI and main integration
+
+PR #227 exact `64fd7dbdc4a58ce0d5ca11254e811d83c3d3ef5c` passed Deploy41608186608, full Browser41608186596 and scoped S1241608186401. Browser job125823897143 logs explicitly confirm TTC, actual CFF OTC, single OTF subset and frozen-batch OTF subset PASS, both actual20-job S10 suites PASS, and all browser E2E scenarios PASS. Squash merge `0160bf01425113d18ec68db88fea6be71d410108` integrates development0.1047 into main. Post-merge deployment remains a separate validation; physical-device and formal acceptance verdicts remain unchanged.
