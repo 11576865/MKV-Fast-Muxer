@@ -136,6 +136,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # P1: an actual native Matroska edit remaps the EditionUID and two
+      # ChapterUIDs, updates Tags to the corresponding logical objects and
+      # must be accepted; a valid but wrong Chapter target and an ordinary
+      # nested SimpleTag deletion must each be detected.
+      - name: P1 - real Matroska UID target relation equivalence
+        run: python3 scripts/p1-uid-role-real-audit.py
+
+      - name: Upload P1 Matroska UID role semantic oracle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-uid-role-real-matroska-oracle
+          path: |
+            .e2e/output/p1-uid-role-*.json
+            .e2e/output/p1-uid-role-*.mkv
+            .e2e/output/p1-uid-role-*.xml
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Start preview server
         run: |
           nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/mkvfm-preview.log 2>&1 &
