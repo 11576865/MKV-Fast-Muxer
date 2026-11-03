@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {
  prepareRoutedAttachmentReplacement,executeRoutedAttachmentReplacement,
+ isExpectedBackendRefusal,
 } from '../src/p2-existing-mkv-writer-router.js';
 import {createMatroskaAttachmentReader} from '../src/matroska-attachment-reader.js';
 
@@ -118,4 +119,30 @@ test('P2 combined writer route never bypasses TagAttachmentUID references, unkno
  await assert.rejects(executeRoutedAttachmentReplacement({
   schema:'bounded-existing-mkv-attachment-route-v1',route:'same-size',
  }),/FORGED_OR_STALE/);
+});
+
+test('P2 route fallback is allowed only for explicitly audited backend limitations',()=>{
+ const allowed=[
+  ['adjacent-void','RESERVED_VOID_ADJACENT_SLOT_REQUIRED'],
+  ['adjacent-void','RESERVED_VOID_SIZE_VINT_CAPACITY'],
+  ['tail-resize','TAIL_RESIZE_ATTACHMENTS_MUST_BE_FINAL_SEGMENT_CHILD'],
+  ['tail-resize','TAIL_RESIZE_ATTACHEDFILE_CRC_DENIED'],
+  ['seekhead-relay','RELAY_ATTACHMENTS_SEEK_ENTRY_REQUIRED'],
+ ];
+ for(const [route,reason] of allowed)
+   assert.equal(isExpectedBackendRefusal(route,reason),true,reason);
+ const fatal=[
+  ['adjacent-void','RESERVED_VOID_TARGET_OFFSET_UNVERIFIED'],
+  ['adjacent-void','RESERVED_VOID_REMAINDER_INCONSISTENT'],
+  ['adjacent-void','RESERVED_VOID_ELEMENT_OUT_OF_BOUNDS'],
+  ['tail-resize','TAIL_RESIZE_TARGET_FILEUID_NOT_UNIQUE'],
+  ['tail-resize','TAIL_RESIZE_RAW_TOP_LEVEL_MISMATCH'],
+  ['seekhead-relay','RELAY_STALE_OR_ALTERNATE_ATTACHMENTS_SEEK'],
+  ['seekhead-relay','RELAY_ORIGINAL_ATTACHMENTS_CRC_INVALID'],
+  ['seekhead-relay','RELAY_EMITTED_CRC_AUDIT_FAILED'],
+  ['adjacent-void','UNEXPECTED_FUTURE_FAILURE'],
+  ['unknown-route','RESERVED_VOID_ADJACENT_SLOT_REQUIRED'],
+ ];
+ for(const [route,reason] of fatal)
+   assert.equal(isExpectedBackendRefusal(route,reason),false,reason);
 });
