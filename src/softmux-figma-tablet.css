@@ -846,3 +846,31 @@
  * the overflowing child so its first actions remain in the scrollable range;
  * centered overflow placed Start above the dock's scroll origin after a mux. */
 .sf14-app .sf14-output { align-items:flex-start; }
+
+
+/* Icon-first single-workbench convergence: retire the tablet's 72px mode rail.
+ * Preserve existing source/composition/inspector DOM and legacy task handlers. */
+@media (min-width:681px) and (max-width:1365px) {
+  .sf14-app .sf14 { padding-left:0; }
+  .sf14-app .sf14-header .sf14-nav {
+    position:relative; z-index:45; left:auto; top:auto;
+    width:auto; height:auto; padding:0; margin:0 0 0 auto;
+    order:0; flex-direction:row; align-items:center; justify-content:flex-end;
+    gap:4px; background:transparent; border:0;
+  }
+  .sf14-app .sf14-nav::before { content:none; }
+  .sf14-app .sf14-header .sf14-nav > button,
+  .sf14-app .sf14-header .sf14-more > summary,
+  .sf14-app .sf14-header .sf14-header-actions > button {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:40px; min-width:40px; height:40px; min-height:40px;
+    padding:8px; font-size:0; line-height:1;
+    white-space:nowrap; border-radius:9px;
+  }
+  .sf14-app .sf14-header .sf14-header-actions { margin-left:0; }
+  .sf14-app .sf14-header .sf14-nav .sf14-more-menu button {
+    display:block; width:100%; height:auto; min-height:38px;
+    padding:9px 12px; text-align:left; font-size:12px;
+    line-height:1.4; white-space:normal;
+  }
+}
