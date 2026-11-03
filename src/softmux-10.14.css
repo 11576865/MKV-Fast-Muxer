@@ -749,3 +749,69 @@
   font-size:12px;line-height:1.4;white-space:normal;overflow-wrap:anywhere;
 }
 .sf14-inspector .output-evidence-panel .icon-link::after {display:none;}
+
+
+/* One-workbench convergence, icon-first header. Presentation only.
+ * Legacy container/batch entry points remain behind a native disclosure:
+ * source File inputs, mux execution and their handlers stay untouched. */
+.sf14 .sf14-header { position:relative; z-index:35; }
+.sf14 .sf14-header .sf14-identity { min-width:0; flex:0 0 auto; }
+.sf14 .sf14-header .sf14-identity span:not(.sf14-mark) { display:none; }
+.sf14 .sf14-header .sf14-nav {
+  position:relative; z-index:45; order:0; width:auto; height:auto;
+  margin:0 0 0 auto; display:flex; flex-wrap:nowrap;
+  flex-direction:row; align-items:center; justify-content:flex-end; gap:4px;
+}
+.sf14 .sf14-header .sf14-header-actions { margin-left:0; gap:4px; flex-wrap:nowrap; }
+.sf14 .sf14-header .sf14-nav > button,
+.sf14 .sf14-header .sf14-more > summary,
+.sf14 .sf14-header .sf14-header-actions > button {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:40px; height:40px; min-width:40px; min-height:40px;
+  padding:8px; border-radius:9px; white-space:nowrap;
+  font-size:0; line-height:1; cursor:pointer;
+}
+.sf14 .sf14-header svg { display:block; width:20px; height:20px; flex:none; }
+.sf14 .sf14-more { position:relative; }
+.sf14 .sf14-more > summary {
+  list-style:none; border:1px solid transparent;
+  color:var(--sf14-ink); background:transparent;
+}
+.sf14 .sf14-more > summary::-webkit-details-marker { display:none; }
+.sf14 .sf14-more > summary:hover,
+.sf14 .sf14-more[open] > summary { background:var(--surface-3); }
+.sf14 .sf14-more > summary:focus-visible,
+.sf14 .sf14-header button:focus-visible {
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+.sf14 .sf14-more[data-active="true"] > summary { color:var(--accent); }
+.sf14 .sf14-more-menu {
+  position:absolute; z-index:50; top:calc(100% + 7px); right:0;
+  width:max-content; min-width:185px; max-width:min(90vw,300px);
+  display:flex; flex-direction:column; gap:3px; padding:6px;
+  border:1px solid var(--line-strong); border-radius:10px;
+  background:var(--surface-1); box-shadow:0 12px 30px rgba(0,0,0,.28);
+}
+.sf14 .sf14-more:not([open]) .sf14-more-menu { display:none; }
+.sf14 .sf14-nav .sf14-more-menu button {
+  display:block; width:100%; height:auto; min-height:38px;
+  padding:9px 12px; font-size:12px; line-height:1.4;
+  text-align:left; white-space:normal; border-radius:6px;
+}
+.sf14 .sf14-more-menu button:hover,
+.sf14 .sf14-more-menu button:focus-visible {
+  color:var(--text-strong); background:var(--surface-3);
+}
+@media (max-width:680px) {
+  .sf14 .sf14-header { gap:5px; padding:7px 9px; }
+  .sf14 .sf14-header .sf14-nav { gap:2px; }
+  .sf14 .sf14-header .sf14-header-actions { gap:2px; }
+  .sf14 .sf14-header .sf14-nav > button,
+  .sf14 .sf14-header .sf14-more > summary,
+  .sf14 .sf14-header .sf14-header-actions > button {
+    width:36px; min-width:36px; height:38px; min-height:38px; padding:7px;
+  }
+  .sf14 .sf14-header .sf14-identity { gap:5px; }
+  .sf14 .sf14-header .sf14-identity strong { font-size:12px; }
+  .sf14 .sf14-header .sf14-mark { width:28px; height:28px; }
+}
