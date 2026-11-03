@@ -1,4 +1,5 @@
 import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
+import { readBoundedEbmlHeader, rethrowBoundedHeaderError } from './matroska-bounded-ebml-header.js';
 import { inspectRawSegmentPreservation } from './matroska-raw-preservation-contract.js';
 
 /**
@@ -37,28 +38,21 @@ function vintSize(n,width){
   return out;
 }
 async function header(blob,at,end){
-  if(!Number.isSafeInteger(at)||!Number.isSafeInteger(end)||at<0||at>=end||
-      end>blob.size)throw Error('TAIL_RESIZE_ELEMENT_RANGE');
-  const bytes=new Uint8Array(await blob.slice(at,Math.min(at+12,end)).arrayBuffer());
-  const first=bytes[0];
-  if(!first)throw Error('TAIL_RESIZE_ID_INVALID');
-  let idWidth=1;
-  while(idWidth<=4&&!(first&(0x80>>(idWidth-1))))idWidth++;
-  if(idWidth>4||idWidth>=bytes.length)throw Error('TAIL_RESIZE_ID_TRUNCATED');
-  let id=0;for(let i=0;i<idWidth;i++)id=id*256+bytes[i];
-  const sz=bytes[idWidth];
-  if(!sz)throw Error('TAIL_RESIZE_SIZE_INVALID');
-  let width=1;while(width<=8&&!(sz&(0x80>>(width-1))))width++;
-  if(width>8||idWidth+width>bytes.length)throw Error('TAIL_RESIZE_SIZE_TRUNCATED');
-  let num=BigInt(sz&((1<<(8-width))-1));
-  for(let i=1;i<width;i++)num=(num<<8n)|BigInt(bytes[idWidth+i]);
-  if(num===(1n<<BigInt(width*7))-1n||num>BigInt(Number.MAX_SAFE_INTEGER))
-    throw Error('TAIL_RESIZE_UNKNOWN_OR_UNADDRESSABLE_SIZE');
-  const size=Number(num),sizeStart=at+idWidth,dataStart=sizeStart+width;
-  const tail=dataStart+size;
-  if(!Number.isSafeInteger(tail)||tail>end)
-    throw Error('TAIL_RESIZE_CHILD_OUT_OF_BOUNDS');
-  return {id,start:at,idWidth,width,sizeStart,dataStart,size,end:tail};
+  try {
+    const e=await readBoundedEbmlHeader(blob,at,end);
+    return {id:e.id,start:e.offset,idWidth:e.idWidth,width:e.sizeWidth,
+      sizeStart:e.sizeStart,dataStart:e.dataStart,size:e.size,end:e.end};
+  } catch(error) {
+    rethrowBoundedHeaderError(error,'TAIL_RESIZE_',{
+      RANGE:'ELEMENT_RANGE',
+      ID_INVALID:'ID_INVALID',
+      ID_TRUNCATED:'ID_TRUNCATED',
+      SIZE_INVALID:'SIZE_INVALID',
+      SIZE_TRUNCATED:'SIZE_TRUNCATED',
+      UNKNOWN_OR_UNADDRESSABLE_SIZE:'UNKNOWN_OR_UNADDRESSABLE_SIZE',
+      ELEMENT_OUT_OF_BOUNDS:'CHILD_OUT_OF_BOUNDS',
+    });
+  }
 }
 async function children(blob,start,end){
   const all=[];
