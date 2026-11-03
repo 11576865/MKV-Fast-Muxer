@@ -226,6 +226,19 @@ jobs:
         run: npm run test:e2e
 
 
+      - name: Upload P3 cross-MKV SubRip actual browser output and native packet proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-cross-mkv-subrip-browser-native-proof
+          path: |
+            .e2e/output/cross-source-subrip/A-with-SubRip.mkv
+            .e2e/output/cross-source-subrip/B-original-media.mkv
+            .e2e/output/cross-source-subrip/B-with-A-SubRip.mkv
+            .e2e/output/cross-source-subrip/cross-source-subrip-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P3 cross-source browser-created MKV and independent proof
         if: always()
         uses: actions/upload-artifact@v4
