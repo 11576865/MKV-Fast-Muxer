@@ -1,13 +1,13 @@
 {
   "schema": "softmux-s03-collection-shaping-v1",
   "status": "PASS",
-  "startedAt": "2026-11-03T08:49:19.195Z",
+  "startedAt": "2026-11-03T08:59:35.195Z",
   "cases": [
     {
       "mode": "ttc",
-      "outputSha256": "c4c6c8daadc3b1f65703cea80f6fe7c08274e23066a21fd622d81b7c966f5566",
-      "sourceFontSha256": "3202e68ed9f4f4b1ccea4654ea7a12486915a784483c8d8af2d0278f78c473a2",
-      "deliveredFontSha256": "3202e68ed9f4f4b1ccea4654ea7a12486915a784483c8d8af2d0278f78c473a2",
+      "outputSha256": "ff7067f20771c521a9b0a481ff009867449de94b332d5262686b6861a77081a8",
+      "sourceFontSha256": "b754898b75bb1635f6fbe2f5255bbf4af51abf08cd06805d374a2db1d78a4b23",
+      "deliveredFontSha256": "b754898b75bb1635f6fbe2f5255bbf4af51abf08cd06805d374a2db1d78a4b23",
       "sourceFontBytes": 1468832,
       "deliveredFontBytes": 1468832,
       "faceInfo": [
@@ -47,10 +47,10 @@
         "originalSize": 1468832,
         "subsetSize": 1468832
       },
-      "previewPngSha256": "93eaef284c4777bfad56e9342b01ebee66f7e840c8898bef7744017360170da5",
-      "referencePngSha256": "bc25c1596b8255ba4de7767be670305eea333fb09259a0dae9e1b5c250a9ccfe",
-      "actualPngSha256": "bc25c1596b8255ba4de7767be670305eea333fb09259a0dae9e1b5c250a9ccfe",
-      "negativePngSha256": "29ed0f6b6d0e60b729c18208a1b9bd459565b8e70685bf4bf2e142284163a49e",
+      "previewPngSha256": "aba707d180261fab521d45ef5a5ecc0382faa973d6ca2bc113913def99116150",
+      "referencePngSha256": "e4d5d7e9d13ede34845802da03efb3152b068808ffa665d00cffaa2c919f09b1",
+      "actualPngSha256": "e4d5d7e9d13ede34845802da03efb3152b068808ffa665d00cffaa2c919f09b1",
+      "negativePngSha256": "bcab6efbd693d610c934c73f580c0702d91160a5e0036f101601cc7f8c28ea5d",
       "nativeFaceSelectionVerified": true,
       "previewProducedPng": true,
       "previewFaceIdentityVerified": false,
@@ -186,6 +186,49 @@
             ],
             [
               1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
               0,
               0,
               0
@@ -330,15 +373,58 @@
             ]
           ],
           "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
         }
       ],
       "sourceUnchanged": true
     },
     {
       "mode": "otc",
-      "outputSha256": "60273dce3301699d8168ef05a015f508d7ffe209035eb58fdaaed8874db9baca",
-      "sourceFontSha256": "6f372602f832e07948b14c9cff4991c866dee4454514c277062ddaee3f0fb0b2",
-      "deliveredFontSha256": "6f372602f832e07948b14c9cff4991c866dee4454514c277062ddaee3f0fb0b2",
+      "outputSha256": "6e6b7b0bceeec842c471b8e18d6af8c56d8a4cb51db600b44de6b9308f071ebd",
+      "sourceFontSha256": "bb9d953dc2063aff67ce6d5e68794b930a30f7f761cff9ad9a46bbbfb13a873a",
+      "deliveredFontSha256": "bb9d953dc2063aff67ce6d5e68794b930a30f7f761cff9ad9a46bbbfb13a873a",
       "sourceFontBytes": 1872276,
       "deliveredFontBytes": 1872276,
       "faceInfo": [
@@ -378,10 +464,10 @@
         "originalSize": 1872276,
         "subsetSize": 1872276
       },
-      "previewPngSha256": "691d1aeda45a640b76c9ac5f198f367153f4710f1acc1d16dd6f6db3445cc0d4",
-      "referencePngSha256": "e4d97f8491a812e237842cedf02582488dfb9add2c9cf523ae7768a59cecdc9a",
-      "actualPngSha256": "e4d97f8491a812e237842cedf02582488dfb9add2c9cf523ae7768a59cecdc9a",
-      "negativePngSha256": "e7c87aa632d4d92c50162e730c637d714326b12ac47e049d13c1a40a55675715",
+      "previewPngSha256": "8438dc83bab4d5b28f9ac6a81d8d915a578a56c00161d5a788cba0a768b1f218",
+      "referencePngSha256": "f6e27b8d7962f9848f5678ce036c49ef0da87b5e66948f8d41fbea36650fb53c",
+      "actualPngSha256": "f6e27b8d7962f9848f5678ce036c49ef0da87b5e66948f8d41fbea36650fb53c",
+      "negativePngSha256": "6d414c8cc7c86e10f8f4501088ed8098d01585a3f3926103732f476c7b784846",
       "nativeFaceSelectionVerified": true,
       "previewProducedPng": true,
       "previewFaceIdentityVerified": false,
@@ -517,6 +603,49 @@
             ],
             [
               1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
               0,
               0,
               0
@@ -661,17 +790,60 @@
             ]
           ],
           "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
         }
       ],
       "sourceUnchanged": true
     },
     {
       "mode": "otf-subset",
-      "outputSha256": "1c0a648446c5bdaa0400ec476a58f0e635546ad62ae4d9025c53b4239a1086af",
-      "sourceFontSha256": "6e1f7810f591f3fe928b278516221d2dd5f22f79b95041b2e422feab37928933",
-      "deliveredFontSha256": "d48b6e2665c2bb3c37b231a667dcbda4d50ef443c0e2918ecdcb8c73deb62139",
+      "outputSha256": "0c470efb9ae43bfa350ab5bccfb39f047dd7d32c84957e99008432cb1f708d76",
+      "sourceFontSha256": "e32cc9d62eaa7d36a4b9533a8c9f6976f9e6e670c6c387ad192640a379d8d062",
+      "deliveredFontSha256": "d4b668294e03258107028906f8fc62cc8afcc1d986fba22f0a09ca21a376d6f0",
       "sourceFontBytes": 941060,
-      "deliveredFontBytes": 7080,
+      "deliveredFontBytes": 7952,
       "faceInfo": [
         {
           "family": "UIGS S03 OpenType Proof",
@@ -679,7 +851,7 @@
           "postScript": "UIGSS03OpenTypeProof-Regular",
           "weight": 400,
           "cff": true,
-          "glyphs": 42,
+          "glyphs": 47,
           "layout": [
             "GDEF",
             "GSUB",
@@ -693,12 +865,12 @@
         "applied": true,
         "reason": "",
         "originalSize": 941060,
-        "subsetSize": 7080
+        "subsetSize": 7952
       },
-      "previewPngSha256": "3d4c7c8c2098f5722b06290cfb601198c92c5375f7c3141afb0cc5c026d22c50",
-      "referencePngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
-      "actualPngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
-      "negativePngSha256": "25ce1fb087bf18dd8fc08a39eafeb7c3fc2746bc161577ba0d79d9e4ab644a44",
+      "previewPngSha256": "913ef1f934a74b6bd3002a447a8497690c33127f90076a1168ebfd9770c576ff",
+      "referencePngSha256": "3d8a124a28f908c94df19c21622c708cd99fbc4ff1ac64a713088d3ca921436f",
+      "actualPngSha256": "3d8a124a28f908c94df19c21622c708cd99fbc4ff1ac64a713088d3ca921436f",
+      "negativePngSha256": "5cd7fe708fde7378c5be9b07e77ff9168f25a79a670f5bf637580e634ea3c9f8",
       "nativeFaceSelectionVerified": true,
       "previewProducedPng": true,
       "previewFaceIdentityVerified": false,
@@ -834,6 +1006,49 @@
             ],
             [
               1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
               0,
               0,
               0
@@ -846,11 +1061,11 @@
     },
     {
       "mode": "batch-otf-subset",
-      "outputSha256": "07d6069feb07d470e4017cd97e3fd882abd81b19d2054ef0faf73d690bc3948a",
-      "sourceFontSha256": "6e1f7810f591f3fe928b278516221d2dd5f22f79b95041b2e422feab37928933",
-      "deliveredFontSha256": "d48b6e2665c2bb3c37b231a667dcbda4d50ef443c0e2918ecdcb8c73deb62139",
+      "outputSha256": "747288afb7e227c396096d1245255d24c754b0d55fee07212f0f1d870ace0ee4",
+      "sourceFontSha256": "e32cc9d62eaa7d36a4b9533a8c9f6976f9e6e670c6c387ad192640a379d8d062",
+      "deliveredFontSha256": "d4b668294e03258107028906f8fc62cc8afcc1d986fba22f0a09ca21a376d6f0",
       "sourceFontBytes": 941060,
-      "deliveredFontBytes": 7080,
+      "deliveredFontBytes": 7952,
       "faceInfo": [
         {
           "family": "UIGS S03 OpenType Proof",
@@ -858,7 +1073,7 @@
           "postScript": "UIGSS03OpenTypeProof-Regular",
           "weight": 400,
           "cff": true,
-          "glyphs": 42,
+          "glyphs": 47,
           "layout": [
             "GDEF",
             "GSUB",
@@ -872,12 +1087,12 @@
         "applied": true,
         "reason": "",
         "originalSize": 941060,
-        "subsetSize": 7080
+        "subsetSize": 7952
       },
-      "previewPngSha256": "3d4c7c8c2098f5722b06290cfb601198c92c5375f7c3141afb0cc5c026d22c50",
-      "referencePngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
-      "actualPngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
-      "negativePngSha256": "25ce1fb087bf18dd8fc08a39eafeb7c3fc2746bc161577ba0d79d9e4ab644a44",
+      "previewPngSha256": "913ef1f934a74b6bd3002a447a8497690c33127f90076a1168ebfd9770c576ff",
+      "referencePngSha256": "3d8a124a28f908c94df19c21622c708cd99fbc4ff1ac64a713088d3ca921436f",
+      "actualPngSha256": "3d8a124a28f908c94df19c21622c708cd99fbc4ff1ac64a713088d3ca921436f",
+      "negativePngSha256": "5cd7fe708fde7378c5be9b07e77ff9168f25a79a670f5bf637580e634ea3c9f8",
       "nativeFaceSelectionVerified": true,
       "previewProducedPng": true,
       "previewFaceIdentityVerified": false,
@@ -1013,6 +1228,49 @@
             ],
             [
               1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ",
+          "upem": 2048,
+          "glyphCount": 1,
+          "clusters": [
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "ấ̧",
+          "upem": 2048,
+          "glyphCount": 2,
+          "clusters": [
+            0,
+            0
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
               0,
               0,
               0
@@ -1030,5 +1288,5 @@
     "Collection subsetting is not authorized; original bytes must be retained",
     "No device, all-player or formal S03 verdict promotion"
   ],
-  "completedAt": "2026-11-03T08:49:40.985Z"
+  "completedAt": "2026-11-03T09:00:00.531Z"
 }

@@ -1,6 +1,43 @@
 // ASS font helpers: OpenType name/cmap parsing, font dependency analysis,
 // face matching (weight/italic), forced-font rewriting, and glyph coverage.
 
+// Derive the canonical composition repertoire from this runtime's Unicode
+// implementation once. The fixed Unicode-scalar scan is independent of input
+// length; it avoids quadratic normalization of every growing text prefix.
+let canonicalCompositionsByStarter = null;
+let canonicalSubsetSegmenter = null;
+function addCanonicalSubsetClosure(visible, addText, seenClusters) {
+  const decomposed = visible.normalize('NFD');
+  addText(decomposed);
+  if (!decomposed) return;
+  if (!canonicalCompositionsByStarter) {
+    canonicalCompositionsByStarter = new Map();
+    for (let cp = 0; cp <= 0x10ffff; cp += 1) {
+      if (cp >= 0xd800 && cp <= 0xdfff) continue;
+      const composed = String.fromCodePoint(cp);
+      const partsText = composed.normalize('NFD');
+      if (partsText === composed || composed.normalize('NFC') !== composed) continue;
+      const parts = [...partsText];
+      const entries = canonicalCompositionsByStarter.get(parts[0]) || [];
+      entries.push({ composed, parts });
+      canonicalCompositionsByStarter.set(parts[0], entries);
+    }
+    canonicalSubsetSegmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
+  }
+  for (const { segment } of canonicalSubsetSegmenter.segment(decomposed)) {
+    if (seenClusters.has(segment)) continue;
+    seenClusters.add(segment);
+    const members = new Set(segment);
+    for (const starter of members) {
+      for (const candidate of canonicalCompositionsByStarter.get(starter) || []) {
+        // Conservative within one grapheme: retain intermediate compositions
+        // even when another non-composing mark occurs between their parts.
+        if (candidate.parts.every(char => members.has(char))) addText(candidate.composed);
+      }
+    }
+  }
+}
+
 export async function readFontDescriptors(file) {
   const view = new DataView(await file.arrayBuffer());
   const tag = view.byteLength >= 4 ? readTag(view, 0) : '';
@@ -241,6 +278,7 @@ export function analyzeAssFontUsage(text) {
   // Diagnostics omit whitespace, but subset closure must preserve its glyphs
   // and advance widths. Keep a separate visible-text repertoire.
   const subsetCharacters = new Set();
+  const seenCanonicalClusters = new Set();
   section = '';
   let eventFormat = [];
 
@@ -393,14 +431,11 @@ export function analyzeAssFontUsage(text) {
         }
       }
     }
-    // HarfBuzz may canonically compose/decompose authored text while shaping.
-    // Add both repertoires BEFORE deduplication loses sequence information,
-    // including visible runs separated by non-text overrides. This changes
-    // subset closure only; source ASS and authored-character diagnostics stay
-    // unchanged. Compatibility normalization would change typography, so it
-    // is deliberately excluded.
-    addSubsetText(subsetVisibleText.normalize('NFC'));
-    addSubsetText(subsetVisibleText.normalize('NFD'));
+    // Keep authored diagnostics/ASS unchanged. Canonical closure includes
+    // intermediate glyph candidates (a -> â -> ấ), not just NFC/NFD endpoints;
+    // compatibility normalization is excluded. Override-separated visible
+    // spans contribute, while drawing and Comment text never enter this run.
+    addCanonicalSubsetClosure(subsetVisibleText, addSubsetText, seenCanonicalClusters);
   }
 
   return {

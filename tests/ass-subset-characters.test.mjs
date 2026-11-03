@@ -42,3 +42,17 @@ test('ASS canonical subset closure does not use compatibility normalization or i
  assert.ok(analysis.subsetCharacters.includes('ﬃ'));
  for(const c of ['f','i','á','a','\u0301','Ω'])assert.ok(!analysis.subsetCharacters.includes(c));
 });
+
+test('ASS subset canonical closure includes intermediate multi-stage compositions',()=>{
+ for(const text of ['a\u0302\u0301',String.raw`â{\fs30}́`,'a\u0327\u0302\u0301']){
+  const analysis=analyzeAssFontUsage(normalizationAss(text));
+  for(const c of ['a','\u0302','\u0301','â','ấ'])assert.ok(analysis.subsetCharacters.includes(c),'missing intermediate '+c);
+ }
+});
+test('ASS canonical closure preserves Hangul intermediates and does not compose across grapheme boundaries',()=>{
+ const hangul=analyzeAssFontUsage(normalizationAss('각'));
+ for(const c of ['각','가','\u1100','\u1161','\u11a8'])assert.ok(hangul.subsetCharacters.includes(c));
+ const separated=analyzeAssFontUsage(normalizationAss('a \u0302\u0301'));
+ assert.ok(!separated.subsetCharacters.includes('â'));
+ assert.ok(!separated.subsetCharacters.includes('ấ'));
+});

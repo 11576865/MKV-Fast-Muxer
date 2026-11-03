@@ -14,8 +14,8 @@ const python=process.env.E2E_PYTHON||'python3';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const run=(cmd,args)=>execFileSync(cmd,args,{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
 const fontProof=(...args)=>JSON.parse(run(python,['scripts/s03-native-font-proof.py',...args]));
-const texts=['office','العربية','a\u0301 AV'];
-const required='office ffi AV a\u0301 العربية لا';
+const texts=['office','العربية','a\u0301 AV','a\u0302\u0301','a\u0327\u0302\u0301'];
+const required='office ffi AV a\u0301 العربية لا a\u0302\u0301 a\u0327\u0302\u0301';
 await fs.mkdir(out,{recursive:true});
 const proof={schema:'softmux-s03-collection-shaping-v1',status:'IN_PROGRESS',startedAt:new Date().toISOString(),cases:[],errors:[],
  limits:['Generated unique DejaVu-derived two-face fixtures, not arbitrary fonts/scripts','Collection subsetting is not authorized; original bytes must be retained','No device, all-player or formal S03 verdict promotion']};
