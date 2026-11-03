@@ -30,3 +30,17 @@ The legacy source-to-composition model currently renders an implicit output view
 ## Work evidence
 
 No visual, interaction, real-media, tablet or release acceptance is claimed merely by this document.
+
+
+## 2026-11-04 WU-01 implementation record (unaccepted)
+
+- Draft PR: https://github.com/11576865/MKV-Fast-Muxer/pull/239
+- Branch HEAD at CI retry: `7cb6fd62655494c57aa0789eb912616636d2586b`.
+- Code: `src/softmux-v3-surface.js`, `src/softmux-v3.css`, opt-in `?ui=v3` wiring in `src/main.js`.
+- Design authority: Figma V3 nodes `28:2` source-open, `39:2` empty, `36:2` landscape, `33:2` portrait; first slice is **not** a visually accepted reconstruction.
+- Test code: `tests/softmux-v3-surface.test.mjs` and `tests/e2e/v3-source-first.e2e.mjs`; workflow `.github/workflows/ui-v3-pilot.yml`.
+- CI evidence: first run `41707839232` failed at `npm ci` because repository has no package lock; next run `41707986570` passed unit tests and Vite build but failed before browser test because `ffmpeg` is absent from that runner. Workflow now provisions it conditionally; no browser result yet.
+- First-slice implementation is deliberately read-only: `sourceRowsFromComposition` projects only `source:` entries, and chapter/tag/attachment information comes from exact-File-bound observation events. It never edits the source list.
+- Current blocker: the existing domain still computes a prospective composition on import; WU-01 hides the edit surface until user chooses `编辑拟输出`, but it **does not** yet implement a real optional OutputPlan transaction. WU-02 must close this before acceptance.
+- Current visual limitations: temporary icon glyphs, approximate CSS geometry, no paired Figma-vs-browser pixel diff, no actual timeline animations, no source track action buttons. These are known omissions, not accepted design changes.
+- Main/default UI, original File inputs, media execution and old diagnostic rollback remain untouched.
