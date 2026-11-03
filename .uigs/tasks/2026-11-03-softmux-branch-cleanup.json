@@ -1,6 +1,6 @@
 {
   "goal": "Organize Softmux branches; archive and delete only81 exact-head merged refs, retain open/unreviewed/system refs",
-  "status": "submitted_pending_external_execution",
+  "status": "agent_execution_complete_pending_external_branch_cleanup",
   "current_bounded_work_unit": "One-time allowlist archive and SHA-lease cleanup using existing maintenance workflow",
   "completed_units": [
     "124 remote branches/216 PR inventory",
@@ -9,14 +9,20 @@
     "Six verified old local branches deleted; local main advanced to f1c914c; active work branch64d42a1 and maintenance branch retained; clean working tree"
   ],
   "next_units": [
-    "Inspect one workflow execution status; if pending hand off without polling",
-    "Reconcile actual archive/delete counts on next continuation"
+    "Next continuation: inspect run41572310816 once; reconcile exact deleted/retained/failed summary and archive tags",
+    "Only after terminal job result, fetch/prune local remote-tracking refs and update final branch counts"
   ],
   "branch": "maintenance/archive-reviewed-merged-pr-refs",
   "pr": null,
   "latest_durable_commit": "d05aa206fc79ed306fb829a94bcc8ad3c76a0bf3",
   "external_validation_states": {
-    "branch_cleanup_execution": "Pending push-triggered one-time archive and cleanup; do not claim remote deletion before log verification",
+    "branch_cleanup_execution": {
+      "status": "in_progress_at_single_status_read",
+      "run_id": 41572310816,
+      "url": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41572310816",
+      "candidate_count": 81,
+      "deleted_count": "unverified"
+    },
     "UIGS_Intake": "Checked; existing rule reuse, no new knowledge"
   },
   "blockers": [],
