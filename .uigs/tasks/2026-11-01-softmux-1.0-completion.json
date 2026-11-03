@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "media_attachments_ci_repair_complete_pending_external_validation",
-  "current_bounded_work_unit": "PR224 bounded CI repair: replace obsolete mixed-attachment refusal assertion, preserve output-currency guards and add actual PNG mixed-delivery proof plus fresh equal-label swap baseline",
+  "status": "main_integrated_pending_post_merge_validation",
+  "current_bounded_work_unit": "PR2240.1046 merged into main after repaired exact-head full CI success; current unit is integration checkpoint",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -40,22 +40,22 @@
     "0.1045 single-task audio-only mux: preserve/edited/external-only/M4A/WebM actual zero-video outputs; native AAC/FLAC/Opus packet hashes, retained MKA PTS/private, ASS/font bytes, empty-audio/subtitle-source refusals and recovery.832 tests/build passed; independent focused review40/40 no material findings; expected refusal diagnostics RED/GREEN",
     "PR #223 exact cabbd371 passed Browser41476109147, Deploy41476109617 and S1241476109285; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
     "0.1046 five actual mixed video/audio outputs plus two zero-track attachment-only and one legacy-picker media regression output: PNG/PDF/explicit JSON full native payloads, original image preserved as FileData, shared source/font/ordinary name allocation, selective source image metadata/font exclusion, media packet hashes/PTS, generic membership stale/reinclude.839 tests/build; fresh review13 focus tests. Late ASS audit cancellation browser RED published, GREEN final guard refuses and retry succeeds.",
-    "PR224 cf3782e: Deploy41483148334 and S1241483148371 success; Browser41483148386 failed obsolete candidate line72 expected Start disabled for generic attachment. Scoped repair updates capability expectation, retains add/remove/index staleness checks, independently verifies new actual PNG FileData/report SHA, and regenerates current media-only baseline before equal-label File swap. Four actual candidate outputs/preview and three viewports pass locally;839 unit tests pass; no product version/behavior change."
+    "PR224 cf3782e: Deploy41483148334 and S1241483148371 success; Browser41483148386 failed obsolete candidate line72 expected Start disabled for generic attachment. Scoped repair updates capability expectation, retains add/remove/index staleness checks, independently verifies new actual PNG FileData/report SHA, and regenerates current media-only baseline before equal-label File swap. Four actual candidate outputs/preview and three viewports pass locally;839 unit tests pass; no product version/behavior change.",
+    "PR #224 repaired exact head64d42a1 passed Browser41486368822, S1241486368563 and Deploy41486368741; squash merged into main @c60c83729b6515ab95eed664e1133d12c47feea3 on2026-11-03"
   ],
   "next_units": [
-    "Next continue: inspect repaired exact-head full CI once; merge only on success, otherwise one bounded visible-failure repair",
-    "Complete remaining S10 actual batch fault/retry workflow and S03 OTC/multi-face/shaping acceptance combinations as full usable workflows",
+    "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "feat/softmux-media-generic-attachments-20261103",
+  "branch": "main",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/224",
-  "latest_durable_commit": "d859064b9e921f5c4f091ccf60bc7e6d2278bdaa",
+  "latest_durable_commit": "c60c83729b6515ab95eed664e1133d12c47feea3",
   "external_validation_states": {
     "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR #221 repaired d766418 all full workflows passed; merged",
+    "full_exact_head_ci": "PR22464d42a1 all full workflows passed; merged into mainc60c837",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Checked: no new reusable knowledge beyond PR224 capability and existing Observation; this repair replaces an obsolete negative-capability assertion while strengthening the same real output/identity checks. No new duplicate record or Canonical change.",
+    "UIGS_Intake": "Checked: routine exact-head-verified integration reuses existing knowledge; no new record or Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -93,11 +93,12 @@
     "audio_only_mux_ci": "PR #223 cabbd371 all full workflows passed; merged @f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
     "media_ordinary_attachments_local": "passed: 5 actual mixed video/audio outputs +2 zero-track +1 legacy-video regression; complete native PNG/PDF/opaque JSON payload SHA; source PNG FileData reattachment; source/new-font/new-ordinary collision names; selective image name/font exclusion; exact source media packets/PTS; final SHA receipts and input unchanged",
     "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
-    "media_ordinary_attachments_ci": "PR224 bounded repaired head submitted; full next-generation CI Pending External Validation. No status read after repair push.",
-    "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views"
+    "media_ordinary_attachments_ci": "PR22464d42a1 Browser41486368822/S1241486368563/Deploy41486368741 success; merged c60c837",
+    "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views",
+    "post_merge_main_ci": "Pending main push workflows; prior exact PR-head success does not claim post-merge deployment completion"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-02T16:56:22.384Z"
+  "updated_at": "2026-11-03T03:50:58.615Z"
 }
