@@ -26,9 +26,10 @@ export const ROUTED_ATTACHMENT_PLAN_SCHEMA='bounded-existing-mkv-attachment-rout
 const permits=new WeakMap();
 const ROUTES=Object.freeze({
   'same-size':{
-    prepare:(source,replacement,targetFileUid)=>
+    prepare:(source,replacement,targetFileUid,acknowledgeReferencedTags=false)=>
       prepareSameSizeAttachmentReplacement({
         source,replacement,targetFileUid,acknowledgeContentReplacement:true,
+        acknowledgeReferencedTagTargets:acknowledgeReferencedTags,
       }),
     execute:executeSameSizeAttachmentReplacement,
   },
@@ -127,14 +128,16 @@ async function originalFacts(source,targetFileUid){
   if(!reader.isCurrentInspection(inventory)||graph.state!=='inspected'||
       graph.coverage.tagTargets!=='known-targets-enumerated')
     throw Error('P2_ROUTE_GRAPH_UNVERIFIED');
-  if(graph.edges.some(e=>e.targetKind==='attachment'&&e.targetUid===targetFileUid))
-    throw Error('P2_ROUTE_TAG_REFERENCED_UID');
+  // Recognizing a referenced FileUID is not the same as proving it will be
+  // orphaned: an exact-length FileData-only replacement retains the UID.
+  // Caller must separately approve such a semantic content replacement.
   return {raw,reader,inventory,target:target[0],graph};
 }
 
 /** A successful plan is opaque: only this module may execute its backend. */
 export async function prepareRoutedAttachmentReplacement({
   source,replacement,targetFileUid,approveSourceModification=false,
+  approveReferencedTagTargetReplacement=false,
 }={}){
   if(!approveSourceModification)throw Error('P2_ROUTE_EXPLICIT_REVIEW_REQUIRED');
   if(!source?.slice||!replacement?.slice||
@@ -146,6 +149,18 @@ export async function prepareRoutedAttachmentReplacement({
   if(typeof targetFileUid!=='string'||!/^[1-9][0-9]{0,19}$/.test(targetFileUid))
     throw Error('P2_ROUTE_UID_REQUIRED');
   const facts=await originalFacts(source,targetFileUid);
+  const targetRefs=facts.graph.edges.filter(e=>
+    e.targetKind==='attachment'&&e.targetUid===targetFileUid);
+  if(targetRefs.length){
+    // No broader authorization: only equal-length in-place FileData bytes,
+    // keeping the original UID, may be edited with explicit review.
+    if(!approveReferencedTagTargetReplacement||
+       facts.target.byteLength!==replacement.size)
+      throw Error('P2_ROUTE_TAG_REFERENCED_UID');
+    if(targetRefs.some(e=>e.resolution!=='matched'||
+       e.targetAttachmentId!==facts.target.id))
+      throw Error('P2_ROUTE_TAG_REFERENCE_NOT_EXACT');
+  }
   const sourceSha256=await hash(source),payloadSha256=await hash(replacement);
   const preferred=facts.target.byteLength===replacement.size?
     ['same-size']:
@@ -154,7 +169,10 @@ export async function prepareRoutedAttachmentReplacement({
   let selected=null,backendPlan=null;
   for(const route of preferred){
     try{
-      backendPlan=await ROUTES[route].prepare(source,replacement,targetFileUid);
+      backendPlan=await ROUTES[route].prepare(
+        source,replacement,targetFileUid,
+        targetRefs.length>0&&approveReferencedTagTargetReplacement,
+      );
       selected=route;
       break;
     }catch(error){
@@ -183,7 +201,9 @@ export async function prepareRoutedAttachmentReplacement({
     target:{fileUid:targetFileUid,name:facts.target.filename,
       oldLength:facts.target.byteLength,newLength:replacement.size},
     evidence:{sourceSha256,payloadSha256,independentNativeAudit:'pending',
-      selectedBackendPlanSchema:backendPlan.schema},
+      selectedBackendPlanSchema:backendPlan.schema,
+      referencedTagCount:targetRefs.length,
+      referencedUidEditExplicitlyReviewed:targetRefs.length>0},
     refusals,
     grants:{sourceOverwrite:false,filePermission:false,generalMatroskaWriter:false},
   });
