@@ -115,6 +115,27 @@ jobs:
           bash tests/e2e/generate-fixtures.sh
           bash tests/e2e/generate-independent-matroska-fixture.sh
 
+      # P1: independently authored Matroska source and native mkvpropedit
+      # mutation; ordinary non-P0 nested Tag loss must be detected by strict
+      # extracted XML comparison even when the legacy P0-only oracle misses it.
+      - name: P1 - real MKV complete chapter and tag XML regression
+        run: node scripts/p1-complete-xml-real-audit.mjs
+
+      - name: Upload P1 complete XML native Matroska oracle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-complete-chapters-tags-native-oracle
+          path: |
+            .e2e/output/p1-complete-xml-real-audit.json
+            .e2e/output/p1-complete-xml-source.mkv
+            .e2e/output/p1-complete-xml-match.mkv
+            .e2e/output/p1-complete-xml-ordinary-tag-removed.mkv
+            .e2e/output/p1-complete-xml-tags.xml
+            .e2e/output/p1-complete-xml-tags-without-child.xml
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Start preview server
         run: |
           nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/mkvfm-preview.log 2>&1 &
