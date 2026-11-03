@@ -70,14 +70,52 @@ def tags(root):
     return sorted(result, key=lambda value: json.dumps(value, sort_keys=True))
 
 
+
+def complete_xml(root, kind):
+    """Faithful *extracted XML* projection; do not equate a diff with data loss.
+
+    Keep EVERY descendant and known/unknown XML field, preserving order and
+    multiplicity. In particular, do not flatten nested SimpleTags or filter
+    out unmarked tags as the older P0-only summarizer deliberately did.
+    """
+    expected = "Chapters" if kind == "complete-chapters" else "Tags"
+    if root.tag != expected:
+        raise ValueError("Unexpected mkvextract XML root: " + root.tag)
+    limit = 200000
+    seen = 0
+
+    def node(element, depth=0):
+        nonlocal seen
+        seen += 1
+        if seen > limit or depth > 64:
+            raise ValueError("Extracted XML exceeds bounded projection budget")
+        result = {"element": element.tag}
+        if element.attrib:
+            result["attributes"] = dict(sorted(element.attrib.items()))
+        value = (element.text or "").strip()
+        if value:
+            result["text"] = value
+        children = []
+        for child in element:
+            if (child.tail or "").strip():
+                raise ValueError("Unexpected mixed-content XML in Matroska data")
+            children.append(node(child, depth + 1))
+        if children:
+            result["children"] = children
+        return result
+
+    return node(root)
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ("chapters", "tags"):
-        sys.exit("Usage: p0-summarize-ebml-xml.py chapters|tags < extracted.xml")
+    if len(sys.argv) != 2 or sys.argv[1] not in ("chapters", "tags", "complete-chapters", "complete-tags"):
+        sys.exit("Usage: p0-summarize-ebml-xml.py chapters|tags|complete-chapters|complete-tags < extracted.xml")
     payload = sys.stdin.read()
     if not payload.strip():
         raise ValueError("mkvextract yielded no XML; cannot assert metadata absent")
     root = ET.fromstring(payload)
-    result = chapters(root) if sys.argv[1] == "chapters" else tags(root)
+    result = (complete_xml(root, sys.argv[1]) if sys.argv[1].startswith("complete-")
+              else chapters(root) if sys.argv[1] == "chapters" else tags(root))
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 
 
