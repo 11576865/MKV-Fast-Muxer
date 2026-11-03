@@ -1,0 +1,24 @@
+{
+  "schema": "softmux-s10-combined-recovery-v1",
+  "status": "FAIL",
+  "startedAt": "2026-11-03T07:39:25.619Z",
+  "verifiedJobs": 0,
+  "files": [],
+  "errors": [
+    "page.waitForFunction: Timeout 120000ms exceeded.\n    at /workspace/scratch/704e24654d2d/softmux-s10-recovery/tests/e2e/batch-recovery-real.e2e.mjs:101:13"
+  ],
+  "scope": "20 real default-workbench jobs, two worker execution faults, one report-only directory failure",
+  "limits": [
+    "Two short real media templates, not20heterogeneous films",
+    "Directory handle/write failures simulated in memory; no physical disk/tablet/power-loss guarantee",
+    "Worker faults injected only before selected mux EXEC; successful outputs use the real Wasm worker"
+  ],
+  "invalidPairRefusedWithoutExecution": true,
+  "lastStatus": "待命",
+  "lastPlan": "\n    \n    \n    \n      #1\n      \n        Recovery S10E01.mkv\n        Recovery S10E01.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E01.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #2\n      \n        Recovery S10E02.mkv\n        Recovery S10E02.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E02.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #3\n      \n        Recovery S10E03.mkv\n        Recovery S10E03.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E03.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #4\n      \n        Recovery S10E04.mkv\n        Recovery S10E04.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E04.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #5\n      \n        Recovery S10E05.mkv\n        Recovery S10E05.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E05.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #6\n      \n        Recovery S10E06.mkv\n        Recovery S10E06.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E06.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #7\n      \n        Recovery S10E07.mkv\n        Recovery S10E07.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E07.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #8\n      \n        Recovery S10E08.mkv\n        Recovery S10E08.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E08.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #9\n      \n        Recovery S10E09.mkv\n        Recovery S10E09.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E09.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #10\n      \n        Recovery S10E10.mkv\n        Recovery S10E10.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E10.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #11\n      \n        Recovery S10E11.mkv\n        Recovery S10E11.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E11.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #12\n      \n        Recovery S10E12.mkv\n        Recovery S10E12.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E12.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #13\n      \n        Recovery S10E13.mkv\n        Recovery S10E13.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E13.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #14\n      \n        Recovery S10E14.mkv\n        Recovery S10E14.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E14.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #15\n      \n        Recovery S10E15.mkv\n        Recovery S10E15.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E15.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #16\n      \n        Recovery S10E16.mkv\n        Recovery S10E16.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E16.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #17\n      \n        Recovery S10E17.mkv\n        Recovery S10E17.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E17.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #18\n      \n        Recovery S10E18.mkv\n        Recovery S10E18.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E18.en.srt\n      \n      待执行\n    \n    \n    \n    \n      #19\n      \n        Recovery S10E19.mkv\n        Recovery S10E19.mp4 · 实际：ISO BMFF / MP4 · 1 ASS\n          · Recovery S10E19.zh-Hans.ass\n      \n      待执行\n    \n    \n    \n    \n      #20\n      \n        Recovery S10E20.mkv\n        Recovery S10E20.mp4 · 实际：ISO BMFF / MP4 · 1 SRT\n          · Recovery S10E20.en.srt\n      \n      待执行\n    2 个统一导入项目不支持当前批量模式，请在资源清单中移除；批量字体：1 个 · 完整字体",
+  "dom": {
+    "entries": 43,
+    "start": true
+  },
+  "completedAt": "2026-11-03T07:41:27.577Z"
+}

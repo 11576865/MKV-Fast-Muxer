@@ -42,6 +42,7 @@ function assEvents(text){
 }
 let browser,page;
 const artifacts=[];
+console.log('S10 recovery starting actual browser');
 try{
  for(let i=1;i<=20;i++){
   const stem='Recovery S10E'+String(i).padStart(2,'0'),srt=i%2===0;
@@ -87,21 +88,30 @@ try{
   window.__s10Directory=directory;window.showDirectoryPicker=async()=>directory;
  });
  await page.locator('[data-sf-view="batch"]').click();
+ console.log('S10 recovery standalone loaded, batch view open');
  // An invalid pairing is a preflight refusal, never a fake executed task.
  await page.setInputFiles('#batchUnifiedInput',[artifacts[0].video,artifacts[1].subtitle]);
- await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length>0&&document.querySelector('#batchStartBtn').disabled);
+ await page.waitForFunction(()=>document.querySelectorAll('#batchAssetInventory .asset-entry').length===2&&document.querySelector('#batchStartBtn').disabled);
+ assert.equal(await page.locator('#batchPlan [data-batch-job-index]').count(),0,'unmatched inputs cannot become executable jobs');
  assert.equal(await page.evaluate(()=>window.__s10MuxAttempts),0);
  assert.equal(await page.locator('#batchResults a.download').count(),0);
  proof.invalidPairRefusedWithoutExecution=true;
+ console.log('S10 recovery: unmatched pair refused before execution');
+ // Release the two deliberately unmatched Files before selecting the actual
+ // batch; a same-label fresh File must not silently replace its old authority.
+ while(await page.locator('#batchAssetInventory [data-batch-asset-remove]').count())await page.locator('#batchAssetInventory [data-batch-asset-remove]').first().click();
  await page.setInputFiles('#batchUnifiedInput',[...artifacts.flatMap(a=>[a.video,a.subtitle]),path.join(root,'DejaVuSans.ttf')]);
  await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===20&&!document.querySelector('#batchStartBtn').disabled,null,{timeout:120000});
+ console.log('S10 recovery: twenty valid jobs reviewed');
  if(await page.locator('[data-sf-batch-controls="recipe"]').isVisible())await page.locator('[data-sf-batch-controls="recipe"]').click();
  await page.locator('#batchOutputDirBtn').click();
  await page.waitForFunction(()=>!document.querySelector('#batchStartBtn').disabled);
  await page.locator('#batchStartBtn').click();
+ console.log('S10 recovery: real queue started');
  const terminal=()=>page.waitForFunction(()=>document.querySelector('#batchStatus').textContent.startsWith('批量完成：'),null,{timeout:1200000});
  await terminal();
  proof.initialTerminal=await page.locator('#batchStatus').textContent();
+ console.log('S10 recovery initial terminal:',proof.initialTerminal);
  assert.match(proof.initialTerminal,/已生成 18，审计通过 18，待复核 0，执行失败 2/);
  assert.equal(await page.evaluate(()=>window.__s10MuxAttempts),20);
  assert.deepEqual(await page.evaluate(()=>window.__s10Faults),[2,11]);
@@ -119,12 +129,14 @@ try{
  assert.equal(await page.evaluate(()=>window.__s10Directory.writes.filter(n=>n==='Recovery S10E01.mkv').length),1,'report-only recovery must not rewrite valid MKV');
  proof.reportOnlyRecovery={muxAttempts:20,mkvWrites:1,reportWrites:await page.evaluate(()=>window.__s10Directory.writes.filter(n=>n==='Recovery S10E01.mux-report.json').length)};
  assert.equal(proof.reportOnlyRecovery.reportWrites,1);
- // Replace live inputs through the actual workbench picker. Retrying retained
- // failures must still use the immutable original twenty-job context.
- await page.setInputFiles('#batchUnifiedInput',[artifacts[0].video,artifacts[0].subtitle]);
- await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===1);
+ // Remove the failed episode's live subtitle and the shared live font via
+ // actual inventory controls. Frozen retries must retain their original Files.
+ await page.locator('#batchAssetInventory .asset-entry').filter({hasText:path.basename(artifacts[1].subtitle)}).locator('[data-batch-asset-remove]').click();
+ await page.locator('#batchAssetInventory .asset-entry').filter({hasText:'DejaVuSans.ttf'}).locator('[data-batch-asset-remove]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===19);
  for(let i=0;i<2;i++){
   await page.locator('[data-batch-job-retry]').first().click();await terminal();
+  console.log('S10 recovery retry:',i+1,await page.locator('#batchStatus').textContent());
   assert.equal(await page.evaluate(()=>window.__s10MuxAttempts),21+i,'exactly one failed job may execute per retry');
   assert.equal(await page.locator('[data-batch-job-retry]').count(),1-i);
   const current=await page.locator('#batchResults a.download').evaluateAll(links=>Object.fromEntries(links.map(a=>[a.download,a.href])));
@@ -165,7 +177,7 @@ try{
   assert.equal(await shaFile(a.video),a.videoSha);assert.equal(await shaFile(a.subtitle),a.subtitleSha);
   proof.files.push({jobId:report.plan.jobId,outputName:a.outputName,sha256:digest,bytes:(await fs.stat(mkv)).size,
    nativePacketsAndSubtitleVerified:true,directoryAndReportHashesVerified:true,sourceUnchanged:true});
-  proof.verifiedJobs=proof.files.length;await fs.writeFile(evidencePath,JSON.stringify(proof,null,2)+'\n');
+  proof.verifiedJobs=proof.files.length;console.log('S10 recovery native verified',proof.verifiedJobs,'/20');await fs.writeFile(evidencePath,JSON.stringify(proof,null,2)+'\n');
  }
  assert.equal(directorySnapshot.hashes['Recovery S10E01.mkv'],originalMkv.sha);
  assert.equal(await page.evaluate(()=>document.querySelector('#videoInput').files[0]===window.__s10SingleVideo&&[...document.querySelector('#subInput').files].every((f,i)=>f===window.__s10SingleSubs[i])&&document.querySelector('#subInput').files.length===window.__s10SingleSubs.length),true);
@@ -173,5 +185,5 @@ try{
  proof.finalAttempts=22;proof.finalDirectoryWrites=40;proof.singleProjectFileIdentityUnchanged=true;proof.retainedSuccesses=18;proof.status='PASS';
  console.log('S10 combined recovery PASS:20 native-verified MKVs,22 mux attempts,40 unique directory members; frozen retry/save-only recovery and single-project identity retained');
  await context.close();
-}catch(error){proof.status='FAIL';proof.errors.push(error.stack||String(error));if(page)proof.lastStatus=await page.locator('#batchStatus').textContent().catch(()=>null);throw error;}
+}catch(error){proof.status='FAIL';proof.errors.push(error.stack||String(error));if(page){proof.lastStatus=await page.locator('#batchStatus').textContent().catch(()=>null);proof.lastPlan=await page.locator('#batchPlan').textContent().catch(()=>null);proof.dom=await page.evaluate(()=>({entries:document.querySelectorAll('#batchAssetInventory .asset-entry').length,start:document.querySelector('#batchStartBtn')?.disabled})).catch(()=>null);}throw error;}
 finally{proof.completedAt=new Date().toISOString();await fs.writeFile(evidencePath,JSON.stringify(proof,null,2)+'\n');await browser?.close();}

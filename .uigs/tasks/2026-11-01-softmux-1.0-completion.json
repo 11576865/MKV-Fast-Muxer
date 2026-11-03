@@ -1,6 +1,6 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "s10_combined_recovery_implementation_pending_real_validation",
+  "status": "s10_combined_recovery_complete_pending_review_and_ci",
   "current_bounded_work_unit": "S10/S11 default-workbench20-job combined fault scenario: two execution failures, one report-only directory failure, frozen retry after live changes, independent native20outputs",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
@@ -44,7 +44,8 @@
     "PR #224 repaired exact head64d42a1 passed Browser41486368822, S1241486368563 and Deploy41486368741; squash merged into main @c60c83729b6515ab95eed664e1133d12c47feea3 on2026-11-03",
     "2026-11-03 PR206 exact head651fdf0 documentation CI41230982019 success; squash merged @2c8891b9740f0522ff5094451162c68cfd4d64d0. PR205 closed after confirming main retains original release gate plus formal deployment and dirty-checkout protections from PR210.",
     "2026-11-03 PR225 independently reviewed (no Critical/Important),854/854 tests/build passed; merged @003c2364163da4a8f9778c32a6b69d8b605d4bf7. Historical PR196,181,179,178,176,174,170,154,76 closed as consolidated/superseded with source SHA guards; verified zero remaining open PRs.",
-    "2026-11-03 verified PR225b9e67fa Browser41577638418 and S1241577638387 success; merged-main003c236 Browser41577657294 success; Pages41577802627 build125725453706 and deploy125725610929 succeeded for68d5bb4. Research 128MiB originals reserved Void scoped-validation succeeded;512/1000MiB PCM repair refused with2896/5463-byte deficits; no file replaced or research Blob downloaded."
+    "2026-11-03 verified PR225b9e67fa Browser41577638418 and S1241577638387 success; merged-main003c236 Browser41577657294 success; Pages41577802627 build125725453706 and deploy125725610929 succeeded for68d5bb4. Research 128MiB originals reserved Void scoped-validation succeeded;512/1000MiB PCM repair refused with2896/5463-byte deficits; no file replaced or research Blob downloaded.",
+    "2026-11-03 actual default-workbench20-job combined recovery PASS: two worker mux faults, one report quota fault; initial18 good/two failed, report-only retry no remux/MKV rewrite, remove live failed subtitle+shared font, two frozen retries;20 native packet/subtitle/time/report/directory SHA outputs,22mux attempts40unique saved members, source and single-project File identity unchanged."
   ],
   "next_units": [
     "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
@@ -52,13 +53,13 @@
   ],
   "branch": "test/softmux-s10-combined-recovery-20261103",
   "pr": null,
-  "latest_durable_commit": "2b5249473a1feecd0ee8817495327cc9c1354c5e",
+  "latest_durable_commit": "e5edd51184d9f884451a8aa55725b6ffa4be6fb6",
   "external_validation_states": {
     "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR225b9e67fa Browser41577638418/S1241577638387 success; PR Pages41577638435 cancelled and superseded by successful main push Pages41577802627",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Complete: deduped existing Candidate inbox/candidates/2026-10-22-softmux-large-original-attachments-media-only-wasm-byte-lane.md with actual128MiB positive and512/1000MiB refused capacity evidence; Foundry e943d900b67804c65f9389718b7267a2bf356e82; no Canonical change",
+    "UIGS_Intake": "Pending bounded check: combined recovery evidence may append existing S10 Test; no product defect or Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -103,7 +104,7 @@
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
     "remaining_pr_consolidation_native_browser": "Complete for integrated scoped S12 matrix and production browser regression; manual research dual-path matrix remains unrerun, not newly accepted",
     "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report",
-    "s10_combined_recovery": "Standalone scenario and mandatory CI step implemented; actual local Chromium run in progress, no PASS claim"
+    "s10_combined_recovery": "Local actual Chromium153/native FFmpeg PASS:20 outputs,22mux attempts,40 unique directory commits; quota/directory simulation only. Exact-head CI pending."
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
