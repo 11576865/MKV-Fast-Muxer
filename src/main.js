@@ -2,6 +2,7 @@ import {planMediaAttachments,mediaAttachmentReadiness,verifyMediaAttachments,nor
 import {planOriginalTrackExtraction,originalTrackExtractionCurrent,buildTrackExtractionCommand,auditExtractedOriginalTrack} from './original-track-extraction.js';
 import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_SOURCES} from './container-batch-review.js';
 import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
+import {embeddedAttachmentEligibility,createEmbeddedAttachmentOutputEntry,pruneEmbeddedAttachmentsForRemovedSource} from './embedded-attachment-composition.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
 import './style.css';
 import './workbench.css';
@@ -640,6 +641,9 @@ const sourceDraftShelf=createSourceDraftShelf();
 let sourceDraftRestoreBlocked=null;
 let attachmentOnlyRunning = false;
 const genericAttachmentEntries = () => importedAssetEntries.filter(entry=>entry.kind==='attachment');
+// Only a source-file scoped, read-only view; no independent resource library.
+const embeddedSourceInventories = new Map();
+const embeddedSourceBusy = new Set();
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
 const attachmentOnlyMode = () => attachmentOnlyRouteEligible(importedAssetEntries,liveMediaAdapterFiles());
 const includedGenericAttachments = () => genericAttachmentEntries().filter(entry=>entry.include!==false);
@@ -3394,6 +3398,44 @@ editorMuxBtn?.addEventListener('click', () => { if (!muxBtn.disabled) void execu
 objectEditorBack?.addEventListener('click', () =>
   document.querySelector('.workbench-jump-nav a[href="#source-title"]')?.click());
 
+function renderEmbeddedSourceAttachments(entry, selected, canChange) {
+  // Secondary MKV sources expose existing AttachedFile entries without
+  // silently becoming the media/primary source in the current target.
+  if (selected || !currentVideoIsMatroska(entry.file)) return '';
+  const state=embeddedSourceInventories.get(entry.key);
+  const current=state?.sourceFile===entry.file ? state : null;
+  const busy=embeddedSourceBusy.has(entry.key);
+  const disabled=!canChange || busy;
+  const status=current?.state==='inspected'
+    ? current.inventory.attachments.length+' 个内封附件 · 仅按需加入拟输出'
+    : current?.state==='unverified'
+      ? '附件读取未完成：'+(current.reason||'不支持的容器布局')
+      : busy ? '正在读取附件结构，不读取附件内容…'
+      : '可查看来源内封附件；不切换当前拟输出来源。';
+  const rows=current?.state==='inspected' ? current.inventory.attachments.map(item=>{
+    const eligible=embeddedAttachmentEligibility(item,importedAssetEntries,entry.file);
+    return `<div class="embedded-source-attachment-row">
+      <div class="embedded-source-attachment-info">
+        <strong>${escapeHtml(item.filename)}</strong>
+        <small>${escapeHtml(item.mimeType)} · ${item.byteLength} B · FileUID ${escapeHtml(item.fileUid)}</small>
+      </div>
+      <button type="button" data-embedded-add="${escapeHtml(entry.key)}"
+        data-embedded-uid="${escapeHtml(item.fileUid)}"
+        ${!eligible.allowed||disabled?'disabled':''}>加入拟输出</button>
+      ${eligible.allowed?'':`<small class="embedded-source-attachment-reason">${escapeHtml(eligible.reason)}</small>`}
+    </div>`;
+  }).join('') : '';
+  return `<section class="embedded-source-attachments" data-embedded-source="${escapeHtml(entry.key)}"
+    data-state="${current?.state|| (busy?'inspecting':'not-inspected')}"
+    aria-label="${escapeHtml(entry.file.name)} 的内封附件">
+    <button type="button" data-embedded-inspect="${escapeHtml(entry.key)}" ${disabled?'disabled':''}>
+      ${current?.state==='inspected'?'重新检查附件':'查看内封附件'}
+    </button>
+    <small role="status">${escapeHtml(status)}</small>
+    ${rows}
+  </section>`;
+}
+
 function renderImportedAssetInventory() {
   if (!assetInventory || !assetImportStatus) return;
   // Preserve both disclosure levels when replacing the list after a checkbox
@@ -3494,6 +3536,7 @@ function renderImportedAssetInventory() {
         <button type="button" class="asset-remove" data-asset-remove="${escapeHtml(entry.key)}" ${canChange ? '' : 'disabled'}>移除</button>
       </div>
       ${renderSourceContainerTree(entry, selected, sourceScanned)}
+      ${renderEmbeddedSourceAttachments(entry, selected, canChange)}
     </div>`;
   }).join('');
   if (focusedSourceRadio) {
@@ -3649,6 +3692,57 @@ for (const target of [assetInventory, assetInspectorHost]) {
     }
   });
 }
+
+assetInventory?.addEventListener('click', async event => {
+  const inspect=event.target.closest('button[data-embedded-inspect]');
+  const add=event.target.closest('button[data-embedded-add]');
+  const button=inspect||add;
+  if (!button || isBusy() || batchRunning || batchStartPending || importInProgress) return;
+  const sourceKey=inspect?.dataset.embeddedInspect||add?.dataset.embeddedAdd;
+  if (embeddedSourceBusy.has(sourceKey)) return;
+  const source=importedAssetEntries.find(x=>x.kind==='container'&&x.key===sourceKey);
+  if (!source || source.file===videoInput.files?.[0]) return;
+  const stillCurrent=()=>importedAssetEntries.some(x=>
+    x.kind==='container'&&x.key===sourceKey&&x.file===source.file);
+  embeddedSourceBusy.add(sourceKey);
+  try {
+    if (inspect) {
+      const reader=createMatroskaAttachmentReader(source.file);
+      embeddedSourceInventories.set(sourceKey,{sourceFile:source.file,state:'inspecting'});
+      renderImportedAssetInventory();
+      const inventory=await reader.inspect();
+      if(!stillCurrent())return;
+      embeddedSourceInventories.set(sourceKey,{
+        sourceFile:source.file,reader,inventory,
+        state:inventory.state,reason:inventory.diagnostic?.code||'',
+      });
+    } else {
+      const inspected=embeddedSourceInventories.get(sourceKey);
+      if(!inspected || inspected.sourceFile!==source.file ||
+          inspected.state!=='inspected')return;
+      const item=inspected.inventory.attachments.find(x=>x.fileUid===add.dataset.embeddedUid);
+      if(!item)throw Error('来源附件已改变；请重新检查来源。');
+      const member=createEmbeddedAttachmentOutputEntry({
+        sourceEntry:source,reader:inspected.reader,inventory:inspected.inventory,
+        attachmentId:item.id,existingEntries:importedAssetEntries,
+      });
+      if(!stillCurrent())throw Error('来源已移除；不能加入已失效的附件。');
+      importedAssetEntries=[...importedAssetEntries,member];
+      applyImportedAssetRoles();
+      status.textContent='已从 '+source.file.name+' 将 '+member.file.name+' 加入拟输出；来源容器保持不变。';
+    }
+  } catch(error) {
+    const current=embeddedSourceInventories.get(sourceKey);
+    if(inspect&&stillCurrent()){
+      embeddedSourceInventories.set(sourceKey,{
+        sourceFile:source.file,state:'unverified',reason:error?.message||String(error),
+      });
+    } else if(add)status.textContent='无法加入来源附件：'+(error?.message||String(error));
+  } finally {
+    embeddedSourceBusy.delete(sourceKey);
+    if(stillCurrent())renderImportedAssetInventory();
+  }
+});
 
 assetInventory?.addEventListener('click',event=>{
   const button=event.target.closest('[data-asset-as-attachment]');
@@ -3852,8 +3946,13 @@ assetInventory?.addEventListener('click', (event) => {
   const key = button.dataset.assetRemove;
   const previousIndex = [...assetInventory.querySelectorAll('button[data-asset-remove]')].indexOf(button);
   const removed=importedAssetEntries.find(entry=>entry.key===key);
-  if(removed?.kind==='container')sourceDraftShelf.drop(removed.file);
+  if(removed?.kind==='container'){
+    sourceDraftShelf.drop(removed.file);
+    embeddedSourceInventories.delete(removed.key);
+  }
   importedAssetEntries = importedAssetEntries.filter((entry) => entry.key !== key);
+  if(removed?.kind==='container')
+    importedAssetEntries=pruneEmbeddedAttachmentsForRemovedSource(importedAssetEntries,removed.file);
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
   if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';
   applyImportedAssetRoles();
