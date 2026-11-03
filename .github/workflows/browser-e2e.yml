@@ -225,6 +225,66 @@ jobs:
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 
+      # P1: the existing P2-A browser scenario has already downloaded two
+      # actual MKV outputs. The expected manifest is derived from *selected
+      # user input bytes*, not from the produced attachment inventory.
+      - name: P1 - independently verify declared changes in actual browser MKVs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/p1-browser-delivery-semantic-audit.py \
+            .e2e/output/limited-existing-source.mkv \
+            .e2e/output/limited-existing-browser-result.mkv \
+            .e2e/output/p1-browser-single-expected.json \
+            .e2e/output/p1-browser-single-semantic-audit.json
+          python3 scripts/p1-browser-delivery-semantic-audit.py \
+            .e2e/output/limited-existing-source.mkv \
+            .e2e/output/limited-existing-browser-two-attachments.mkv \
+            .e2e/output/p1-browser-multiple-expected.json \
+            .e2e/output/p1-browser-multiple-semantic-audit.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          source=Path('.e2e/output/p1-browser-single-expected.json')
+          expected=json.loads(source.read_text(encoding='utf8'))
+          old=expected['additions'][0]['sha256']
+          expected['additions'][0]['sha256']='0'*64 if old!='0'*64 else 'f'*64
+          Path('.e2e/output/p1-browser-bad-expected.json').write_text(
+              json.dumps(expected,indent=2)+'\n', encoding='utf8')
+          PY
+          set +e
+          python3 scripts/p1-browser-delivery-semantic-audit.py \
+            .e2e/output/limited-existing-source.mkv \
+            .e2e/output/limited-existing-browser-result.mkv \
+            .e2e/output/p1-browser-bad-expected.json \
+            .e2e/output/p1-browser-negative-semantic-audit.json
+          verdict=$?
+          set -e
+          test "$verdict" -eq 2
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('.e2e/output/p1-browser-negative-semantic-audit.json')
+          receipt=json.loads(path.read_text(encoding='utf8'))
+          assert receipt['status']=='DIFFERENCE_DETECTED'
+          assert any(x['field']=='attachments' for x in receipt['differences'])
+          PY
+
+      - name: Upload P1 actual browser MKV semantic intent and native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p1-browser-delivery-declared-delta-native-evidence
+          path: |
+            .e2e/output/p1-browser-*expected.json
+            .e2e/output/p1-browser-*-semantic-audit.json
+            .e2e/output/limited-existing-source.mkv
+            .e2e/output/limited-existing-browser-result.mkv
+            .e2e/output/limited-existing-browser-two-attachments.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
+
       # WU-03: one actual modern public-workspace task (source MKV + new ASS
       # and font + source attachment exclusion/rename). An independent native
       # oracle checks downloaded bytes, two source bitstreams, FileData hashes,

@@ -6880,6 +6880,31 @@ async function scenarioExistingMkvLimitedAppendReviewed(browser) {
     }
     assert.deepEqual(packetRecords(multiOutput), packetRecords(source));
 
+    // The expected deltas are authored from exact user-selected input bytes
+    // and downloaded browser artifacts, NOT by reading the destination
+    // attachment inventory or trusting the app's own verification report.
+    // The separate native CI oracle independently re-extracts FileData and
+    // verifies all unrequested chapter/Tag/UID/packet facts remain intact.
+    const writeSemanticIntent = async (destination, filename, declarations) => {
+      const sha = value => createHash('sha256').update(value).digest('hex');
+      const manifest = {
+        schema:'softmux-p1-declared-attachment-additions-v1',
+        sourceSha256:sha(await fs.readFile(source)),
+        outputSha256:sha(await fs.readFile(destination)),
+        additions:declarations.map(([name,mime,bytes])=>({
+          name,mime,sha256:sha(bytes),
+        })),
+      };
+      await fs.writeFile(path.join(outDir,filename),JSON.stringify(manifest,null,2)+'\n');
+    };
+    await writeSemanticIntent(output,'p1-browser-single-expected.json',[
+      ['readme.txt','text/plain',payload],
+    ]);
+    await writeSemanticIntent(multiOutput,'p1-browser-multiple-expected.json',[
+      ['readme.txt','text/plain',payload],
+      ['renamed-second.bin','application/x-audit-data',secondPayload],
+    ]);
+
     // Changing source immediately revokes the prepared artifact authorization.
     await page.setInputFiles('#existingMkvLimitedSource',
       path.join(root, 'source-with-attachments.mkv'));
