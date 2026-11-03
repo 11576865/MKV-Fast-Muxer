@@ -1,0 +1,69 @@
+name: Softmux V3 design pilot (not release gate)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/softmux-v3-*'
+      - 'src/main.js'
+      - 'tests/softmux-v3-surface.test.mjs'
+      - 'tests/e2e/v3-source-first.e2e.mjs'
+      - 'docs/ui-v3/**'
+      - '.github/workflows/ui-v3-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-first-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install project dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Browser and Chinese-capable font
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          command -v ffmpeg
+          if ! command -v fc-list >/dev/null 2>&1 || [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y fontconfig fonts-noto-cjk
+          fi
+          fc-cache -f
+          test -n "$(fc-list :lang=zh-cn family)"
+      - name: Start preview
+        run: |
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/softmux-v3-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/softmux-v3-preview.log
+          exit 1
+      - name: Real Chromium V3 source-first UI pilot
+        run: node tests/e2e/v3-source-first.e2e.mjs
+      - name: Upload exact-HEAD V3 UI screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-v3-pilot-source-first-evidence
+          path: .e2e/ui-v3-evidence/
+          retention-days: 14
+          if-no-files-found: warn
