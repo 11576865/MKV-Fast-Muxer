@@ -32,6 +32,18 @@ const DEEP_NOT_COVERED = [
   'arbitrary/non-P0_* tags or their complete target graphs',
   'unknown EBML elements, packet bit identity, timecode-level parity, or playback rendering',
 ];
+// Strict XML mode preserves all chapters and tags reported by independent
+// mkvextract, rather than only fixture-controlled P0_* tags. A syntactic
+// difference is not automatically a semantic loss: UIDs may be safely remapped.
+const COMPLETE_XML_COVERAGE = [
+  'mkvextract complete recursively nested Chapters XML tree, all attributes and fields',
+  'mkvextract complete Tags XML tree, all targets and nested SimpleTag fields',
+];
+const COMPLETE_XML_NOT_COVERED = [
+  'UID remapping semantic equivalence: changed numeric UIDs require reference-resolution review',
+  'unknown EBML not represented by mkvextract XML, media packets and timestamps',
+  'browser font rendering, actual disk persistence and player interoperability',
+];
 const relevantTags = (tags, keys) => Object.fromEntries(keys
   .filter((key) => tags && tags[key] !== undefined)
   .map((key) => [key, String(tags[key])]));
@@ -93,6 +105,17 @@ export function compareRoundtripFacts(before, after) {
           source: a ?? null, output: b ?? null });
       }
     }
+    // Preserve strict XML fidelity as a *potential difference*, not an
+    // automatic assertion of content loss or UID semantic mismatch.
+    for (const field of ['chapterXmlTree', 'tagXmlTree']) {
+      const a = before.deep?.[field];
+      const b = after.deep?.[field];
+      if (a === undefined && b === undefined) continue;
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        differences.push({ code: 'EXTRACTED_XML_TREE_DIFFERENCE', field,
+          source: a ?? null, output: b ?? null });
+      }
+    }
   }
   return differences;
 }
@@ -104,7 +127,7 @@ function runJson(command, args) {
   return JSON.parse(stdout);
 }
 
-function deepXmlFacts(file, temp, prefix) {
+function deepXmlFacts(file, temp, prefix, { completeXml = false } = {}) {
   const helper = fileURLToPath(new URL('./p0-summarize-ebml-xml.py', import.meta.url));
   const result = {};
   for (const [kind, field] of [['chapters', 'chapterHierarchy'], ['tags', 'p0MarkedTags']]) {
@@ -122,11 +145,19 @@ function deepXmlFacts(file, temp, prefix) {
       maxBuffer: 16 * 1024 * 1024, timeout: 60000,
     });
     result[field] = JSON.parse(normalized);
+    if (completeXml) {
+      const completeKind = kind === 'chapters' ? 'complete-chapters' : 'complete-tags';
+      const full = execFileSync(process.env.E2E_PYTHON || 'python3', [helper, completeKind], {
+        input: fs.readFileSync(output, 'utf8'), encoding: 'utf8',
+        maxBuffer: 16 * 1024 * 1024, timeout: 60000,
+      });
+      result[kind === 'chapters' ? 'chapterXmlTree' : 'tagXmlTree'] = JSON.parse(full);
+    }
   }
   return result;
 }
 
-function inspect(file, temporaryDir, prefix, deep = false) {
+function inspect(file, temporaryDir, prefix, deep = false, completeXml = false) {
   const ffprobe = runJson('ffprobe', [
     '-v', 'error', '-show_streams', '-show_chapters', '-show_format', '-of', 'json', file,
   ]);
@@ -146,14 +177,14 @@ function inspect(file, temporaryDir, prefix, deep = false) {
       size: bytes.length,
     });
   }
-  return { ffprobe, attachments, ...(deep ? { deep: deepXmlFacts(file, temporaryDir, prefix) } : {}) };
+  return { ffprobe, attachments, ...(deep ? { deep: deepXmlFacts(file, temporaryDir, prefix, { completeXml }) } : {}) };
 }
 
-export function checkRoundtrip(sourcePath, outputPath, { deep = false } = {}) {
+export function checkRoundtrip(sourcePath, outputPath, { deep = false, completeXml = false } = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'p0-matroska-audit-'));
   try {
-    const before = inspect(sourcePath, temp, 'source', deep);
-    const after = inspect(outputPath, temp, 'output', deep);
+    const before = inspect(sourcePath, temp, 'source', deep || completeXml, completeXml);
+    const after = inspect(outputPath, temp, 'output', deep || completeXml, completeXml);
     const differences = compareRoundtripFacts(before, after);
     return {
       schemaVersion: 1,
@@ -163,9 +194,12 @@ export function checkRoundtrip(sourcePath, outputPath, { deep = false } = {}) {
       outputBytes: fs.statSync(outputPath).size,
       outcome: differences.length ? 'DIFFERENCE_DETECTED' : 'CHECKED_FIELDS_MATCH',
       differences,
-      checked: deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
-      notChecked: deep ? DEEP_NOT_COVERED : NOT_COVERED,
-      caution: 'CHECKED_FIELDS_MATCH is not proof of lossless Matroska roundtrip.',
+      checked: completeXml ? [...COVERAGE, ...DEEP_COVERAGE, ...COMPLETE_XML_COVERAGE]
+        : deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
+      notChecked: completeXml ? COMPLETE_XML_NOT_COVERED : deep ? DEEP_NOT_COVERED : NOT_COVERED,
+      caution: completeXml
+        ? 'EXTRACTED_XML_TREE_DIFFERENCE is not necessarily semantic loss: legitimate UID remapping or normalization needs independent review. A match covers extracted XML, not all EBML.'
+        : 'CHECKED_FIELDS_MATCH is not proof of lossless Matroska roundtrip.',
       tools: {
         ffprobe: execFileSync('ffprobe', ['-version'], { encoding: 'utf8' }).split('\n')[0],
         mkvmerge: execFileSync('mkvmerge', ['--version'], { encoding: 'utf8' }).trim(),
@@ -179,15 +213,16 @@ export function checkRoundtrip(sourcePath, outputPath, { deep = false } = {}) {
 
 function cli() {
   const [source, output, reportFile, mode] = process.argv.slice(2);
-  const deep = mode === '--deep';
+  const completeXml = mode === '--complete-xml';
+  const deep = completeXml || mode === '--deep';
   if (!source || !output || !reportFile || (mode && !deep)) {
-    console.error('Usage: node scripts/p0-compare-roundtrip.mjs SOURCE.mkv OUTPUT.mkv REPORT.json [--deep]');
+    console.error('Usage: node scripts/p0-compare-roundtrip.mjs SOURCE.mkv OUTPUT.mkv REPORT.json [--deep|--complete-xml]');
     process.exitCode = 3;
     return;
   }
   let report;
   try {
-    report = checkRoundtrip(source, output, { deep });
+    report = checkRoundtrip(source, output, { deep, completeXml });
     console.log('P0 preservation comparison: ' + report.outcome);
     if (report.differences.length) {
       console.error(JSON.stringify(report.differences, null, 2));
@@ -197,8 +232,9 @@ function cli() {
     report = {
       schemaVersion: 1, sourceFile: path.basename(source), outputFile: path.basename(output),
       outcome: 'CHECK_UNAVAILABLE', error: String(error?.message || error),
-      checked: deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
-      notChecked: deep ? DEEP_NOT_COVERED : NOT_COVERED,
+      checked: completeXml ? [...COVERAGE, ...DEEP_COVERAGE, ...COMPLETE_XML_COVERAGE]
+        : deep ? [...COVERAGE, ...DEEP_COVERAGE] : COVERAGE,
+      notChecked: completeXml ? COMPLETE_XML_NOT_COVERED : deep ? DEEP_NOT_COVERED : NOT_COVERED,
     };
     process.exitCode = 3;
     console.error('P0 comparison unavailable: ' + report.error);
