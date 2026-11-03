@@ -128,11 +128,21 @@ try{
       record.softmux='PASS';
       record.comparableOutput=true;
     }catch(error){
-      // Unsupported native-authored geometry is valuable evidence but does
-      // not constitute an output failure. A produced-but-bad output DOES fail.
-      if(record.softmuxRoute)throw error;
-      record.softmux='BLOCKED_OR_UNSUPPORTED';
-      record.softmuxRefusal=String(error?.message||error);
+      // Only explicit, *known* policy/geometry limits may count as a measured
+      // capability gap. Treat unexpected parser/index/CRC errors as test
+      // failures: an unknown preparation error must not turn this CI green.
+      // Once a writer was selected, ANY execution/output failure is fatal.
+      const code=String(error?.message||error);
+      const expectedRefusals=new Set([
+        'P2_ROUTE_NO_VERIFIED_WRITER',
+        'P2_ROUTE_ORIGINAL_RAW_UNVERIFIED',
+        'P2_ROUTE_TAG_REFERENCED_UID',
+        'P2_ROUTE_GRAPH_UNVERIFIED',
+        'P2_ROUTE_SOURCE_OR_DATA_BUDGET',
+      ]);
+      if(record.softmuxRoute||!expectedRefusals.has(code))throw error;
+      record.softmux='BLOCKED_BY_KNOWN_CAPABILITY_LIMIT';
+      record.softmuxRefusal=code;
     }
     // Original source is immutable, even though native propedit edits a copy.
     if(sha(await fs.readFile(sourcePath))!==sourceSha)
