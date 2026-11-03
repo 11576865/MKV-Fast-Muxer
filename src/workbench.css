@@ -106,6 +106,56 @@
 }
 .asset-remove:hover { border-color: var(--danger); color: var(--danger); }
 
+/* The secondary MKV remains a source, not a second workspace or writer mode. */
+.embedded-source-attachments {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 10px;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.embedded-source-attachments > small { color: var(--muted); font-size: .69rem; }
+.embedded-source-attachments button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-0);
+  color: var(--text);
+  font: inherit;
+  font-size: .72rem;
+}
+.embedded-source-attachments button:disabled { opacity: .55; cursor: not-allowed; }
+.embedded-source-attachment-row {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.embedded-source-attachment-info {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.embedded-source-attachment-info strong { font-size: .73rem; overflow-wrap: anywhere; }
+.embedded-source-attachment-info small,
+.embedded-source-attachment-reason {
+  color: var(--muted);
+  font-size: .65rem;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .unified-intake-head { flex-direction: column; align-items: stretch; }
   .unified-intake-buttons { width: 100%; }
