@@ -9,7 +9,7 @@ Gate: `docs/ui-v3/UI_DESIGN_CONTRACT.md`.
 ## Work sequence (only approved scope)
 
 - [x] Record immutable Git baseline and owner-approved Figma frame identifiers.
-- [ ] WU-01: source-first desktop/empty surface, real File and scanned-track binding, preserve old engine and legacy UI rollback.
+- [~] WU-01: source-first desktop/empty surface, real File and scanned-track binding, preserve old engine and legacy UI rollback. **Browser pilot passed; Figma visual review and full V3 semantic acceptance remain open.**
 - [ ] WU-02: source-object selection, preview/extract, explicit target picker (no hidden inferred target).
 - [ ] WU-03: compositional output state and real mux/audit/save controls.
 - [ ] WU-04: source drawer, portrait/landscape/compact responsive reflow with state continuity.
@@ -44,3 +44,12 @@ No visual, interaction, real-media, tablet or release acceptance is claimed mere
 - Current blocker: the existing domain still computes a prospective composition on import; WU-01 hides the edit surface until user chooses `编辑拟输出`, but it **does not** yet implement a real optional OutputPlan transaction. WU-02 must close this before acceptance.
 - Current visual limitations: temporary icon glyphs, approximate CSS geometry, no paired Figma-vs-browser pixel diff, no actual timeline animations, no source track action buttons. These are known omissions, not accepted design changes.
 - Main/default UI, original File inputs, media execution and old diagnostic rollback remain untouched.
+
+
+### WU-01 CI result — 2026-11-04
+
+- **PASS on implementation HEAD** `7cb6fd62655494c57aa0789eb912616636d2586b` — dedicated [GitHub Actions run #41708165401](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41708165401).
+- Unit tests, Vite production build and actual Chromium V3 pilot passed; installed Chinese-capable system font and FFmpeg fixture runner. Browser exercised real `V3 Source 01.mkv`, observed source tracks, output hidden until explicit `编辑拟输出`, 1440×900 / 820×1180 / 620×900 screenshots, returning to source and exact original input/mux node identity.
+- Uploaded `ui-v3-pilot-source-first-evidence` (artifact ID `13267111641`) with five PNG screenshots and JSON evidence.
+- **Evidence limit:** Screenshot creation is not a reviewed Figma pixel diff. WU-01's initial icons are placeholder glyphs; real multi-source behavior, asset-level Figma fidelity, all motion and full object editing/actual output remain unaccepted.
+- Project default remains the pre-V3 UI, `?ui=v3` is an opt-in branch pilot, no merge to `main`.
