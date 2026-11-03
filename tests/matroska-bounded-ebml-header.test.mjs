@@ -51,7 +51,7 @@ test('bounded EBML headers reject bad ranges, unknown VINT, huge & truncated siz
   await expectReason(virtualSource(bytes(id,[0xff])),0,5,'UNKNOWN_OR_UNADDRESSABLE_SIZE');
   await expectReason(virtualSource(bytes(id,vint(1n<<54n,8)),Number.MAX_SAFE_INTEGER),
     0,Number.MAX_SAFE_INTEGER,'UNKNOWN_OR_UNADDRESSABLE_SIZE');
-  await expectReason(virtualSource(bytes(id,vint(100,1))),0,6,'ELEMENT_OUT_OF_BOUNDS');
+  await expectReason(virtualSource(bytes(id,vint(100,1))),0,5,'ELEMENT_OUT_OF_BOUNDS');
 });
 
 test('writer error translation preserves exact public code and does not hide unexpected errors',()=>{
