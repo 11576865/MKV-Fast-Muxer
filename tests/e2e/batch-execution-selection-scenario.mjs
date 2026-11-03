@@ -16,7 +16,7 @@ export async function scenarioBatchExecutionSelection(browser,{root,outDir,baseU
  const checked=()=>page.locator('#batchPlan [data-batch-execute-index]').evaluateAll(els=>els.map(el=>el.checked));
  const receipts=[];
  try{
-  await page.goto(baseUrl,{waitUntil:'networkidle'});await page.locator('[data-sf-view="batch"]').click();
+  await page.goto(baseUrl,{waitUntil:'networkidle'});await page.locator('#sf14More > summary').click();await page.locator('[data-sf-view="batch"]').click();
   await page.setInputFiles('#batchUnifiedInput',files);await waitCount(3);await waitReady();
   await page.locator('#batchSelectNoneBtn').click();await waitCount(0);assert.equal(await page.locator('#batchStartBtn').isDisabled(),true);
   await page.locator('#batchInvertSelectionBtn').click();await waitCount(3);
