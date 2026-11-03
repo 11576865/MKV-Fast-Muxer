@@ -61,6 +61,7 @@ try{
    const previewLog=await page.locator('#log').textContent();await fs.writeFile(path.join(dir,'preview.log'),previewLog);
    if(batch){
     const video=path.join(dir,'S03-S01E01.mp4');await fs.copyFile(path.join(root,'base.mp4'),video);
+    await page.locator('#sf14More > summary').click();
     await page.locator('[data-sf-view="batch"]').click();
     await page.setInputFiles('#batchUnifiedInput',[video,ass,sourceFont]);
     await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===1&&!document.querySelector('#batchStartBtn').disabled,null,{timeout:120000});
