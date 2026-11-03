@@ -1,0 +1,495 @@
+{
+  "schema_version": 1,
+  "repository": "11576865/MKV-Fast-Muxer",
+  "reviewed_from_main_sha": "f1c914cf122fcc4e0727c9e4b96c9726e852bae9",
+  "review_date": "2026-11-03",
+  "purpose": "User-authorized one-time exact-head merged branch cleanup; archive tags before SHA-lease deletion",
+  "entries": [
+    {
+      "branch": "docs/softmux-acceptance-reconciliation-20261101",
+      "sha": "98edca7f7d735c492ccf75ada230533938d9c6ef",
+      "pr": 211,
+      "merged_sha": "4e024e5d7b0b0e2aa80337fe23d8426ef75d576d"
+    },
+    {
+      "branch": "docs/softmux-v1-scope-b-1gb-20261020",
+      "sha": "6999fcaf85f095c4a17529b71dd9ca4860afa556",
+      "pr": 160,
+      "merged_sha": "4dd622a423fdfade4b1c6953c14c67f5eadcb906"
+    },
+    {
+      "branch": "feat/five-major-integrated-preview-20261013",
+      "sha": "ae7d297f1e4c35b9814756dc46be3afe76452f60",
+      "pr": 120,
+      "merged_sha": "31af804e5f60ec0da0f8dccf70e11e2551b7e591"
+    },
+    {
+      "branch": "feat/p1-container-project-import-review-20261013",
+      "sha": "b99597fc88d650eeb858bc5bd791e6c664b93bf7",
+      "pr": 121,
+      "merged_sha": "3ec608648b57de6231ae253a561cb9bc82f31d7f"
+    },
+    {
+      "branch": "feat/p1-detached-intent-chain-verification-20261014",
+      "sha": "1df4e11cfb62f768f886d9eed85bd353e95bec0b",
+      "pr": 123,
+      "merged_sha": "334596a86c6dd9091d5a5446c9db01132e16235e"
+    },
+    {
+      "branch": "feat/p1-detached-project-intent-conflict-preview-20261014",
+      "sha": "9ea98b721cb098b2a53494f0d5ce9e56d1e63581",
+      "pr": 124,
+      "merged_sha": "6d3f88a4ae7c0c67c7c058c3422ac4e32213b235"
+    },
+    {
+      "branch": "feat/p1-project-byteproof-relink-20261014",
+      "sha": "4d0ce26e3751fd18e1718a27a079d24d9b068ab5",
+      "pr": 122,
+      "merged_sha": "7e1274a70748810463129051e99529dbb1b62fa3"
+    },
+    {
+      "branch": "feat/p1-streamed-large-source-sha256-20261014",
+      "sha": "283e49cb99a433b7582c7d51061f49fe1acf4b49",
+      "pr": 126,
+      "merged_sha": "bdcdf6887725ff3eb563f4d2d55baf8b9b014c00"
+    },
+    {
+      "branch": "feat/p1-verified-track-transaction-20261014",
+      "sha": "578c74bcf37b6588182fb4d28cf8b3ea82274673",
+      "pr": 125,
+      "merged_sha": "1583570d59234a965c180b22a8fc24707703a24e"
+    },
+    {
+      "branch": "feat/p3-ass-dialogue-output-roundtrip-20261013",
+      "sha": "aaa79341acd780830610a8969cc514c807c75fc1",
+      "pr": 116,
+      "merged_sha": "45ff4edb847ae164946d3d070a947c80cfd8cbb4"
+    },
+    {
+      "branch": "feat/p3-ass-dynamic-multiframe-20261013",
+      "sha": "474fdb997af42e6d9500cfcf953ddddea3ad5ccd",
+      "pr": 119,
+      "merged_sha": "383274ad586719b202d7412a8e812b8d9398781c"
+    },
+    {
+      "branch": "feat/p3-ass-style-final-output-proof-20261013",
+      "sha": "9ae1d821cebce4c0c24af8659afff25445f95cd1",
+      "pr": 117,
+      "merged_sha": "22255a4130ecf04aaf8a0b494bd107ea1f868777"
+    },
+    {
+      "branch": "feat/p3-final-mkv-libass-render-proof-20261013",
+      "sha": "f4ea6096fb4d32823f0ca9e793408a07c47892cc",
+      "pr": 118,
+      "merged_sha": "9a19ae02fe63a2113c28624a343cb91b8a1a2d30"
+    },
+    {
+      "branch": "feat/softmux-0.1027-workerfs-source-20261021",
+      "sha": "633e092cc8914ea9129e5a7606827cdf98f4b895",
+      "pr": 172,
+      "merged_sha": "585f4e8e8473e09d0a4c7fa63d66368d9a9f9870"
+    },
+    {
+      "branch": "feat/softmux-1.0-completion-20261101",
+      "sha": "57f4906f50882b948c416aa30fdd9a4ebfcf462d",
+      "pr": 207,
+      "merged_sha": "b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9"
+    },
+    {
+      "branch": "feat/softmux-10.14-cohesive-workbench",
+      "sha": "9c9d38335fec2db554a53572a0d2552b330cb43b",
+      "pr": 153,
+      "merged_sha": "a1f4e0aa3af33c2459d8a66569b9043e75feec21"
+    },
+    {
+      "branch": "feat/softmux-attachment-only-delivery-20261101",
+      "sha": "cd54b391edef2efec761e293ae397b246050cd7a",
+      "pr": 208,
+      "merged_sha": "e9f9066966cc55fc9c3f30f7f60f5454b3ed2d11"
+    },
+    {
+      "branch": "feat/softmux-audio-only-mux-20261102",
+      "sha": "cabbd371a033c261deb21910a22d0b8992e4feff",
+      "pr": 223,
+      "merged_sha": "f1c914cf122fcc4e0727c9e4b96c9726e852bae9"
+    },
+    {
+      "branch": "feat/softmux-batch-execution-selection-20261102",
+      "sha": "d766418e643268c77dd3b3f8d1b2f985ec635f3a",
+      "pr": 221,
+      "merged_sha": "a86a26c837bf5134c8aa471cb498a8dd8f439c78"
+    },
+    {
+      "branch": "feat/softmux-batch-queue-controls-20261102",
+      "sha": "a405a56b5373dd745aadb7d92ac59372fb20efcf",
+      "pr": 220,
+      "merged_sha": "b1ef09510064369aaf5702c24b1735b9cfa76dec"
+    },
+    {
+      "branch": "feat/softmux-container-batch-review-20261101",
+      "sha": "f89d4fa203bde354ba1eaac046bb4d35b473ee2f",
+      "pr": 214,
+      "merged_sha": "ecf8ed855d69c1445ae4a5553560da3c8c6c0ce1"
+    },
+    {
+      "branch": "feat/softmux-embedded-ass-preview-20261101",
+      "sha": "b7b543708618a897449980ccc94b5bcc201a5046",
+      "pr": 213,
+      "merged_sha": "9dd537ffd6322971ff418df2bb144caa9574620b"
+    },
+    {
+      "branch": "feat/softmux-multi-source-drafts-20261101",
+      "sha": "dea66f1e069fdf111125f002000b184cdc8f3882",
+      "pr": 209,
+      "merged_sha": "ff20c2b8c8ef9fb2388ce0783f339183ab53eccd"
+    },
+    {
+      "branch": "feat/softmux-original-track-extraction-20261102",
+      "sha": "cd3da94a752fc5eef9382c5bd3a834eb2b76b140",
+      "pr": 222,
+      "merged_sha": "0f8153123ea5eadcc60d00a94b8c140062398e00"
+    },
+    {
+      "branch": "feat/softmux-release-reconciliation-20261101",
+      "sha": "c334d3daee7f32fc901355860a976da012b7f996",
+      "pr": 210,
+      "merged_sha": "83efdb649b8ba53bdf9255f778b8f0c6c67d2537"
+    },
+    {
+      "branch": "feat/softmux-s09-atomic-cross-domain-recovery-20261025",
+      "sha": "57ab1ca1ccc6f24e91393d913daaef41395ab9e5",
+      "pr": 203,
+      "merged_sha": "c615f75c2bb975c58830a625fa15f35168da8e97"
+    },
+    {
+      "branch": "feat/softmux-s09-local-recovery-shelf-20261026",
+      "sha": "31ea53d6b3506c4a6ee4d7adcc1343d075f95324",
+      "pr": 204,
+      "merged_sha": "36f71dc9ae80a4e0b463de51d2f3aa2edae64c02"
+    },
+    {
+      "branch": "feat/softmux-s09-unified-portable-workspace-bundle-20261025",
+      "sha": "e8e29f274eb99313c3a24dcb24652d9646f9244c",
+      "pr": 202,
+      "merged_sha": "e44e47608650b1289e0d32b02601f986a477f2bf"
+    },
+    {
+      "branch": "feat/softmux-s11-single-directory-save-retry-20261025",
+      "sha": "1b119d654f7b3067cbcaebd874ed9998e147ec7e",
+      "pr": 201,
+      "merged_sha": "0012f239301ba925b2d8d22fe2e556e0e59bdf6a"
+    },
+    {
+      "branch": "feat/softmux-s12-bounded-filedata-chunk-audit-20261023",
+      "sha": "2a5e3a7b5dbe07981da2b148a29523719d0161a7",
+      "pr": 188,
+      "merged_sha": "b52d6123a9258cfc992560c2305eabfbfbc6694a"
+    },
+    {
+      "branch": "feat/softmux-s12-cue-timing-proof-20261024",
+      "sha": "9ca50b87ac32ed8b30a8e4fddbd9bd1b6e6c44a5",
+      "pr": 198,
+      "merged_sha": "392b4f591bfd0f100d5a74e8b978365f7d2326ce"
+    },
+    {
+      "branch": "feat/softmux-s12-cue-track-block-source-output-20261024",
+      "sha": "5f7cb09f26d656c69eef1f2b36073f6feb2a2bdc",
+      "pr": 195,
+      "merged_sha": "dbd35c3c471bc3bb20af5fe195041462c3a46154"
+    },
+    {
+      "branch": "feat/softmux-s12-cues-proof-integrated-20261024",
+      "sha": "2c8c72499ae4b8288f976697852f326d9763539b",
+      "pr": 192,
+      "merged_sha": "1ea69f9ce2ddc6fe0f53c414eda1eae60fcabc5e"
+    },
+    {
+      "branch": "feat/softmux-s12-finished-index-integrated-20261024",
+      "sha": "5ed5a6399c046248623be0d4dbc22e29fa553465",
+      "pr": 194,
+      "merged_sha": "4b9137ae5a31a4b146b01f2916ec57da615604c0"
+    },
+    {
+      "branch": "feat/softmux-s12-readonly-source-class-admission-20261023",
+      "sha": "f0b9badc2191e4a0b2fca66d1dfb4f009579a03a",
+      "pr": 189,
+      "merged_sha": "495dc7c36b137c363511ce98a7642d640df92d8c"
+    },
+    {
+      "branch": "feat/softmux-s12-seekhead-index-graph-proof-20261024",
+      "sha": "7b5b2ccd37166d008698fd21016b083c75ae4c51",
+      "pr": 190,
+      "merged_sha": "9db24515792d22ff6e746fe94ca5e43adc12a6fb"
+    },
+    {
+      "branch": "feat/softmux-s12-user-source-output-index-audit-20261024",
+      "sha": "4302304f8b7121616c6b34462e14b314495a5817",
+      "pr": 200,
+      "merged_sha": "7c3ec734e962a719cd5c7001afd886807527eaef"
+    },
+    {
+      "branch": "feat/softmux-workspace-history-20261102",
+      "sha": "eeeaeccb2d5f62f2f9eba8448716f6061912e908",
+      "pr": 219,
+      "merged_sha": "9cd9fef6cf2b413558b7221780d853206b5ca1a0"
+    },
+    {
+      "branch": "feat/softmux1020-nonblocking-1gb-source-warning",
+      "sha": "9a33a31a46f38f24f4877227d1ee627d6ade086e",
+      "pr": 161,
+      "merged_sha": "85c0871b027dfb1306ede7cc862db58d5beaad69"
+    },
+    {
+      "branch": "feat/softmux1021-metadata-safe-navigation-20261020",
+      "sha": "11c17fdde26b31f29a28fae0080d447325458876",
+      "pr": 162,
+      "merged_sha": "7fb34422bfa5a743f0ddbc02eba5d51118b68ea0"
+    },
+    {
+      "branch": "feat/softmux1022-batch-retry-mainline-20261020",
+      "sha": "4d236eb9bad1e45592f7cb3efa503b4f575afe80",
+      "pr": 163,
+      "merged_sha": "2368422dd11dabf9f6ef26532505515400ddd531"
+    },
+    {
+      "branch": "feature/container-document-projection-v0-20261012",
+      "sha": "b7909ef13af94d09db5a34989e83229d56064ebf",
+      "pr": 85,
+      "merged_sha": "8ab92c0798f944d01dd4f3ad2fa99f409ca62219"
+    },
+    {
+      "branch": "feature/p1-general-container-target-r02-20261012",
+      "sha": "c267e639ef6058ceb1c1ca0f7401ba8a24af794f",
+      "pr": 88,
+      "merged_sha": "fee72462c687181348f7f1f2e181816c1dc8d30d"
+    },
+    {
+      "branch": "feature/p1-subtitle-intent-parity-20261012",
+      "sha": "37d5607bf86bc88934f8ffe36663a84821b0d961",
+      "pr": 86,
+      "merged_sha": "6ca303d2b9cc5e25d120d02d0843f34a1ad759ce"
+    },
+    {
+      "branch": "feature/p2-attachment-export-filename-safety-20261012",
+      "sha": "70cdb199c37fbd197c50667267d0528c9ae3feb9",
+      "pr": 90,
+      "merged_sha": "9bd2108938525997911cbff1f83cb3fe86ff2dad"
+    },
+    {
+      "branch": "feature/p2-attachment-only-jobplan-writer-r02-20261012",
+      "sha": "21350cd8e0818d230897a55fceec34e6908e0f86",
+      "pr": 93,
+      "merged_sha": "a2823e5c1f0d07c9913d3f7cbfd002832490af30"
+    },
+    {
+      "branch": "feature/p2-attachment-signature-and-r02-browser-20261012",
+      "sha": "76ec55ea79fdcd2916c89ac65e650fab47bef229",
+      "pr": 92,
+      "merged_sha": "f8ccc15c5d304d2d63034fe1f4f2f53360274c9d"
+    },
+    {
+      "branch": "feature/p2-attachment-tag-reference-impact-20261012",
+      "sha": "633bccefc733abec72043df5e817608bf90fe185",
+      "pr": 98,
+      "merged_sha": "0fc514e959d055fc510457945a7357a91d564fc7"
+    },
+    {
+      "branch": "feature/p2-browser-attachment-extraction-verified-base-20261012",
+      "sha": "92c8d9624d988fc7340c4f7b25f97448a0f0a76b",
+      "pr": 91,
+      "merged_sha": "8c3de2e86173693b936009c3210d4a4ee30eb6ab"
+    },
+    {
+      "branch": "feature/p2-browser-multi-attachment-only-20261012",
+      "sha": "03f2d6f57dbf014b92df1a2b9ab0e4f84decf32c",
+      "pr": 96,
+      "merged_sha": "9c414517e97e0fc7c14a926dc5b0dc9c3e08aeb4"
+    },
+    {
+      "branch": "feature/p2-cross-writer-seek-playback-oracles-20261013",
+      "sha": "58facfc721ccb8996721e5fbc6687e48ba043453",
+      "pr": 103,
+      "merged_sha": "f87c2178b573baf6150f0d78c20ebdcec68a87a2"
+    },
+    {
+      "branch": "feature/p2-existing-attachment-edit-intents-preservation-gate-20261012",
+      "sha": "7ae0b8895d3bac7e4324708ed22d2a112c98576e",
+      "pr": 97,
+      "merged_sha": "b58e5f4101245dc1da567e6d48b5ba1f45ade679"
+    },
+    {
+      "branch": "feature/p2-existing-mkv-append-attachment-candidate-20261012",
+      "sha": "199eac02688abf3423928d529d9d9b72abbb699c",
+      "pr": 101,
+      "merged_sha": "35de55eae204b19e3e931d03033fa93373f86cef"
+    },
+    {
+      "branch": "feature/p2-existing-void-layout-and-source-drift-matrix-20261013",
+      "sha": "8e2512bef015e287da6aca78355e0ae217d6bbff",
+      "pr": 102,
+      "merged_sha": "ec65c26f6affd265aeb693b5c066166132b12c91"
+    },
+    {
+      "branch": "feature/p2-multi-attachment-only-plan-writer-20261012",
+      "sha": "af71cf3461b868c4b13efa895557bf27fcd69540",
+      "pr": 95,
+      "merged_sha": "cf1e220ebfda74dbbf1e82bb221334d9e7d44a78"
+    },
+    {
+      "branch": "feature/p2-preservation-contract-raw-segment-20261012",
+      "sha": "b1e21b5ff5dc1513af1577e4347900427dc73661",
+      "pr": 100,
+      "merged_sha": "2240ccb94bd6a2221a33956d85b7cc2f5b4f3a89"
+    },
+    {
+      "branch": "feature/p2-r02-browser-create-png-only-20261012",
+      "sha": "e3ef0b4a26ce6dbf1e21abd7d986ef0865cbf790",
+      "pr": 94,
+      "merged_sha": "268b08e1ec406eb09dc92835b594d6f7db1acd99"
+    },
+    {
+      "branch": "feature/p2-readonly-existing-attachment-impact-ui-20261012",
+      "sha": "1e8eaccd09f4e3249bf34ee9a12762079359497e",
+      "pr": 99,
+      "merged_sha": "0fe76f450d0f93002feef686308cdc351e682da6"
+    },
+    {
+      "branch": "feature/p2-readonly-matroska-attachment-inventory-20261012",
+      "sha": "e6ad4e67f89f661b2bdce180c887ac1e7abbbb59",
+      "pr": 89,
+      "merged_sha": "f526d96d6f5f929f6b8cdcc3a48f5c50a2013207"
+    },
+    {
+      "branch": "fix/batch-start-atomic-preflight-20261012",
+      "sha": "b524d52d39d85c9078ed9473a11eb0aa692163ba",
+      "pr": 81,
+      "merged_sha": "df7720e3b2d889776df8526ecb0678b8264877dc"
+    },
+    {
+      "branch": "fix/p0-matroska-preservation-preflight-20261012",
+      "sha": "6ef7e973a1278e178e16c0b5e4fb429859ac0bf9",
+      "pr": 78,
+      "merged_sha": "9c49af8b32bc0b0926a07dfc1bad700627d60787"
+    },
+    {
+      "branch": "fix/p0-preservation-claims-20261012",
+      "sha": "7935eda6b94ed29c1d2c3f8e2754bf5ab77c27d5",
+      "pr": 82,
+      "merged_sha": "c01e7411e83ab85d64b7e924d55a82fde6c6a2ea"
+    },
+    {
+      "branch": "fix/softmux-directory-save-receipt-20261102",
+      "sha": "44f05f1791d2b4e0e409145cbe4b6d2e375d3a4e",
+      "pr": 218,
+      "merged_sha": "e82616090805b0b2ffd94244d46ac923fb0a5f13"
+    },
+    {
+      "branch": "fix/softmux-original-subtitle-timeline-20261101",
+      "sha": "fc5440914f6f4c424edf419edb7cd5a0424748a7",
+      "pr": 216,
+      "merged_sha": "76a211add5f3c9e0134544d19983f3e98c57e7b8"
+    },
+    {
+      "branch": "fix/softmux-s08-linked-segment-chapter-refusal-20261023",
+      "sha": "4e7641e86865260af2eff692b658f5cabd09821e",
+      "pr": 187,
+      "merged_sha": "2b33a0d0bda4533d8e2d2d064fec963d652906f3"
+    },
+    {
+      "branch": "fix/softmux-s11-batch-directory-readback-20261024",
+      "sha": "59b9d5fd957f9d414148bf1ed794572dc7ab58b3",
+      "pr": 199,
+      "merged_sha": "9b4c86e9f46e52514f6c88528372c2785bc2fe9d"
+    },
+    {
+      "branch": "fix/softmux-s11-batch-terminal-evidence-20261023",
+      "sha": "1bc923e9e8bb71f74c9c6e707a122683b10b63d8",
+      "pr": 183,
+      "merged_sha": "f33b8e3b89f0c71dd7dda47a7e8e532b16685d52"
+    },
+    {
+      "branch": "fix/softmux-s12-empty-stream-probe-20261021",
+      "sha": "e1e8181700626b76a59596754503ef7525a08547",
+      "pr": 171,
+      "merged_sha": "b49c8c125781e2210780de1c99d5d7f423896f88"
+    },
+    {
+      "branch": "fix/softmux-s13-composition-collision-20261023",
+      "sha": "942838cc69e6e06b3e2acc400a982fb65fc67692",
+      "pr": 182,
+      "merged_sha": "c94310878f2d7d5f56f60bf05bbcdae0d01c5f97"
+    },
+    {
+      "branch": "fix/softmux-s13-intake-collision-integrated-20261023",
+      "sha": "9a32e2ed269962cbc4f13b3fd175d44512dfde61",
+      "pr": 186,
+      "merged_sha": "18cb25ca56669ac8849c97ed809cee06d3877489"
+    },
+    {
+      "branch": "fix/softmux-source-track-editor-async-refresh-20261021",
+      "sha": "f0f97f4aa8debc3d27852e684e7744affcfa8434",
+      "pr": 167,
+      "merged_sha": "1b29e91c5169fc61ea19fd7f3c6428d80bdcb1b0"
+    },
+    {
+      "branch": "test/p0-attachmentuid-semantic-20261012",
+      "sha": "e06382e97129b8f08cdd0a5ac8ef5c87139a8680",
+      "pr": 84,
+      "merged_sha": "0b2d2a502e015374043f0bf664fbacd2cc14b82c"
+    },
+    {
+      "branch": "test/p0-trackuid-preservation-evidence-20261012",
+      "sha": "9ea68385ac9b8ece9e6bb03c359d7557651d18a5",
+      "pr": 83,
+      "merged_sha": "096d3a52b3e828175e9430b2ac41761765335ba3"
+    },
+    {
+      "branch": "test/softmux-bitmap-subtitle-output-20261101",
+      "sha": "afc48104eb3a723af95abd3ebf65f7469a33dd8a",
+      "pr": 212,
+      "merged_sha": "82caab404295e0f833214a147b0a3ff889185f8f"
+    },
+    {
+      "branch": "test/softmux-font-strategy-20261102",
+      "sha": "0be3ff4e47f84d70423929806e8d70477bf57e1d",
+      "pr": 217,
+      "merged_sha": "95423a389503979a8cbfa7ec4af570d15fb3b283"
+    },
+    {
+      "branch": "test/softmux-readonly-writer-boundary-20261101",
+      "sha": "00bf868cde79c4eaecc2cc8691d8c11f260dbe20",
+      "pr": 215,
+      "merged_sha": "49101cc2acb0b83186a86874c1b2126c25c2e8ce"
+    },
+    {
+      "branch": "test/softmux-s08-modern-protection-20261021",
+      "sha": "d17d923bfd7f2b785c9dfec22ddd2265761e5585",
+      "pr": 166,
+      "merged_sha": "fdf87a9710247db35adb041640facad5fa5d6380"
+    },
+    {
+      "branch": "test/softmux-s09-conflict-atomic-undo-20261021",
+      "sha": "a2955febf6fe454b24ed7c9dd773dcbdecde1c73",
+      "pr": 169,
+      "merged_sha": "b7d4a4fca5c3329e8654f90277f531a69f10f90f"
+    },
+    {
+      "branch": "test/softmux-s09-cross-reload-20261021",
+      "sha": "c8b04a5fd1166ee6fea92c6ef4fdeba569cd25eb",
+      "pr": 168,
+      "merged_sha": "072d3a794418c665f16f72c199c961ce9473289d"
+    },
+    {
+      "branch": "test/softmux-s10-twenty-real-mkv-batch-20261020",
+      "sha": "4410f53ef9f5f415904bd6741f9a1af86baf627d",
+      "pr": 164,
+      "merged_sha": "c3118ae308c1d2133969a179a6ec1479c3883d36"
+    },
+    {
+      "branch": "test/softmux-wu03-single-delivery-20261021",
+      "sha": "2173b16b966d03628d85009fdbaa367c2c48706c",
+      "pr": 165,
+      "merged_sha": "8a16d1473dc167a56b51ef581889bf3300d67bee"
+    }
+  ]
+}

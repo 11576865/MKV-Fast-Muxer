@@ -1,0 +1,24 @@
+{
+  "goal": "Organize Softmux branches; archive and delete only81 exact-head merged refs, retain open/unreviewed/system refs",
+  "status": "submitted_pending_external_execution",
+  "current_bounded_work_unit": "One-time allowlist archive and SHA-lease cleanup using existing maintenance workflow",
+  "completed_units": [
+    "124 remote branches/216 PR inventory",
+    "81 full merged PR head+merge ancestry validations",
+    "10 existing archive guard tests passed",
+    "Six verified old local branches deleted; local main advanced to f1c914c; active work branch64d42a1 and maintenance branch retained; clean working tree"
+  ],
+  "next_units": [
+    "Inspect one workflow execution status; if pending hand off without polling",
+    "Reconcile actual archive/delete counts on next continuation"
+  ],
+  "branch": "maintenance/archive-reviewed-merged-pr-refs",
+  "pr": null,
+  "latest_durable_commit": "1a162b0f7e6f56b8b11b7520296a96dfa6e85d3f",
+  "external_validation_states": {
+    "branch_cleanup_execution": "Pending push-triggered one-time archive and cleanup; do not claim remote deletion before log verification",
+    "UIGS_Intake": "Checked; existing rule reuse, no new knowledge"
+  },
+  "blockers": [],
+  "updated_at": "2026-11-03"
+}

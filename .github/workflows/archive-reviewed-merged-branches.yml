@@ -1,16 +1,16 @@
-name: One-time reviewed merged-PR branch archive
+name: Reviewed merged-PR branch cleanup 2026-11-03
 
 on:
   pull_request:
     paths:
       - 'scripts/archive_reviewed_merged_branches.py'
       - 'scripts/test_archive_reviewed_merged_branches.py'
-      - 'docs/branch-archive-allowlist-2026-10-11.json'
+      - 'docs/branch-archive-allowlist-2026-11-03.json'
       - '.github/workflows/archive-reviewed-merged-branches.yml'
   push:
-    branches: [main]
+    branches: [maintenance/archive-reviewed-merged-pr-refs]
     paths:
-      - '.github/workflows/archive-reviewed-merged-branches.yml'
+      - 'docs/branch-archive-allowlist-2026-11-03.json'
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +30,7 @@ jobs:
 
   archive:
     needs: safety-tests
-    if: github.repository == '11576865/MKV-Fast-Muxer' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.repository == '11576865/MKV-Fast-Muxer' && github.ref == 'refs/heads/maintenance/archive-reviewed-merged-pr-refs' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -43,4 +43,18 @@ jobs:
       - name: Archive exact reviewed heads, then delete only via SHA lease
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/archive_reviewed_merged_branches.py --apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/archive_reviewed_merged_branches.py --apply | tee branch-cleanup.log
+      - name: Preserve exact review inventory and cleanup receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: softmux-branch-cleanup-20261103
+          path: |
+            branch-cleanup.log
+            docs/branch-archive-allowlist-2026-11-03.json
+            docs/branch-inventory-2026-11-03.json
+          if-no-files-found: error
+          retention-days: 14

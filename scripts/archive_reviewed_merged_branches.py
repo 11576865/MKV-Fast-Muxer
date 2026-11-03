@@ -17,7 +17,7 @@ import urllib.request
 REPO = "11576865/MKV-Fast-Muxer"
 EXEMPT = {"main", "master", "uigs-outbox", "develop", "dev", "staging", "gh-pages"}
 EXEMPT_PREFIXES = ("release/", "releases/", "hotfix/", "maintenance/", "integration/")
-MANIFEST = Path(__file__).resolve().parents[1] / "docs/branch-archive-allowlist-2026-10-11.json"
+MANIFEST = Path(__file__).resolve().parents[1] / "docs/branch-archive-allowlist-2026-11-03.json"
 
 
 class Api:
@@ -168,6 +168,10 @@ def main():
     if not current_main or not is_ancestor(api, manifest["reviewed_from_main_sha"], current_main):
         raise RuntimeError("Main diverged from the reviewed merge baseline")
 
+    # Merged PR identity is immutable; refresh mutable branches/open PR use
+    # at the final write boundary, avoiding duplicate reads that exhaust the
+    # repository-scoped Actions API quota on this 81-entry allowlist.
+    initial_active_prs = api.all_open_prs()
     deleted = 0
     retained = 0
     failed = []
@@ -176,7 +180,7 @@ def main():
         try:
             branch_info = api.request(f"/repos/{REPO}/branches/{q(name)}", missing_ok=True)
             pr = api.request(f"/repos/{REPO}/pulls/{entry['pr']}")
-            active = api.all_open_prs()
+            active = initial_active_prs
             if not approved_identity(entry, branch_info, pr, active):
                 print(f"RETAIN {name}: branch/head/PR/active-use contract not met")
                 retained += 1
@@ -202,7 +206,7 @@ def main():
             if not approved_identity(
                 entry,
                 api.request(f"/repos/{REPO}/branches/{q(name)}", missing_ok=True),
-                api.request(f"/repos/{REPO}/pulls/{entry['pr']}"),
+                pr,
                 api.all_open_prs(),
             ):
                 print(f"RETAIN {name}: safety contract changed")
