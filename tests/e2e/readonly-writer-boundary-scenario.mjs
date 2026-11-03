@@ -30,6 +30,7 @@ export async function scenarioReadonlyWriterBoundary(browser,{outDir,baseUrl,nat
  let downloads=0;page.on('download',()=>downloads++);
  try{
   await page.goto(baseUrl,{waitUntil:'networkidle'});
+  await page.locator('#sf14More > summary').click();
   await page.locator('[data-sf-view="tools"]').click();
   await page.locator('#existingMkvRoutedEditDetails > summary').click();
   await page.locator('#attachmentExtractionDetails > summary').click();
@@ -60,6 +61,7 @@ export async function scenarioReadonlyWriterBoundary(browser,{outDir,baseUrl,nat
    assert.ok((await page.locator('#existingMkvRoutedStatus').textContent()).includes(expectedCodes[i]),'read-only success must not authorize writer execution');
    assert.equal(await page.locator('#existingMkvRoutedSave').isDisabled(),true);
   }
+  await page.locator('#sf14More > summary').click();
   await page.locator('[data-sf-view="batch"]').click();
   await page.setInputFiles('#batchUnifiedInput',files);
   await page.waitForFunction(()=>!document.querySelector('#batchInspectBtn').disabled,null,{timeout:60000});
