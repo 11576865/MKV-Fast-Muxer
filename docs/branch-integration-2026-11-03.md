@@ -46,3 +46,7 @@ No change to `src/`, `index.html`, `package.json`, any 14/44/57 verdict, product
 Fresh whole-branch review: no Critical/Important integration findings. The reviewer independently reran all 15 imported tests successfully, confirmed the nine #179 implementation/oracle files exactly match `e54e31a`, no production imports or bundled research assets, and no weakening of existing S12 checks.
 
 Deferred minor: the simplified `research/s12-browser-byte-lane.mjs` page can change selection during an async combination, retain old evidence, and download a result bound to the older File. It is historical research code, not production UI. The separate Wasm research page has epoch/File identity guards; its guarantees must not be attributed to the simplified page. This inherited research UI limitation remains open and must be fixed before treating that page as a product flow.
+
+## Terminal integration result
+
+PR #225 merged into main as `003c2364163da4a8f9778c32a6b69d8b605d4bf7`. All nine historical PRs were closed only after fresh exact-head checks and supersession notes. The repository open-PR inventory was independently fetched after closure and was empty. Historical refs are retained. External combined-tree/browser/native/deployment validation remains pending; this is a completed integration unit, not a completed 1.0 release.

@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "remaining_pr_consolidation_reviewed_ready_to_merge",
-  "current_bounded_work_unit": "Consolidate all nine historical open PRs into one isolated research/audit integration; preserve current production and known red evidence",
+  "status": "remaining_prs_integrated_pending_external_validation",
+  "current_bounded_work_unit": "All nine historical open PRs resolved via merged PR225; source lineage/evidence retained and old PRs closed; open PR inventory verified empty",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -42,18 +42,19 @@
     "0.1046 five actual mixed video/audio outputs plus two zero-track attachment-only and one legacy-picker media regression output: PNG/PDF/explicit JSON full native payloads, original image preserved as FileData, shared source/font/ordinary name allocation, selective source image metadata/font exclusion, media packet hashes/PTS, generic membership stale/reinclude.839 tests/build; fresh review13 focus tests. Late ASS audit cancellation browser RED published, GREEN final guard refuses and retry succeeds.",
     "PR224 cf3782e: Deploy41483148334 and S1241483148371 success; Browser41483148386 failed obsolete candidate line72 expected Start disabled for generic attachment. Scoped repair updates capability expectation, retains add/remove/index staleness checks, independently verifies new actual PNG FileData/report SHA, and regenerates current media-only baseline before equal-label File swap. Four actual candidate outputs/preview and three viewports pass locally;839 unit tests pass; no product version/behavior change.",
     "PR #224 repaired exact head64d42a1 passed Browser41486368822, S1241486368563 and Deploy41486368741; squash merged into main @c60c83729b6515ab95eed664e1133d12c47feea3 on2026-11-03",
-    "2026-11-03 PR206 exact head651fdf0 documentation CI41230982019 success; squash merged @2c8891b9740f0522ff5094451162c68cfd4d64d0. PR205 closed after confirming main retains original release gate plus formal deployment and dirty-checkout protections from PR210."
+    "2026-11-03 PR206 exact head651fdf0 documentation CI41230982019 success; squash merged @2c8891b9740f0522ff5094451162c68cfd4d64d0. PR205 closed after confirming main retains original release gate plus formal deployment and dirty-checkout protections from PR210.",
+    "2026-11-03 PR225 independently reviewed (no Critical/Important),854/854 tests/build passed; merged @003c2364163da4a8f9778c32a6b69d8b605d4bf7. Historical PR196,181,179,178,176,174,170,154,76 closed as consolidated/superseded with source SHA guards; verified zero remaining open PRs."
   ],
   "next_units": [
-    "Review remaining nine open historical research PRs individually, beginning PR196; preserve research-only publication restrictions and do not merge obsolete product baselines",
+    "Check exact PR225 combined-tree external CI once on next continuation; do not substitute historical research success for current native/browser evidence",
     "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "integration/softmux-remaining-prs-20261103",
+  "branch": "main",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/225",
-  "latest_durable_commit": "cacd84255c53829bc6636b0b6c50d5020df1e2d4",
+  "latest_durable_commit": "003c2364163da4a8f9778c32a6b69d8b605d4bf7",
   "external_validation_states": {
-    "node_build_local": "839/839 passed; build passed",
+    "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR22464d42a1 all full workflows passed; merged into mainc60c837",
     "physical_tablet": "unavailable",
@@ -97,8 +98,8 @@
     "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
     "media_ordinary_attachments_ci": "PR22464d42a1 Browser41486368822/S1241486368563/Deploy41486368741 success; merged c60c837",
     "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views",
-    "post_merge_main_ci": "Pending main push workflows; prior exact PR-head success does not claim post-merge deployment completion",
-    "branch_integration": "PR206 merged; PR205 superseded/closed; no production behavior or acceptance verdict changes",
+    "post_merge_main_ci": "Pending External Validation: PR225 combined-tree native/browser checks and main deployment not yet claimed",
+    "branch_integration": "Complete: PR225 merged; nine old PRs closed with exact SHA checks and supersession notes; repository open PR inventory empty",
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
     "remaining_pr_consolidation_native_browser": "Pending External Validation: current local environment has no Chromium/FFmpeg/MKVToolNix; exact historical #179 CI success retained, not combined-tree proof",
     "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report"
@@ -106,5 +107,5 @@
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-03T04:25:00Z"
+  "updated_at": "2026-11-03T04:30:00Z"
 }

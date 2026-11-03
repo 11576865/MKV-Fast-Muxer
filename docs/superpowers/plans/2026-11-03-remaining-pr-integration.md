@@ -24,7 +24,7 @@
 - [x] Consolidate isolated research and independent audits with provenance; run all imported focused Node tests.
 - [x] Preserve controlled attachment cardinality fixture support; retain current native oracle and exact count/hash checks.
 - [x] Run full Node/build and request independent whole-branch review; new combined native/browser proof is explicitly pending under the environment ruling.
-- [ ] Push one coherent integration commit, merge, close all nine old PRs with exact disposition; persist terminal task state.
+- [x] Push one coherent integration commit, merge, close all nine old PRs with exact disposition; persist terminal task state.
 
 ## Decisions
 - Ruling: preserve research source files as research-only without connecting them to the production UI. Cost if wrong: research remains unavailable to end users rather than granting an unproven writer.
@@ -38,3 +38,5 @@
 
 - Final review: no Critical/Important issues; independent 15/15 tests passed.
 - Final: minor (deferred): simplified byte-lane research page retains old input evidence during async source switching; not production, and not covered by Wasm page identity guarantees.
+
+- Terminal: PR225 merged003c236; all nine oldPRs closed with unchanged head guards; zero openPRs verified. External validation remains pending.

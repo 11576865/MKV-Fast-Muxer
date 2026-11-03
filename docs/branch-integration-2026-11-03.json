@@ -490,5 +490,22 @@
       "integration_blob": "7b5c825ad943cd3c5f3d71d25f6cf87800fa1238",
       "annotated_or_adapted": false
     }
-  ]
+  ],
+  "result": {
+    "integration_pr": 225,
+    "merge_commit": "003c2364163da4a8f9778c32a6b69d8b605d4bf7",
+    "closed_prs": [
+      196,
+      181,
+      179,
+      178,
+      176,
+      174,
+      170,
+      154,
+      76
+    ],
+    "open_pr_count_verified": 0,
+    "external_validation": "Pending External Validation"
+  }
 }
