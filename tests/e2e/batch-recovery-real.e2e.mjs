@@ -87,6 +87,7 @@ try{
    }};
   window.__s10Directory=directory;window.showDirectoryPicker=async()=>directory;
  });
+ await page.locator('#sf14More > summary').click();
  await page.locator('[data-sf-view="batch"]').click();
  console.log('S10 recovery standalone loaded, batch view open');
  // An invalid pairing is a preflight refusal, never a fake executed task.
