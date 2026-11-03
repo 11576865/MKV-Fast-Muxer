@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "s10_combined_recovery_main_integrated",
-  "current_bounded_work_unit": "PR226 exact66f5745 full Node/build/Browser CI passed including both actual20-job suites; merged9cabaf7 into main",
+  "status": "s03_canonical_subset_fix_pending_actual_green",
+  "current_bounded_work_unit": "0.1047 S03 real TTC/OTC two-face evidence and CFF canonical combining glyph regression; add subset-only NFC/NFD closure before dedup, actual single/batch outputs pending GREEN",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -52,9 +52,9 @@
     "Complete S03 OTC/multi-face/shaping actual output acceptance; retain S10 bounded combined recovery proof without promoting physical-device or full formal verdicts",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "main",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/226",
-  "latest_durable_commit": "9cabaf7e6bf762f3a44884f4d6c062b7a7e01441",
+  "branch": "test/softmux-s03-collections-shaping-20261103",
+  "pr": null,
+  "latest_durable_commit": "e312fdc999fdab4cb185863372b9969cfc8a04c2",
   "external_validation_states": {
     "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -107,7 +107,9 @@
     "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report",
     "s10_combined_recovery": "Actual isolated Chromium153/native run PASS:20output SHA/packet/subtitle proofs,22mux attempts40unique writes; durable JSON verified PASS20/22/40/errors[].",
     "s10_combined_review": "Fresh review: no Critical; Important stale receipt fixed by isolated successful rerun and validated copy; Minor exact font identity oracle deferred, no identity/shaping claim.",
-    "s10_combined_ci": "Success exact66f5745: Browser41598811773 includes baseline20,combined20faultrecovery,allbrowser; Deploy41598812039 Node/build passed; merged9cabaf7"
+    "s10_combined_ci": "Success exact66f5745: Browser41598811773 includes baseline20,combined20faultrecovery,allbrowser; Deploy41598812039 Node/build passed; merged9cabaf7",
+    "s03_collection_shaping": "Fixtures/native oracle/mandatory Chromium scenario implemented; actual local validation in progress, no PASS claim",
+    "s03_canonical_subset": "RED actual CFF output changed a+acute to two glyphs and89pixels; focused subset tests2RED then5GREEN after fix. TTC/realCFF OTC originalbyte/two-face native positive+negative already pass. Repaired valid ASS and single/batch native full rerun pending."
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"

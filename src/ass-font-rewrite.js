@@ -262,15 +262,22 @@ export function analyzeAssFontUsage(text) {
     return item;
   };
 
-  const addVisibleText = (face, value, source) => {
-    const item = ensureUsage(face, source);
-    if (!item) return;
-
-    for (const char of decodeAssVisibleText(value)) {
+  const addSubsetText = (value) => {
+    for (const char of value) {
       const cp = char.codePointAt(0);
       if (cp >= 0x20 && !(cp >= 0x7f && cp <= 0x9f) && !/[\u2028\u2029]/u.test(char)) {
         subsetCharacters.add(char);
       }
+    }
+  };
+
+  const addVisibleText = (face, value, source) => {
+    const item = ensureUsage(face, source);
+    if (!item) return;
+
+    const visible = decodeAssVisibleText(value);
+    addSubsetText(visible);
+    for (const char of visible) {
       if (!isMeaningfulCharacter(char)) continue;
       item.characters.add(char);
       allCharacters.add(char);
@@ -307,6 +314,7 @@ export function analyzeAssFontUsage(text) {
     let currentFace = { ...baseFace };
     let transformFaces = [];
     let drawingMode = 0;
+    let subsetVisibleText = '';
 
     if (currentFace.name) {
       ensureUsage(currentFace, `style:${eventStyleName || baseStyle?.name || 'Default'}`);
@@ -378,12 +386,21 @@ export function analyzeAssFontUsage(text) {
       }
 
       if (drawingMode === 0 && currentFace.name) {
+        subsetVisibleText += decodeAssVisibleText(piece);
         addVisibleText(currentFace, piece, eventStyleName ? `dialogue:${eventStyleName}` : 'dialogue');
         for (const transformed of transformFaces) {
           addVisibleText(transformed, piece, 'transform:\\t');
         }
       }
     }
+    // HarfBuzz may canonically compose/decompose authored text while shaping.
+    // Add both repertoires BEFORE deduplication loses sequence information,
+    // including visible runs separated by non-text overrides. This changes
+    // subset closure only; source ASS and authored-character diagnostics stay
+    // unchanged. Compatibility normalization would change typography, so it
+    // is deliberately excluded.
+    addSubsetText(subsetVisibleText.normalize('NFC'));
+    addSubsetText(subsetVisibleText.normalize('NFD'));
   }
 
   return {

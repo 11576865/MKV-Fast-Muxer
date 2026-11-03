@@ -164,6 +164,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: S03 - actual font collection faces and CFF subset shaping
+        run: node tests/e2e/font-collections-shaping.e2e.mjs
+
+      - name: Upload S03 collection and shaping evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s03-collection-face-and-shaping-native-evidence
+          path: |
+            .e2e/s03-collection-output/s03-collection-shaping-evidence.json
+            .e2e/s03-collection-output/*/*.png
+            .e2e/s03-collection-output/*/*.log
+            .e2e/s03-collection-output/*/output.mkv
+            .e2e/s03-collection-output/*/report.json
+            .e2e/s03-font-inputs/fixture-manifest.json
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
 

@@ -1,0 +1,92 @@
+{
+  "status": "CONFIRMED_PRE_FIX_RED",
+  "source_baseline": "e312fdc999fdab4cb185863372b9969cfc8a04c2",
+  "scope": "CFF OpenType subset loses canonical precomposed cmap candidate despite retained authored a and combining mark",
+  "source_shape": {
+    "upem": 2048,
+    "glyphCount": 4,
+    "clusters": [
+      0,
+      3,
+      4,
+      5
+    ],
+    "positions": [
+      [
+        1255,
+        0,
+        0,
+        0
+      ],
+      [
+        651,
+        0,
+        0,
+        0
+      ],
+      [
+        1270,
+        0,
+        0,
+        0
+      ],
+      [
+        1401,
+        0,
+        0,
+        0
+      ]
+    ],
+    "hasNotdef": false
+  },
+  "subset_shape": {
+    "upem": 2048,
+    "glyphCount": 5,
+    "clusters": [
+      0,
+      0,
+      3,
+      4,
+      5
+    ],
+    "positions": [
+      [
+        1255,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        -157,
+        0
+      ],
+      [
+        651,
+        0,
+        0,
+        0
+      ],
+      [
+        1270,
+        0,
+        0,
+        0
+      ],
+      [
+        1401,
+        0,
+        0,
+        0
+      ]
+    ],
+    "hasNotdef": false
+  },
+  "source_font_sha256": "5d0d0e399431914162ae08280c45bf95cdc7cf05da6f68e11da1ab4be199a7af",
+  "subset_font_sha256": "4fc395b43c2021050f3e67d23b7f399be270825254467ecbed1da73fbb88c59e",
+  "reference_png_sha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
+  "actual_png_sha256": "0cd367fbf82ae73d45a7b63c786318c352a8795599f21eaa59a85a7a88e79123",
+  "changed_pixels": 89,
+  "note": "Initial fixture had an unrelated AngleStyle Format typo, corrected before GREEN. Native HarfBuzz independently confirms canonical glyph-count/position difference; no product failure inferred from that style typo."
+}

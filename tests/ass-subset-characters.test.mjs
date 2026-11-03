@@ -24,3 +24,21 @@ test('ASS soft line breaks retain a space glyph even when no literal space exist
  assert.ok(analyzeAssFontUsage(single(String.raw`A\nB`)).subsetCharacters.includes(' '));
  assert.ok(!analyzeAssFontUsage(single(String.raw`A\NB`)).subsetCharacters.includes(' '));
 });
+
+const normalizationAss=text=>ass.replace(/Dialogue:.*\nComment:/,()=>`Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,,${text}\nComment:`);
+test('ASS subset closure retains canonical composed forms before character deduplication',()=>{
+ const analysis=analyzeAssFontUsage(normalizationAss('a XYZ a\u0301'));
+ for(const c of ['a','\u0301','á'])assert.ok(analysis.subsetCharacters.includes(c),'missing canonical repertoire member '+c);
+ assert.ok(!analysis.allCharacters.includes('á'),'diagnostics describe authored characters, not subset-only normalization candidates');
+});
+test('ASS subset closure retains canonical decompositions and visible runs across overrides',()=>{
+ const composed=analyzeAssFontUsage(normalizationAss('á'));
+ for(const c of ['a','\u0301','á'])assert.ok(composed.subsetCharacters.includes(c));
+ const split=analyzeAssFontUsage(normalizationAss(String.raw`a{\bord1}́`));
+ assert.ok(split.subsetCharacters.includes('á'),'non-text override must not hide a canonical composition candidate');
+});
+test('ASS canonical subset closure does not use compatibility normalization or include drawing/comment text',()=>{
+ const analysis=analyzeAssFontUsage(normalizationAss(String.raw`ﬃ{\p1}á{\p0}`));
+ assert.ok(analysis.subsetCharacters.includes('ﬃ'));
+ for(const c of ['f','i','á','a','\u0301','Ω'])assert.ok(!analysis.subsetCharacters.includes(c));
+});
