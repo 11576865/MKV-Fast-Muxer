@@ -1,6 +1,6 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "remaining_pr_consolidation_ready_for_review",
+  "status": "remaining_pr_consolidation_reviewed_ready_to_merge",
   "current_bounded_work_unit": "Consolidate all nine historical open PRs into one isolated research/audit integration; preserve current production and known red evidence",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
@@ -50,8 +50,8 @@
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "integration/softmux-remaining-prs-20261103",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/206",
-  "latest_durable_commit": "2c8891b9740f0522ff5094451162c68cfd4d64d0",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/225",
+  "latest_durable_commit": "cacd84255c53829bc6636b0b6c50d5020df1e2d4",
   "external_validation_states": {
     "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
@@ -100,10 +100,11 @@
     "post_merge_main_ci": "Pending main push workflows; prior exact PR-head success does not claim post-merge deployment completion",
     "branch_integration": "PR206 merged; PR205 superseded/closed; no production behavior or acceptance verdict changes",
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
-    "remaining_pr_consolidation_native_browser": "Pending External Validation: current local environment has no Chromium/FFmpeg/MKVToolNix; exact historical #179 CI success retained, not combined-tree proof"
+    "remaining_pr_consolidation_native_browser": "Pending External Validation: current local environment has no Chromium/FFmpeg/MKVToolNix; exact historical #179 CI success retained, not combined-tree proof",
+    "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-03T04:20:00Z"
+  "updated_at": "2026-11-03T04:25:00Z"
 }

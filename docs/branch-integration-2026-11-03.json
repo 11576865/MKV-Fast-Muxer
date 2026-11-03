@@ -216,5 +216,279 @@
       ],
       "disposition": "independent preservation comparator and negative tests; known-red legacy writer entry not enabled"
     }
+  ],
+  "source_files": [
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": ".github/workflows/s12-reattach-seekhead-research.yml",
+      "original_blob": "cd0c38ac70194c902f2e31bdbab70efc5a719b5c",
+      "integration_blob": "7e6936112faaf6b5206375c764454f93796713e7",
+      "annotated_or_adapted": true
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "research/s12-browser-byte-lane.html",
+      "original_blob": "010884bade2293537c7b3ee864437ebd9aba9d93",
+      "integration_blob": "010884bade2293537c7b3ee864437ebd9aba9d93",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "research/s12-browser-byte-lane.mjs",
+      "original_blob": "0a72cdb917079c85d35d44761a01422ce6680c83",
+      "integration_blob": "0a72cdb917079c85d35d44761a01422ce6680c83",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "research/s12-browser-wasm-reattach.html",
+      "original_blob": "88722af55d35c9f3d7948b00865299c8fbd34f7b",
+      "integration_blob": "88722af55d35c9f3d7948b00865299c8fbd34f7b",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "research/s12-browser-wasm-reattach.mjs",
+      "original_blob": "926dfdefd589ec948cd9ba8247948fb664885d71",
+      "integration_blob": "926dfdefd589ec948cd9ba8247948fb664885d71",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "research/s12-reattach-seekhead-prototype.mjs",
+      "original_blob": "ac6e815e945e6b48ca3f62a71b74b271a8a1406e",
+      "integration_blob": "ac6e815e945e6b48ca3f62a71b74b271a8a1406e",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "scripts/s12-reattach-seekhead-large-native-oracle.mjs",
+      "original_blob": "789311d22b954b8e76dd7eb376b713f504f3fdd3",
+      "integration_blob": "789311d22b954b8e76dd7eb376b713f504f3fdd3",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "scripts/s12-reattach-seekhead-native-oracle.mjs",
+      "original_blob": "c1253d1db9189af118fd3e3d92ea52e0f2584c5d",
+      "integration_blob": "c1253d1db9189af118fd3e3d92ea52e0f2584c5d",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "tests/e2e/s12-browser-reattach-byte-lane.e2e.mjs",
+      "original_blob": "0b0314e67ed1d5d56ab84c33f522c0d4df152860",
+      "integration_blob": "0b0314e67ed1d5d56ab84c33f522c0d4df152860",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-1gib-20261022",
+      "sha": "e54e31a0a1b13b8d6492a0ad8492b305400c931a",
+      "path": "tests/e2e/s12-browser-wasm-reattach.e2e.mjs",
+      "original_blob": "99505de49295645ce50aa0457c219fb33373a79b",
+      "integration_blob": "99505de49295645ce50aa0457c219fb33373a79b",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/softmux-s12-wasm-reattach-evidence-20261023",
+      "sha": "60e22ecd9671cbb97949ebb9310a7b04243158d7",
+      "path": "docs/s12-original-attachments-browser-byte-lane-research-gates-20261023.md",
+      "original_blob": "ebe010ab2a5e6e5307b7cbc534e64ce9209074f6",
+      "integration_blob": "c432c22e7d882c252c392e8fef96ee8e9755bf26",
+      "annotated_or_adapted": true
+    },
+    {
+      "source": "origin/research/softmux-s12-void-resident-seekhead-repair-20261024",
+      "sha": "9b358a591053361732501772a584b000ef331f6e",
+      "path": "docs/s12-void-resident-seekhead-repair-research-20261024.md",
+      "original_blob": "f865ada7be8bf3b4bf23a19284e6059be3accfbb",
+      "integration_blob": "fc5a87a848e83ba8ac25a702c9834204352c9dc7",
+      "annotated_or_adapted": true
+    },
+    {
+      "source": "origin/research/softmux-s12-void-resident-seekhead-repair-20261024",
+      "sha": "9b358a591053361732501772a584b000ef331f6e",
+      "path": "research/s12-void-resident-seekhead-repair.mjs",
+      "original_blob": "b227198d0ef5357b073f8fb47733ac417a16b1f4",
+      "integration_blob": "b227198d0ef5357b073f8fb47733ac417a16b1f4",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/research/softmux-s12-void-resident-seekhead-repair-20261024",
+      "sha": "9b358a591053361732501772a584b000ef331f6e",
+      "path": "tests/s12-void-resident-seekhead-repair.test.mjs",
+      "original_blob": "875d55f1a409c948c51693678ba653cfeca3451a",
+      "integration_blob": "875d55f1a409c948c51693678ba653cfeca3451a",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/README.md",
+      "original_blob": "bd0be42a04efc5df3bdad44754a305a385497aa6",
+      "integration_blob": "1ab4d587924214336d38f47f03ce9d3639ee7936",
+      "annotated_or_adapted": true
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/baseline.json",
+      "original_blob": "0236346ecbab052f46edd5cdf46b2ef3052cebec",
+      "integration_blob": "0236346ecbab052f46edd5cdf46b2ef3052cebec",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/capture.mjs",
+      "original_blob": "6b3d736654dafa968c385370cfb290cf9052063f",
+      "integration_blob": "6b3d736654dafa968c385370cfb290cf9052063f",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/desktop-source-1440.png",
+      "original_blob": "a1faee33454c7535772a9815aa7ba0cbfd9bd993",
+      "integration_blob": "a1faee33454c7535772a9815aa7ba0cbfd9bd993",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/phone-composition-360.png",
+      "original_blob": "e2dcdc3901fa8e68feda2cb279e143730efdda94",
+      "integration_blob": "e2dcdc3901fa8e68feda2cb279e143730efdda94",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/phone-composition-390.png",
+      "original_blob": "ce991f990adaae7c5f6f2721a3e3435f839825b3",
+      "integration_blob": "ce991f990adaae7c5f6f2721a3e3435f839825b3",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-attachments-1180.png",
+      "original_blob": "06220ddaa6f957e4688562a5c0f2470212ad69d5",
+      "integration_blob": "06220ddaa6f957e4688562a5c0f2470212ad69d5",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-batch-1180.png",
+      "original_blob": "efbab16d5f3cfe02837ca7d22092a2eb51c0a3c7",
+      "integration_blob": "efbab16d5f3cfe02837ca7d22092a2eb51c0a3c7",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-complex-source-blocked-1180.png",
+      "original_blob": "72225bea68181f448ae05a5fa66430b5e8a2c114",
+      "integration_blob": "72225bea68181f448ae05a5fa66430b5e8a2c114",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-delivery-1180.png",
+      "original_blob": "584c6930e3d8b10c82996a16a95de5f824810752",
+      "integration_blob": "584c6930e3d8b10c82996a16a95de5f824810752",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-edited-audio-1180.png",
+      "original_blob": "e31ca6ecd8fda89c873bda1c11e79833f688b567",
+      "integration_blob": "e31ca6ecd8fda89c873bda1c11e79833f688b567",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-landscape-empty-1180.png",
+      "original_blob": "ab830f8e8418d0bb55419fac4273e68ab97f12f5",
+      "integration_blob": "ab830f8e8418d0bb55419fac4273e68ab97f12f5",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-landscape-source-1024.png",
+      "original_blob": "5777458ee613f0535c07ea5dffb882c7ddd26feb",
+      "integration_blob": "5777458ee613f0535c07ea5dffb882c7ddd26feb",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-landscape-source-1180.png",
+      "original_blob": "d17bf67b34860e42482a6c3b10bd87aa4e7f0a00",
+      "integration_blob": "d17bf67b34860e42482a6c3b10bd87aa4e7f0a00",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/feat/softmux-10.14-ui-audit-20261015",
+      "sha": "040d23c65d73f8135f5eb8caa6c193a69071b454",
+      "path": "docs/ui-audit-20261015/screenshots/tablet-portrait-source-820.png",
+      "original_blob": "bfab113848c1b1460d85ed945c6741250aee6ad2",
+      "integration_blob": "bfab113848c1b1460d85ed945c6741250aee6ad2",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/p0-preservation-baseline-20261012",
+      "sha": "79864aeaa99a1dee8500ad44e3a9ba0904e13c0c",
+      "path": "docs/p0-preservation-baseline-2026-10-12.md",
+      "original_blob": "0a6a647e397b966914384a8171c1c4f97f9bbe71",
+      "integration_blob": "6172395d239e51bdcf8f2772e8a023388556c86e",
+      "annotated_or_adapted": true
+    },
+    {
+      "source": "origin/test/p0-preservation-baseline-20261012",
+      "sha": "79864aeaa99a1dee8500ad44e3a9ba0904e13c0c",
+      "path": "scripts/p0-compare-roundtrip.mjs",
+      "original_blob": "b972f942fb21adc06fd3ec9833137371b2713055",
+      "integration_blob": "b972f942fb21adc06fd3ec9833137371b2713055",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/p0-preservation-baseline-20261012",
+      "sha": "79864aeaa99a1dee8500ad44e3a9ba0904e13c0c",
+      "path": "scripts/p0-summarize-ebml-xml.py",
+      "original_blob": "0293b581e44457f22b0c8d8deed2d54858e5592d",
+      "integration_blob": "0293b581e44457f22b0c8d8deed2d54858e5592d",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/p0-preservation-baseline-20261012",
+      "sha": "79864aeaa99a1dee8500ad44e3a9ba0904e13c0c",
+      "path": "tests/p0-ebml-xml-summary.test.mjs",
+      "original_blob": "80dc8402dd5329d03d20b6a14807ceeab91a6eb5",
+      "integration_blob": "80dc8402dd5329d03d20b6a14807ceeab91a6eb5",
+      "annotated_or_adapted": false
+    },
+    {
+      "source": "origin/test/p0-preservation-baseline-20261012",
+      "sha": "79864aeaa99a1dee8500ad44e3a9ba0904e13c0c",
+      "path": "tests/p0-preservation-audit.test.mjs",
+      "original_blob": "7b5c825ad943cd3c5f3d71d25f6cf87800fa1238",
+      "integration_blob": "7b5c825ad943cd3c5f3d71d25f6cf87800fa1238",
+      "annotated_or_adapted": false
+    }
   ]
 }

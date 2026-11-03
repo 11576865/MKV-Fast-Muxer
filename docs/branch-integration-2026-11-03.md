@@ -40,3 +40,9 @@ No change to `src/`, `index.html`, `package.json`, any 14/44/57 verdict, product
 - Preserve #179 rather than overwrite it with the narrower #181 code. Cost if wrong: a later researcher must consult both historical PRs; no product writer is enabled.
 - Keep known failing diagnostics explicit/manual, rather than introduce them as always-red release gates. Cost: researchers must deliberately dispatch these expensive experiments.
 - Preserve historical evidence without treating it as current UI specifications. Cost: current behavior still requires current-head acceptance.
+
+## Independent review
+
+Fresh whole-branch review: no Critical/Important integration findings. The reviewer independently reran all 15 imported tests successfully, confirmed the nine #179 implementation/oracle files exactly match `e54e31a`, no production imports or bundled research assets, and no weakening of existing S12 checks.
+
+Deferred minor: the simplified `research/s12-browser-byte-lane.mjs` page can change selection during an async combination, retain old evidence, and download a result bound to the older File. It is historical research code, not production UI. The separate Wasm research page has epoch/File identity guards; its guarantees must not be attributed to the simplified page. This inherited research UI limitation remains open and must be fixed before treating that page as a product flow.

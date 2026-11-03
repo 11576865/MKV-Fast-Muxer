@@ -21,11 +21,20 @@
 - Refuse any import from research into src/ production paths.
 
 ## Tasks
-- [ ] Consolidate isolated research and independent audits with provenance; run all imported focused Node tests.
-- [ ] Preserve controlled attachment cardinality fixture support; retain current native oracle and exact count/hash checks.
-- [ ] Run full Node/build, native research oracle and relevant real-browser research proof; request independent whole-branch review.
+- [x] Consolidate isolated research and independent audits with provenance; run all imported focused Node tests.
+- [x] Preserve controlled attachment cardinality fixture support; retain current native oracle and exact count/hash checks.
+- [x] Run full Node/build and request independent whole-branch review; new combined native/browser proof is explicitly pending under the environment ruling.
 - [ ] Push one coherent integration commit, merge, close all nine old PRs with exact disposition; persist terminal task state.
 
 ## Decisions
 - Ruling: preserve research source files as research-only without connecting them to the production UI. Cost if wrong: research remains unavailable to end users rather than granting an unproven writer.
 - Ruling: known failing historical P0/stress branches are superseded, not blindly merged. Their oracle and evidence remain available; product limitations remain explicit.
+
+## Execution record
+
+- Consolidation tree `06c10d35a6cfd52ca4187150c4e99792ed66cf53` persisted on remote branch at `cacd84255c53829bc6636b0b6c50d5020df1e2d4`, PR #225.
+- Focused tests 15/15; complete suite 854/854; build, YAML and JavaScript syntax passed.
+- Ruling: this container has no Chromium/FFmpeg/MKVToolNix. Keep combined-tree native/browser checks Pending External Validation, rather than substitute historical results or fake outputs. Cost: research acceptance remains pending, production authorization remains unchanged.
+
+- Final review: no Critical/Important issues; independent 15/15 tests passed.
+- Final: minor (deferred): simplified byte-lane research page retains old input evidence during async source switching; not production, and not covered by Wasm page identity guarantees.
