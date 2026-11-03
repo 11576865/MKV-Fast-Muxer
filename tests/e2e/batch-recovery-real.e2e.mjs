@@ -9,7 +9,7 @@ import {chromium} from 'playwright';
 // successful media output is produced by real Chromium/FFmpeg.wasm and then
 // independently downloaded/probed. No production hooks or fake output bytes.
 const root=path.resolve(process.env.E2E_FIXTURE_DIR||'.e2e/fixtures');
-const out=path.resolve('.e2e/batch-recovery-output');
+const out=path.resolve(process.env.E2E_BATCH_RECOVERY_OUTPUT_DIR||'.e2e/batch-recovery-output');
 const inputs=path.join(out,'inputs');
 const baseUrl=process.env.E2E_BASE_URL||'http://127.0.0.1:4173/';
 await fs.mkdir(inputs,{recursive:true});

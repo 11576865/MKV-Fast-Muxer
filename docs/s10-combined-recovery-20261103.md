@@ -9,7 +9,7 @@ The prior20-output baseline, execution retry and report-only retry were separate
 3. Inject nonzero worker EXEC results only for mux attempts2/11. Inject one directory quota failure before creating the first report file. All successful results use the actual FFmpeg.wasm worker and actual native tools.
 4. Verify initial18 generated/audited outputs, two execution failures and one report-only save warning. Recover the report without another mux or rewriting its already saved MKV.
 5. Remove episode2's subtitle and the shared font through the actual current batch inventory. The live plan now has19 jobs. Retry the two retained failures; each adds exactly one actual mux and still uses its frozen original Files. The18 prior result URLs remain identical.
-6. Download all20 final MKVs and reports. Native FFprobe/FFmpeg verifies exact A/V packet hashes, one correct subtitle, retained font inventory, all SRT text/millisecond timings, and all ASS event times/style/text. Report SHA and directory-byte SHA equal every downloaded actual file. Original source/subtitle file hashes and single-project exact File objects remain unchanged.
+6. Download all20 final MKVs and reports. Native FFprobe/FFmpeg verifies exact A/V packet hashes, one correct subtitle, at least one attachment (font identity is not established by that count), all SRT text/millisecond timings, and all ASS event times/style/text. Report SHA and directory-byte SHA equal every downloaded actual file. Original source/subtitle file hashes and single-project exact File objects remain unchanged.
 
 ## Results
 
@@ -21,6 +21,10 @@ The prior20-output baseline, execution retry and report-only retry were separate
 
 ## Boundaries
 
-The directory API is a controlled in-memory handle, not physical disk durability. Twenty short repeated media templates do not prove twenty heterogeneous films, device memory, tablet interaction, reload recovery or power-loss safety. This slice does not promote the formal S10/S11 verdicts or any14/44/57 acceptance row. Native font inventory is checked, not full shaping or multi-face collection acceptance.
+The directory API is a controlled in-memory handle, not physical disk durability. Twenty short repeated media templates do not prove twenty heterogeneous films, device memory, tablet interaction, reload recovery or power-loss safety. This slice does not promote the formal S10/S11 verdicts or any14/44/57 acceptance row. The native attachment count is checked; exact shared-font identity, full shaping and multi-face collection acceptance remain unverified.
 
 Initial harness corrections: unmatched inputs correctly yield zero job rows, and unified intake adds resources rather than replacing a live selection. The scenario now uses explicit inventory removals for both setup and post-failure mutation. These were test assumptions, not product defects; no product gates or assertions were weakened.
+
+## Independent review and evidence correction
+
+One Important finding was a stale failure receipt copied after an earlier concurrent local run overwrote the shared output path. The successful rerun now uses an isolated `E2E_BATCH_RECOVERY_OUTPUT_DIR`, and its receipt is checked for PASS/20verified/22attempts/40writes/zeroerrors before publication. One deferred Minor remains: attachment count does not prove the shared font identity; the claim above is narrowed accordingly. No production defect was inferred.

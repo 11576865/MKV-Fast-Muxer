@@ -1,6 +1,6 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "s10_combined_recovery_complete_pending_review_and_ci",
+  "status": "s10_combined_recovery_reviewed_pending_exact_head_ci",
   "current_bounded_work_unit": "S10/S11 default-workbench20-job combined fault scenario: two execution failures, one report-only directory failure, frozen retry after live changes, independent native20outputs",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
@@ -104,7 +104,8 @@
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
     "remaining_pr_consolidation_native_browser": "Complete for integrated scoped S12 matrix and production browser regression; manual research dual-path matrix remains unrerun, not newly accepted",
     "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report",
-    "s10_combined_recovery": "Local actual Chromium153/native FFmpeg PASS:20 outputs,22mux attempts,40 unique directory commits; quota/directory simulation only. Exact-head CI pending."
+    "s10_combined_recovery": "Actual isolated Chromium153/native run PASS:20output SHA/packet/subtitle proofs,22mux attempts40unique writes; durable JSON verified PASS20/22/40/errors[].",
+    "s10_combined_review": "Fresh review: no Critical; Important stale receipt fixed by isolated successful rerun and validated copy; Minor exact font identity oracle deferred, no identity/shaping claim."
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"

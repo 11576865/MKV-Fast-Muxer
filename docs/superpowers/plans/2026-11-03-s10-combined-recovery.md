@@ -13,3 +13,5 @@ Spec: docs/softmux-1.0-product-acceptance-contract-20261020.md S10/S11. No produ
 Review focus: failures do not change retained URL/bytes; save-only retry does not remux or rewrite MKV; failure retry uses frozen original choices despite live changes; wrong pairing produces no output; directory API simulation does not imply physical-disk durability.
 
 Local actual scenario passed20/20,22attempts40unique writes. Ruling: unified intake is additive; explicit inventory removals express changes without silently replacing File authority. Invalid pairing yields zero executable jobs. No production fix required.
+
+Final review: one Important stale receipt corrected through isolated output directory plus validated20-output rerun; no Critical. Minor (deferred): exact shared-font identity oracle, count alone does not establish bytes/name. Native font identity is not claimed.
