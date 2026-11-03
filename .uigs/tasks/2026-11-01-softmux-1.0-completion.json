@@ -47,21 +47,22 @@
     "2026-11-03 verified PR225b9e67fa Browser41577638418 and S1241577638387 success; merged-main003c236 Browser41577657294 success; Pages41577802627 build125725453706 and deploy125725610929 succeeded for68d5bb4. Research 128MiB originals reserved Void scoped-validation succeeded;512/1000MiB PCM repair refused with2896/5463-byte deficits; no file replaced or research Blob downloaded.",
     "2026-11-03 actual default-workbench20-job combined recovery PASS: two worker mux faults, one report quota fault; initial18 good/two failed, report-only retry no remux/MKV rewrite, remove live failed subtitle+shared font, two frozen retries;20 native packet/subtitle/time/report/directory SHA outputs,22mux attempts40unique saved members, source and single-project File identity unchanged.",
     "2026-11-03 PR226 exact66f5745 Deploy41598812039/Browser41598811773 passed; CI confirms initial18good2failed then19/20/0failure,20native verified,22mux40unique directory members and all browser scenarios. Merged main9cabaf7e6bf762f3a44884f4d6c062b7a7e01441; local854tests/build passed.",
-    "0.1047 real S03 work: discovered actual CFF canonical-combining subset defect despite audit green; repaired shared single/batch subset candidate NFC/NFD closure before dedup without rewriting authored ASS. Four native-checked browser outputs plus18HarfBuzz vectors, two real Regular/Bold collections and actual preview/negative controls passed;857Node tests/build."
+    "0.1047 real S03 work: discovered actual CFF canonical-combining subset defect despite audit green; repaired shared single/batch subset candidate NFC/NFD closure before dedup without rewriting authored ASS. Four native-checked browser outputs plus18HarfBuzz vectors, two real Regular/Bold collections and actual preview/negative controls passed;857Node tests/build.",
+    "S03reviewImportant endpoint-only closure omitted intermediateâ(actualHB1->3glyphs); fixed per-grapheme canonical candidate closure with bounded cachedUnicode table. Two newRED->GREEN cases,7focused/859full tests/build; actual4outputs30HBvectors and native pixelpositive/negativesPASS, authored ASS/diagnostic semantics unchanged. PR227 submitted."
   ],
   "next_units": [
     "Complete S03 OTC/multi-face/shaping actual output acceptance; retain S10 bounded combined recovery proof without promoting physical-device or full formal verdicts",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "test/softmux-s03-collections-shaping-20261103",
-  "pr": null,
-  "latest_durable_commit": "5ee4852c2851e484bcebee9fd29d313a2679b1ff",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/227",
+  "latest_durable_commit": "fd637f6f53055bf56f3ba7e4fb9270f7b18cb264",
   "external_validation_states": {
-    "node_build_local": "854/854 passed; build passed on consolidated tree",
+    "node_build_local": "859/859 tests and build passed for0.1047; four actualS03outputs30nativevectors",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR225b9e67fa Browser41577638418/S1241577638387 success; PR Pages41577638435 cancelled and superseded by successful main push Pages41577802627",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Existing Bug created31cb5f10de627bdae437fb8d287081154a7b1491; pending bounded correction with intermediate-composition review evidence, no Canonical",
+    "UIGS_Intake": "Complete: deduped Bug inbox/bugs/2026-11-03-font-subset-prunes-canonical-composition-cmap.md, including review counterexample and corrected intermediate canonical candidate closure; Foundry1c37c17f0b9820140d557e20af4d52ed5004ee6e; no Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -111,7 +112,8 @@
     "s10_combined_ci": "Success exact66f5745: Browser41598811773 includes baseline20,combined20faultrecovery,allbrowser; Deploy41598812039 Node/build passed; merged9cabaf7",
     "s03_collection_shaping": "Final isolated four-modePASS/30nativevectors including multi-stage canonical compounds; TTC/realCFFOTC original SHA/two-face selection, actual PNG preview, single+batchOTFsubsets, native pixel/shape negative controls; 859Node/build passed",
     "s03_canonical_subset": "InitialRED4->5glyphs/89pixels; reviewREDmulti-stage1->3glyphs. Corrected grapheme-local canonical intermediate candidate closure:7focusedGREEN, actual single/batchCFFfullreference native positions/pixelsGREEN, no authored text/diagnostic/compatibility rewrite",
-    "s03_review": "Fresh review oneImportant canonical intermediate gap fixed in onepass: two new unitRED then7GREEN, new actual multi-stage/native corpusPASS; no second review requested"
+    "s03_review": "Fresh review oneImportant canonical intermediate gap fixed in onepass: two new unitRED then7GREEN, new actual multi-stage/native corpusPASS; no second review requested",
+    "s03_ci": "Pending External Validation: PR227 exact-head full Node/build/Browser/S12 to read once"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
