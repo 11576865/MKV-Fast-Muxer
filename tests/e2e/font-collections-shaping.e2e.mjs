@@ -43,7 +43,7 @@ try{
   if(mode!=='ttc')assert.ok(sourceInfo.faces.every(f=>f.cff),'OTC must contain actual CFF faces');
   if(collection)assert.deepEqual(sourceInfo.faces.map(f=>f.weight),[400,700]);
   const dir=path.join(out,mode);await fs.mkdir(dir,{recursive:true});
-  const ass=path.join(dir,batch?'S03 S01E01.ass':'input.ass'),sourceAss=assText(family,collection);await fs.writeFile(ass,sourceAss);
+  const ass=path.join(dir,batch?'S03-S01E01.ass':'input.ass'),sourceAss=assText(family,collection);await fs.writeFile(ass,sourceAss);
   const context=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:1000}}),page=await context.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   try{
@@ -58,8 +58,9 @@ try{
    await page.waitForFunction(()=>document.querySelector('#previewImage')?.src.startsWith('blob:'),null,{timeout:180000});
    const preview=Buffer.from(await page.locator('#previewImage').evaluate(async el=>Array.from(new Uint8Array(await(await fetch(el.src)).arrayBuffer()))));
    assert.equal(preview.subarray(1,4).toString(),'PNG');assert.ok(preview.length>1000);await fs.writeFile(path.join(dir,'preview.png'),preview);
+   const previewLog=await page.locator('#log').textContent();await fs.writeFile(path.join(dir,'preview.log'),previewLog);
    if(batch){
-    const video=path.join(dir,'S03 S01E01.mp4');await fs.copyFile(path.join(root,'base.mp4'),video);
+    const video=path.join(dir,'S03-S01E01.mp4');await fs.copyFile(path.join(root,'base.mp4'),video);
     await page.locator('[data-sf-view="batch"]').click();
     await page.setInputFiles('#batchUnifiedInput',[video,ass,sourceFont]);
     await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===1&&!document.querySelector('#batchStartBtn').disabled,null,{timeout:120000});
@@ -126,7 +127,7 @@ try{
    assert.equal(sha(await fs.readFile(sourceFont)),sha(sourceBytes));assert.equal(await fs.readFile(ass,'utf8'),sourceAss);assert.deepEqual(errors,[]);
    proof.cases.push({mode,outputSha256:report.output.sha256,sourceFontSha256:sha(sourceBytes),deliveredFontSha256:sha(deliveredBytes),sourceFontBytes:sourceBytes.length,deliveredFontBytes:deliveredBytes.length,
     faceInfo:info.faces,subset:report.fonts.attachments[0].subset,previewPngSha256:sha(preview),referencePngSha256:reference.sha,actualPngSha256:actual.sha,negativePngSha256:negative.sha,
-    nativeFaceSelectionVerified:true,nativeShapeProof:shapeProof,sourceUnchanged:true});
+    nativeFaceSelectionVerified:true,previewProducedPng:true,previewFaceIdentityVerified:false,nativeShapeProof:shapeProof,sourceUnchanged:true});
    console.log('S03',mode,'actual preview/output/native faces/shaping/pixels/negative controls PASS');
   }catch(error){proof.lastStatus=await page.locator('#status').textContent().catch(()=>null);proof.lastLog=(await page.locator('#log').textContent().catch(()=>'' )).slice(-5000);throw error;}
   finally{await context.close();}

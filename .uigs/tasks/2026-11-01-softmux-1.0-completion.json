@@ -1,6 +1,6 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "s03_canonical_subset_fix_pending_actual_green",
+  "status": "s03_canonical_subset_fixed_complete_pending_review_ci",
   "current_bounded_work_unit": "0.1047 S03 real TTC/OTC two-face evidence and CFF canonical combining glyph regression; add subset-only NFC/NFD closure before dedup, actual single/batch outputs pending GREEN",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
@@ -46,7 +46,8 @@
     "2026-11-03 PR225 independently reviewed (no Critical/Important),854/854 tests/build passed; merged @003c2364163da4a8f9778c32a6b69d8b605d4bf7. Historical PR196,181,179,178,176,174,170,154,76 closed as consolidated/superseded with source SHA guards; verified zero remaining open PRs.",
     "2026-11-03 verified PR225b9e67fa Browser41577638418 and S1241577638387 success; merged-main003c236 Browser41577657294 success; Pages41577802627 build125725453706 and deploy125725610929 succeeded for68d5bb4. Research 128MiB originals reserved Void scoped-validation succeeded;512/1000MiB PCM repair refused with2896/5463-byte deficits; no file replaced or research Blob downloaded.",
     "2026-11-03 actual default-workbench20-job combined recovery PASS: two worker mux faults, one report quota fault; initial18 good/two failed, report-only retry no remux/MKV rewrite, remove live failed subtitle+shared font, two frozen retries;20 native packet/subtitle/time/report/directory SHA outputs,22mux attempts40unique saved members, source and single-project File identity unchanged.",
-    "2026-11-03 PR226 exact66f5745 Deploy41598812039/Browser41598811773 passed; CI confirms initial18good2failed then19/20/0failure,20native verified,22mux40unique directory members and all browser scenarios. Merged main9cabaf7e6bf762f3a44884f4d6c062b7a7e01441; local854tests/build passed."
+    "2026-11-03 PR226 exact66f5745 Deploy41598812039/Browser41598811773 passed; CI confirms initial18good2failed then19/20/0failure,20native verified,22mux40unique directory members and all browser scenarios. Merged main9cabaf7e6bf762f3a44884f4d6c062b7a7e01441; local854tests/build passed.",
+    "0.1047 real S03 work: discovered actual CFF canonical-combining subset defect despite audit green; repaired shared single/batch subset candidate NFC/NFD closure before dedup without rewriting authored ASS. Four native-checked browser outputs plus18HarfBuzz vectors, two real Regular/Bold collections and actual preview/negative controls passed;857Node tests/build."
   ],
   "next_units": [
     "Complete S03 OTC/multi-face/shaping actual output acceptance; retain S10 bounded combined recovery proof without promoting physical-device or full formal verdicts",
@@ -54,13 +55,13 @@
   ],
   "branch": "test/softmux-s03-collections-shaping-20261103",
   "pr": null,
-  "latest_durable_commit": "e312fdc999fdab4cb185863372b9969cfc8a04c2",
+  "latest_durable_commit": "5ee4852c2851e484bcebee9fd29d313a2679b1ff",
   "external_validation_states": {
     "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR225b9e67fa Browser41577638418/S1241577638387 success; PR Pages41577638435 cancelled and superseded by successful main push Pages41577802627",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Checked: this turn closes already-recorded exact-head validation and integration, no new reusable finding or Canonical change",
+    "UIGS_Intake": "Pending bounded Bug intake for canonical repertoire pruning; dedupe search found no same-mechanism record; no Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -108,8 +109,8 @@
     "s10_combined_recovery": "Actual isolated Chromium153/native run PASS:20output SHA/packet/subtitle proofs,22mux attempts40unique writes; durable JSON verified PASS20/22/40/errors[].",
     "s10_combined_review": "Fresh review: no Critical; Important stale receipt fixed by isolated successful rerun and validated copy; Minor exact font identity oracle deferred, no identity/shaping claim.",
     "s10_combined_ci": "Success exact66f5745: Browser41598811773 includes baseline20,combined20faultrecovery,allbrowser; Deploy41598812039 Node/build passed; merged9cabaf7",
-    "s03_collection_shaping": "Fixtures/native oracle/mandatory Chromium scenario implemented; actual local validation in progress, no PASS claim",
-    "s03_canonical_subset": "RED actual CFF output changed a+acute to two glyphs and89pixels; focused subset tests2RED then5GREEN after fix. TTC/realCFF OTC originalbyte/two-face native positive+negative already pass. Repaired valid ASS and single/batch native full rerun pending."
+    "s03_collection_shaping": "Actual four modes PASS: TTC/CFF OTC fullSHA two-face native selections, single/batch OTF subsets,18native HB vectors, positivepixels and missingface/layout/blank/text negatives; actual previewPNG only, previewfontidentity notclaimed",
+    "s03_canonical_subset": "RED4->5glyphs/89pixels; focused2RED->5GREEN; actual repaired single+frozen-batch CFF shape/pixel equality GREEN; original ASS and diagnostic repertoire unchanged"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"

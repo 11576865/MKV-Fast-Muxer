@@ -1,0 +1,1034 @@
+{
+  "schema": "softmux-s03-collection-shaping-v1",
+  "status": "PASS",
+  "startedAt": "2026-11-03T08:49:19.195Z",
+  "cases": [
+    {
+      "mode": "ttc",
+      "outputSha256": "c4c6c8daadc3b1f65703cea80f6fe7c08274e23066a21fd622d81b7c966f5566",
+      "sourceFontSha256": "3202e68ed9f4f4b1ccea4654ea7a12486915a784483c8d8af2d0278f78c473a2",
+      "deliveredFontSha256": "3202e68ed9f4f4b1ccea4654ea7a12486915a784483c8d8af2d0278f78c473a2",
+      "sourceFontBytes": 1468832,
+      "deliveredFontBytes": 1468832,
+      "faceInfo": [
+        {
+          "family": "UIGS S03 TrueType Proof",
+          "style": "Regular",
+          "postScript": "UIGSS03TrueTypeProof-Regular",
+          "weight": 400,
+          "cff": false,
+          "glyphs": 6253,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        },
+        {
+          "family": "UIGS S03 TrueType Proof",
+          "style": "Bold",
+          "postScript": "UIGSS03TrueTypeProof-Bold",
+          "weight": 700,
+          "cff": false,
+          "glyphs": 6196,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        }
+      ],
+      "subset": {
+        "enabled": true,
+        "applied": false,
+        "reason": "font-collection",
+        "originalSize": 1468832,
+        "subsetSize": 1468832
+      },
+      "previewPngSha256": "93eaef284c4777bfad56e9342b01ebee66f7e840c8898bef7744017360170da5",
+      "referencePngSha256": "bc25c1596b8255ba4de7767be670305eea333fb09259a0dae9e1b5c250a9ccfe",
+      "actualPngSha256": "bc25c1596b8255ba4de7767be670305eea333fb09259a0dae9e1b5c250a9ccfe",
+      "negativePngSha256": "29ed0f6b6d0e60b729c18208a1b9bd459565b8e70685bf4bf2e142284163a49e",
+      "nativeFaceSelectionVerified": true,
+      "previewProducedPng": true,
+      "previewFaceIdentityVerified": false,
+      "nativeShapeProof": [
+        {
+          "face": 0,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1253,
+              0,
+              0,
+              0
+            ],
+            [
+              1980,
+              0,
+              0,
+              0
+            ],
+            [
+              1126,
+              0,
+              0,
+              0
+            ],
+            [
+              1260,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1098,
+              0,
+              0,
+              0
+            ],
+            [
+              618,
+              0,
+              0,
+              0
+            ],
+            [
+              570,
+              0,
+              0,
+              0
+            ],
+            [
+              1130,
+              0,
+              0,
+              0
+            ],
+            [
+              988,
+              0,
+              0,
+              0
+            ],
+            [
+              624,
+              0,
+              0,
+              0
+            ],
+            [
+              569,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              651,
+              0,
+              0,
+              0
+            ],
+            [
+              1270,
+              0,
+              0,
+              0
+            ],
+            [
+              1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1407,
+              0,
+              0,
+              0
+            ],
+            [
+              2284,
+              0,
+              0,
+              0
+            ],
+            [
+              1214,
+              0,
+              0,
+              0
+            ],
+            [
+              1389,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1242,
+              0,
+              0,
+              0
+            ],
+            [
+              836,
+              0,
+              0,
+              0
+            ],
+            [
+              769,
+              0,
+              0,
+              0
+            ],
+            [
+              1274,
+              0,
+              0,
+              0
+            ],
+            [
+              1156,
+              0,
+              0,
+              0
+            ],
+            [
+              769,
+              0,
+              0,
+              0
+            ],
+            [
+              702,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ],
+            [
+              713,
+              0,
+              0,
+              0
+            ],
+            [
+              1446,
+              0,
+              0,
+              0
+            ],
+            [
+              1585,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        }
+      ],
+      "sourceUnchanged": true
+    },
+    {
+      "mode": "otc",
+      "outputSha256": "60273dce3301699d8168ef05a015f508d7ffe209035eb58fdaaed8874db9baca",
+      "sourceFontSha256": "6f372602f832e07948b14c9cff4991c866dee4454514c277062ddaee3f0fb0b2",
+      "deliveredFontSha256": "6f372602f832e07948b14c9cff4991c866dee4454514c277062ddaee3f0fb0b2",
+      "sourceFontBytes": 1872276,
+      "deliveredFontBytes": 1872276,
+      "faceInfo": [
+        {
+          "family": "UIGS S03 OpenType Proof",
+          "style": "Regular",
+          "postScript": "UIGSS03OpenTypeProof-Regular",
+          "weight": 400,
+          "cff": true,
+          "glyphs": 6253,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        },
+        {
+          "family": "UIGS S03 OpenType Proof",
+          "style": "Bold",
+          "postScript": "UIGSS03OpenTypeProof-Bold",
+          "weight": 700,
+          "cff": true,
+          "glyphs": 6196,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        }
+      ],
+      "subset": {
+        "enabled": true,
+        "applied": false,
+        "reason": "font-collection",
+        "originalSize": 1872276,
+        "subsetSize": 1872276
+      },
+      "previewPngSha256": "691d1aeda45a640b76c9ac5f198f367153f4710f1acc1d16dd6f6db3445cc0d4",
+      "referencePngSha256": "e4d97f8491a812e237842cedf02582488dfb9add2c9cf523ae7768a59cecdc9a",
+      "actualPngSha256": "e4d97f8491a812e237842cedf02582488dfb9add2c9cf523ae7768a59cecdc9a",
+      "negativePngSha256": "e7c87aa632d4d92c50162e730c637d714326b12ac47e049d13c1a40a55675715",
+      "nativeFaceSelectionVerified": true,
+      "previewProducedPng": true,
+      "previewFaceIdentityVerified": false,
+      "nativeShapeProof": [
+        {
+          "face": 0,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1253,
+              0,
+              0,
+              0
+            ],
+            [
+              1980,
+              0,
+              0,
+              0
+            ],
+            [
+              1126,
+              0,
+              0,
+              0
+            ],
+            [
+              1260,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1098,
+              0,
+              0,
+              0
+            ],
+            [
+              618,
+              0,
+              0,
+              0
+            ],
+            [
+              570,
+              0,
+              0,
+              0
+            ],
+            [
+              1130,
+              0,
+              0,
+              0
+            ],
+            [
+              988,
+              0,
+              0,
+              0
+            ],
+            [
+              624,
+              0,
+              0,
+              0
+            ],
+            [
+              569,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              651,
+              0,
+              0,
+              0
+            ],
+            [
+              1270,
+              0,
+              0,
+              0
+            ],
+            [
+              1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1407,
+              0,
+              0,
+              0
+            ],
+            [
+              2284,
+              0,
+              0,
+              0
+            ],
+            [
+              1214,
+              0,
+              0,
+              0
+            ],
+            [
+              1389,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1242,
+              0,
+              0,
+              0
+            ],
+            [
+              836,
+              0,
+              0,
+              0
+            ],
+            [
+              769,
+              0,
+              0,
+              0
+            ],
+            [
+              1274,
+              0,
+              0,
+              0
+            ],
+            [
+              1156,
+              0,
+              0,
+              0
+            ],
+            [
+              769,
+              0,
+              0,
+              0
+            ],
+            [
+              702,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 1,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1382,
+              0,
+              0,
+              0
+            ],
+            [
+              713,
+              0,
+              0,
+              0
+            ],
+            [
+              1446,
+              0,
+              0,
+              0
+            ],
+            [
+              1585,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        }
+      ],
+      "sourceUnchanged": true
+    },
+    {
+      "mode": "otf-subset",
+      "outputSha256": "1c0a648446c5bdaa0400ec476a58f0e635546ad62ae4d9025c53b4239a1086af",
+      "sourceFontSha256": "6e1f7810f591f3fe928b278516221d2dd5f22f79b95041b2e422feab37928933",
+      "deliveredFontSha256": "d48b6e2665c2bb3c37b231a667dcbda4d50ef443c0e2918ecdcb8c73deb62139",
+      "sourceFontBytes": 941060,
+      "deliveredFontBytes": 7080,
+      "faceInfo": [
+        {
+          "family": "UIGS S03 OpenType Proof",
+          "style": "Regular",
+          "postScript": "UIGSS03OpenTypeProof-Regular",
+          "weight": 400,
+          "cff": true,
+          "glyphs": 42,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        }
+      ],
+      "subset": {
+        "enabled": true,
+        "applied": true,
+        "reason": "",
+        "originalSize": 941060,
+        "subsetSize": 7080
+      },
+      "previewPngSha256": "3d4c7c8c2098f5722b06290cfb601198c92c5375f7c3141afb0cc5c026d22c50",
+      "referencePngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
+      "actualPngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
+      "negativePngSha256": "25ce1fb087bf18dd8fc08a39eafeb7c3fc2746bc161577ba0d79d9e4ab644a44",
+      "nativeFaceSelectionVerified": true,
+      "previewProducedPng": true,
+      "previewFaceIdentityVerified": false,
+      "nativeShapeProof": [
+        {
+          "face": 0,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1253,
+              0,
+              0,
+              0
+            ],
+            [
+              1980,
+              0,
+              0,
+              0
+            ],
+            [
+              1126,
+              0,
+              0,
+              0
+            ],
+            [
+              1260,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1098,
+              0,
+              0,
+              0
+            ],
+            [
+              618,
+              0,
+              0,
+              0
+            ],
+            [
+              570,
+              0,
+              0,
+              0
+            ],
+            [
+              1130,
+              0,
+              0,
+              0
+            ],
+            [
+              988,
+              0,
+              0,
+              0
+            ],
+            [
+              624,
+              0,
+              0,
+              0
+            ],
+            [
+              569,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              651,
+              0,
+              0,
+              0
+            ],
+            [
+              1270,
+              0,
+              0,
+              0
+            ],
+            [
+              1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        }
+      ],
+      "sourceUnchanged": true
+    },
+    {
+      "mode": "batch-otf-subset",
+      "outputSha256": "07d6069feb07d470e4017cd97e3fd882abd81b19d2054ef0faf73d690bc3948a",
+      "sourceFontSha256": "6e1f7810f591f3fe928b278516221d2dd5f22f79b95041b2e422feab37928933",
+      "deliveredFontSha256": "d48b6e2665c2bb3c37b231a667dcbda4d50ef443c0e2918ecdcb8c73deb62139",
+      "sourceFontBytes": 941060,
+      "deliveredFontBytes": 7080,
+      "faceInfo": [
+        {
+          "family": "UIGS S03 OpenType Proof",
+          "style": "Regular",
+          "postScript": "UIGSS03OpenTypeProof-Regular",
+          "weight": 400,
+          "cff": true,
+          "glyphs": 42,
+          "layout": [
+            "GDEF",
+            "GSUB",
+            "GPOS"
+          ],
+          "missing": []
+        }
+      ],
+      "subset": {
+        "enabled": true,
+        "applied": true,
+        "reason": "",
+        "originalSize": 941060,
+        "subsetSize": 7080
+      },
+      "previewPngSha256": "3d4c7c8c2098f5722b06290cfb601198c92c5375f7c3141afb0cc5c026d22c50",
+      "referencePngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
+      "actualPngSha256": "997250ce917a4f73134bb0c08e81e37d476b74fad72c23f6694cdcd27f0626e4",
+      "negativePngSha256": "25ce1fb087bf18dd8fc08a39eafeb7c3fc2746bc161577ba0d79d9e4ab644a44",
+      "nativeFaceSelectionVerified": true,
+      "previewProducedPng": true,
+      "previewFaceIdentityVerified": false,
+      "nativeShapeProof": [
+        {
+          "face": 0,
+          "text": "office",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            1,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1253,
+              0,
+              0,
+              0
+            ],
+            [
+              1980,
+              0,
+              0,
+              0
+            ],
+            [
+              1126,
+              0,
+              0,
+              0
+            ],
+            [
+              1260,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "العربية",
+          "upem": 2048,
+          "glyphCount": 7,
+          "clusters": [
+            12,
+            10,
+            8,
+            6,
+            4,
+            2,
+            0
+          ],
+          "positions": [
+            [
+              1098,
+              0,
+              0,
+              0
+            ],
+            [
+              618,
+              0,
+              0,
+              0
+            ],
+            [
+              570,
+              0,
+              0,
+              0
+            ],
+            [
+              1130,
+              0,
+              0,
+              0
+            ],
+            [
+              988,
+              0,
+              0,
+              0
+            ],
+            [
+              624,
+              0,
+              0,
+              0
+            ],
+            [
+              569,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        },
+        {
+          "face": 0,
+          "text": "á AV",
+          "upem": 2048,
+          "glyphCount": 4,
+          "clusters": [
+            0,
+            3,
+            4,
+            5
+          ],
+          "positions": [
+            [
+              1255,
+              0,
+              0,
+              0
+            ],
+            [
+              651,
+              0,
+              0,
+              0
+            ],
+            [
+              1270,
+              0,
+              0,
+              0
+            ],
+            [
+              1401,
+              0,
+              0,
+              0
+            ]
+          ],
+          "hasNotdef": false
+        }
+      ],
+      "sourceUnchanged": true
+    }
+  ],
+  "errors": [],
+  "limits": [
+    "Generated unique DejaVu-derived two-face fixtures, not arbitrary fonts/scripts",
+    "Collection subsetting is not authorized; original bytes must be retained",
+    "No device, all-player or formal S03 verdict promotion"
+  ],
+  "completedAt": "2026-11-03T08:49:40.985Z"
+}
