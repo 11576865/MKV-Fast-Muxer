@@ -5,6 +5,14 @@ import { PRODUCT_LABEL } from './product-version.js';
 // keep their exact identity. This module owns layout only, not media mutations.
 export const SOFTMUX_1014_UI_VERSION = PRODUCT_LABEL;
 const get = (doc, id) => doc.getElementById(id);
+const sf14ToolbarIcons = {
+  "home": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m3 10 9-7 9 7\"/><path d=\"M5 9v12h14V9\"/><path d=\"M9 21v-8h6v8\"/></svg>",
+  "more": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"5\" cy=\"12\" r=\"1\"/><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/></svg>",
+  "sources": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v2\"/><path d=\"m2 12 2 9h16l2-9z\"/></svg>",
+  "add": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>",
+  "help": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4\"/><path d=\"M12 17h.01\"/></svg>",
+  "settings": "<svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 7h16M4 17h16\"/><circle cx=\"9\" cy=\"7\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/><circle cx=\"15\" cy=\"17\" r=\"2\" fill=\"currentColor\" stroke=\"none\"/></svg>"
+};
 
 export function mountSoftmux1014Workbench(doc = document) {
   const workspace = doc.querySelector('.workspace');
@@ -27,17 +35,22 @@ export function mountSoftmux1014Workbench(doc = document) {
     '<header class="sf14-header">',
       '<div class="sf14-identity"><span class="sf14-mark" aria-hidden="true">SF</span>',
       '<div><strong></strong><span>本地 Matroska 工作台</span></div></div>',
-      '<nav class="sf14-nav" aria-label="工作台导航">',
-        '<button type="button" data-sf-view="single" aria-current="page">单工程</button>',
-        '<button type="button" data-sf-view="batch">批量任务</button>',
-        '<button type="button" data-sf-view="tools">容器工具</button>',
+      '<nav class="sf14-nav" aria-label="当前工作台与保留的工具">',
+        '<button type="button" data-sf-view="single" aria-label="返回工作台" title="返回工作台" aria-current="page">' + sf14ToolbarIcons.home + '</button>',
+        '<details class="sf14-more" id="sf14More">',
+          '<summary aria-label="其他工具" title="其他工具">' + sf14ToolbarIcons.more + '</summary>',
+          '<div class="sf14-more-menu">',
+            '<button type="button" data-sf-view="tools">容器工具（旧入口）</button>',
+            '<button type="button" data-sf-view="batch">批量任务（暂缓开发）</button>',
+          '</div>',
+        '</details>',
       '</nav>',
       '<div class="sf14-header-actions">',
-        '<button type="button" id="sf14SourceToggle" aria-expanded="false">来源</button>',
-         '<div id="sf14SourceSizeWarning" class="sf14-source-size-warning" aria-live="polite" hidden></div>',
-        '<button type="button" id="sf14Add">＋ 添加资源</button>',
-        '<button type="button" id="sf14Help">帮助</button>',
-        '<button type="button" id="sf14Settings">设置</button>',
+        '<button type="button" id="sf14SourceToggle" aria-label="显示或隐藏来源" title="显示或隐藏来源" aria-expanded="false">' + sf14ToolbarIcons.sources + '</button>',
+        '<div id="sf14SourceSizeWarning" class="sf14-source-size-warning" aria-live="polite" hidden></div>',
+        '<button type="button" id="sf14Add" aria-label="添加资源" title="添加资源">' + sf14ToolbarIcons.add + '</button>',
+        '<button type="button" id="sf14Help" aria-label="帮助" title="帮助">' + sf14ToolbarIcons.help + '</button>',
+        '<button type="button" id="sf14Settings" aria-label="设置" title="设置">' + sf14ToolbarIcons.settings + '</button>',
       '</div>',
     '</header>',
     '<div class="sf14-mobile-focus" id="sf14MobileFocus" aria-label="窄屏工作区焦点">',
@@ -653,6 +666,7 @@ export function mountSoftmux1014Workbench(doc = document) {
   const changeView = (view) => {
     if (!['single','batch','tools'].includes(view)) return;
     root.dataset.view = view;
+    get(doc, 'sf14More').dataset.active = String(view !== 'single');
     if (view !== 'single') {
       single.dataset.showSource = 'false';
       sourceToggle.setAttribute('aria-expanded', 'false');
@@ -673,7 +687,10 @@ export function mountSoftmux1014Workbench(doc = document) {
     if (view === 'single') get(doc,'sf14CompositionEmpty').hidden = !composition.hidden;
   };
   for (const button of root.querySelectorAll('[data-sf-view]'))
-    button.addEventListener('click', () => changeView(button.dataset.sfView));
+    button.addEventListener('click', () => {
+      changeView(button.dataset.sfView);
+      get(doc, 'sf14More').open = false;
+    });
   get(doc,'sf14Add').addEventListener('click', () => {
     // The global Add command belongs to the CURRENT user task.
     // Never discard the batch context by silently switching to single work.
