@@ -3859,6 +3859,11 @@ assetInventory?.addEventListener('click', async event => {
         changes.push({kind:'subtitle',index:position,field:'title',value:title});
       if(changes.length&&!changeExternalAssetFields(changes))
         throw Error('来源字幕属性无法与目标轨道保持一致。');
+      // Domain fields were changed programmatically. Render them immediately:
+      // the next updateUI() first snapshots visible form fields, and stale
+      // inferred title/language controls would otherwise overwrite the
+      // source-observed metadata we just committed.
+      renderNewTrackLists();
       status.textContent='已将 '+source.file.name+' 的 SubRip 轨 #'+index+
         ' 加入拟输出；目标来源保持 '+mainSource.name+'。';
     }
