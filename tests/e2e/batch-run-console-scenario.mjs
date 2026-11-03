@@ -35,6 +35,7 @@ export async function scenarioBatchRunConsole(browser,{root,outDir,baseUrl}){
   await page.locator('#assetInventory .asset-entry[data-kind="subtitle"] [data-asset-focus-key]').click();
   if(!await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open))await page.locator('#sf14OptionsDrawer > summary').click();
   await page.locator('#newSubtitleList [data-new-sub-field="title"]').fill('Standalone draft stays intact');
+  await page.locator('#sf14More > summary').click();
   await page.locator('[data-sf-view="batch"]').click();
   await page.setInputFiles('#batchUnifiedInput',files);
   await page.waitForFunction(()=>document.querySelectorAll('#batchPlan [data-batch-job-index]').length===3&&!document.querySelector('#batchStartBtn').disabled,null,{timeout:120000});
