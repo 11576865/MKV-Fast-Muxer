@@ -65,7 +65,7 @@ export async function scenarioCrossSourceAttachmentReuse(browser,{
       document.querySelectorAll('#assetInventory .asset-entry[data-kind="attachment"]').length===1 &&
       document.querySelector('#videoInput')?.files?.[0]?.name==='B-clean.mkv',
       null,{timeout:120000});
-    assert.match(await page.locator('#assetInventory .asset-entry[data-kind="attachment"]').text(),
+    assert.match(await page.locator('#assetInventory .asset-entry[data-kind="attachment"]').textContent(),
       /guide\.txt/);
     assert.equal(await aRow().locator('[data-embedded-add]').isDisabled(),true,
       'same source FileUID cannot silently be added twice');
