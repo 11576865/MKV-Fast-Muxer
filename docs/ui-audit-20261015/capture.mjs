@@ -65,6 +65,7 @@ try {
  assert.ok(probe.streams.some(s=>s.codec_type==='audio'&&s.tags?.title==='UI audit English track'));
  evidence.mux={status:await page.locator('#status').innerText(),streams:probe.streams.map(s=>({index:s.index,type:s.codec_type,codec:s.codec_name,title:s.tags?.title})),chapters:probe.chapters.length,output:'.e2e/ui-audit/edited-source.mkv',sha256:execFileSync('sha256sum',['.e2e/ui-audit/edited-source.mkv'],{encoding:'utf8'}).split(' ')[0]};
  await snap('tablet-delivery-1180',1180,820);
+ await page.locator('#sf14More > summary').click();
  await page.locator('[data-sf-view="batch"]').click();
  await page.setInputFiles('#batchUnifiedInput',[fixture('Batch S01E01.mp4'),fixture('Batch S01E01.zh-Hans.ass'),fixture('Batch S01E02.mp4'),fixture('Batch S01E02.en.srt')]);
  await page.waitForFunction(()=>document.querySelectorAll('#batchAssetInventory .asset-entry').length===4&&document.querySelector('#batchPlan').textContent.includes('Batch S01E02.mp4'),null,{timeout:120000});
