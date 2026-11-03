@@ -1,0 +1,170 @@
+{
+  "date": "2026-11-03",
+  "project": "11576865/MKV-Fast-Muxer",
+  "pr": 225,
+  "reviewed_head": "b9e67fa74fb363c2e8a08a3c77a0d53ed8d713ff",
+  "merge_commit": "003c2364163da4a8f9778c32a6b69d8b605d4bf7",
+  "deployed_commit": "68d5bb48af917b96df2def1d2e9fbe04b5da7ee5",
+  "runs": [
+    {
+      "id": 41577638418,
+      "event": "pull_request",
+      "name": "Browser E2E mux tests",
+      "status": "success"
+    },
+    {
+      "id": 41577638387,
+      "event": "pull_request",
+      "name": "S12 scoped real large media acceptance",
+      "status": "success",
+      "tiers": [
+        "128MiB originals",
+        "512MiB PCM",
+        "1000MiB PCM"
+      ]
+    },
+    {
+      "id": 41577657294,
+      "event": "push",
+      "name": "Browser E2E mux tests",
+      "status": "success",
+      "head": "003c2364163da4a8f9778c32a6b69d8b605d4bf7"
+    },
+    {
+      "id": 41577802627,
+      "event": "push",
+      "name": "Deploy to GitHub Pages",
+      "status": "success",
+      "head": "68d5bb48af917b96df2def1d2e9fbe04b5da7ee5",
+      "jobs": [
+        {
+          "id": 125725453706,
+          "name": "build",
+          "status": "success"
+        },
+        {
+          "id": 125725610929,
+          "name": "deploy",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "void_feasibility": [
+    {
+      "tier": "128m attachment",
+      "job_id": 125724754528,
+      "source": {
+        "status": "RESEARCH_BLOB_SCOPED_VALIDATED",
+        "reasonCodes": [],
+        "refusalReasonCount": 0,
+        "reservedBytes": 4099,
+        "requiredBytes": null,
+        "missingBytes": null,
+        "remainingVoidBytes": 3992,
+        "indexedElementCount": 6,
+        "sourceIndexStatus": "INDEX_UNVERIFIED",
+        "resultIndexStatus": "INDEX_REFERENCES_VERIFIED",
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "finished": {
+        "status": "RESEARCH_BLOB_SCOPED_VALIDATED",
+        "reasonCodes": [],
+        "refusalReasonCount": 0,
+        "reservedBytes": 161,
+        "requiredBytes": null,
+        "missingBytes": null,
+        "remainingVoidBytes": 56,
+        "indexedElementCount": 6,
+        "sourceIndexStatus": "INDEX_UNVERIFIED",
+        "resultIndexStatus": "INDEX_REFERENCES_VERIFIED",
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "noFileWasReplaced": true,
+      "noResearchBlobWasDownloaded": true
+    },
+    {
+      "tier": "512m pcm",
+      "job_id": 125724754855,
+      "source": {
+        "status": "REFUSED",
+        "reasonCodes": [
+          "VOID_REPAIR_NOT_ENOUGH_RESERVED_BYTES"
+        ],
+        "refusalReasonCount": 1,
+        "reservedBytes": 161,
+        "requiredBytes": 3057,
+        "missingBytes": 2896,
+        "remainingVoidBytes": null,
+        "indexedElementCount": null,
+        "sourceIndexStatus": null,
+        "resultIndexStatus": null,
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "finished": {
+        "status": "REFUSED",
+        "reasonCodes": [
+          "VOID_REPAIR_NOT_ENOUGH_RESERVED_BYTES"
+        ],
+        "refusalReasonCount": 1,
+        "reservedBytes": 161,
+        "requiredBytes": 3057,
+        "missingBytes": 2896,
+        "remainingVoidBytes": null,
+        "indexedElementCount": null,
+        "sourceIndexStatus": null,
+        "resultIndexStatus": null,
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "noFileWasReplaced": true,
+      "noResearchBlobWasDownloaded": true
+    },
+    {
+      "tier": "1000m pcm",
+      "job_id": 125724754985,
+      "source": {
+        "status": "REFUSED",
+        "reasonCodes": [
+          "VOID_REPAIR_NOT_ENOUGH_RESERVED_BYTES"
+        ],
+        "refusalReasonCount": 1,
+        "reservedBytes": 161,
+        "requiredBytes": 5624,
+        "missingBytes": 5463,
+        "remainingVoidBytes": null,
+        "indexedElementCount": null,
+        "sourceIndexStatus": null,
+        "resultIndexStatus": null,
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "finished": {
+        "status": "REFUSED",
+        "reasonCodes": [
+          "VOID_REPAIR_NOT_ENOUGH_RESERVED_BYTES"
+        ],
+        "refusalReasonCount": 1,
+        "reservedBytes": 161,
+        "requiredBytes": 5624,
+        "missingBytes": 5463,
+        "remainingVoidBytes": null,
+        "indexedElementCount": null,
+        "sourceIndexStatus": null,
+        "resultIndexStatus": null,
+        "writerAuthorized": false,
+        "publicationAuthorized": false
+      },
+      "noFileWasReplaced": true,
+      "noResearchBlobWasDownloaded": true
+    }
+  ],
+  "limits": [
+    "Only the specified original/browser-downloaded fixture classes were observed; no general repair permission.",
+    "512/1000MiB PCM repair was REFUSED for insufficient reserved bytes, despite successful underlying mux tiers.",
+    "Manual research matrices, physical-tablet evidence and formal 1.0 acceptance are not promoted."
+  ]
+}

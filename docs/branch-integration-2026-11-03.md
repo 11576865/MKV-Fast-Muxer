@@ -50,3 +50,11 @@ Deferred minor: the simplified `research/s12-browser-byte-lane.mjs` page can cha
 ## Terminal integration result
 
 PR #225 merged into main as `003c2364163da4a8f9778c32a6b69d8b605d4bf7`. All nine historical PRs were closed only after fresh exact-head checks and supersession notes. The repository open-PR inventory was independently fetched after closure and was empty. Historical refs are retained. External combined-tree/browser/native/deployment validation remains pending; this is a completed integration unit, not a completed 1.0 release.
+
+## 2026-11-03 external validation closure
+
+- Exact reviewed head `b9e67fa`: Browser run41577638418 and scoped S12 run41577638387 succeeded.
+- Merged main `003c236`: full Browser run41577657294 succeeded, including twenty actual batch deliveries and independent media checks.
+- Latest checkpoint `68d5bb4`: Pages run41577802627 build and deploy jobs both succeeded. The cancelled PR deployment was superseded, not failed product validation.
+- Actual Void observation: 128MiB attachment original and downloaded output yielded research-only validated Blobs;512MiB/1000MiB PCM both refused repair for insufficient reserved bytes (deficits2896/5463B). Underlying actual mux tiers passed; a repair refusal is not a repair PASS. No file replaced or research Blob published.
+- Complete machine receipt: `branch-integration-validation-2026-11-03.json`. Manual dual-path experiments and physical-device acceptance remain outside this closure.

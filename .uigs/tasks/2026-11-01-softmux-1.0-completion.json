@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "remaining_prs_integrated_pending_external_validation",
-  "current_bounded_work_unit": "All nine historical open PRs resolved via merged PR225; source lineage/evidence retained and old PRs closed; open PR inventory verified empty",
+  "status": "remaining_pr_integration_validation_complete",
+  "current_bounded_work_unit": "Close PR225 integration validation: exact-head browser/S12 success, merged-main browser success, latest68d5bb4 Pages build+deployment success; record real Void feasibility without promoting repair authorization",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -43,22 +43,22 @@
     "PR224 cf3782e: Deploy41483148334 and S1241483148371 success; Browser41483148386 failed obsolete candidate line72 expected Start disabled for generic attachment. Scoped repair updates capability expectation, retains add/remove/index staleness checks, independently verifies new actual PNG FileData/report SHA, and regenerates current media-only baseline before equal-label File swap. Four actual candidate outputs/preview and three viewports pass locally;839 unit tests pass; no product version/behavior change.",
     "PR #224 repaired exact head64d42a1 passed Browser41486368822, S1241486368563 and Deploy41486368741; squash merged into main @c60c83729b6515ab95eed664e1133d12c47feea3 on2026-11-03",
     "2026-11-03 PR206 exact head651fdf0 documentation CI41230982019 success; squash merged @2c8891b9740f0522ff5094451162c68cfd4d64d0. PR205 closed after confirming main retains original release gate plus formal deployment and dirty-checkout protections from PR210.",
-    "2026-11-03 PR225 independently reviewed (no Critical/Important),854/854 tests/build passed; merged @003c2364163da4a8f9778c32a6b69d8b605d4bf7. Historical PR196,181,179,178,176,174,170,154,76 closed as consolidated/superseded with source SHA guards; verified zero remaining open PRs."
+    "2026-11-03 PR225 independently reviewed (no Critical/Important),854/854 tests/build passed; merged @003c2364163da4a8f9778c32a6b69d8b605d4bf7. Historical PR196,181,179,178,176,174,170,154,76 closed as consolidated/superseded with source SHA guards; verified zero remaining open PRs.",
+    "2026-11-03 verified PR225b9e67fa Browser41577638418 and S1241577638387 success; merged-main003c236 Browser41577657294 success; Pages41577802627 build125725453706 and deploy125725610929 succeeded for68d5bb4. Research 128MiB originals reserved Void scoped-validation succeeded;512/1000MiB PCM repair refused with2896/5463-byte deficits; no file replaced or research Blob downloaded."
   ],
   "next_units": [
-    "Check exact PR225 combined-tree external CI once on next continuation; do not substitute historical research success for current native/browser evidence",
     "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
   "branch": "main",
   "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/225",
-  "latest_durable_commit": "003c2364163da4a8f9778c32a6b69d8b605d4bf7",
+  "latest_durable_commit": "68d5bb48af917b96df2def1d2e9fbe04b5da7ee5",
   "external_validation_states": {
     "node_build_local": "854/854 passed; build passed on consolidated tree",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
-    "full_exact_head_ci": "PR22464d42a1 all full workflows passed; merged into mainc60c837",
+    "full_exact_head_ci": "PR225b9e67fa Browser41577638418/S1241577638387 success; PR Pages41577638435 cancelled and superseded by successful main push Pages41577802627",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Checked: existing research and already recorded failures only; no new knowledge or Canonical change",
+    "UIGS_Intake": "Pending bounded dedupe/update: new actual Void capacity observations, not Canonical promotion",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -98,14 +98,14 @@
     "late_audit_cancel_local": "RED real DOM cancellation at ASS Style audit still published; GREEN final flag check refuses publication and actual same-task retry passes",
     "media_ordinary_attachments_ci": "PR22464d42a1 Browser41486368822/S1241486368563/Deploy41486368741 success; merged c60c837",
     "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views",
-    "post_merge_main_ci": "Pending External Validation: PR225 combined-tree native/browser checks and main deployment not yet claimed",
+    "post_merge_main_ci": "Success: main003c236 Browser41577657294; latest68d5bb4 Pages41577802627 build+deploy success",
     "branch_integration": "Complete: PR225 merged; nine old PRs closed with exact SHA checks and supersession notes; repository open PR inventory empty",
     "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
-    "remaining_pr_consolidation_native_browser": "Pending External Validation: current local environment has no Chromium/FFmpeg/MKVToolNix; exact historical #179 CI success retained, not combined-tree proof",
+    "remaining_pr_consolidation_native_browser": "Complete for integrated scoped S12 matrix and production browser regression; manual research dual-path matrix remains unrerun, not newly accepted",
     "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-03T04:30:00Z"
+  "updated_at": "2026-11-03"
 }
