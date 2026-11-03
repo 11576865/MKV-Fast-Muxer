@@ -121,6 +121,45 @@ test('P2 combined writer route never bypasses TagAttachmentUID references, unkno
  }),/FORGED_OR_STALE/);
 });
 
+test('P2 same-size replacement of TagAttachmentUID-targeted FileData needs separate review',async()=>{
+ const original=source({tagFree:true});
+ const replacement=asFile(Buffer.alloc(oldB.length,0x45),'updated.bin');
+ // A general modification acknowledgement cannot silently authorize a
+ // metadata-linked payload edit. The original behavior stays the default.
+ await assert.rejects(prepareRoutedAttachmentReplacement({
+   source:original,replacement,targetFileUid:'4',
+   approveSourceModification:true,
+ }),/TAG_REFERENCED_UID/);
+ const plan=await prepareRoutedAttachmentReplacement({
+   source:original,replacement,targetFileUid:'4',
+   approveSourceModification:true,
+   approveReferencedTagTargetReplacement:true,
+ });
+ assert.equal(plan.route,'same-size');
+ assert.equal(plan.evidence.referencedTagCount,1);
+ const result=await executeRoutedAttachmentReplacement(plan);
+ const before=createMatroskaAttachmentReader(original);
+ const after=createMatroskaAttachmentReader(result.output);
+ const [beforeInv,afterInv]=await Promise.all([before.inspect(),after.inspect()]);
+ const [beforeGraph,afterGraph]=await Promise.all([
+   before.inspectRelations(beforeInv),after.inspectRelations(afterInv),
+ ]);
+ assert.deepEqual(afterGraph.edges,beforeGraph.edges);
+ assert.equal(afterGraph.edges.filter(e=>
+   e.targetKind==='attachment'&&e.targetUid==='4'&&e.resolution==='matched').length,1);
+ assert.equal(result.evidence.tagTargetGraphPreserved,true);
+ assert.equal(result.evidence.nativeExternalOraclePassed,false);
+ assert.equal(await sha(original),plan.evidence.sourceSha256);
+ await assert.rejects(executeRoutedAttachmentReplacement(plan),/FORGED_OR_STALE/);
+ // Even an explicit referenced-target approval is not authorization to
+ // restructure a tagged attachment or attempt another writer.
+ await assert.rejects(prepareRoutedAttachmentReplacement({
+   source:original,replacement:asFile(Buffer.alloc(oldB.length+5)),
+   targetFileUid:'4',approveSourceModification:true,
+   approveReferencedTagTargetReplacement:true,
+ }),/TAG_REFERENCED_UID/);
+});
+
 test('P2 route fallback is allowed only for explicitly audited backend limitations',()=>{
  const allowed=[
   ['adjacent-void','RESERVED_VOID_ADJACENT_SLOT_REQUIRED'],
