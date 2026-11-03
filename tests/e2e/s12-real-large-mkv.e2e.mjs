@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { createReadStream, openAsBlob } from 'node:fs';
+import { planS12VoidResidentSeekHeadRepair } from '../../research/s12-void-resident-seekhead-repair.mjs';
 import { auditS12FinishedIndexEvidence } from '../../src/s12-finished-index-evidence.js';
 import { inspectS12CueTrackBlockEvidence } from '../../src/s12-cue-track-block-evidence.js';
 import { createHash } from 'node:crypto';
@@ -115,6 +116,12 @@ try{
  assert.equal((await fs.stat(source)).size,raw.sourceBytes);
  manifest.inputSha256=await shaFile(source);
  const input=probe(source);
+ const inputAttachmentStreams=input.streams.filter(s=>s.codec_type==='attachment');
+ assert.equal(inputAttachmentStreams.length,raw.attachmentCount,
+   'S12 fixture attachment count must match physical manifest');
+ manifest.originalAttachmentLayout={count:raw.attachmentCount,
+   chunkMiB:raw.attachmentChunkMiB??null,
+   declaredPartBytes:(raw.attachments||[]).map(x=>x.bytes)};
  assert.ok(input.streams.some(s=>s.codec_type==='video'));
  assert.ok(input.streams.some(s=>s.codec_type==='audio'));
  if(kind==='attachment')
@@ -254,8 +261,8 @@ try{
  assert.ok(kinds.includes('audio'),'native final audio missing');
  assert.ok(kinds.includes('subtitle'),'new subtitle not delivered');
  const attachments=output.streams.filter(s=>s.codec_type==='attachment');
- if(kind==='attachment')assert.ok(attachments.length>=raw.attachmentCount,
-   'native output has lost a genuine original Matroska attachment');
+ assert.equal(attachments.length,raw.attachmentCount,
+   'source-only subtitle append must neither drop nor invent original attachments');
  if(kind==='pcm'){
    assert.ok(output.streams.some(s=>s.codec_type==='audio'&&s.codec_name===raw.expectedAudioCodec),
      'timed PCM audio codec was not delivered');
@@ -397,6 +404,49 @@ try{
  assert.equal(sourceBlocks.cueTimestampCheckedReferences,sourceBlocks.totalReferences);
  assert.equal(outputBlocks.cueTimestampCheckedReferences,outputBlocks.totalReferences);
 
+ // RESEARCH-ONLY feasibility check. Refusal must NOT be mislabeled as a
+ // successful repair, and a successful zero-relocation Blob must NEVER be
+ // published or substituted for the actual user's downloaded MKV.
+ // The repairer itself proves CRC and SeekHead coverage, unchanged Cues
+ // locations, and an exactly equal total file size.
+ const [sourceRepair,finishedRepair]=await Promise.all([
+   planS12VoidResidentSeekHeadRepair(nativeInputBlob),
+   planS12VoidResidentSeekHeadRepair(nativeFinishedBlob),
+ ]);
+ const boundedRepair=r=>({
+   status:r.status,
+   reasonCodes:r.reasons.slice(0,8),
+   refusalReasonCount:r.reasons.length,
+   reservedBytes:r.reservedBytes??null,
+   requiredBytes:r.requiredBytes??null,
+   missingBytes:r.missingBytes??null,
+   remainingVoidBytes:r.remainingVoidBytes??null,
+   indexedElementCount:r.indexedElementCount??null,
+   sourceIndexStatus:r.sourceIndexStatus??null,
+   resultIndexStatus:r.resultIndexStatus??null,
+   writerAuthorized:r.writerAuthorized,
+   publicationAuthorized:r.publicationAuthorized,
+ });
+ manifest.seekHeadVoidOnlyResearch={
+   source:boundedRepair(sourceRepair),
+   finished:boundedRepair(finishedRepair),
+   noFileWasReplaced:true,
+   noResearchBlobWasDownloaded:true,
+ };
+ await mark('native-void-resident-seekhead-repair-feasibility-observed',
+   manifest.seekHeadVoidOnlyResearch);
+ for(const r of [sourceRepair,finishedRepair]){
+   assert.ok(['REFUSED','NOT_NEEDED','RESEARCH_BLOB_SCOPED_VALIDATED']
+     .includes(r.status),'S12_RESEARCH_REPAIR_INVALID_STATUS: '+r.status);
+   assert.equal(r.writerAuthorized,false);
+   assert.equal(r.publicationAuthorized,false);
+   if(r.status==='RESEARCH_BLOB_SCOPED_VALIDATED'){
+     assert.equal(r.sourceSize,r.resultSize);
+     assert.equal(r.resultIndexStatus,'INDEX_REFERENCES_VERIFIED');
+     assert.ok(r.reservedBytes>=r.newHeadBytes);
+     assert.ok(r.researchBlob instanceof Blob);
+   }
+ }
  assert.equal(await shaFile(source),manifest.inputSha256,
    'original large source must remain byte-identical');
  manifest.result='PASS_THIS_TIER';

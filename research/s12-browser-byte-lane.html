@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>S12 original Attachments byte lane — research only</title>
+</head>
+<body>
+  <h1>S12 original Attachments byte lane — research only</h1>
+  <p>This is a standalone research fixture. It is not part of the Softmux product and confers no permission to save arbitrary Matroska projects.</p>
+  <label>Actual original source MKV <input type="file" id="originalFile" accept=".mkv"></label>
+  <label>Actual FFmpeg remux without attachments <input type="file" id="remuxedFile" accept=".mkv"></label>
+  <button type="button" id="run" disabled>Compose via browser Blob.slice and download</button>
+  <output id="result" aria-live="polite">Choose both files.</output>
+  <script type="module" src="./s12-browser-byte-lane.mjs"></script>
+</body>
+</html>

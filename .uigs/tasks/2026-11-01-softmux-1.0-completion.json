@@ -1,7 +1,7 @@
 {
   "goal": "Complete Softmux 1.0 Plan B and the user-facing integration gaps identified 2026-11-01",
-  "status": "branch_integration_unit_complete",
-  "current_bounded_work_unit": "PR206 historical audit merged; PR205 closed as superseded by PR210; historical document annotated to distinguish original baseline from current main",
+  "status": "remaining_pr_consolidation_reviewed_ready_to_merge",
+  "current_bounded_work_unit": "Consolidate all nine historical open PRs into one isolated research/audit integration; preserve current production and known red evidence",
   "completed_units": [
     "External subtitle/audio membership, independent candidate preview, exact output witness and portable recovery; locally 757 tests/build and real Chromium + independent FFprobe verified",
     "PR #207 merged @ b8f4c957ee49e3ece5bd2506cdd8a030f6ecc0c9 after exact head 57f4906 Node/build/browser/S12 success",
@@ -49,15 +49,15 @@
     "Continue from main0.1046: complete remaining S10 actual batch fault/retry and S03 OTC/multi-face/shaping user workflows",
     "Target desktop/tablet S12/S13 evidence and exact candidate acceptance/site/rollback/formal promotion"
   ],
-  "branch": "main",
-  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/206",
-  "latest_durable_commit": "2c8891b9740f0522ff5094451162c68cfd4d64d0",
+  "branch": "integration/softmux-remaining-prs-20261103",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/225",
+  "latest_durable_commit": "cacd84255c53829bc6636b0b6c50d5020df1e2d4",
   "external_validation_states": {
     "node_build_local": "839/839 passed; build passed",
     "candidate_chromium_native_local": "passed: two real MKV outputs, excluded preview, exact membership evidence, 3 viewports",
     "full_exact_head_ci": "PR22464d42a1 all full workflows passed; merged into mainc60c837",
     "physical_tablet": "unavailable",
-    "UIGS_Intake": "Checked: routine historical-branch consolidation reuses existing knowledge; no new reusable knowledge, no Foundry duplicate or Canonical change",
+    "UIGS_Intake": "Checked: existing research and already recorded failures only; no new knowledge or Canonical change",
     "attachment_only_local": "Real one/two-attachment browser downloads; complete payload hashes, selection staleness and legacy-media mixing refusal passed",
     "media_regression_local": "Candidate preview and real FFprobe one/two-subtitle output regression passed",
     "native_mkvtoolnix": "PR #208 full CI passed both native parse/extraction scenarios",
@@ -98,10 +98,13 @@
     "media_ordinary_attachments_ci": "PR22464d42a1 Browser41486368822/S1241486368563/Deploy41486368741 success; merged c60c837",
     "candidate_membership_ci_repair_local": "passed: actual Chromium preview/excluded/reincluded members; four real MKVs including PNG mixed and regenerated media-only baseline; physical FileData SHA/report SHA; addition/removal and equal-label exact File swap staleness; 1440/1024/768 views",
     "post_merge_main_ci": "Pending main push workflows; prior exact PR-head success does not claim post-merge deployment completion",
-    "branch_integration": "PR206 merged; PR205 superseded/closed; no production behavior or acceptance verdict changes"
+    "branch_integration": "PR206 merged; PR205 superseded/closed; no production behavior or acceptance verdict changes",
+    "remaining_pr_consolidation_local": "854/854 Node tests, Vite build and diff whitespace passed",
+    "remaining_pr_consolidation_native_browser": "Pending External Validation: current local environment has no Chromium/FFmpeg/MKVToolNix; exact historical #179 CI success retained, not combined-tree proof",
+    "remaining_pr_consolidation_review": "Independent whole-branch review: no Critical/Important; imported15/15 tests re-run; one inherited simplified research-page File/evidence presentation limitation deferred in integration report"
   },
   "blockers": [
     "Physical target tablet unavailable in this agent environment; cannot fabricate device acceptance"
   ],
-  "updated_at": "2026-11-03T04:02:00Z"
+  "updated_at": "2026-11-03T04:25:00Z"
 }
