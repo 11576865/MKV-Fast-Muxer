@@ -26,6 +26,10 @@ const cases=[
   {id:'foundation-edge-crc-misplaced',crc:'misplaced',unknownSegment:false},
   {id:'foundation-edge-crc-duplicate',crc:'duplicate',unknownSegment:false},
   {id:'foundation-edge-crc-oversized',crc:'oversized',unknownSegment:false},
+  {id:'foundation-edge-metadata-4096',crc:'absent',
+    metadataLength:4096,unknownSegment:false},
+  {id:'foundation-edge-metadata-4097',crc:'absent',
+    metadataLength:4097,unknownSegment:false,expectRefusal:true},
   {id:'foundation-edge-cluster-unknown-terminal',crc:'absent',
     unknownSegment:false,unknownClusterTerminal:true},
   {id:'foundation-edge-cluster-unknown-nonterminal',crc:'absent',
@@ -94,7 +98,7 @@ try{
       const nativeData=parseMkvmergeJsonWithExactUids(
         await fs.readFile(path.join(out,scenario.id+'-native.json'),'utf8'));
       if(!nativeData.container?.recognized||
-         nativeData.attachments?.length!==2)
+         nativeData.attachments?.length!==(scenario.metadataLength?1:2))
         throw Error('EDGE_NATIVE_REFERENCE_UNRECOGNIZED_'+scenario.id);
       for(const row of nativeData.attachments||[]){
         const target=path.resolve(out,scenario.id+'-native-'+row.id+'.bin');
@@ -103,6 +107,7 @@ try{
         native.push({
           uid:exactPositiveUid(row.properties?.uid),
           filename:row.file_name,mimeType:row.content_type,
+          description:row.description||'',
           bytes:row.size,sha256:sha(await fs.readFile(target)),
         });
       }
@@ -170,6 +175,7 @@ try{
           if(attachment.fileUid!==nativeExpected[i].uid ||
              attachment.filename!==nativeExpected[i].filename||
              attachment.mimeType!==nativeExpected[i].mimeType||
+             attachment.description!==nativeExpected[i].description||
              attachment.byteLength!==nativeExpected[i].bytes)
             throw Error('EDGE_NATIVE_ATTACHMENT_METADATA_MISMATCH');
           const bytes=await newer.openAttachment(attachment.id).data.arrayBuffer();
@@ -196,7 +202,9 @@ try{
       }
       return result;
     },{
-      nativeExpected:['corrupt','misplaced','duplicate','oversized'].includes(scenario.crc)?null:native,
+      nativeExpected:
+        (['corrupt','misplaced','duplicate','oversized'].includes(scenario.crc)||
+         scenario.metadataLength===4097)?null:native,
       unknownClusterTerminal:scenario.unknownClusterTerminal===true,
       expectRefusal:scenario.expectRefusal===true,
     });
@@ -216,6 +224,14 @@ try{
        actual.modernError!=='FOUNDATION_CRC_RESOURCE_LIMIT')
       throw Error('EDGE_VALID_BUT_OVERBUDGET_CRC_NOT_REJECTED_'+
         actual.modernError);
+    if(scenario.metadataLength===4096 &&
+       (actual.modern!=='inspected'||actual.items.length!==1))
+      throw Error('EDGE_METADATA_4096_BOUNDARY_NOT_ACCEPTED');
+    if(scenario.metadataLength===4097 &&
+       (actual.modernError!=='FOUNDATION_INVENTORY_ELEMENT_SPAN_INVALID'||
+        actual.legacy!=='unverified'))
+      throw Error('EDGE_METADATA_4097_BUDGET_NOT_ENFORCED_'+
+        actual.modernError+'_'+actual.legacy);
     if(scenario.unknownSegment &&
        (!actual.structure||actual.structure.segmentSizeKnown!==false||
         actual.structure.segmentFiniteExact!==false))
@@ -233,6 +249,7 @@ try{
       crcChecksExpected:scenario.crcChecks||1,
       outerCrcValid:scenario.outerCrcValid??null,
       unknownSegment:scenario.unknownSegment,
+      metadataLength:scenario.metadataLength||null,
       unknownClusterTerminal:scenario.unknownClusterTerminal||false,
       unknownClusterNonterminal:scenario.unknownClusterNonterminal||false,
       unknownClusterTrailingVoid:scenario.unknownClusterTrailingVoid||false,
