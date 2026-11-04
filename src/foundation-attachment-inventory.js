@@ -80,7 +80,7 @@ export async function buildFoundationAttachmentInventory({
       if(docTypeNode)throw Error('FOUNDATION_INVENTORY_DUPLICATE_DOCTYPE');
       docTypeNode=node;
     }
-    if(parent===segment){
+    if(segment && parent===segment){
       topLevel.set(id,(topLevel.get(id)||0)+1);
       if(id===0x1654ae6b)hasTracks=true;
       if(id===0x1f43b675)hasCluster=true;
