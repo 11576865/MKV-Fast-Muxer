@@ -5,9 +5,10 @@ import {
 
 /**
  * P0/P2: byte-position-preserving edit of ONE existing AttachedFile/FileData.
- * NOT a general Matroska writer. Not valid for resized files, targeted
- * AttachmentUIDs, unknown top-level EBML, CRC-bearing ancestor masters,
- * unverified source layout, or output overwrite.
+ * NOT a general Matroska writer. Not valid for resized files, unknown
+ * top-level EBML, CRC-bearing ancestor masters, unverified layout or source
+ * overwrite. Referenced AttachmentUIDs require separate explicit review:
+ * FileUID/TagTargets remain byte-identical; only FileData is replaced.
  */
 export const SAME_SIZE_ATTACHMENT_REPLACE_SCHEMA =
   'existing-mkv-same-size-attachment-filedata-plan-v0';
@@ -111,6 +112,7 @@ function acceptedInput(source, replacement, targetFileUid, review) {
 /** Review is required for every new plan. Only a real plan retains File grants. */
 export async function prepareSameSizeAttachmentReplacement({
   source, replacement, targetFileUid, acknowledgeContentReplacement = false,
+  acknowledgeReferencedTagTargets = false,
 } = {}) {
   acceptedInput(source, replacement, targetFileUid, acknowledgeContentReplacement);
   const scan = await inspectRawSegmentPreservation(source);
@@ -140,9 +142,13 @@ export async function prepareSameSizeAttachmentReplacement({
       graph.state !== 'inspected' ||
       graph.coverage.tagTargets !== 'known-targets-enumerated')
     throw Error('SAME_SIZE_REPLACE_UID_GRAPH_UNVERIFIED');
-  if (graph.edges.some(edge => edge.targetKind === 'attachment' &&
-      edge.targetUid === targetFileUid))
+  const targetRefs = graph.edges.filter(edge =>
+    edge.targetKind === 'attachment' && edge.targetUid === targetFileUid);
+  if (targetRefs.length && !acknowledgeReferencedTagTargets)
     throw Error('SAME_SIZE_REPLACE_TARGETED_ATTACHMENT_UID_BLOCKED');
+  if (targetRefs.some(edge => edge.resolution !== 'matched' ||
+      edge.targetAttachmentId !== item.id))
+    throw Error('SAME_SIZE_REPLACE_TARGETED_ATTACHMENT_REFERENCE_NOT_EXACT');
   const range = await locateExactFileData(source, scan, item);
   const sourceSha256 = await sha256(source);
   const priorFileDataSha256 = await sha256(reader.openAttachment(item.id).data);
@@ -160,13 +166,17 @@ export async function prepareSameSizeAttachmentReplacement({
       rangeOffset: range.offset },
     evidence: { sourceSha256, priorFileDataSha256, replacementSha256,
       protectedSourceBytes: 'bounded-whole-raw-segment-evidence',
-      targetUidReferences: 'independently-enumerated-none',
+      targetUidReferences: targetRefs.length ?
+        'explicitly-reviewed-unchanged-fileuid-targets' :
+        'independently-enumerated-none',
+      referencedTagCount: targetRefs.length,
       writerCapability: 'same-length-existing-filedata-only',
       authorizesGeneralMatroskaWriter: false },
     execution: { originalFileOverwrite: false, autoDownload: false,
       externalCompatibilityProvedForUserFile: false },
   });
-  grants.set(plan, { source, replacement, scan, inventory, target: item, range,
+  grants.set(plan, { source, replacement, scan, inventory, sourceGraph: graph,
+    referencedTagCount: targetRefs.length, target: item, range,
     sourceSha256, priorFileDataSha256, replacementSha256 });
   return plan;
 }
@@ -174,7 +184,8 @@ export async function executeSameSizeAttachmentReplacement(plan) {
   if (plan?.schema !== SAME_SIZE_ATTACHMENT_REPLACE_SCHEMA ||
       !Object.isFrozen(plan) || !grants.has(plan))
     throw Error('SAME_SIZE_REPLACE_FORGED_OR_STALE_PLAN');
-  const { source, replacement, scan, inventory, target, range, sourceSha256,
+  const { source, replacement, scan, inventory, sourceGraph,
+    referencedTagCount, target, range, sourceSha256,
     priorFileDataSha256, replacementSha256 } = grants.get(plan);
   if (await sha256(source) !== sourceSha256 ||
       await sha256(replacement) !== replacementSha256 ||
@@ -223,6 +234,14 @@ export async function executeSameSizeAttachmentReplacement(plan) {
     if (digest !== expected)
       throw Error('SAME_SIZE_REPLACE_OUTPUT_ATTACHMENT_DATA_MISMATCH');
   }
+  // Reparse the physical Matroska Tag -> AttachmentUID graph from the
+  // generated output. Byte-equal protected top levels are also required,
+  // but independent graph reinspection makes the reference claim explicit.
+  const outputGraph = await outputReader.inspectRelations(observed);
+  if (outputGraph.state !== 'inspected' ||
+      outputGraph.coverage.tagTargets !== 'known-targets-enumerated' ||
+      JSON.stringify(outputGraph.edges) !== JSON.stringify(sourceGraph.edges))
+    throw Error('SAME_SIZE_REPLACE_OUTPUT_TAG_GRAPH_CHANGED');
   if (await sha256(source) !== sourceSha256 ||
       await sha256(replacement) !== replacementSha256 ||
       await sha256(source.slice(range.offset, range.offset + range.size)) !==
@@ -240,7 +259,9 @@ export async function executeSameSizeAttachmentReplacement(plan) {
       originalSourceUnmodified: true, originalOffsetsUnchanged: true,
       originalProtectedTopLevelByteCommitmentsMatch: true,
       originalAttachmentUidAndMetadataMatch: true,
-      otherAttachedFileDataMatch: true, unreferencedTargetOnly: true,
+      otherAttachedFileDataMatch: true,
+      unreferencedTargetOnly: referencedTagCount === 0,
+      referencedTagCount, tagTargetGraphPreserved: true,
       currentSourceExternallyAudited: false, generalWriter: false,
     }),
   });
