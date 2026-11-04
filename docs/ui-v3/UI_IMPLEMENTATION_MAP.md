@@ -29,3 +29,17 @@ No separate editor store or second mutating container object may be created.
 | Source replacement or removal | `importedAssetEntries`, File-adapter update; bound intent invalidation | target tab revoked; previously selected File cannot impersonate replacement |
 
 Known gap: this is an explicit writer-authorization gate around the legacy *internally eager* output composition, not yet an optional target model in the core domain. Never label it complete optional OutputPlan.
+
+
+## WU-03 source/output model boundary (2026-11-04)
+
+| Operation | Exact code authority | V3 behavior and evidence |
+| --- | --- | --- |
+| Open source with no target | `scannedSourceFile===entry.file`, `trackState.streams`, `publishV3ResourceRegistry` | `sourceRowsFromObservation` renders source facts; no output model constructed by primary `renderOutputComposition` |
+| No confirmed `currentV3Target()` | `src/main.js:renderOutputComposition` short-circuit before `buildContainerDocument` | clears composition rows, count and current selection; disables writer even when legacy controls exist |
+| Confirm B explicitly | `src/softmux-v3-intent.js` + `softmux:v3-confirm-target` identity gate | existing `buildContainerDocument` and `#compositionTracks` render the single actual draft |
+| Inspect/edit output subtitle | original `#compositionTracks [data-composition-id]` handler and `#newSubtitleList` | one existing editor, same title/flags authority; WU-03 Chromium checks actual source-derived track selection |
+| Completed output | unchanged original mux, audit, `#outputEvidencePanel`, download-link ownership | only real FFmpeg.wasm output and independent native file check count as proof |
+| Remove B source target | imported-entry removal + `currentV3Target()` and V3 resource-registry | revokes target tab and composition, blocks mux and returns to source; tested via visible source drawer |
+
+The main V3 output composition path is now conditional; this is **not** blanket deletion of every legacy prospective-plan helper or an assertion that all read-only source entry points have been audited. Target-source authorization remains separate from user-edited track fields, and only authorized user interactions may advance from observation to output.
