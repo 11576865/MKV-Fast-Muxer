@@ -147,8 +147,8 @@ try {
   const parents=[];
   let previousOffset=-1n,maxDepth=0;
   for(const node of nodes){
-    if(!/^-?\\d+$/.test(node.offset)||
-       !/^-?\\d+$/.test(node.endOffset))
+    if(!/^-?\d+$/.test(node.offset)||
+       !/^-?\d+$/.test(node.endOffset))
       throw Error('STRUCTURED_WASM_OFFSET_NOT_DECIMAL');
     const start=BigInt(node.offset),end=BigInt(node.endOffset);
     if(start<0n||end<start||start<previousOffset||
