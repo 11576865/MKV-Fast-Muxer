@@ -84,8 +84,15 @@ self.onmessage=async event=>{
       },
     });
   } catch(error){
+    // Only machine-safe codes cross the product Worker boundary.
+    // Keep the full stack in the CI-only diagnostic field; never reflect
+    // arbitrary source filenames/paths into the public inventory code.
+    const errorText=String(error?.message||'');
+    const safeCode=/^(?:FOUNDATION_ABI|WORKERFS)_[A-Z0-9_]+$/.test(errorText)?
+      errorText:'FOUNDATION_WORKER_GENERAL_FAILURE';
     self.postMessage({
-      ok:false,error:String(error?.stack||error),
+      ok:false,errorCode:safeCode,
+      error:String(error?.stack||error),
       workerStats:stats,
     });
   } finally {
