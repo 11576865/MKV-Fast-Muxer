@@ -61,11 +61,11 @@ self.onmessage=async event=>{
 
     // Do not use FS.writeFile, FS.readFile, arrayBuffer() or base64. Every
     // file read below originates in the official C parser via WORKERFS.
-    const rc=moduleInstance.ccall(
-      'foundation_probe','number',['string'],[sourcePath]);
-    if(rc!==0)throw Error('WORKERFS_MATROSKA_PARSE_FAILED_'+rc);
-    const json=moduleInstance.ccall('foundation_json','string',[],[]);
-    const structured=JSON.parse(json);
+    const {readFoundationWasmStructure}=await import(
+      '/src/foundation-wasm-json-abi.js');
+    // The ABI consumer copies and validates the JSON before *always*
+    // releasing the native buffer; each Worker remains operation-isolated.
+    const structured=readFoundationWasmStructure(moduleInstance,sourcePath);
     if(structured.schema!=='foundation-matroska-structured-tree-v0'||
        !Array.isArray(structured.nodes)||structured.nodes.length<3)
       throw Error('WORKERFS_STRUCTURED_RESULT_INVALID');
