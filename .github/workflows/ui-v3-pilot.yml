@@ -10,6 +10,7 @@ on:
       - 'tests/softmux-v3-intent.test.mjs'
       - 'tests/e2e/v3-source-first.e2e.mjs'
       - 'tests/e2e/v3-cross-source-subrip.e2e.mjs'
+      - 'tests/e2e/v3-responsive-geometry.e2e.mjs'
       - 'docs/ui-v3/**'
       - '.github/workflows/ui-v3-pilot.yml'
   workflow_dispatch:
@@ -70,6 +71,8 @@ jobs:
         run: node tests/e2e/v3-source-first.e2e.mjs
       - name: Real Chromium V3 exact-source SubRip transfer to explicit target
         run: node tests/e2e/v3-cross-source-subrip.e2e.mjs
+      - name: Chromium V3 responsive geometry and File continuity audit
+        run: node tests/e2e/v3-responsive-geometry.e2e.mjs
       - name: Upload exact-HEAD V3 UI screenshots and evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,6 +81,7 @@ jobs:
           path: |
             .e2e/ui-v3-evidence/
             .e2e/ui-v3-cross-source/
+            .e2e/ui-v3-responsive/
 
           retention-days: 14
           if-no-files-found: warn
