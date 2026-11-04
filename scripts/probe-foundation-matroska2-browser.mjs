@@ -6,6 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
@@ -13,6 +14,11 @@ import {chromium} from 'playwright';
 import {parseMkvmergeJsonWithExactUids,exactPositiveUid} from '../src/mkvmerge-exact-uid-json.js';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
+const shaFile=async file=>{
+  const hasher=createHash('sha256');
+  for await(const chunk of createReadStream(file))hasher.update(chunk);
+  return hasher.digest('hex');
+};
 const js=path.resolve(process.env.FOUNDATION_WASM_JS||
   '.e2e/foundation-build/libmatroska2/mkvtree.js');
 const wasm=path.join(path.dirname(js),'mkvtree.wasm');
@@ -21,6 +27,8 @@ const structuredJs=path.resolve(process.env.FOUNDATION_STRUCTURED_WASM_JS||
 const structuredWasm=path.join(path.dirname(structuredJs),'foundation_json_probe.wasm');
 const fixture=path.resolve(process.env.FOUNDATION_FIXTURE||
   '.e2e/fixtures/p0-independent-mkvtoolnix.mkv');
+const largeFixture=path.resolve(process.env.FOUNDATION_LARGE_FIXTURE||
+  '.e2e/fixtures/foundation-large-attachment.mkv');
 const reportFile=path.resolve(process.env.FOUNDATION_BROWSER_REPORT||
   '.e2e/output/foundation-matroska2-chromium-probe.json');
 const report={
@@ -141,7 +149,7 @@ try {
   // Proof of the intended production I/O shape: the official C parser
   // mounts the browser's File as WORKERFS inside a genuine dedicated Worker,
   // and synchronously fetches only the Blob slices requested by native I/O.
-  const lazy=await page.evaluate(()=>new Promise((resolve,reject)=>{
+  const probeWorker=()=>page.evaluate(()=>new Promise((resolve,reject)=>{
     const file=document.querySelector('#source')?.files?.[0];
     if(!file){reject(Error('FILE_INPUT_NOT_FOUND'));return;}
     const worker=new Worker('/foundation-worker.js');
@@ -162,6 +170,7 @@ try {
     };
     worker.postMessage({type:'probe',file});
   }));
+  const lazy=await probeWorker();
   if(JSON.stringify(lazy.structured)!==JSON.stringify(result.structured))
     throw Error('WORKERFS_VS_MEMFS_STRUCTURED_TREE_MISMATCH');
   if(!lazy.workerStats.usedWorkerFS||
@@ -172,6 +181,49 @@ try {
   report.workerFSReadOnly=true;
   report.workerFSStructuredParity=true;
   report.workerFSAccess=lazy.workerStats;
+  // Independent high-volume MKV stress test: upload a real >96 MiB
+  // Matroska File from disk directly into Chromium's file picker. The JS
+  // harness never fs.readFile()s the large source, and the browser Worker
+  // mounts the File via read-only WORKERFS. This proves bounded *observed*
+  // reads for one large attachment; it does not prove all large MKVs.
+  const beforeLarge=await fs.stat(largeFixture);
+  const largeSha=await shaFile(largeFixture);
+  const largeReference=parseMkvmergeJsonWithExactUids(
+    await fs.readFile('.e2e/output/foundation-large-reference-mkvmerge.json','utf8'));
+  if(beforeLarge.size<100000000)
+    throw Error('LARGE_MKV_FIXTURE_TOO_SMALL');
+  await page.locator('#source').setInputFiles(largeFixture);
+  const large=await probeWorker();
+  const largeNames=large.structured.nodes.map(node=>node.name);
+  const largeTracks=largeNames.filter(name=>name==='TrackEntry').length;
+  const largeAttachments=largeNames.filter(name=>name==='AttachedFile').length;
+  if(largeTracks!==(largeReference.tracks||[]).length||
+     largeAttachments!==(largeReference.attachments||[]).length)
+    throw Error('LARGE_WORKERFS_VS_MKVMERGE_OBJECT_COUNT_MISMATCH');
+  if(!large.workerStats.usedWorkerFS||
+     large.workerStats.stagedEntireFileInMemfs||
+     large.workerStats.fileBytes!==beforeLarge.size||
+     large.workerStats.fileReaderSyncCalls<1||
+     large.workerStats.bytesRequested>=beforeLarge.size/100||
+     large.workerStats.largestSliceBytes>=beforeLarge.size/100)
+    throw Error('LARGE_WORKERFS_ACCESS_NOT_BOUNDED');
+  const afterLarge=await fs.stat(largeFixture);
+  if(afterLarge.size!==beforeLarge.size||
+     await shaFile(largeFixture)!==largeSha)
+    throw Error('LARGE_WORKERFS_SOURCE_MODIFIED');
+  report.workerFSLargeFile={
+    fileBytes:beforeLarge.size,
+    sourceSha256:largeSha,
+    parsedNodes:large.structured.nodes.length,
+    trackCount:largeTracks,
+    attachmentCount:largeAttachments,
+    fileReaderSyncCalls:large.workerStats.fileReaderSyncCalls,
+    bytesRequested:large.workerStats.bytesRequested,
+    largestSliceBytes:large.workerStats.largestSliceBytes,
+    sourceUnmodified:true,
+    stagedEntireFileInMemfs:false,
+  };
+
   const families={
     ebml:/ebml/i,segment:/segment/i,tracks:/tracks?/i,
     attachments:/attachments?/i,chapters:/chapters?/i,tags:/tags?/i,
