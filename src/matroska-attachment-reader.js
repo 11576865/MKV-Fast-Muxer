@@ -1,6 +1,7 @@
 import { createSourceAssetSession } from './source-asset-session.js';
 import { createFoundationStructureObserver } from './foundation-structure-observation.js';
 import { buildFoundationAttachmentInventory } from './foundation-attachment-inventory.js';
+import { verifyFoundationAttachmentCrc32 } from './foundation-attachment-crc32.js';
 import { inspectMatroskaPreservation } from './preservation-preflight.js';
 import { inspectMatroskaAttachmentRelations } from './matroska-attachment-relation-graph.js';
 
@@ -170,9 +171,20 @@ export function createMatroskaAttachmentReader(file, {
         if(activeFoundation!==observer ||
            !sourceSession.isCurrent(asset,file))
           throw Error('FOUNDATION_INVENTORY_SOURCE_STALE');
-        const inventory=freezePlain(await buildFoundationAttachmentInventory({
+        // An observed CRC on Attachments/AttachedFile is not optional:
+        // fail closed on incorrect protected bytes or over-budget coverage.
+        // Other CRC-bearing Matroska masters are outside this narrow read
+        // guarantee and remain explicitly uncertified for writer admission.
+        const attachmentCrc=await verifyFoundationAttachmentCrc32({
+          file,observation:tree,
+        });
+        const base=await buildFoundationAttachmentInventory({
           file,source:asset,observation:tree,
-        }));
+        });
+        const inventory=freezePlain({
+          ...base,
+          scanning:{...base.scanning,attachmentCrc},
+        });
         if(activeFoundation!==observer ||
            !sourceSession.isCurrent(asset,file))
           throw Error('FOUNDATION_INVENTORY_SOURCE_CHANGED_DURING_READ');
