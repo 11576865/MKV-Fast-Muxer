@@ -18,6 +18,8 @@ const SOURCE_COMMIT='d69761114b79c1dfcb2226ceca84452835e745c3';
 const names={
   'foundation_json_probe.js':'text/javascript',
   'foundation_json_probe.wasm':'application/wasm',
+  'foundation-worker.js':'text/javascript',
+  'foundation-wasm-json-abi.js':'text/javascript',
   'LICENSE':'text/plain',
 };
 const args=new Map();
@@ -49,15 +51,38 @@ const head=execFileSync('git',['-C',upstream,'rev-parse','HEAD'],{
 if(head!==SOURCE_COMMIT)
   throw Error('FOUNDATION_STAGE_UPSTREAM_COMMIT_MISMATCH');
 
-const artifacts=await Promise.all([
+const [generatedJs,generatedWasm,originalWorker,abiJs,license]=await Promise.all([
   fs.readFile(path.join(source,'foundation_json_probe.js')),
   fs.readFile(path.join(source,'foundation_json_probe.wasm')),
+  fs.readFile('scripts/workers/foundation-matroska-worker.js','utf8'),
+  fs.readFile('src/foundation-wasm-json-abi.js'),
   fs.readFile(path.join(upstream,'LICENSE')),
 ]);
+// The product runtime is served under its own directory (including on
+// GitHub Pages subpaths). Resolve assets relative to the Worker URL.
+const edits=[
+  ["importScripts('/foundation-json.js');",
+   "importScripts('./foundation_json_probe.js');"],
+  ["'/src/foundation-wasm-json-abi.js'",
+   "'./foundation-wasm-json-abi.js'"],
+  ["new URL('/'+name,self.location.origin).href",
+   "new URL('./'+name,self.location.href).href"],
+];
+let stagedWorker=originalWorker;
+for(const [from,to] of edits){
+  if(!stagedWorker.includes(from))
+    throw Error('FOUNDATION_STAGE_WORKER_SOURCE_CHANGED');
+  stagedWorker=stagedWorker.replace(from,to);
+}
+const artifacts=[
+  generatedJs,generatedWasm,Buffer.from(stagedWorker,'utf8'),abiJs,license,
+];
 if(artifacts.some(bytes=>bytes.length===0) ||
    artifacts[1].subarray(0,4).toString('hex')!=='0061736d' ||
    !artifacts[0].includes(Buffer.from('createFoundationJSON')) ||
-   !artifacts[2].includes(Buffer.from('BSD')))
+   !artifacts[2].includes(Buffer.from('foundation_json_probe.js')) ||
+   !artifacts[3].includes(Buffer.from('FOUNDATION_WASM_ABI_VERSION')) ||
+   !artifacts[4].includes(Buffer.from('BSD')))
   throw Error('FOUNDATION_STAGE_INVALID_SOURCE_ARTIFACT');
 const files=Object.fromEntries(Object.keys(names).map((name,i)=>
   [name,Object.freeze({
@@ -74,6 +99,7 @@ const manifest={
     'EMULATE_FUNCTION_POINTER_CASTS','WORKERFS'],
   bridgeAbiVersion:FOUNDATION_WASM_ABI_VERSION,
   readOnly:true,
+  workerScript:'foundation-worker.js',
   productionActivation:'disabled-by-default',
   files,
 };
