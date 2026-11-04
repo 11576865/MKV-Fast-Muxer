@@ -1,4 +1,5 @@
 import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
+import { readBoundedEbmlHeader, rethrowBoundedHeaderError } from './matroska-bounded-ebml-header.js';
 import { inspectRawSegmentPreservation, compareRawSegmentPreservation } from './matroska-raw-preservation-contract.js';
 
 export const RESERVED_VOID_FILEDATA_PLAN_SCHEMA = 'existing-mkv-reserved-void-filedata-replace-plan-v0';
@@ -38,25 +39,21 @@ function constructVoid(total){
   throw Error('RESERVED_VOID_REMAINDER_TOO_SMALL');
 }
 async function readElement(blob,start,limit){
-  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(limit)||
-      start<0||start>=limit||limit>blob.size)
-    throw Error('RESERVED_VOID_RANGE');
-  const bytes=new Uint8Array(await blob.slice(start,Math.min(start+12,limit)).arrayBuffer());
-  if(!bytes[0])throw Error('RESERVED_VOID_ID_INVALID');
-  let idWidth=1;while(idWidth<=4 && !(bytes[0]&(0x80>>(idWidth-1))))idWidth++;
-  if(idWidth>4||idWidth>=bytes.length)throw Error('RESERVED_VOID_ID_TRUNCATED');
-  let id=0;for(let i=0;i<idWidth;i++)id=id*256+bytes[i];
-  const first=bytes[idWidth];
-  if(!first)throw Error('RESERVED_VOID_SIZE_INVALID');
-  let sizeWidth=1;while(sizeWidth<=8 && !(first&(0x80>>(sizeWidth-1))))sizeWidth++;
-  if(sizeWidth>8||idWidth+sizeWidth>bytes.length)throw Error('RESERVED_VOID_SIZE_TRUNCATED');
-  let size=BigInt(first&((1<<(8-sizeWidth))-1));
-  for(let i=1;i<sizeWidth;i++)size=(size<<8n)|BigInt(bytes[idWidth+i]);
-  if(size===(1n<<BigInt(sizeWidth*7))-1n||size>BigInt(Number.MAX_SAFE_INTEGER))
-    throw Error('RESERVED_VOID_UNSUPPORTED_UNKNOWN_SIZE');
-  const dataStart=start+idWidth+sizeWidth,end=dataStart+Number(size);
-  if(!Number.isSafeInteger(end)||end>limit)throw Error('RESERVED_VOID_ELEMENT_OUT_OF_BOUNDS');
-  return {id,start,idWidth,sizeWidth,dataStart,end};
+  try {
+    const e=await readBoundedEbmlHeader(blob,start,limit);
+    return {id:e.id,start:e.offset,idWidth:e.idWidth,
+      sizeWidth:e.sizeWidth,dataStart:e.dataStart,end:e.end};
+  } catch(error) {
+    rethrowBoundedHeaderError(error,'RESERVED_VOID_',{
+      RANGE:'RANGE',
+      ID_INVALID:'ID_INVALID',
+      ID_TRUNCATED:'ID_TRUNCATED',
+      SIZE_INVALID:'SIZE_INVALID',
+      SIZE_TRUNCATED:'SIZE_TRUNCATED',
+      UNKNOWN_OR_UNADDRESSABLE_SIZE:'UNSUPPORTED_UNKNOWN_SIZE',
+      ELEMENT_OUT_OF_BOUNDS:'ELEMENT_OUT_OF_BOUNDS',
+    });
+  }
 }
 async function children(blob,from,to) {
   const rows=[];for(let offset=from;offset<to;){

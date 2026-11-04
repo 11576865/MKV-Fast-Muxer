@@ -1,4 +1,5 @@
 import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
+import { readBoundedEbmlHeader, rethrowBoundedHeaderError } from './matroska-bounded-ebml-header.js';
 import {
   inspectRawSegmentPreservation, compareRawSegmentPreservation,
 } from './matroska-raw-preservation-contract.js';
@@ -31,33 +32,20 @@ const immutable = x => {
   return x;
 };
 async function elementAt(file, offset, bound) {
-  if (!Number.isSafeInteger(offset) || offset < 0 || offset >= bound ||
-      !Number.isSafeInteger(bound) || bound > file.size)
-    throw Error('SAME_SIZE_REPLACE_BAD_RANGE');
-  const bytes = new Uint8Array(await file.slice(offset, Math.min(bound, offset + 12)).arrayBuffer());
-  if (!bytes[0]) throw Error('SAME_SIZE_REPLACE_MALFORMED_ID');
-  let idWidth = 1;
-  while (idWidth <= 4 && !(bytes[0] & (0x80 >> (idWidth - 1)))) idWidth++;
-  if (idWidth > 4 || idWidth >= bytes.length) throw Error('SAME_SIZE_REPLACE_TRUNCATED_ID');
-  let id = 0;
-  for (let n = 0; n < idWidth; n++) id = id * 256 + bytes[n];
-  const first = bytes[idWidth];
-  if (!first) throw Error('SAME_SIZE_REPLACE_MALFORMED_SIZE');
-  let width = 1;
-  while (width <= 8 && !(first & (0x80 >> (width - 1)))) width++;
-  if (width > 8 || idWidth + width > bytes.length)
-    throw Error('SAME_SIZE_REPLACE_TRUNCATED_SIZE');
-  let size = BigInt(first & ((1 << (8 - width)) - 1));
-  for (let n = 1; n < width; n++)
-    size = (size << 8n) | BigInt(bytes[idWidth + n]);
-  if (size === (1n << BigInt(width * 7)) - 1n ||
-      size > BigInt(Number.MAX_SAFE_INTEGER))
-    throw Error('SAME_SIZE_REPLACE_UNKNOWN_OR_LARGE_ELEMENT');
-  const dataStart = offset + idWidth + width;
-  const end = dataStart + Number(size);
-  if (!Number.isSafeInteger(end) || end > bound)
-    throw Error('SAME_SIZE_REPLACE_CHILD_OUT_OF_BOUNDS');
-  return { id, offset, dataStart, end };
+  try {
+    const e = await readBoundedEbmlHeader(file, offset, bound);
+    return {id:e.id, offset:e.offset, dataStart:e.dataStart, end:e.end};
+  } catch (error) {
+    rethrowBoundedHeaderError(error, 'SAME_SIZE_REPLACE_', {
+      RANGE:'BAD_RANGE',
+      ID_INVALID:'MALFORMED_ID',
+      ID_TRUNCATED:'TRUNCATED_ID',
+      SIZE_INVALID:'MALFORMED_SIZE',
+      SIZE_TRUNCATED:'TRUNCATED_SIZE',
+      UNKNOWN_OR_UNADDRESSABLE_SIZE:'UNKNOWN_OR_LARGE_ELEMENT',
+      ELEMENT_OUT_OF_BOUNDS:'CHILD_OUT_OF_BOUNDS',
+    });
+  }
 }
 async function children(file, start, end) {
   const list = [];
