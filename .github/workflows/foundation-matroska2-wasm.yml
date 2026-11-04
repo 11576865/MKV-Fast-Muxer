@@ -8,6 +8,7 @@ on:
       - 'scripts/probe-foundation-matroska2-wasm.mjs'
       - 'scripts/patch-foundation-corec-emscripten.mjs'
       - 'scripts/probe-foundation-matroska2-browser.mjs'
+      - 'scripts/native/foundation-matroska-json-probe.c'
   workflow_dispatch:
 
 permissions:
@@ -52,6 +53,21 @@ jobs:
           git -C .e2e/foundation-upstream diff -- corec/corec/portab.h > .e2e/output/foundation-wasm-corec-portability.diff
           test -s .e2e/output/foundation-wasm-corec-portability.diff
 
+      - name: Add machine-readable C ABI test target to temporary upstream build
+        run: |
+          set -euo pipefail
+          cat >> .e2e/foundation-upstream/libmatroska2/CMakeLists.txt <<'CMAKE'
+          add_executable(foundation_json_probe "${FOUNDATION_BRIDGE_SOURCE}")
+          target_link_libraries(foundation_json_probe PRIVATE "matroska2" "ebml2" "corec")
+          set_target_properties(foundation_json_probe PROPERTIES C_STANDARD 11)
+          target_link_options(foundation_json_probe PRIVATE
+            "-sEXPORT_NAME=createFoundationJSON"
+            "-sEXPORTED_FUNCTIONS=_main,_foundation_probe,_foundation_json"
+            "-sEXPORTED_RUNTIME_METHODS=FS,ccall")
+          CMAKE
+          git -C .e2e/foundation-upstream diff --check
+          git -C .e2e/foundation-upstream diff -- libmatroska2/CMakeLists.txt > .e2e/output/foundation-wasm-structured-target.diff
+
       - name: Compile actual BSD libEBML2 and libMatroska2 into Emscripten Wasm
         run: |
           set -euo pipefail
@@ -64,12 +80,15 @@ jobs:
             -DCONFIG_ZLIB=OFF -DCONFIG_BZLIB=OFF \
             -DCONFIG_LZO1X=OFF -DCONFIG_CODEC_HELPER=OFF \
             -DCONFIG_DEBUGCHECKS=OFF \
+            "-DFOUNDATION_BRIDGE_SOURCE=${GITHUB_WORKSPACE}/scripts/native/foundation-matroska-json-probe.c" \
             '-DCMAKE_EXE_LINKER_FLAGS=-sMODULARIZE=1 -sEXPORT_NAME=createFoundationMkvtree -sEXPORTED_RUNTIME_METHODS=FS,callMain -sINVOKE_RUN=0 -sALLOW_MEMORY_GROWTH=1 -sEMULATE_FUNCTION_POINTER_CASTS=1 -sASSERTIONS=2 -sENVIRONMENT=web,node' \
             2>&1 | tee .e2e/output/foundation-wasm-configure.log
-          cmake --build .e2e/foundation-build --target mkvtree -j 2 \
+          cmake --build .e2e/foundation-build --target mkvtree foundation_json_probe -j 2 \
             2>&1 | tee .e2e/output/foundation-wasm-build.log
           test -s .e2e/foundation-build/libmatroska2/mkvtree.js
           test -s .e2e/foundation-build/libmatroska2/mkvtree.wasm
+          test -s .e2e/foundation-build/libmatroska2/foundation_json_probe.js
+          test -s .e2e/foundation-build/libmatroska2/foundation_json_probe.wasm
 
       - name: Execute upstream Matroska parser Wasm against a genuine MKV
         env:
@@ -95,6 +114,7 @@ jobs:
         env:
           FOUNDATION_WASM_JS: .e2e/foundation-build/libmatroska2/mkvtree.js
           FOUNDATION_FIXTURE: .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+          FOUNDATION_STRUCTURED_WASM_JS: .e2e/foundation-build/libmatroska2/foundation_json_probe.js
         run: node scripts/probe-foundation-matroska2-browser.mjs
 
       - name: Upload actual compiler, Wasm and independent file evidence
@@ -106,11 +126,14 @@ jobs:
             .e2e/output/foundation-wasm-configure.log
             .e2e/output/foundation-wasm-build.log
             .e2e/output/foundation-wasm-corec-portability.diff
+            .e2e/output/foundation-wasm-structured-target.diff
             .e2e/output/foundation-reference-mkvmerge.json
             .e2e/output/foundation-matroska2-wasm-probe.json
             .e2e/output/foundation-matroska2-chromium-probe.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
             .e2e/foundation-build/libmatroska2/mkvtree.wasm
+            .e2e/foundation-build/libmatroska2/foundation_json_probe.js
+            .e2e/foundation-build/libmatroska2/foundation_json_probe.wasm
             .e2e/foundation-upstream/LICENSE
           if-no-files-found: warn
           retention-days: 14
