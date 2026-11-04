@@ -36,7 +36,7 @@ try {
  evidence.views.push('1440-empty.png');
  evidence.checks.push('empty source visible with no target or false success');
  await page.evaluate(()=>{window.__nativeSourceInput=document.getElementById('videoInput');window.__nativeAssetInput=document.getElementById('unifiedAssetInput');window.__nativeMuxButton=document.getElementById('muxBtn');});
- await page.locator('#videoInput').setInputFiles(source);
+ await page.locator('#unifiedAssetInput').setInputFiles(source);
  await page.waitForFunction(()=>{
    const root=document.getElementById('sf14Root');
    const name=document.getElementById('sfv3FileName');
@@ -63,7 +63,18 @@ try {
  assert.equal(await page.locator('#sfv3FileName').textContent(),'V3 Source 01.mkv');
  evidence.checks.push('same source File and observation retained across viewport changes');
  await page.setViewportSize({width:1440,height:900});
+ assert.equal(await page.locator('#muxBtn').isDisabled(),true,
+   'the real executor must reject output before explicit target choice');
  await page.locator('#sfv3EnterOutput').click();
+ assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ assert.equal(await page.locator('#outputCompositionPanel').isVisible(),false);
+ await page.locator('.sfv3-picker-cancel').click();
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+   'cancel must not authorize output');
+ await page.locator('#sfv3EnterOutput').click();
+ await page.locator('#sfv3ConfirmTarget').click();
+ assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-target-confirmed'),'true');
  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'plan');
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),true);
  assert.equal(await page.locator('#outputCompositionPanel').isVisible(),true);
