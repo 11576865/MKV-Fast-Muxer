@@ -174,3 +174,12 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Source local technical explanation | One pre-existing `#sfv3SubtitleFlagsHelp` details node, same Default/Forced definitions | Rehost same DOM in `#sfv3SourceFlagHelpHost` while a source subtitle is selected; restore to target object context on Close; never duplicate controls or mutate flags |
 | Approved frame | Figma V3-09 `38:2` and V3-05 `33:2`, source-first context | 820px source selected ASS with readable font observation/help; exact Figma visual acceptance and physical tablet still open |
 | Execution / evidence | Existing ASS preview/extract and P3 real media FFmpeg/libass actions unchanged | Real browser source ASS (0 observed fonts) and P3 A ASS+font (1 observed font)/no-font (0 observed font); exact-head CI pending |
+
+
+## WU-08 real Chromium preview visibility vs Figma V3-09 (2026-11-05)
+
+| Requirement | Actual authority | Bounded change/proof |
+| --- | --- | --- |
+| ASS preview frame usable without scrolling the initial portrait panel | Approved Figma `38:2` image/controls beside one another; original native `#sf14PreviewDrawer`, `#previewStage`, `#previewControls` | V3-only media CSS grid at 600–959px and reordered source-sheet *presentation* when real preview host is expanded; 16:9 image stays above fixed footer; native drawer/renderer unchanged |
+| Actual failure evidence | Green prior V3 CI `cc0c432f`, `ui-v3-ass-source/v3-native-ass-preview.png` | Generated frame existed but much of preview below visible sheet: browser runtime success != design usability |
+| New real browser oracle | `tests/e2e/v3-source-ass-preview.e2e.mjs` | 820/620 real MKV ASS preview: actual bounding boxes show frame visible, controls beside frame, singleton preview DOM, no target/mux permission; emits width-specific screenshots. Exact-head CI pending |

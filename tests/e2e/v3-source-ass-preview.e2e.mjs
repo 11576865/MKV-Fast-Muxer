@@ -100,6 +100,33 @@ try {
     /预览帧：/.test(document.getElementById('previewStatus')?.textContent||'');
  },null,{timeout:180000});
  assert.match(await page.locator('#previewStatus').textContent(),/FFmpeg\/libass/);
+ // The approved 820px ASS context shows the real rendered frame next to
+ // preview controls. Earlier CI showed the image stacked below the visible
+ // bottom sheet despite a successful FFmpeg/libass result.
+ for(const [width,height] of [[820,1180],[620,900]]){
+  await page.setViewportSize({width,height});
+  const stage=await page.locator('#sfv3SourceInspector #previewStage').boundingBox();
+  const controls=await page.locator('#sfv3SourceInspector #previewControls').boundingBox();
+  const image=await page.locator('#sfv3SourceInspector #previewImage').boundingBox();
+  const sheet=await page.locator('#sfv3SourceInspector').boundingBox();
+  assert.ok(stage && controls && image && sheet,
+    'the same actual preview, image and controls must be present at '+width);
+  assert.ok(stage.width>=165 && stage.height>=95 && image.width>0 && image.height>0,
+    'the visible preview image must remain usable at '+width);
+  assert.ok(stage.x>=-2 && stage.x+stage.width<=width+2 &&
+    stage.y>=0 && stage.y+stage.height<=height-50,
+    'preview frame must be visible ABOVE the footer at '+width+' rather than clipped below sheet');
+  assert.ok(controls.x>=stage.x+stage.width-12 &&
+    Math.abs(stage.y-controls.y)<=85,
+    'at '+width+' the native real controls must be beside the frame, not in a hidden vertical stack');
+  assert.ok(sheet.x>=-2 && sheet.x+sheet.width<=width+2,
+    'source sheet must never horizontally overflow the viewport');
+  assert.equal(await page.locator('#previewImage').count(),1);
+  assert.equal(await page.locator('#previewRefreshBtn').count(),1);
+  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+  await page.screenshot({path:path.join(dir,'v3-native-ass-preview-'+width+'.png')});
+ }
+ await page.setViewportSize({width:820,height:1180});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
  assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),0);

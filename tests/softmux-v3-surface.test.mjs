@@ -195,3 +195,17 @@ test('V3-09 source ASS shows only observed font attachments and the one shared f
   assert.match(css,/\.sfv3-source-font-evidence\[hidden\]/);
   assert.match(css,/\.sfv3-source-flag-help-host/);
 });
+
+
+test('V3-09 renders the original native ASS preview beside real controls at 820 and 620',async()=>{
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  const ui=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  assert.match(css,/\.sfv3-source-sheet:has\(#sfv3SourcePreviewHost:not\(\[hidden\]\)\)/);
+  assert.match(css,/grid-template-areas:"media tools" "media evidence"/);
+  assert.match(css,/@media\(min-width:600px\) and \(max-width:959px\)/);
+  assert.match(css,/\.sfv3-source-sheet-preview-host \.preview-stage/);
+  assert.match(css,/aspect-ratio:16\/9/);
+  assert.match(css,/\.sfv3-source-sheet-preview-host \.preview-tools/);
+  assert.match(ui,/sourceSheetPreviewHost\.appendChild\(nativePreviewDrawer\)/);
+  assert.match(ui,/nativePreviewHome\.insertBefore\(nativePreviewDrawer/);
+});

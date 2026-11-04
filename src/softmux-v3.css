@@ -1207,3 +1207,93 @@
   .sf14.sfv3 .sfv3-source-flag-help-host{padding:0 9px;}
   .sf14.sfv3 .sfv3-source-font-evidence{padding:10px;}
 }
+
+
+/* WU-08 / approved Figma V3-09: the real native ASS preview must appear
+ * beside its actual controls in 820px portrait, not below a long vertical
+ * stack where the subtitle glyphs fall outside the visible sheet.
+ * This reorders ONLY the presentation; #sf14PreviewDrawer and every
+ * preview-time, cue, image and FFmpeg/libass element retain one DOM owner. */
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])){
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-areas:
+    "source-head"
+    "source-preview"
+    "source-actions"
+    "source-fonts"
+    "source-detail"
+    "source-help"
+    "source-notice"
+    "source-extraction";
+  align-content:start;
+  align-items:start;
+  gap:9px;
+}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-header{grid-area:source-head;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-preview-host{grid-area:source-preview;margin:0;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-actions{grid-area:source-actions;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-font-evidence{grid-area:source-fonts;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-detail{grid-area:source-detail;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-flag-help-host{grid-area:source-help;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-notice{grid-area:source-notice;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-extraction-host{grid-area:source-extraction;}
+.sf14.sfv3 .sfv3-source-sheet-preview-host #sf14PreviewDrawer > summary{
+  min-height:28px;padding:5px 8px;font-size:11px;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-head{
+  display:none;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-stage{
+  min-height:170px;aspect-ratio:16/9;max-width:100%;
+  border-radius:8px;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-stage img{
+  width:100%;height:100%;max-height:none;object-fit:contain;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-tools{
+  min-width:0;max-width:100%;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-tools :is(select,input){
+  min-width:0;max-width:100%;width:100%;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-footer{
+  min-width:0;overflow-wrap:anywhere;
+}
+@media(min-width:600px) and (max-width:959px){
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .subtitle-preview-card{
+    display:grid;
+    grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);
+    grid-template-areas:"media tools" "media evidence";
+    align-items:start;gap:7px 12px;padding:10px;
+  }
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-stage{
+    grid-area:media;min-height:0;
+    width:100%;aspect-ratio:16/9;align-self:start;
+  }
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-tools{
+    grid-area:tools;display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;align-items:end;
+  }
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-tools label{
+    min-width:0;grid-column:1/-1;
+  }
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-tools :is(button,select,input){
+    min-height:40px;
+  }
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-footer{
+    grid-area:evidence;margin:0;padding:4px 2px;
+    border-top:0;
+  }
+}
+@media(max-width:599px){
+  .sf14.sfv3 .sfv3-source-sheet-preview-host .preview-stage{
+    aspect-ratio:16/9;min-height:0;
+  }
+}
+@media(max-height:720px){
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])){
+    max-height:calc(100dvh - 114px);
+  }
+}
