@@ -30,6 +30,10 @@ static char output[JSON_CAP];
 static size_t used = 0;
 static unsigned count = 0;
 static int parse_failed = 0;
+static struct {
+  filepos_t start, end;
+} parents[DEPTH_LIMIT];
+static unsigned parent_count = 0;
 
 void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
 
@@ -61,25 +65,48 @@ static void json_string(const char *s) {
   }
   append("\"");
 }
-static void emit(ebml_element *e,int depth) {
-  char part[192];
-  const filepos_t pos = EBML_ElementPosition(e);
-  const filepos_t data = EBML_ElementDataSize(e,1);
-  const int master = Node_IsPartOf(e,EBML_MASTER_CLASS);
-  if (parse_failed || ++count > NODE_LIMIT || depth > DEPTH_LIMIT) {
-    parse_failed=1;
-    return;
+/* The sample mkvtree's mutable level counter is for pretty printing, not
+ * a reliable machine-readable parent relationship. Reconstruct depth from
+ * the actual element file positions and the upstream-reported master ends.
+ * This never decodes raw EBML IDs/lengths ourselves. */
+static void emit(ebml_element *e) {
+  char part[208];
+  const char *label=EBML_ElementGetClassName(e);
+  const filepos_t pos=EBML_ElementPosition(e);
+  const filepos_t end=EBML_ElementPositionEnd(e);
+  const filepos_t data=EBML_ElementDataSize(e,1);
+  const int master=Node_IsPartOf(e,EBML_MASTER_CLASS);
+
+  // Synthetic upstream traversal root, not a file-resident EBML element.
+  if(count==0 && label && strcmp(label,"Matroska Stream")==0)return;
+  if(parse_failed || pos<0 || end<pos || ++count>NODE_LIMIT){
+    parse_failed=1;return;
+  }
+  while(parent_count && (pos<parents[parent_count-1].start ||
+                         pos>=parents[parent_count-1].end))
+    parent_count--;
+  if(parent_count && end>parents[parent_count-1].end){
+    parse_failed=1;return;
+  }
+  const unsigned depth=parent_count;
+  if(depth>DEPTH_LIMIT || (master && parent_count>=DEPTH_LIMIT)){
+    parse_failed=1;return;
   }
   if(count>1)append(",");
   snprintf(part,sizeof(part),
-    "{\"depth\":%d,\"id\":\"0x%08x\",\"name\":",
+    "{\\"depth\\":%u,\\"id\\":\\"0x%08x\\",\\"name\\":",
     depth,(unsigned)EBML_ElementClassID(e));
   append(part);
-  json_string(EBML_ElementGetClassName(e));
+  json_string(label);
   snprintf(part,sizeof(part),
-    ",\"offset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s}",
-    (long long)pos,(long long)data,master?"true":"false");
+    ",\\"offset\\":\\"%lld\\",\\"endOffset\\":\\"%lld\\",\\"dataBytes\\":\\"%lld\\",\\"master\\":%s}",
+    (long long)pos,(long long)end,(long long)data,master?"true":"false");
   append(part);
+  if(master){
+    parents[parent_count].start=pos;
+    parents[parent_count].end=end;
+    parent_count++;
+  }
 }
 
 /* Returns an element that the caller must continue handling at a higher
@@ -87,7 +114,7 @@ static void emit(ebml_element *e,int depth) {
 static ebml_element *visit(ebml_element *element,
   const ebml_parser_context *context,struct stream *input,int *level) {
   if (parse_failed)return NULL;
-  emit(element,*level);
+  emit(element);
   if (parse_failed)return NULL;
   if (Node_IsPartOf(element,EBML_MASTER_CLASS)) {
     int upper=0;
@@ -125,7 +152,7 @@ int foundation_probe(const char *path) {
   ebml_element *root=NULL;
   tchar_t name[MAXPATHFULL];
   int depth=-1,rc=0;
-  used=0;count=0;parse_failed=0;output[0]=0;
+  used=0;count=0;parent_count=0;parse_failed=0;output[0]=0;
   append("{\"schema\":\"foundation-matroska-structured-tree-v0\",\"nodes\":[");
   if(!path||!path[0]||strlen(path)>=1024)return 11;
   ParserContext_Init(&ctx,NULL,NULL,NULL);
