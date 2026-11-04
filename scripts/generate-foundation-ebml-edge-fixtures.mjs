@@ -11,6 +11,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {crc32IEEE,ebmlCrc32LE} from '../src/ebml-crc32-bounded.js';
 
 const root='.e2e/fixtures', out='.e2e/output';
 const input=path.join(root,'p0-independent-attachmenttag.mkv');
@@ -67,14 +68,12 @@ function uintSize(width,value,unknown=false){
   bytes[0]|=0x80>>(width-1);
   return bytes;
 }
-function crc32(bytes){
-  let crc=0xffffffff;
-  for(const octet of bytes){
-    crc^=octet;
-    for(let k=0;k<8;k++)
-      crc=(crc&1)?((crc>>>1)^0xedb88320):(crc>>>1);
-  }
-  return (crc^0xffffffff)>>>0;
+function crcField(body){
+  return Buffer.concat([Buffer.from([0xbf,0x84]),
+    Buffer.from(ebmlCrc32LE(crc32IEEE(body)))]);
+}
+function wrapMaster(idBytes,body){
+  return Buffer.concat([idBytes,uintSize(8,body.length),body]);
 }
 const bytes=await fs.readFile(input);
 const ebml=decodeElement(bytes,0);
@@ -92,24 +91,41 @@ if(children(bytes,originalAtt.dataStart,originalAtt.end)
   .some(x=>x.id===0xbf))
   throw Error('FIXTURE_SOURCE_ALREADY_HAS_CRC32');
 const attPayload=bytes.subarray(originalAtt.dataStart,originalAtt.end);
-const checksum=crc32(attPayload);
-const crcHeader=Buffer.alloc(6);
-crcHeader[0]=0xbf;crcHeader[1]=0x84;
-crcHeader.writeUInt32LE(checksum,2);
+const checksum=crc32IEEE(attPayload);
+const crcHeader=crcField(attPayload);
 const protectedPayload=Buffer.concat([crcHeader,attPayload]);
-const protectedAttachments=Buffer.concat([
-  bytes.subarray(originalAtt.start,originalAtt.start+originalAtt.idWidth),
-  uintSize(8,protectedPayload.length),protectedPayload,
-]);
+const attachmentId=bytes.subarray(originalAtt.start,
+  originalAtt.start+originalAtt.idWidth);
+const protectedAttachments=wrapMaster(attachmentId,protectedPayload);
+
+// Nested CRC on the first *AttachedFile* as well as its parent Attachments.
+// For the negative fixture, corrupt only the inner CRC then RECOMPUTE the
+// outer checksum so that outer verification succeeds.
+const attachedFiles=children(bytes,originalAtt.dataStart,originalAtt.end);
+const firstAttached=attachedFiles.find(x=>x.id===0x61a7);
+if(!firstAttached)throw Error('FIXTURE_NESTED_ATTACHED_FILE_MISSING');
+function nestedAttachments(corruptInner=false){
+  const innerPayload=bytes.subarray(firstAttached.dataStart,firstAttached.end);
+  const innerCrc=crcField(innerPayload);
+  if(corruptInner)innerCrc[2]^=0x01;
+  const innerId=bytes.subarray(firstAttached.start,
+    firstAttached.start+firstAttached.idWidth);
+  const withInner=wrapMaster(innerId,Buffer.concat([innerCrc,innerPayload]));
+  const nestedPayload=Buffer.concat(attachedFiles.map(x=>
+    x===firstAttached?withInner:bytes.subarray(x.start,x.end)));
+  const outer=crcField(nestedPayload);
+  return wrapMaster(attachmentId,Buffer.concat([outer,nestedPayload]));
+}
+const nestedValidAttachments=nestedAttachments(false);
+const nestedCorruptInnerAttachments=nestedAttachments(true);
 const plainAttachments=bytes.subarray(originalAtt.start,originalAtt.end);
 const kept=entries.filter(x=>x.id!==expectedId.seekHead &&
   x.id!==expectedId.cues);
 if(kept.length<4)
   throw Error('FIXTURE_NOT_ENOUGH_NATIVE_MASTER_ELEMENTS');
-function build(withCrc,unknownSegment){
+function build(whichAttachments,unknownSegment){
   const childrenBytes=kept.map(x=>x===originalAtt?
-    withCrc?protectedAttachments:plainAttachments:
-    bytes.subarray(x.start,x.end));
+    whichAttachments:bytes.subarray(x.start,x.end));
   const payload=Buffer.concat(childrenBytes);
   return Buffer.concat([
     bytes.subarray(0,ebml.end),
@@ -118,7 +134,10 @@ function build(withCrc,unknownSegment){
     payload,
   ]);
 }
-const valid=build(true,false),unknown=build(false,true);
+const valid=build(protectedAttachments,false);
+const unknown=build(plainAttachments,true);
+const nestedValid=build(nestedValidAttachments,false);
+const nestedInnerCorrupt=build(nestedCorruptInnerAttachments,false);
 const badCRC=Buffer.from(valid);
 const crcPosition=badCRC.indexOf(crcHeader);
 if(crcPosition<0)throw Error('FIXTURE_INSERTED_CRC_NOT_LOCATED');
@@ -127,6 +146,8 @@ const files=[
   ['foundation-edge-crc-valid.mkv',valid],
   ['foundation-edge-crc-corrupt.mkv',badCRC],
   ['foundation-edge-segment-unknown.mkv',unknown],
+  ['foundation-edge-crc-nested-valid.mkv',nestedValid],
+  ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
 ];
 await fs.mkdir(out,{recursive:true});
 for(const [name,data] of files){
@@ -149,6 +170,9 @@ const report={
     unknownSegment:name.includes('unknown'),
     crcStatus:name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
+    nestedAttachedFileCRC:name.includes('nested'),
+    outerCRCValid:name.includes('nested-inner-corrupt')?
+      true:name.includes('corrupt')?false:true,
   })),
 };
 await fs.writeFile(path.join(out,'foundation-ebml-edge-fixtures.json'),
