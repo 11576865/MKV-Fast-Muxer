@@ -110,6 +110,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   root.dataset.sfv3Surface = 'source';
   root.dataset.sfv3Contract = 'approved-v3-wu04-object-context-pilot';
   root.dataset.sfv3Inspector = 'closed';
+  root.dataset.sfv3SourceInspector = 'closed';
   // Context panel REHOSTS the existing inspector exactly once. Selection
   // opens presentation only; all editing still belongs to the live editor.
   const inspectorPane=root.querySelector('.sf14-pane.sf14-inspector');
@@ -381,6 +382,36 @@ export function mountSoftmuxV3Surface(doc = document) {
   bottom.textContent = '尚未加载资源';
   root.querySelector('.sf14-output')?.before(bottom);
 
+  // V3-05: a selected source object is inspectable BEFORE target intent.
+  // This is observation presentation, not a second project editor.
+  const sourceSheet=doc.createElement('section');
+  sourceSheet.id='sfv3SourceInspector';
+  sourceSheet.className='sfv3-source-sheet';
+  sourceSheet.hidden=true;
+  sourceSheet.setAttribute('role','region');
+  sourceSheet.setAttribute('aria-labelledby','sfv3SourceInspectorTitle');
+  const sourceSheetHeader=doc.createElement('header');
+  sourceSheetHeader.className='sfv3-source-sheet-header';
+  const sourceSheetIdentity=doc.createElement('div');
+  sourceSheetIdentity.className='sfv3-source-sheet-identity';
+  const sourceSheetTitle=appendText(doc,sourceSheetIdentity,'h2','sfv3-source-sheet-title','');
+  sourceSheetTitle.id='sfv3SourceInspectorTitle';
+  const sourceSheetOrigin=appendText(doc,sourceSheetIdentity,'small','sfv3-source-sheet-origin','');
+  const sourceSheetClose=appendText(doc,sourceSheetHeader,'button','sfv3-source-sheet-close','关闭');
+  sourceSheetClose.id='sfv3SourceInspectorClose';
+  sourceSheetClose.type='button';
+  sourceSheetClose.setAttribute('aria-label','关闭来源对象详情');
+  sourceSheetHeader.prepend(sourceSheetIdentity);
+  const sourceSheetDetail=appendText(doc,sourceSheet,'p','sfv3-source-sheet-detail','');
+  const sourceSheetNotice=appendText(doc,sourceSheet,'p','sfv3-source-sheet-notice','');
+  const sourceSheetActions=doc.createElement('div');
+  sourceSheetActions.className='sfv3-source-sheet-actions';
+  const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
+  sourceSheetAdd.id='sfv3SourceInspectorAdd';
+  sourceSheetAdd.type='button';
+  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,sourceSheetActions);
+  single.appendChild(sourceSheet);
+
   // V3 target picker is an explicit action, never an implicit file import side effect.
   const picker = doc.createElement('dialog');
   picker.id = 'sfv3TargetPicker';
@@ -422,6 +453,64 @@ export function mountSoftmuxV3Surface(doc = document) {
       entries.find(entry => entry.file === sourceInput.files?.[0]) ||
       entries[0] || null;
   };
+  let selectedSource=null;
+  const closeSourceSheet=(restoreFocus=false)=>{
+    const previouslySelected=selectedSource;
+    selectedSource=null;
+    sourceSheet.hidden=true;
+    root.dataset.sfv3SourceInspector='closed';
+    for(const node of contents.querySelectorAll('.sfv3-row-select[aria-expanded="true"]'))
+      node.setAttribute('aria-expanded','false');
+    if(restoreFocus && previouslySelected){
+      const button=[...contents.querySelectorAll('.sfv3-row-select')]
+        .find(node=>node.dataset.sourceObjectId===String(previouslySelected.id));
+      button?.focus();
+    }
+  };
+  const updateSourceSheet=()=>{
+    const from=activeView();
+    if(root.dataset.sfv3Surface!=='source' || !selectedSource ||
+        !exactEntry(selectedSource.sourceKey,selectedSource.sourceFile) ||
+        from?.key!==selectedSource.sourceKey || from?.file!==selectedSource.sourceFile){
+      closeSourceSheet();
+      return;
+    }
+    const matchingRow=[...contents.querySelectorAll('.sfv3-observed-row')]
+      .find(node=>node.dataset.sourceObjectId===String(selectedSource.id));
+    if(!matchingRow) {closeSourceSheet();return;}
+    for(const button of contents.querySelectorAll('.sfv3-row-select')){
+      button.setAttribute('aria-expanded',String(button.dataset.sourceObjectId===String(selectedSource.id)));
+    }
+    sourceSheetTitle.textContent=selectedSource.name||'来源对象';
+    sourceSheetOrigin.textContent='来源 · '+selectedSource.sourceFile.name+
+      ' · '+selectedSource.group;
+    sourceSheetDetail.textContent=selectedSource.detail||'当前来源已识别此对象';
+    sourceSheetNotice.textContent=selectedSource.reason ||
+      (selectedSource.transfer
+        ? '可明确选择另一份 MKV 后，使用现有受验证的字幕提取与封装流程。'
+        : '当前对象只可观察；此处不提供未经验证的修改、提取或预览操作。');
+    sourceSheetAdd.hidden=!selectedSource.transfer;
+    sourceSheet.hidden=false;
+    root.dataset.sfv3SourceInspector='open';
+  };
+  sourceSheetClose.addEventListener('click',()=>closeSourceSheet(true));
+  sourceSheetAdd.addEventListener('click',()=>{
+    if(!selectedSource?.transfer)return;
+    const selected=selectedSource;
+    if(!exactEntry(selected.sourceKey,selected.sourceFile) ||
+        activeView()?.file!==selected.sourceFile ||
+        root.dataset.sfv3Surface!=='source'){
+      closeSourceSheet();return;
+    }
+    openTargetPicker(selected.transfer);
+  });
+  root.addEventListener('keydown',event=>{
+    if(event.key==='Escape' && root.dataset.sfv3Surface==='source' &&
+       root.dataset.sfv3SourceInspector==='open' && !picker.open){
+      event.preventDefault();
+      closeSourceSheet(true);
+    }
+  });
   const signal = (type,detail) => {
     const EventCtor=doc.defaultView?.CustomEvent;
     if (!EventCtor) return false;
@@ -479,6 +568,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     targetTab.toggleAttribute('aria-current',mode === 'plan');
     planHeading.hidden=mode!=='plan';
     if(mode!=='plan')closeInspector();
+    if(mode!=='source')closeSourceSheet();
     setReadOnlyAffordances();
     const EventCtor=doc.defaultView?.CustomEvent;
     if(EventCtor)root.dispatchEvent(new EventCtor('softmux:v3-surface-changed',{
@@ -536,7 +626,14 @@ export function mountSoftmuxV3Surface(doc = document) {
       row.className='sfv3-observed-row';
       row.setAttribute('role','listitem');
       row.dataset.sourceObjectId=String(item.id);
-      const glyph=appendText(doc,row,'span','sfv3-kind-icon','');
+      const select=doc.createElement('button');
+      select.type='button';
+      select.className='sfv3-row-select';
+      select.dataset.sourceObjectId=String(item.id);
+      select.setAttribute('aria-controls','sfv3SourceInspector');
+      select.setAttribute('aria-expanded','false');
+      select.setAttribute('aria-label','查看来源对象：'+(item.name||'未命名'));
+      const glyph=appendText(doc,select,'span','sfv3-kind-icon','');
       const groupIcon={
         '视频':'video','音频':'audio','字幕':'subtitle',
         '附件':'attachment','字体':'attachment','章节':'chapter',
@@ -549,7 +646,18 @@ export function mountSoftmuxV3Surface(doc = document) {
       appendText(doc,column,'strong','sfv3-observed-title',item.name||'未命名');
       if(item.detail)appendText(doc,column,'small','sfv3-observed-detail',item.detail);
       if(item.reason)appendText(doc,column,'small','sfv3-observation-note',item.reason);
-      row.appendChild(column);
+      select.appendChild(column);
+      row.appendChild(select);
+      select.addEventListener('click',()=>{
+        const from=activeView();
+        if(!from || !exactEntry(from.key,from.file) ||
+            root.dataset.sfv3Surface!=='source')return;
+        if(selectedSource?.id===item.id && selectedSource.sourceFile===from.file){
+          closeSourceSheet(true);return;
+        }
+        selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
+        updateSourceSheet();
+      });
       if (item.transfer) {
         const button=appendText(doc,row,'button','sfv3-row-action','加入到…');
         button.type='button';
@@ -697,6 +805,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   const showSourceEntry = key => {
     const entry=getEntries().find(x=>x.key===key);
     if(!entry)return;
+    if(viewedSourceKey!==entry.key)closeSourceSheet();
     viewedSourceKey=entry.key;
     // Observing another file is NOT permission to use it as a target.
     // Until a target is confirmed, opening a tab also asks the one canonical
@@ -772,7 +881,7 @@ export function mountSoftmuxV3Surface(doc = document) {
           name:(track.title||'字幕轨 #'+track.index),
           detail:track.codec+' · '+track.language+' · 轨道 #'+track.index,
           reason:track.allowed ? '' : track.reason,
-          transfer:track.allowed?{
+          transfer:track.allowed && track.codec==='subrip'?{
             sourceKey:from.key,sourceFile:from.file,streamIndex:track.index,
           }:null,
         }));
@@ -813,11 +922,11 @@ export function mountSoftmuxV3Surface(doc = document) {
         const isSubtitle=kind==='字幕' && Number.isSafeInteger(streamIndex);
         groups.get(kind).push({
           id:row.id,name:row.name,detail:row.detail,
-          transfer:isSubtitle && from ? {
+          transfer:isSubtitle && stream?.codec==='subrip' && from ? {
             sourceKey:from.key,sourceFile:from.file,streamIndex,
           }:null,
           reason:isSubtitle && stream?.codec!=='subrip'
-            ? '此编码的跨 MKV 转移需先通过独立依赖检查。':'',
+            ? '此字幕格式的跨 MKV 转移尚未完成独立依赖验收；不会提供虚假的加入操作。':'',
         });
       }
       for(const kind of ['视频','音频','字幕','其他轨道'])
@@ -830,6 +939,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         appendText(doc,contents,'p','sfv3-observation-note',
           '当前来源尚没有足够的轨道或结构证据。');
     }
+    if(selectedSource)updateSourceSheet();
     const targetValid=Boolean(targetIntent &&
       exactEntry(targetIntent.baseKey,targetIntent.baseFile) &&
       latestResources.activeBase===targetIntent.baseFile);
@@ -936,6 +1046,8 @@ export function mountSoftmuxV3Surface(doc = document) {
   root.addEventListener('softmux:v3-resource-registry',event=>{
     if(!event.detail||!Array.isArray(event.detail.entries))return;
     latestResources=event.detail;
+    if(selectedSource && !exactEntry(selectedSource.sourceKey,selectedSource.sourceFile))
+      closeSourceSheet();
     if(!getEntries().some(entry=>entry.key===viewedSourceKey)) {
       viewedSourceKey=getEntries().find(entry=>entry.selected)?.key ||
         getEntries()[0]?.key||'';

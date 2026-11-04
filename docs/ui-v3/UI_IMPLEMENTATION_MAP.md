@@ -92,3 +92,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | `#sfv3SubtitleFlagsHelp` | Selected real `#compositionTracks button[aria-pressed=true][data-sfv3-object-kind=subtitle]` **and** exact authorized target intent | Collapsed read-only Default/Forced distinction; no clone or direct write of the native flag fields; unavailable in source view |
 | Responsive inspector entrance | Presentation-only `data-sfv3-inspector` and CSS `prefers-reduced-motion` | No movement of File/field owner, no permission change or waits for animation; 820 no-preference / 620 reduce E2E |
 | Final V3-09 / V3-05 acceptance | Owner-approved Figma frames and a genuinely selected ASS+font fixture | Still **open**; a SubRip browser scenario is not a selected ASS rendering test or motion prototype sign-off |
+
+
+## WU-04 V3-05 source-object selection (2026-11-04)
+
+| Requirement | Real owner | Boundary |
+| --- | --- | --- |
+| Select observed source object | `sourceRowsFromObservation()` / existing exact `File` registry; `#sfv3SourceContents .sfv3-row-select` | Opens `#sfv3SourceInspector`; no output model and no source mutation |
+| Context detail | Current source File, selected observed row and native stream index | Read-only source object identity; Escape/Close restore button focus, switch/removal revoke |
+| Verified Add-to | Existing `softmux:v3-confirm-target`, `openTargetPicker`, `softmux:v3-add-secondary` | SubRip-only; no inferred ASS/font closure; cancellation is not a plan |
+| Responsive source inspector | V3-05 Figma node `33:2` | 820/620 in-viewport sheet, desktop context rail, reduced motion; visual fidelity and real ASS Preview/Extract still open |

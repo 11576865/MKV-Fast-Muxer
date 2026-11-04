@@ -72,6 +72,26 @@ try {
   assert.ok(focusStable,'async scanner repaint must preserve the selected tab and keyboard focus');
   await screenshot('wu02-view-A-before-target.png');
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+  const selectObserved=page.locator('#sfv3SourceContents .sfv3-row-select')
+    .filter({hasText:'Caption from A'}).first();
+  await selectObserved.click();
+  const sourceSheet=page.locator('#sfv3SourceInspector');
+  await sourceSheet.waitFor({state:'visible'});
+  assert.match(await sourceSheet.textContent(),/A-with-SubRip/);
+  assert.match(await sourceSheet.textContent(),/Caption from A/);
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+    'inspecting a source object alone must never create target authorization');
+  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+  await screenshot('wu04-source-subtitle-inspector.png');
+  await page.locator('#sfv3SourceInspectorAdd').click();
+  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
+    'source inspector Add-to must route to the existing explicit target chooser');
+  await page.locator('.sfv3-picker-cancel').click();
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+  await page.locator('#sfv3SourceInspectorClose').click();
+  assert.equal(await sourceSheet.isVisible(),false);
+  assert.equal(await page.locator('#sfv3SourceContents .sfv3-row-select[aria-expanded="true"]').count(),0);
+  evidence.steps.push('source object inspection and cancelled Add-to preserve no-target state');
   await page.locator('#sfv3SourceContents .sfv3-row-action').click();
   assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);

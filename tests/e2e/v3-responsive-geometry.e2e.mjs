@@ -172,6 +172,31 @@ try{
   assert.deepEqual(counters.filter(x=>x.kind==='audio'),[{kind:'audio',value:'00'}]);
   assert.deepEqual(counters.filter(x=>x.kind==='subtitle'),[{kind:'subtitle',value:'00'}]);
   await audit('source');
+  await page.setViewportSize({width:820,height:1180});
+  const sourceSelection=page.locator('#sfv3SourceContents .sfv3-row-select').first();
+  await sourceSelection.click();
+  const sourceSheet=page.locator('#sfv3SourceInspector');
+  assert.equal(await sourceSheet.isVisible(),true,
+    'actual source object selection should open an inspector without an output plan');
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+  assert.equal(await sourceSheet.locator('input,select,textarea').count(),0,
+    'source object detail must not have writable shadow fields');
+  let sourceRect=await sourceSheet.boundingBox();
+  assert.ok(sourceRect && sourceRect.x>=-2 && sourceRect.x+sourceRect.width<=822 &&
+    sourceRect.y>=0 && sourceRect.y+sourceRect.height<=1182,
+    '820px source sheet remains within the viewport');
+  await page.setViewportSize({width:620,height:900});
+  sourceRect=await sourceSheet.boundingBox();
+  assert.ok(sourceRect && sourceRect.x>=-2 && sourceRect.x+sourceRect.width<=622 &&
+    sourceRect.y>=0 && sourceRect.y+sourceRect.height<=902,
+    'source context survives resize without overflow or losing selection');
+  assert.equal(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
+    'V3 Responsive Fixture.mkv','resizing the sheet does not replace the actual File');
+  await page.keyboard.press('Escape');
+  assert.equal(await sourceSheet.isVisible(),false,'Escape closes source context');
+  assert.equal(await sourceSelection.getAttribute('aria-expanded'),'false');
+  report.sourceObjectInspectorTested=true;
   await page.setViewportSize({width:1440,height:900});
   await page.locator('#sfv3EnterOutput').click();
   await page.locator('#sfv3ConfirmTarget').click();

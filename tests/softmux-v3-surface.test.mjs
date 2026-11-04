@@ -79,3 +79,17 @@ test('V3 no-target path short-circuits output construction in its real renderer'
   assert.match(segment.slice(gate,model),/return null;/);
   assert.match(segment.slice(0,gate),/updateSoftmux1014SourceSections/);
 });
+
+test('V3 selected-source inspector is read-only, exact-File bound, and never invents ASS transfer',async()=>{
+  const js=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(js,/sourceSheet\.id='sfv3SourceInspector'/);
+  assert.match(js,/sourceSheet\.setAttribute\('role','region'\)/);
+  assert.match(js,/exactEntry\(selectedSource\.sourceKey,selectedSource\.sourceFile\)/);
+  assert.match(js,/selectedSource\.sourceFile===from\.file/);
+  assert.match(js,/stream\?\.codec==='subrip'/);
+  assert.match(js,/track\.allowed && track\.codec==='subrip'/);
+  assert.match(js,/openTargetPicker\(selected\.transfer\)/);
+  assert.match(css,/\.sfv3-source-sheet\[hidden\]/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+});

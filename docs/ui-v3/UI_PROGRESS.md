@@ -162,3 +162,12 @@ The scenario builds a real A.mkv with embedded SubRip plus a separate B.mkv and 
 - Narrow context sheet/scrim receives a 150ms presentation-only opacity entrance under `no-preference`. `prefers-reduced-motion: reduce` disables it. No edit, commit, save or validation uses animation completion as an authority.
 - Regression additions: genuine A SubRip → B Chromium test checks scope, help and single native flag inputs; 820/620 selected-object test checks animation policy and stable layout after animations settle.
 - **Evidence state:** branch-submission only, dedicated V3 workflow plus full Browser E2E/S12 are **Pending CI** for the new commit. No Figma motion approval, selected-ASS visual parity or full UI acceptance is claimed. PR #239 remains Draft and must not merge.
+
+
+## 2026-11-04 WU-04 — source-object inspection follows approved V3-05 (new branch submission)
+
+- Figma review identified a substantive interaction gap: V3-05 (node 33:2) shows **selecting a source ASS** as an object-local bottom sheet, but the earlier source UI only exposed direct Add-to buttons. Source selection itself must not silently authorize or create an output.
+- `src/softmux-v3-surface.js` now offers a source-object inspection region with actual scanned title, file identity, kind and stream detail. The source list uses keyboard-accessible selection buttons with `aria-expanded` and restores focus on Escape/Close. It is a presentation of existing exact-File source observations, not a new editable media model.
+- For verified SubRip, the sheet's Add-to action opens the **existing explicit target chooser**, and cancel leaves the output unauthorized. Unsupported ASS/font transfer offers a read-only explanation rather than promising an unvalidated conversion. Preview/Extract remain **not claimed**; no inactive or synthetic successful tool is shown.
+- Source replacement, tab switching, changing to an authorized target and a stale imported File all revoke the selection. 820/620 responsive bounds, keyboard Escape, File continuity and real Chromium A SubRip → B flow have added regression assertions.
+- Scope is V3-05 / V3-02 source interaction only. It does not implement Figma's full preview+extract for ASS, exact selected-ASS image fidelity, or final device acceptance. Draft PR #239 stays unmerged; new HEAD tests are **Pending CI** at branch submission, and no earlier green run proves this commit.
