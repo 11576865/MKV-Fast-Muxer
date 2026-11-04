@@ -15,6 +15,9 @@ const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const js=path.resolve(process.env.FOUNDATION_WASM_JS||
   '.e2e/foundation-build/libmatroska2/mkvtree.js');
 const wasm=path.join(path.dirname(js),'mkvtree.wasm');
+const structuredJs=path.resolve(process.env.FOUNDATION_STRUCTURED_WASM_JS||
+  '.e2e/foundation-build/libmatroska2/foundation_json_probe.js');
+const structuredWasm=path.join(path.dirname(structuredJs),'foundation_json_probe.wasm');
 const fixture=path.resolve(process.env.FOUNDATION_FIXTURE||
   '.e2e/fixtures/p0-independent-mkvtoolnix.mkv');
 const reportFile=path.resolve(process.env.FOUNDATION_BROWSER_REPORT||
@@ -27,17 +30,24 @@ const report={
 await fs.mkdir(path.dirname(reportFile),{recursive:true});
 let server=null,browser=null;
 try {
-  const [jsBytes,wasmBytes,sourceBytes]=await Promise.all([
+  const [jsBytes,wasmBytes,sourceBytes,structuredJsBytes,
+    structuredWasmBytes,independentInfo]=await Promise.all([
     fs.readFile(js),fs.readFile(wasm),fs.readFile(fixture),
+    fs.readFile(structuredJs),fs.readFile(structuredWasm),
+    fs.readFile('.e2e/output/foundation-reference-mkvmerge.json','utf8')
+      .then(JSON.parse),
   ]);
   const sourceSha=sha(sourceBytes);
   report.sourceSha256=sourceSha;
   report.wasmSha256=sha(wasmBytes);
+  report.structuredWasmSha256=sha(structuredWasmBytes);
   report.sourceBytes=sourceBytes.length;
 
   const serve={
     '/mkvtree.js':{data:jsBytes,type:'text/javascript'},
     '/mkvtree.wasm':{data:wasmBytes,type:'application/wasm'},
+    '/foundation-json.js':{data:structuredJsBytes,type:'text/javascript'},
+    '/foundation_json_probe.wasm':{data:structuredWasmBytes,type:'application/wasm'},
     '/':{data:Buffer.from('<!doctype html><meta charset="utf-8"><title>Foundation WASM read audit</title>'),
       type:'text/html; charset=utf-8'},
   };
@@ -66,10 +76,12 @@ try {
   page.on('pageerror',error=>pageErrors.push(error.message));
   await page.goto(origin+'/');
   await page.addScriptTag({url:origin+'/mkvtree.js'});
+  await page.addScriptTag({url:origin+'/foundation-json.js'});
   report.browserExecuted=true;
 
   const result=await page.evaluate(async base64=>{
-    if(typeof window.createFoundationMkvtree!=='function')
+    if(typeof window.createFoundationMkvtree!=='function'||
+       typeof window.createFoundationJSON!=='function')
       throw Error('NO_BROWSER_EMSCRIPTEN_FACTORY');
     const stdout=[],stderr=[];
     const createModule=window.createFoundationMkvtree;
@@ -90,6 +102,21 @@ try {
       throw Error('BROWSER_WASM_VIRTUAL_FS_DID_NOT_RETAIN_INPUT');
     const status=m.callMain(['/independent.mkv']);
     const text=stdout.join('\n');
+    const structuredModule=await window.createFoundationJSON({
+      locateFile:name=>new URL('/'+name,location.origin).href,
+      noInitialRun:true,
+    });
+    if(!structuredModule.FS?.writeFile||!structuredModule.ccall)
+      throw Error('BROWSER_STRUCTURED_C_ABI_MISSING');
+    structuredModule.FS.writeFile('/independent.mkv',source);
+    const code=structuredModule.ccall(
+      'foundation_probe','number',['string'],['/independent.mkv']);
+    if(code!==0)throw Error('FOUNDATION_STRUCTURED_PROBE_REJECTED_'+code);
+    const jsonText=structuredModule.ccall('foundation_json','string',[],[]);
+    const structured=JSON.parse(jsonText);
+    if(structured.schema!=='foundation-matroska-structured-tree-v0'||
+       !Array.isArray(structured.nodes)||!structured.nodes.length)
+      throw Error('FOUNDATION_STRUCTURED_SCHEMA_INVALID');
     return {
       exitCode:status??0,
       elapsedMs:Math.round(performance.now()-start),
@@ -97,11 +124,39 @@ try {
       stderr:stderr.join('\n'),
       browserUserAgent:navigator.userAgent,
       sourceBufferLength:source.byteLength,
+      structured,
     };
   },sourceBytes.toString('base64'));
   const families={
     ebml:/ebml/i,segment:/segment/i,tracks:/tracks?/i,
     attachments:/attachments?/i,chapters:/chapters?/i,tags:/tags?/i,
+  };
+  const nodes=result.structured.nodes;
+  if(result.structured.nodeCount!==nodes.length||
+     nodes.length>8192||
+     nodes.some(node=>typeof node.name!=='string'||
+       typeof node.id!=='string'||
+       !Number.isInteger(node.depth)||
+       typeof node.offset!=='string'||
+       typeof node.dataBytes!=='string'))
+    throw Error('FOUNDATION_STRUCTURED_NODES_NOT_WELL_FORMED');
+  report.structuredNameCounts=Object.fromEntries(
+    [...new Set(nodes.map(node=>node.name))].map(name=>
+      [name,nodes.filter(node=>node.name===name).length]));
+  const expectedTypes=['EBMLHead','Segment','Tracks','Attachments',
+    'Chapters','Tags','TrackEntry','AttachedFile'];
+  for(const name of expectedTypes)
+    if(!report.structuredNameCounts[name])
+      throw Error('STRUCTURED_WASM_MISSING_'+name);
+  if(report.structuredNameCounts.TrackEntry!==(independentInfo.tracks||[]).length||
+     report.structuredNameCounts.AttachedFile!==(independentInfo.attachments||[]).length)
+    throw Error('INDEPENDENT_MKVMERGE_NODE_COUNT_MISMATCH');
+  report.structuredNodeCount=nodes.length;
+  report.structuredSamples=nodes.filter(node=>expectedTypes.includes(node.name))
+    .slice(0,20);
+  report.independentReference={
+    trackCount:(independentInfo.tracks||[]).length,
+    attachmentCount:(independentInfo.attachments||[]).length,
   };
   report.families=Object.fromEntries(Object.entries(families)
     .map(([name,regex])=>[name,regex.test(result.output)]));
