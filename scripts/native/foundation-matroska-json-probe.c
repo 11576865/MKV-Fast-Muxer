@@ -36,6 +36,7 @@ static unsigned count = 0;
 static int parse_failed = 0;
 static struct {
   filepos_t start, end;
+  uint32_t id;
 } parents[DEPTH_LIMIT];
 static unsigned parent_count = 0;
 static filepos_t input_end = -1;
@@ -125,28 +126,34 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   const filepos_t pos=EBML_ElementPosition(e);
   const int master=Node_IsPartOf(e,EBML_MASTER_CLASS);
   const int finite=EBML_ElementIsFiniteSize(e);
+  const uint32_t element_id=(uint32_t)EBML_ElementClassID(e);
 
   // Synthetic upstream traversal root, not a file-resident EBML element.
   if(count==0 && label && strcmp(label,"Matroska Stream")==0)return;
-  // For a *last* unknown-sized Segment, libEBML2 correctly reports
-  // finite=false, but may leave EndPosition/DataSize unresolved. Use its
-  // official element-data starting position and the read-only stream length
-  // (not a home-grown VINT decoder) to bound the emitted parent hierarchy.
-  // Other unknown-sized Masters remain unsupported in this narrow API.
+  while(parent_count && (pos<parents[parent_count-1].start ||
+                         pos>=parents[parent_count-1].end))
+    parent_count--;
+  // Matroska RFC 9559 explicitly permits unknown-sized Segment/Cluster.
+  // A terminal unknown-sized Cluster is bounded by its direct Segment parent,
+  // but must fail if libEBML2 subsequently finds a following sibling.
+  // Do not fabricate boundaries for other infinite-sized Masters.
   const int unknown_segment=master && !finite && label &&
     strcmp(label,"Segment")==0;
-  if(!finite && !unknown_segment){parse_failed=1;return;}
-  const filepos_t end=unknown_segment?
-    input_end:EBML_ElementPositionEnd(e);
-  const filepos_t data=unknown_segment?
+  const int unknown_cluster=master && !finite && label &&
+    strcmp(label,"Cluster")==0 && parent_count>0 &&
+    parents[parent_count-1].id==0x18538067u;
+  if(!finite && !unknown_segment && !unknown_cluster){
+    parse_failed=1;return;
+  }
+  const filepos_t end=unknown_segment?input_end:
+    unknown_cluster?parents[parent_count-1].end:
+    EBML_ElementPositionEnd(e);
+  const filepos_t data=(unknown_segment||unknown_cluster)?
     end-EBML_ElementPositionData(e):EBML_ElementDataSize(e,1);
   if(parse_failed || pos<0 || data<0 || end<pos ||
      end>input_end || ++count>NODE_LIMIT){
     parse_failed=1;return;
   }
-  while(parent_count && (pos<parents[parent_count-1].start ||
-                         pos>=parents[parent_count-1].end))
-    parent_count--;
   if(parent_count && end>parents[parent_count-1].end){
     parse_failed=1;return;
   }
@@ -157,7 +164,7 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   if(count>1)append(",");
   snprintf(part,sizeof(part),
     "{\"depth\":%u,\"id\":\"0x%08x\",\"name\":",
-    depth,(unsigned)EBML_ElementClassID(e));
+    depth,(unsigned)element_id);
   append(part);
   json_string(label);
   snprintf(part,sizeof(part),
@@ -174,6 +181,7 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   if(master){
     parents[parent_count].start=pos;
     parents[parent_count].end=end;
+    parents[parent_count].id=element_id;
     parent_count++;
   }
 }
@@ -214,6 +222,15 @@ static ebml_element *visit(ebml_element *element,
       --*level;
       if (upper<0)*level+=upper;
       else if (upper!=0 && *level>0)*level-=upper-1;
+    }
+    // Only accept a terminal unknown-sized Cluster. A later sibling's
+    // boundary cannot be inferred as EOF; do not silently attach it under
+    // the preceding Cluster or inflate that Cluster's byte range.
+    if(!EBML_ElementIsFiniteSize(element) &&
+       EBML_ElementClassID(element)==0x1F43B675u && child!=NULL){
+      NodeDelete((node*)child);
+      parse_failed=1;
+      return NULL;
     }
     return child;
   }
