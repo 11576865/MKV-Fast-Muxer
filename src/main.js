@@ -2620,6 +2620,45 @@ function renderOutputComposition() {
       data-status="${escapeHtml(item.status)}" aria-pressed="${active}"
       aria-label="编辑${escapeHtml(label)}：${escapeHtml(item.title)}">${info}</button>`;
   }).join('') || '<div class="track-empty">暂无可封装轨道</div>';
+  // V3 renders the REAL composition buttons as grouped Matroska objects.
+  // Do not clone controls, synthesize target rows or maintain a parallel
+  // editable model. The existing delegated composition click handler owns
+  // exactly the same DOM nodes after moving them into presentation groups.
+  if (v3Pilot && model.items.length) {
+    const labels = {
+      video:'视频',audio:'音频',subtitle:'字幕',
+      attachment:'附件',font:'字体',other:'其他对象',
+    };
+    const groups = new Map();
+    const originalRows=[...compositionTracks.children];
+    for(const [index,item] of model.items.entries()) {
+      const kind=Object.hasOwn(labels,item.kind)?item.kind:'other';
+      if(!groups.has(kind)) {
+        const section=document.createElement('section');
+        section.className='sfv3-target-group';
+        section.dataset.kind=kind;
+        const heading=document.createElement('header');
+        heading.className='sfv3-target-group-heading';
+        const title=document.createElement('h2');
+        title.textContent=labels[kind];
+        const count=document.createElement('span');
+        count.className='sfv3-target-group-count';
+        count.textContent=String(model.items.filter(candidate =>
+          (Object.hasOwn(labels,candidate.kind)?candidate.kind:'other')===kind
+        ).length).padStart(2,'0')+' 个对象';
+        heading.append(title,count);
+        const list=document.createElement('div');
+        list.className='sfv3-target-group-list';
+        section.append(heading,list);
+        groups.set(kind,{section,list});
+      }
+      const row=originalRows[index];
+      if(!row)continue;
+      row.dataset.sfv3ObjectKind=kind;
+      groups.get(kind).list.append(row);
+    }
+    compositionTracks.replaceChildren(...groups.values().map(group=>group.section));
+  }
   const meaningfulChanges = model.changes;
   compositionChanges.hidden = !meaningfulChanges.length;
   compositionChanges.textContent = meaningfulChanges.length
