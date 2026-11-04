@@ -1,0 +1,83 @@
+name: BSD Matroska Foundation WebAssembly real-file feasibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/foundation-matroska2-wasm.yml'
+      - 'scripts/probe-foundation-matroska2-wasm.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation-wasm-real-file:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout Softmux test harness
+        uses: actions/checkout@v4
+
+      - name: Pin upstream BSD-licensed Foundation source
+        uses: actions/checkout@v4
+        with:
+          repository: Matroska-Org/foundation-source
+          ref: d69761114b79c1dfcb2226ceca84452835e745c3
+          path: .e2e/foundation-upstream
+          persist-credentials: false
+
+      - name: Set up pinned Emscripten compiler
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          emsdk-version: '3.1.68'
+
+      - name: Generate independent Matroska input
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg mkvtoolnix
+          mkdir -p .e2e/output
+          bash tests/e2e/generate-fixtures.sh
+          bash tests/e2e/generate-independent-matroska-fixture.sh
+          mkvmerge -J .e2e/fixtures/p0-independent-mkvtoolnix.mkv > .e2e/output/foundation-reference-mkvmerge.json
+
+      - name: Compile actual BSD libEBML2 and libMatroska2 into Emscripten Wasm
+        run: |
+          set -euo pipefail
+          mkdir -p .e2e/output
+          emcc --version | head -n 2
+          emcmake cmake -S .e2e/foundation-upstream -B .e2e/foundation-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCONFIG_MATROSKA2=ON \
+            -DCONFIG_EBML_WRITING=ON \
+            -DCONFIG_ZLIB=OFF -DCONFIG_BZLIB=OFF \
+            -DCONFIG_LZO1X=OFF -DCONFIG_CODEC_HELPER=OFF \
+            -DCONFIG_DEBUGCHECKS=OFF \
+            '-DCMAKE_EXE_LINKER_FLAGS=-sMODULARIZE=1 -sEXPORT_NAME=createFoundationMkvtree -sEXPORTED_RUNTIME_METHODS=FS,callMain -sINVOKE_RUN=0 -sALLOW_MEMORY_GROWTH=1 -sENVIRONMENT=web,node' \
+            2>&1 | tee .e2e/output/foundation-wasm-configure.log
+          cmake --build .e2e/foundation-build --target mkvtree -j 2 \
+            2>&1 | tee .e2e/output/foundation-wasm-build.log
+          test -s .e2e/foundation-build/libmatroska2/mkvtree.js
+          test -s .e2e/foundation-build/libmatroska2/mkvtree.wasm
+
+      - name: Execute upstream Matroska parser Wasm against a genuine MKV
+        env:
+          FOUNDATION_WASM_JS: .e2e/foundation-build/libmatroska2/mkvtree.js
+          FOUNDATION_FIXTURE: .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+        run: node scripts/probe-foundation-matroska2-wasm.mjs
+
+      - name: Upload actual compiler, Wasm and independent file evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundation-matroska2-wasm-actual-build-and-read
+          path: |
+            .e2e/output/foundation-wasm-configure.log
+            .e2e/output/foundation-wasm-build.log
+            .e2e/output/foundation-reference-mkvmerge.json
+            .e2e/output/foundation-matroska2-wasm-probe.json
+            .e2e/foundation-build/libmatroska2/mkvtree.js
+            .e2e/foundation-build/libmatroska2/mkvtree.wasm
+          if-no-files-found: warn
+          retention-days: 14
