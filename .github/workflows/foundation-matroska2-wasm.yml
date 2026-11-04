@@ -172,6 +172,21 @@ jobs:
              native.attachments[0].size<=4*1024*1024)
             throw Error('FOUNDATION_CRC_OVERSIZED_NATIVE_ORACLE_INVALID');
           NODE
+          # Independently recognize both legal high-node-count containers;
+          # an official parser refusal must be a *bounded resource policy*,
+          # not malformed file authoring or stale SeekHead/Cues.
+          for count in 7000 8300; do
+            id="foundation-edge-nodes-${count}-void"
+            mkvmerge -J ".e2e/fixtures/$id.mkv" > ".e2e/output/$id-native.json"
+            node --input-type=module - "$id" <<'NODE'
+          import fs from 'node:fs/promises';
+          const id=process.argv[2];
+          const json=JSON.parse(await fs.readFile(
+            '.e2e/output/'+id+'-native.json','utf8'));
+          if(json.container?.recognized!==true||json.attachments?.length!==2)
+            throw Error('FOUNDATION_NODE_BUDGET_NATIVE_ORACLE_INVALID_'+id);
+          NODE
+          done
           for case in foundation-edge-crc-valid foundation-edge-segment-unknown \
                       foundation-edge-crc-nested-valid \
                       foundation-edge-cluster-unknown-terminal \
