@@ -53,6 +53,19 @@ try {
  assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),0,
    'no internal output composition should exist before explicit target authorization');
  assert.equal(await page.locator('#sfv3FileName').textContent(),'V3 Source 01.mkv');
+ // Every rendered static icon must come from an actual downloaded SVG.
+ // No missing asset, temporary Figma link, browser fallback glyph or 0x0 box.
+ await page.waitForFunction(()=>{
+   const icons=[...document.querySelectorAll('#sf14Root img.sfv3-svg-icon')];
+   return icons.length>=9 && icons.every(img=>img.complete && img.naturalWidth>0 &&
+     img.naturalHeight>0 && !img.src.includes('figma.com/api/mcp/asset/'));
+ },null,{timeout:25000});
+ const iconSlots=await page.locator('#sf14Root img.sfv3-svg-icon').evaluateAll(nodes=>
+   nodes.map(node=>({url:node.src,natural:[node.naturalWidth,node.naturalHeight],
+     box:[Math.round(node.getBoundingClientRect().width),Math.round(node.getBoundingClientRect().height)]})));
+ assert.ok(iconSlots.length>=9);
+ assert.ok(iconSlots.every(icon=>icon.box[0]>0&&icon.box[1]>0));
+ evidence.checks.push('all visible Figma-exported SVG icon slots resolve from local build assets');
  await page.screenshot({path:path.join(output,'1440-loaded-source.png'),fullPage:false});
  evidence.views.push('1440-loaded-source.png');
  evidence.checks.push('actual imported MKV and source-only scan projection');
