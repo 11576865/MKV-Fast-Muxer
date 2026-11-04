@@ -667,3 +667,43 @@
     line-height:1.4;font-size:11px;
   }
 }
+
+
+/* Last WU-04 visual audit: original mobile "返回拟输出" duplicated V3 close,
+ * and bare kind text did not match the exact exported Figma icon language. */
+.sf14.sfv3 #sf14BackToComposition {
+  display:none!important;
+}
+.sf14.sfv3[data-sfv3-surface="plan"] .sfv3-target-group .composition-kind {
+  width:40px;height:40px;min-width:40px;
+  display:grid;place-items:center;
+  color:transparent;font-size:0!important;line-height:0;
+  background:var(--sfv3-bg);
+  border-radius:8px;
+}
+.sf14.sfv3 .sfv3-target-group .composition-kind::before {
+  content:"";width:20px;height:20px;display:block;
+  background-repeat:no-repeat;background-position:center;
+  background-size:contain;
+}
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="video"] .composition-kind::before {
+  background-image:url('./v3-assets/video.svg');
+}
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="audio"] .composition-kind::before {
+  background-image:url('./v3-assets/audio.svg');
+}
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="subtitle"] .composition-kind::before {
+  background-image:url('./v3-assets/subtitle.svg');
+}
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="attachment"] .composition-kind::before,
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="font"] .composition-kind::before {
+  background-image:url('./v3-assets/attachment.svg');
+}
+.sf14.sfv3 .sfv3-target-group [data-sfv3-object-kind="other"] .composition-kind::before {
+  background-image:url('./v3-assets/object-list.svg');
+}
+@media(max-width:719px){
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-target-group .composition-kind {
+    width:34px;height:34px;min-width:34px;
+  }
+}
