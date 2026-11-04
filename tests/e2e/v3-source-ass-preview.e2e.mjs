@@ -39,6 +39,27 @@ try {
   !!document.querySelector('#sfv3SourceContents .sfv3-row-select'),stream.index,{timeout:120000});
  const row=page.locator('#sfv3SourceContents .sfv3-row-select').filter({hasText:'V3 Source ASS'}).first();
  await row.click();
+ const sourceHelp=page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp');
+ assert.equal(await sourceHelp.count(),1,
+   'V3-09 source ASS has the same single Default/Forced glossary as the target editor');
+ assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1);
+ assert.equal(await sourceHelp.isVisible(),true);
+ const sourceFonts=page.locator('#sfv3SourceFontEvidence');
+ await page.waitForFunction(()=>
+   document.querySelector('#sfv3SourceFontEvidence')?.textContent
+     ?.includes('0 项疑似字体附件'),null,{timeout:60000});
+ assert.match(await sourceFonts.textContent(),/不等于字体 face、字重、斜体或字形依赖已验证/);
+ assert.equal(await sourceFonts.locator('li').count(),0,
+   'a real ASS with no attachments must not display invented font files');
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ await sourceHelp.locator('summary').click();
+ assert.equal(await sourceHelp.getAttribute('open'),'');
+ assert.match(await sourceHelp.textContent(),/默认轨道标记/);
+ assert.match(await sourceHelp.textContent(),/强制字幕标记/);
+ assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1,
+   'opening source technical help cannot clone the shared help DOM');
+ await page.screenshot({path:path.join(dir,'v3-source-ass-flags-and-font-observation.png')});
+ await sourceHelp.locator('summary').click();
  assert.equal(await page.locator('#sfv3SourceInspectorPreview').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),true);
  assert.match(await page.locator('#sfv3SourceInspectorAdd').textContent(),/校验 ASS 与字体/);
@@ -132,6 +153,9 @@ try {
    streamIndex:stream.index,format:'native',attachmentsIncluded:false,reportValidated:true};
  await page.screenshot({path:path.join(dir,'v3-native-ass-extraction.png')});
  await page.locator('#sfv3SourceInspectorClose').click();
+ assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1);
+ assert.equal(await page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp').count(),0,
+   'closing source object must restore the ONE technical help to target inspector');
  assert.equal(await page.locator('#sf14PreviewDrawer').count(),1);
  assert.equal(await page.locator('#sfv3SourceInspector #sf14PreviewDrawer').count(),0);
  assert.equal(await page.locator('#originalTrackExtractionPanel').count(),1);

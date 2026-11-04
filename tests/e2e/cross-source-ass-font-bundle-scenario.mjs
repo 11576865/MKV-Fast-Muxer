@@ -141,6 +141,17 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
       'V3 source observation is not output authorization');
     await page.locator('#sfv3SourceContents .sfv3-row-select')
       .filter({hasText:'Source ASS proof'}).click();
+    await page.waitForFunction(()=>
+      document.querySelector('#sfv3SourceFontEvidence')?.textContent
+        ?.includes('1 项疑似字体附件'),null,{timeout:60000});
+    assert.equal(await page.locator('#sfv3SourceFontEvidence li').count(),1);
+    assert.match(await page.locator('#sfv3SourceFontEvidence').textContent(),/P3EmbeddedProof\.ttf/);
+    assert.match(await page.locator('#sfv3SourceFontEvidence').textContent(),/不等于字体 face/);
+    assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1);
+    assert.equal(await page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp').isVisible(),true);
+    assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+      'font observation and technical help do not authorize a target');
+    await page.screenshot({path:path.join(outDir,'v3-source-ass-font-observation.png')});
     const v3Add=page.locator('#sfv3SourceInspectorAdd');
     assert.equal(await v3Add.isVisible(),true,
       'V3 must offer a font-closure-gated Add-to for scanned ASS');
@@ -236,6 +247,11 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
       null,{timeout:120000});
     await page.locator('#sfv3SourceContents .sfv3-row-select')
       .filter({hasText:/ass/i}).first().click();
+    await page.waitForFunction(()=>
+      document.querySelector('#sfv3SourceFontEvidence')?.textContent
+        ?.includes('0 项疑似字体附件'),null,{timeout:60000});
+    assert.equal(await page.locator('#sfv3SourceFontEvidence li').count(),0,
+      'missing-font source must not claim to have any observed font attachments');
     await page.locator('#sfv3SourceInspectorAdd').click();
     await page.locator('#sfv3ConfirmTarget').click();
     await page.waitForFunction(()=>

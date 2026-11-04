@@ -238,6 +238,7 @@ jobs:
             .e2e/output/cross-source-ass-font/B-with-A-ASS-font-browser.mkv
             .e2e/output/cross-source-ass-font/B-with-A-ASS-font-v3-browser.mkv
             .e2e/output/cross-source-ass-font/v3-ass-font-authorized-plan.png
+            .e2e/output/cross-source-ass-font/v3-source-ass-font-observation.png
             .e2e/output/cross-source-ass-font/v3-no-font-fail-closed.png
             .e2e/output/cross-source-ass-font/v3-cross-source-ass-font-evidence.json
             .e2e/output/cross-source-ass-font/v3-independent-render/

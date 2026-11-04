@@ -1158,3 +1158,52 @@
   flex-wrap:wrap;
   align-items:center;
 }
+
+
+/* WU-07 / approved Figma V3-09: read-only, source-local font observation
+ * and the SINGLE already existing Default/Forced technical help. */
+.sf14.sfv3 .sfv3-source-font-evidence[hidden],
+.sf14.sfv3 .sfv3-source-flag-help-host[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-source-font-evidence{
+  min-width:0;padding:12px 14px;
+  border:1px solid var(--sfv3-line);
+  border-radius:9px;background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-source-font-heading{
+  display:block;font-size:12px;font-weight:700;
+  color:var(--sfv3-text);overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-source-font-files{
+  display:flex;gap:6px;flex-wrap:wrap;min-width:0;
+  margin:8px 0 0;padding:0;list-style:none;
+}
+.sf14.sfv3 .sfv3-source-font-files li{
+  min-width:0;padding:5px 8px;
+  border:1px solid var(--sfv3-line);border-radius:6px;
+  background:var(--sfv3-row-raised);
+  color:var(--sfv3-soft);font-size:11px;
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-source-font-limit{
+  margin:9px 0 0;line-height:1.65;
+  font-size:11px;color:var(--sfv3-muted);
+}
+.sf14.sfv3 .sfv3-source-flag-help-host{
+  min-width:0;
+  padding:0 10px;border:1px solid var(--sfv3-line);
+  border-radius:9px;background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-source-flag-help-host .sfv3-subtitle-flag-help{
+  margin:0;padding:0;border-top:none;
+}
+.sf14.sfv3 .sfv3-source-flag-help-host .sfv3-subtitle-flag-help > summary{
+  min-height:44px;
+}
+@media(max-width:959px){
+  .sf14.sfv3 .sfv3-source-font-evidence{padding:10px 12px;}
+  .sf14.sfv3 .sfv3-source-font-files li{font-size:11px;}
+}
+@media(max-width:620px){
+  .sf14.sfv3 .sfv3-source-flag-help-host{padding:0 9px;}
+  .sf14.sfv3 .sfv3-source-font-evidence{padding:10px;}
+}

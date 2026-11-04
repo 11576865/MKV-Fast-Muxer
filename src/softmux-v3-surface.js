@@ -428,6 +428,25 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetHeader.prepend(sourceSheetIdentity);
   const sourceSheetDetail=appendText(doc,sourceSheet,'p','sfv3-source-sheet-detail','');
   const sourceSheetNotice=appendText(doc,sourceSheet,'p','sfv3-source-sheet-notice','');
+  // Native FFprobe attachment observations are NOT proof that an ASS's
+  // referenced face/style/glyph requirements can be satisfied.
+  const sourceFontEvidence=doc.createElement('section');
+  sourceFontEvidence.id='sfv3SourceFontEvidence';
+  sourceFontEvidence.className='sfv3-source-font-evidence';
+  sourceFontEvidence.setAttribute('aria-label','来源内封字体附件观察');
+  sourceFontEvidence.hidden=true;
+  const sourceFontHeading=appendText(doc,sourceFontEvidence,'strong','sfv3-source-font-heading','');
+  const sourceFontFiles=doc.createElement('ul');
+  sourceFontFiles.className='sfv3-source-font-files';
+  const sourceFontLimit=appendText(doc,sourceFontEvidence,'p','sfv3-source-font-limit',
+    '这里只列出来源 MKV 扫描到的字体附件；尚未证明 ASS 使用的 face、字重、斜体及字形覆盖。');
+  sourceFontEvidence.insertBefore(sourceFontFiles,sourceFontLimit);
+  // One technical glossary is shared with the target inspector. Moving an
+  // existing read-only details DOM avoids duplicate help definitions.
+  const sourceSheetHelpHost=doc.createElement('div');
+  sourceSheetHelpHost.id='sfv3SourceFlagHelpHost';
+  sourceSheetHelpHost.className='sfv3-source-flag-help-host';
+  sourceSheetHelpHost.hidden=true;
   const sourceSheetActions=doc.createElement('div');
   sourceSheetActions.className='sfv3-source-sheet-actions';
   const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','生成 ASS 预览帧');
@@ -456,8 +475,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
-  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,
-    sourceSheetActions,sourceSheetPreviewHost,sourceSheetExtractionHost);
+  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceFontEvidence,
+    sourceSheetNotice,sourceSheetActions,sourceSheetHelpHost,
+    sourceSheetPreviewHost,sourceSheetExtractionHost);
   single.appendChild(sourceSheet);
 
   // V3 target picker is an explicit action, never an implicit file import side effect.
@@ -523,6 +543,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     selectedSource=null;
     restoreNativePreview();
     restoreNativeExtraction();
+    if(subtitleFlagHelp.parentNode===sourceSheetHelpHost){
+      subtitleFlagHelp.open=false;
+      subtitleFlagHelp.hidden=true;
+      objectContext.appendChild(subtitleFlagHelp);
+    }
+    sourceSheetHelpHost.hidden=true;
+    sourceFontEvidence.hidden=true;
     sourceSheet.hidden=true;
     root.dataset.sfv3SourceInspector='closed';
     for(const node of contents.querySelectorAll('.sfv3-row-select[aria-expanded="true"]'))
@@ -551,6 +578,45 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceSheetOrigin.textContent='来源 · '+selectedSource.sourceFile.name+
       ' · '+selectedSource.group;
     sourceSheetDetail.textContent=selectedSource.detail||'当前来源已识别此对象';
+    const subtitleObserved=selectedSource.group==='字幕';
+    if(subtitleObserved){
+      sourceSheetHelpHost.appendChild(subtitleFlagHelp);
+      subtitleFlagHelp.hidden=false;
+      sourceSheetHelpHost.hidden=false;
+    }else{
+      if(subtitleFlagHelp.parentNode===sourceSheetHelpHost) {
+        subtitleFlagHelp.open=false;
+        subtitleFlagHelp.hidden=true;
+        objectContext.appendChild(subtitleFlagHelp);
+      }
+      sourceSheetHelpHost.hidden=true;
+    }
+    const scannedSourceSections=subtitleObserved && latestSections.scanned &&
+      latestSections.sourceFile===selectedSource.sourceFile;
+    sourceFontEvidence.hidden=!subtitleObserved;
+    sourceFontFiles.replaceChildren();
+    if(subtitleObserved){
+      // Only primary-source sections have a verified File identity here.
+      // Secondary subtitle scans alone cannot establish attachment absence.
+      const fontAttachments=scannedSourceSections
+        ? (latestSections.attachments||[]).filter(attachment=>{
+            const mime=String(attachment.detail||'').split(' · ')[0].toLowerCase();
+            const name=String(attachment.title||'');
+            return /(?:font|truetype|opentype|sfnt)/.test(mime) ||
+              /\.(?:ttf|otf|ttc|otc)$/i.test(name);
+          }) : [];
+      sourceFontHeading.textContent=scannedSourceSections
+        ? '来源扫描：'+fontAttachments.length+' 项疑似字体附件'
+        : '来源字体附件尚未检查';
+      for(const item of fontAttachments.slice(0,12))
+        appendText(doc,sourceFontFiles,'li','',item.title);
+      if(fontAttachments.length>12)
+        appendText(doc,sourceFontFiles,'li','',
+          '另外 '+(fontAttachments.length-12)+' 项未在此展开');
+      sourceFontLimit.textContent=scannedSourceSections
+        ? '仅确认来源 MKV 存在这些附件；不等于字体 face、字重、斜体或字形依赖已验证。'
+        : '此来源尚无与当前 File 绑定的附件扫描结果；不能把未知当作 0 项。';
+    }
     const previewable=Boolean(selectedSource.preview &&
       from.scanned && from.file===sourceInput.files?.[0] && nativePreviewDrawer);
     sourceSheetNotice.textContent=selectedSource.reason ||
@@ -1099,7 +1165,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     contextEyebrow.textContent=selectedRow?'当前选中 · '+selectedKind:'拟输出 · 对象检查器';
     contextTitle.textContent=selectedTitle||'拟输出容器';
     contextMeta.textContent=selectedDetail||'未选中具体对象；可查看真实成品证据与编辑历史';
-    const flagHelpInScope=Boolean(targetValid &&
+    const sourceHelpInScope=Boolean(root.dataset.sfv3Surface==='source' &&
+      !sourceSheet.hidden && selectedSource?.group==='字幕' &&
+      subtitleFlagHelp.parentNode===sourceSheetHelpHost);
+    const flagHelpInScope=sourceHelpInScope || Boolean(targetValid &&
       root.dataset.sfv3Surface==='plan' &&
       selectedRow?.dataset.sfv3ObjectKind==='subtitle');
     subtitleFlagHelp.hidden=!flagHelpInScope;

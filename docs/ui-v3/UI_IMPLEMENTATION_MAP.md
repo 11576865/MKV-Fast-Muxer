@@ -164,3 +164,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Composition selected → real inspector | Existing actual `button[data-composition-id]` and one `.sf14-inspector` | Record invoked row ID, focus original Close, return to current row with same ID after rerender; independent dock entry returns to dock on Escape |
 | Touch hit geometry | V3 CSS only; source and target Close, picker, preview, extract and add | 44px minimum, with V3 scoped visible focus outlines; not a physical-device result |
 | Regression | `tests/e2e/v3-responsive-geometry.e2e.mjs`, `hasTouch:true`, true Chromium `tap()` + Escape | 820/620 bounds, exactly one editor and source inspector, actual source `File` continuity, precise activeElement return; exact-head pending |
+
+
+## WU-07 V3-09 selected ASS source evidence and technical help (2026-11-04)
+
+| Design intent | Real source of truth | V3 presentation and test boundary |
+| --- | --- | --- |
+| Font-related information before target intent | `buildSourceObjectSections()` projection of the actual FFprobe scanned source, bound to exact `File` | Source sheet `#sfv3SourceFontEvidence`: count/list **likely font attachments**, not required font closure or glyph coverage; secondary unknown ≠ zero |
+| Source local technical explanation | One pre-existing `#sfv3SubtitleFlagsHelp` details node, same Default/Forced definitions | Rehost same DOM in `#sfv3SourceFlagHelpHost` while a source subtitle is selected; restore to target object context on Close; never duplicate controls or mutate flags |
+| Approved frame | Figma V3-09 `38:2` and V3-05 `33:2`, source-first context | 820px source selected ASS with readable font observation/help; exact Figma visual acceptance and physical tablet still open |
+| Execution / evidence | Existing ASS preview/extract and P3 real media FFmpeg/libass actions unchanged | Real browser source ASS (0 observed fonts) and P3 A ASS+font (1 observed font)/no-font (0 observed font); exact-head CI pending |

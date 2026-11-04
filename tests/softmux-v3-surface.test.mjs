@@ -177,3 +177,21 @@ test('V3 source/target inspectors focus their close and restore exact invoking o
   assert.match(css,/\.sfv3-source-sheet-close,/);
   assert.match(css,/min-height:44px/);
 });
+
+
+test('V3-09 source ASS shows only observed font attachments and the one shared flag glossary',async()=>{
+  const view=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(view,/sourceFontEvidence\.id='sfv3SourceFontEvidence'/);
+  assert.match(view,/sourceSheetHelpHost\.id='sfv3SourceFlagHelpHost'/);
+  assert.match(view,/latestSections\.sourceFile===selectedSource\.sourceFile/);
+  assert.match(view,/latestSections\.attachments\|\|\[\]/);
+  assert.match(view,/fontAttachments\.slice\(0,12\)/);
+  assert.match(view,/sourceSheetHelpHost\.appendChild\(subtitleFlagHelp\)/);
+  assert.match(view,/objectContext\.appendChild\(subtitleFlagHelp\)/);
+  assert.match(view,/sourceHelpInScope \|\| Boolean\(targetValid/);
+  assert.match(view,/不等于字体 face、字重、斜体或字形依赖已验证/);
+  assert.match(view,/不能把未知当作 0 项/);
+  assert.match(css,/\.sfv3-source-font-evidence\[hidden\]/);
+  assert.match(css,/\.sfv3-source-flag-help-host/);
+});
