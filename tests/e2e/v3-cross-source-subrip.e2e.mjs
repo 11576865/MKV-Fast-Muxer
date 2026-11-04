@@ -115,6 +115,8 @@ try {
   // not a second React/Figma form with divorced title or flags state.
   const embeddedOutputSub=page.locator('#compositionTracks button[data-composition-id]')
     .filter({hasText:'Caption from A'});
+  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').isVisible(),false,
+    'flag help must not appear when no subtitle object is selected');
   await embeddedOutputSub.click();
   assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'open',
     'selecting real target object must open the contextual inspector');
@@ -124,6 +126,15 @@ try {
   assert.equal(await realSubtitleTitle.inputValue(),'Caption from A');
   assert.equal(await page.locator('#compositionTracks button[aria-pressed="true"]').count(),1);
   assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]').count(),1);
+  const flagHelp=page.locator('#sfv3SubtitleFlagsHelp');
+  await flagHelp.waitFor({state:'visible'});
+  await flagHelp.locator('summary').click();
+  assert.equal(await flagHelp.getAttribute('open'),'');
+  assert.match(await flagHelp.textContent(),/Default.*Forced/s);
+  assert.match(await flagHelp.textContent(),/不保证所有播放器/);
+  assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="default"][data-index="0"]').count(),1);
+  assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="forced"][data-index="0"]').count(),1);
+  evidence.steps.push('selected subtitle reveals optional Default/Forced semantics without a second editor');
   await page.locator('#sfv3InspectorClose').click();
   assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),false);
   await page.locator('#sfv3InspectorOpen').click();
@@ -133,6 +144,8 @@ try {
   // Do not rely on CSS hiding the underlying legacy source-editor controls.
   await page.locator('#sfv3SourceTab').click();
   assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'source');
+  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').isVisible(),false,
+    'source observation must not retain target-only flag help');
   await page.waitForFunction(()=>document.getElementById('muxBtn')?.disabled===true);
   const sourceCheckbox=page.locator('#assetInventory input[data-asset-include]').first();
   assert.ok(await sourceCheckbox.count(),'real imported subtitle should have an include control');

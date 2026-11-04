@@ -83,3 +83,12 @@ The inspector's contents are still the real older editor and may not visually co
 | Browser verification | `tests/e2e/v3-responsive-geometry.e2e.mjs` | Native FFmpeg ffmetadata fixture + independent ffprobe, true Chapter/Tag browser DOM, 22 responsive states, native inspector/history singleton and zero editable structure affordances; [V3 CI #41791074428](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41791074428) passed code SHA `79181a72d053075b2ab474b685af2323c59c9b91` |
 
 Remaining issue: selected ASS, Default/Forced instructional context, motion and exact Figma visual parity require separate verified scenarios; never use this source-only Chapter/Tag view to assert output EBML fidelity.
+
+
+## WU-04 contextual subtitle metadata and reduced-motion boundary (2026-11-04)
+
+| Surface | Real ownership | Evidence requirement |
+| --- | --- | --- |
+| `#sfv3SubtitleFlagsHelp` | Selected real `#compositionTracks button[aria-pressed=true][data-sfv3-object-kind=subtitle]` **and** exact authorized target intent | Collapsed read-only Default/Forced distinction; no clone or direct write of the native flag fields; unavailable in source view |
+| Responsive inspector entrance | Presentation-only `data-sfv3-inspector` and CSS `prefers-reduced-motion` | No movement of File/field owner, no permission change or waits for animation; 820 no-preference / 620 reduce E2E |
+| Final V3-09 / V3-05 acceptance | Owner-approved Figma frames and a genuinely selected ASS+font fixture | Still **open**; a SubRip browser scenario is not a selected ASS rendering test or motion prototype sign-off |

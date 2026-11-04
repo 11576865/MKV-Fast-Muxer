@@ -830,3 +830,60 @@
     margin:5px 0 10px;padding:11px;
   }
 }
+
+
+/* WU-04: per-object technical help is disclosed only for an authorized,
+ * selected subtitle. Native Default/Forced controls remain the sole writers. */
+.sf14.sfv3 .sfv3-subtitle-flag-help {
+  margin:8px 0 0;border-top:1px solid var(--sfv3-line);
+  padding-top:8px;min-width:0;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-help[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-subtitle-flag-help > summary {
+  display:flex;align-items:center;min-height:40px;
+  color:var(--sfv3-accent);font-size:12px;font-weight:650;
+  cursor:pointer;list-style:none;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-help > summary::-webkit-details-marker{display:none;}
+.sf14.sfv3 .sfv3-subtitle-flag-help > summary::before {
+  content:"?";display:grid;place-items:center;
+  width:22px;height:22px;min-width:22px;margin-right:9px;
+  border:1px solid var(--sfv3-accent);border-radius:50%;
+  font-size:12px;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-help > summary:focus-visible {
+  outline:2px solid var(--sfv3-accent);outline-offset:3px;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-definitions {
+  display:grid;grid-template-columns:minmax(56px,auto) minmax(0,1fr);
+  gap:9px 12px;margin:5px 0 9px;font-size:12px;line-height:1.6;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-definitions dt{
+  color:var(--sfv3-text);font-weight:700;
+}
+.sf14.sfv3 .sfv3-subtitle-flag-definitions dd {
+  margin:0;min-width:0;color:var(--sfv3-soft);overflow-wrap:anywhere;
+}
+
+/* Bounded presentation-only entrance; no delayed writes or document state
+ * changes. Exact Figma motion fidelity remains unapproved. */
+@media (max-width:959px) and (prefers-reduced-motion:no-preference){
+  .sf14.sfv3[data-sfv3-surface="plan"][data-sfv3-inspector="open"] .sf14-pane.sf14-inspector {
+    animation:sfv3-context-enter 150ms ease-out both;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"][data-sfv3-inspector="open"] .sfv3-inspector-scrim:not([hidden]){
+    animation:sfv3-scrim-enter 150ms ease-out both;
+  }
+  @keyframes sfv3-context-enter{
+    from{opacity:.78;} to{opacity:1;}
+  }
+  @keyframes sfv3-scrim-enter{
+    from{opacity:0;} to{opacity:1;}
+  }
+}
+@media (prefers-reduced-motion:reduce){
+  .sf14.sfv3 .sf14-pane.sf14-inspector,
+  .sf14.sfv3 .sfv3-inspector-scrim{
+    animation:none!important;transition:none!important;
+  }
+}

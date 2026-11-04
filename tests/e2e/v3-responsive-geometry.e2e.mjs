@@ -192,6 +192,7 @@ try{
   // editor as a bottom sheet, not duplicate or discard an input on rotation.
   for(const [width,height] of [[820,1180],[620,900]]) {
     await page.setViewportSize({width,height});
+    await page.emulateMedia({reducedMotion:width===620?'reduce':'no-preference'});
     await page.locator('#compositionTracks button[data-composition-id]').first().click();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'open');
     const inspector=page.locator('.sf14-pane.sf14-inspector');
@@ -218,6 +219,13 @@ try{
     assert.ok(actualVideoIcon.startsWith('url(') && actualVideoIcon.includes('svg'),
       'real Matroska object icon must resolve an exported SVG at '+width);
     assert.equal(await page.locator('#sfv3InspectorScrim').isVisible(),true);
+    const motion=await inspector.evaluate(node=>({
+      name:getComputedStyle(node).animationName,
+      duration:getComputedStyle(node).animationDuration,
+    }));
+    assert.equal(width===620,motion.name==='none',
+      'reduced-motion preference must remove context-sheet entrance animation');
+    await inspector.evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
     await page.screenshot({path:path.join(out,'plan-'+width+'x'+height+'-inspector.png'),
       fullPage:false});
     await page.locator('#sfv3InspectorClose').click();
@@ -226,6 +234,7 @@ try{
     assert.equal(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
       'V3 Responsive Fixture.mkv','File identity unchanged after inspector interaction');
   }
+  await page.emulateMedia({reducedMotion:'no-preference'});
   await page.setViewportSize({width:820,height:1180});
   await page.locator('#compositionTracks button[data-composition-id]').first().click();
   await page.locator('#sfv3HistoryDrawer > summary').click();

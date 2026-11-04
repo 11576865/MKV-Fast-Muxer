@@ -153,3 +153,12 @@ The scenario builds a real A.mkv with embedded SubRip plus a separate B.mkv and 
 **Known limits / NOT accepted:** This is a progressive presentation change, not full editor replacement. Dense old `asset-tree-inspector`, preview/output dock and some technical controls remain; source-attested Chapter/Tag rows make no claim of actual output inclusion. No matched-media screenshot pixel diff, finalized interactive motion specification, real ASS+font closure, full screen reader/touch audit or final owner acceptance. V3 remains opt-in via `?ui=v3`, draft PR #239 is not merged. Do not silently reinterpret the Chapter/Tag structure as supported target writers.
 
 **Next scoped step:** object-local property hierarchy and contextual Default/Forced help; bounded motion for the portrait inspector with reduced-motion/resize invariants; compare actual selected-ASS state to the approved `V3-05` Figma board. Release gate remains blocked until visual and functional acceptance.
+
+
+## 2026-11-04 WU-04 — subtitle flag context and bounded sheet entrance (submitted, Pending CI)
+
+- Scope: approved V3-09 Default help / V3-05 portrait contextual inspector; no change to output writer, source File ownership, native subtitle flags, default UI or approved Figma frames.
+- `#sfv3SubtitleFlagsHelp` is a collapsed, accessible explanation shown only when the **actual selected output row** is a subtitle in an exact-File-authorized target; it is hidden and closed on source-only observation. Default and Forced remain separate container flags, with explicitly player-dependent behavior. Existing subtitle checkbox inputs remain the only flag writers.
+- Narrow context sheet/scrim receives a 150ms presentation-only opacity entrance under `no-preference`. `prefers-reduced-motion: reduce` disables it. No edit, commit, save or validation uses animation completion as an authority.
+- Regression additions: genuine A SubRip → B Chromium test checks scope, help and single native flag inputs; 820/620 selected-object test checks animation policy and stable layout after animations settle.
+- **Evidence state:** branch-submission only, dedicated V3 workflow plus full Browser E2E/S12 are **Pending CI** for the new commit. No Figma motion approval, selected-ASS visual parity or full UI acceptance is claimed. PR #239 remains Draft and must not merge.

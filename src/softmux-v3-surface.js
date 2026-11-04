@@ -123,6 +123,25 @@ export function mountSoftmuxV3Surface(doc = document) {
   const contextEyebrow=appendText(doc,objectContext,'small','sfv3-object-eyebrow','拟输出');
   const contextTitle=appendText(doc,objectContext,'strong','sfv3-object-title','拟输出容器');
   const contextMeta=appendText(doc,objectContext,'span','sfv3-object-meta','选择对象以检查其属性');
+  // Object-scoped knowledge, never a second mutating editor or an inferred
+  // stream flag. Show it only for a selected subtitle in an authorized plan.
+  const subtitleFlagHelp=doc.createElement('details');
+  subtitleFlagHelp.id='sfv3SubtitleFlagsHelp';
+  subtitleFlagHelp.className='sfv3-subtitle-flag-help';
+  subtitleFlagHelp.hidden=true;
+  const flagSummary=appendText(doc,subtitleFlagHelp,'summary','','Default / Forced · 说明');
+  flagSummary.setAttribute('aria-label','解释字幕轨道的 Default 与 Forced 标记');
+  const flagDefinitions=doc.createElement('dl');
+  flagDefinitions.className='sfv3-subtitle-flag-definitions';
+  for(const [name,description] of [
+    ['Default','默认轨道标记：供播放器自动选择时参考，不保证所有播放器都会启用。'],
+    ['Forced','强制字幕标记：表示此轨包含需要特别呈现的字幕，不等同于默认轨道；实际播放仍取决于播放器。'],
+  ]) {
+    appendText(doc,flagDefinitions,'dt','',name);
+    appendText(doc,flagDefinitions,'dd','',description);
+  }
+  subtitleFlagHelp.appendChild(flagDefinitions);
+  objectContext.appendChild(subtitleFlagHelp);
   const nativeEditor=find(doc,'assetInspectorHost')?.parentElement;
   if(nativeEditor)nativeEditor.insertBefore(objectContext,find(doc,'objectSelectionHint')||nativeEditor.firstChild);
   const history=find(doc,'workspaceHistoryPanel');
@@ -829,6 +848,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     contextEyebrow.textContent=selectedRow?'当前选中 · '+selectedKind:'拟输出 · 对象检查器';
     contextTitle.textContent=selectedTitle||'拟输出容器';
     contextMeta.textContent=selectedDetail||'未选中具体对象；可查看真实成品证据与编辑历史';
+    const flagHelpInScope=Boolean(targetValid &&
+      root.dataset.sfv3Surface==='plan' &&
+      selectedRow?.dataset.sfv3ObjectKind==='subtitle');
+    subtitleFlagHelp.hidden=!flagHelpInScope;
+    if(!flagHelpInScope)subtitleFlagHelp.open=false;
     const structureBound=Boolean(targetValid && latestSections.scanned &&
       latestSections.sourceFile===targetIntent.baseFile);
     structure.hidden=root.dataset.sfv3Surface!=='plan' || !structureBound;
