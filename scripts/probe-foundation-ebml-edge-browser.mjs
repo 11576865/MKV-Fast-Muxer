@@ -28,6 +28,9 @@ const cases=[
   {id:'foundation-edge-cluster-unknown-nonterminal',crc:'absent',
     unknownSegment:false,unknownClusterNonterminal:true,
     expectRefusal:true},
+  {id:'foundation-edge-cluster-unknown-trailing-void',crc:'absent',
+    unknownSegment:false,unknownClusterTrailingVoid:true,
+    expectRefusal:true},
 ];
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const report={schema:'foundation-ebml-edge-chromium-v1',result:'NOT_RUN',
@@ -208,7 +211,8 @@ try{
     if(scenario.unknownClusterTerminal &&
        actual.unknownClusterOfficialEvidence!==true)
       throw Error('EDGE_TERMINAL_UNKNOWN_CLUSTER_NOT_PROVEN');
-    if(scenario.unknownClusterNonterminal &&
+    if((scenario.unknownClusterNonterminal||
+        scenario.unknownClusterTrailingVoid) &&
        (actual.modern!=='unverified'||actual.count!==0))
       throw Error('EDGE_AMBIGUOUS_UNKNOWN_CLUSTER_NOT_REFUSED');
     if(sha(await fs.readFile(source))!==before)
@@ -219,6 +223,7 @@ try{
       unknownSegment:scenario.unknownSegment,
       unknownClusterTerminal:scenario.unknownClusterTerminal||false,
       unknownClusterNonterminal:scenario.unknownClusterNonterminal||false,
+      unknownClusterTrailingVoid:scenario.unknownClusterTrailingVoid||false,
       fileBytes:sourceBytes.length,
       sourceSha256:before,
       sourceUnmodified:true,
