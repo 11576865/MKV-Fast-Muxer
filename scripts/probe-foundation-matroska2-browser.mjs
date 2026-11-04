@@ -32,11 +32,12 @@ await fs.mkdir(path.dirname(reportFile),{recursive:true});
 let server=null,browser=null;
 try {
   const [jsBytes,wasmBytes,sourceBytes,structuredJsBytes,
-    structuredWasmBytes,independentInfo]=await Promise.all([
+    structuredWasmBytes,independentInfo,workerJsBytes]=await Promise.all([
     fs.readFile(js),fs.readFile(wasm),fs.readFile(fixture),
     fs.readFile(structuredJs),fs.readFile(structuredWasm),
     fs.readFile('.e2e/output/foundation-reference-mkvmerge.json','utf8')
       .then(parseMkvmergeJsonWithExactUids),
+    fs.readFile('scripts/workers/foundation-matroska-worker.js'),
   ]);
   const sourceSha=sha(sourceBytes);
   report.sourceSha256=sourceSha;
@@ -49,7 +50,8 @@ try {
     '/mkvtree.wasm':{data:wasmBytes,type:'application/wasm'},
     '/foundation-json.js':{data:structuredJsBytes,type:'text/javascript'},
     '/foundation_json_probe.wasm':{data:structuredWasmBytes,type:'application/wasm'},
-    '/':{data:Buffer.from('<!doctype html><meta charset="utf-8"><title>Foundation WASM read audit</title>'),
+    '/foundation-worker.js':{data:workerJsBytes,type:'text/javascript'},
+    '/':{data:Buffer.from('<!doctype html><meta charset="utf-8"><title>Foundation WASM read audit</title><input id="source" type="file">'),
       type:'text/html; charset=utf-8'},
   };
   server=createServer((req,res)=>{
@@ -76,6 +78,14 @@ try {
   const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
   await page.goto(origin+'/');
+  // A real Chromium File is passed to the Worker by structured clone;
+  // unlike the legacy MEMFS baseline below, it is not base64-decoded
+  // or fully transferred through JS to the native WASM heap.
+  await page.locator('#source').setInputFiles({
+    name:'independent.mkv',
+    mimeType:'video/x-matroska',
+    buffer:sourceBytes,
+  });
   await page.addScriptTag({url:origin+'/mkvtree.js'});
   await page.addScriptTag({url:origin+'/foundation-json.js'});
   report.browserExecuted=true;
@@ -128,6 +138,40 @@ try {
       structured,
     };
   },sourceBytes.toString('base64'));
+  // Proof of the intended production I/O shape: the official C parser
+  // mounts the browser's File as WORKERFS inside a genuine dedicated Worker,
+  // and synchronously fetches only the Blob slices requested by native I/O.
+  const lazy=await page.evaluate(()=>new Promise((resolve,reject)=>{
+    const file=document.querySelector('#source')?.files?.[0];
+    if(!file){reject(Error('FILE_INPUT_NOT_FOUND'));return;}
+    const worker=new Worker('/foundation-worker.js');
+    let finished=false;
+    const complete=(callback,value)=>{
+      if(finished)return;
+      finished=true;clearTimeout(timeout);worker.terminate();callback(value);
+    };
+    const timeout=setTimeout(()=>
+      complete(reject,Error('WORKERFS_PROBE_TIMEOUT')),60000);
+    worker.onerror=event=>
+      complete(reject,Error('WORKERFS_FATAL_'+event.message));
+    worker.onmessage=event=>{
+      const result=event.data;
+      if(!result?.ok)
+        complete(reject,Error('WORKERFS_READ_FAILED_'+result?.error));
+      else complete(resolve,result);
+    };
+    worker.postMessage({type:'probe',file});
+  }));
+  if(JSON.stringify(lazy.structured)!==JSON.stringify(result.structured))
+    throw Error('WORKERFS_VS_MEMFS_STRUCTURED_TREE_MISMATCH');
+  if(!lazy.workerStats.usedWorkerFS||
+     lazy.workerStats.stagedEntireFileInMemfs||
+     lazy.workerStats.fileBytes!==sourceBytes.length||
+     lazy.workerStats.fileReaderSyncCalls<1)
+    throw Error('WORKERFS_LAZY_FILE_ACCESS_NOT_PROVEN');
+  report.workerFSReadOnly=true;
+  report.workerFSStructuredParity=true;
+  report.workerFSAccess=lazy.workerStats;
   const families={
     ebml:/ebml/i,segment:/segment/i,tracks:/tracks?/i,
     attachments:/attachments?/i,chapters:/chapters?/i,tags:/tags?/i,
