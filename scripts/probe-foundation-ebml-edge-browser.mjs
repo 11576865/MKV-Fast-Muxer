@@ -25,6 +25,7 @@ const cases=[
     outerCrcValid:true,unknownSegment:false},
   {id:'foundation-edge-crc-misplaced',crc:'misplaced',unknownSegment:false},
   {id:'foundation-edge-crc-duplicate',crc:'duplicate',unknownSegment:false},
+  {id:'foundation-edge-crc-oversized',crc:'oversized',unknownSegment:false},
   {id:'foundation-edge-cluster-unknown-terminal',crc:'absent',
     unknownSegment:false,unknownClusterTerminal:true},
   {id:'foundation-edge-cluster-unknown-nonterminal',crc:'absent',
@@ -89,7 +90,7 @@ try{
     const sourceBytes=await fs.readFile(source);
     const before=sha(sourceBytes);
     let native=[];
-    if(!['corrupt','misplaced','duplicate'].includes(scenario.crc)){
+    if(!['corrupt','misplaced','duplicate','oversized'].includes(scenario.crc)){
       const nativeData=parseMkvmergeJsonWithExactUids(
         await fs.readFile(path.join(out,scenario.id+'-native.json'),'utf8'));
       if(!nativeData.container?.recognized||
@@ -195,7 +196,7 @@ try{
       }
       return result;
     },{
-      nativeExpected:['corrupt','misplaced','duplicate'].includes(scenario.crc)?null:native,
+      nativeExpected:['corrupt','misplaced','duplicate','oversized'].includes(scenario.crc)?null:native,
       unknownClusterTerminal:scenario.unknownClusterTerminal===true,
       expectRefusal:scenario.expectRefusal===true,
     });
@@ -211,6 +212,10 @@ try{
        actual.modernError!=='FOUNDATION_CRC_MISPLACED_OR_REPEATED')
       throw Error('EDGE_INVALID_CRC_CHILD_ORDER_NOT_REJECTED_'+
         scenario.id+'_'+actual.modernError);
+    if(scenario.crc==='oversized' &&
+       actual.modernError!=='FOUNDATION_CRC_RESOURCE_LIMIT')
+      throw Error('EDGE_VALID_BUT_OVERBUDGET_CRC_NOT_REJECTED_'+
+        actual.modernError);
     if(scenario.unknownSegment &&
        (!actual.structure||actual.structure.segmentSizeKnown!==false||
         actual.structure.segmentFiniteExact!==false))
