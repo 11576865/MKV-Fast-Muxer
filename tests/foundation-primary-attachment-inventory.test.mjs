@@ -29,7 +29,7 @@ function mkv(attachmentBytes=Buffer.from([15,16,17,18])){
     name,mime,uid,description,data,
   ]);
   const ebml=master(id.ebml,'EBMLHead',[
-    leaf(id.doc,'DocType',enc.encode('matroska')),
+    leaf(id.doc,'EBMLDocType',enc.encode('matroska')),
   ]);
   const segment=master(id.segment,'Segment',[
     master(id.tracks,'Tracks',[]),
@@ -129,7 +129,7 @@ test('Foundation-primary rejects duplicated critical fields and invalid typed by
       const at=nodes.indexOf(x);nodes.splice(at,0,{...x});},
     nodes=>{nodes.find(n=>n.name==='FileUID').uintValue=undefined;},
     nodes=>{nodes.find(n=>n.name==='FileData').dataBytes='999999999';},
-    nodes=>{nodes.find(n=>n.name==='DocType').id='0x00004283';},
+    nodes=>{nodes.find(n=>n.name==='EBMLDocType').id='0x00004283';},
   ];
   for(const edit of builders){
     const {file,nodes}=mkv();
