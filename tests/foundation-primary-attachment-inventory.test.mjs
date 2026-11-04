@@ -24,7 +24,7 @@ function mkv(attachmentBytes=Buffer.from([15,16,17,18])){
   const description=leaf(id.description,'FileDescription',enc.encode('说明测试'));
   const data=leaf(id.data,'FileData',attachmentBytes);
   const uid=leaf(id.uid,'FileUID',
-    Buffer.from('ed123456789abcde','hex'),'17082892211167853790');
+    Buffer.from('ed123456789abcde','hex'),'17082773882564951262');
   const attached=master(id.attached,'AttachedFile',[
     name,mime,uid,description,data,
   ]);
@@ -129,7 +129,7 @@ test('Foundation-primary rejects duplicated critical fields and invalid typed by
       const at=nodes.indexOf(x);nodes.splice(at,0,{...x});},
     nodes=>{nodes.find(n=>n.name==='FileUID').uintValue=undefined;},
     nodes=>{nodes.find(n=>n.name==='FileData').dataBytes='999999999';},
-    nodes=>{nodes.find(n=>n.name==='DocType').name='IncorrectDocType';},
+    nodes=>{nodes.find(n=>n.name==='DocType').id='0x00004283';},
   ];
   for(const edit of builders){
     const {file,nodes}=mkv();
