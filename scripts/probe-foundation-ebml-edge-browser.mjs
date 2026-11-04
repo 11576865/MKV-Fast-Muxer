@@ -23,6 +23,8 @@ const cases=[
   {id:'foundation-edge-crc-nested-valid',crc:'valid',crcChecks:2,unknownSegment:false},
   {id:'foundation-edge-crc-nested-inner-corrupt',crc:'corrupt',crcChecks:2,
     outerCrcValid:true,unknownSegment:false},
+  {id:'foundation-edge-cluster-unknown-terminal',crc:'absent',
+    unknownSegment:false,unknownClusterTerminal:true},
 ];
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const report={schema:'foundation-ebml-edge-chromium-v1',result:'NOT_RUN',
@@ -97,7 +99,8 @@ try{
       }
     }
     await page.locator('#source').setInputFiles(source);
-    const actual=await page.evaluate(async nativeExpected=>{
+    const actual=await page.evaluate(async context=>{
+      const {nativeExpected,unknownClusterTerminal}=context;
       const {createMatroskaAttachmentReader}=await import(
         '/src/matroska-attachment-reader.js');
       const file=document.querySelector('#source').files[0];
@@ -118,18 +121,38 @@ try{
         items:[],
       };
       if(nativeExpected!==null){
-        if(modern.state!=='inspected'||legacy.state!=='inspected')
+        if(modern.state!=='inspected' ||
+           (!unknownClusterTerminal && legacy.state!=='inspected'))
           throw Error('EDGE_VALID_FIXTURE_REFUSED_'+modern.diagnostic?.code+
             '_'+legacy.diagnostic?.code);
-        if(modern.attachments.length!==nativeExpected.length||
-           JSON.stringify(modern.structure)!==JSON.stringify(legacy.structure))
-          throw Error('EDGE_LEGACY_STRUCTURE_OR_COUNT_CHANGED');
+        if(modern.attachments.length!==nativeExpected.length)
+          throw Error('EDGE_NATIVE_ATTACHMENT_COUNT_CHANGED');
+        if(unknownClusterTerminal){
+          // The legacy header reader refuses unknown-sized Segment children.
+          // The mature reader can accept only a terminal unknown-size Cluster,
+          // whose exact finite=false evidence must come from the official C
+          // parser rather than a fabricated JS hierarchy.
+          if(legacy.state!=='unverified')
+            throw Error('EDGE_LEGACY_UNKNOWN_CLUSTER_EXPECTED_REFUSAL');
+          const observed=await newer.inspectFoundationStructure(modern);
+          const clusters=observed.nodes.filter(node=>
+            Number(BigInt(node.id))===0x1f43b675);
+          if(clusters.length!==1||clusters[0].finite!==false||
+             !modern.structure.hasClusterElement||
+             modern.structure.segmentSizeKnown!==true)
+            throw Error('EDGE_UNKNOWN_CLUSTER_SEMANTICS_NOT_PRESERVED');
+          result.unknownClusterOfficialEvidence=true;
+        }else if(JSON.stringify(modern.structure)!==
+                 JSON.stringify(legacy.structure)){
+          throw Error('EDGE_LEGACY_STRUCTURE_CHANGED');
+        }
         const fields=item=>({
           id:item.id,filename:item.filename,mimeType:item.mimeType,
           fileUid:item.fileUid,byteLength:item.byteLength,
           range:item.dataRange,
         });
-        if(JSON.stringify(modern.attachments.map(fields))!==
+        if(!unknownClusterTerminal &&
+           JSON.stringify(modern.attachments.map(fields))!==
            JSON.stringify(legacy.attachments.map(fields)))
           throw Error('EDGE_NATIVE_AND_LEGACY_BYTE_RANGES_DIFFER');
         for(const [i,attachment] of modern.attachments.entries()){
@@ -160,7 +183,10 @@ try{
         if(extracted)throw Error('EDGE_CORRUPT_CRC_EXTRACTION_ALLOWED');
       }
       return result;
-    },scenario.crc==='corrupt'?null:native);
+    },{
+      nativeExpected:scenario.crc==='corrupt'?null:native,
+      unknownClusterTerminal:scenario.unknownClusterTerminal===true,
+    });
     if(scenario.crc==='valid' &&
        (!actual.crc||actual.crc.checked!==(scenario.crcChecks||1)||
         actual.crc.bytesRead<=0||
@@ -173,12 +199,16 @@ try{
        (!actual.structure||actual.structure.segmentSizeKnown!==false||
         actual.structure.segmentFiniteExact!==false))
       throw Error('EDGE_UNKNOWN_SEGMENT_NOT_PRESERVED');
+    if(scenario.unknownClusterTerminal &&
+       actual.unknownClusterOfficialEvidence!==true)
+      throw Error('EDGE_TERMINAL_UNKNOWN_CLUSTER_NOT_PROVEN');
     if(sha(await fs.readFile(source))!==before)
       throw Error('EDGE_ORIGINAL_SOURCE_MODIFIED_'+scenario.id);
     report.cases.push({id:scenario.id,crc:scenario.crc,
       crcChecksExpected:scenario.crcChecks||1,
       outerCrcValid:scenario.outerCrcValid??null,
       unknownSegment:scenario.unknownSegment,
+      unknownClusterTerminal:scenario.unknownClusterTerminal||false,
       fileBytes:sourceBytes.length,
       sourceSha256:before,
       sourceUnmodified:true,
