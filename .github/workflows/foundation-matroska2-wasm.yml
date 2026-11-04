@@ -104,6 +104,39 @@ jobs:
             --attachment-mime-type text/plain \
             --attach-file .e2e/fixtures/notes.txt \
             .e2e/fixtures/foundation-audio.wav
+          # Native-authority metadata budget boundary: an otherwise valid
+          # MKV with 4096 UTF-8 bytes is accepted; 4097 must fail closed.
+          # Keep this read-only admission budget separate from format validity.
+          node --input-type=module <<'NODE'
+          import {spawnSync} from 'node:child_process';
+          import fs from 'node:fs/promises';
+          for(const count of [4096,4097]){
+            const id='foundation-edge-metadata-'+count;
+            const mkv='.e2e/fixtures/'+id+'.mkv';
+            const result=spawnSync('mkvmerge',[
+              '--quiet','-o',mkv,
+              '--no-attachments','.e2e/fixtures/p0-independent-mkvtoolnix.mkv',
+              '--attachment-name','metadata-boundary.txt',
+              '--attachment-description','D'.repeat(count),
+              '--attachment-mime-type','text/plain',
+              '--attach-file','.e2e/fixtures/notes.txt',
+            ],{encoding:'utf8',maxBuffer:1024*1024});
+            if(result.status!==0)
+              throw Error('FOUNDATION_METADATA_NATIVE_AUTHORING_FAILED_'+
+                count+'_'+result.stderr);
+            const identify=spawnSync('mkvmerge',['-J',mkv],{
+              encoding:'utf8',maxBuffer:1024*1024});
+            if(identify.status!==0)
+              throw Error('FOUNDATION_METADATA_NATIVE_IDENTIFY_FAILED_'+count);
+            const json=JSON.parse(identify.stdout);
+            if(json.container?.recognized!==true||
+               json.attachments?.length!==1||
+               json.attachments[0].description!=='D'.repeat(count))
+              throw Error('FOUNDATION_METADATA_NATIVE_BOUNDARY_MISMATCH_'+count);
+            await fs.writeFile('.e2e/output/'+id+'-native.json',
+              identify.stdout);
+          }
+          NODE
           for case in p0-independent-mkvtoolnix p0-independent-tracktag \
                       p0-independent-attachmenttag foundation-no-attachments \
                       foundation-three-attachments foundation-audio-only; do
