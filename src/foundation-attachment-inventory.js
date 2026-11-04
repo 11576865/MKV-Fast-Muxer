@@ -78,7 +78,7 @@ export async function buildFoundationAttachmentInventory({
       segment=node;
     }
     if(parent===ebml && id===STRUCTURAL_IDS.DocType){
-      if(node.name!=='DocType'||node.master)
+      if(node.name!=='EBMLDocType'||node.master)
         throw Error('FOUNDATION_INVENTORY_DOCTYPE_CLASS_INVALID');
       if(docTypeNode)throw Error('FOUNDATION_INVENTORY_DUPLICATE_DOCTYPE');
       docTypeNode=node;
