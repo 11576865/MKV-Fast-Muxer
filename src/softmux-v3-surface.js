@@ -6,6 +6,51 @@
  */
 const find = (doc, id) => doc.getElementById(id);
 
+// Exact SVG exports from the approved Figma V3 nodes, all local and immutable
+// at the Git commit; not hand-drawn look-alikes or expiring asset URLs.
+const ICON_URLS = Object.freeze({
+  softmux:new URL('./v3-assets/softmux.svg',import.meta.url).href,
+  'mkv-document':new URL('./v3-assets/mkv-document.svg',import.meta.url).href,
+  'add-file':new URL('./v3-assets/add-file.svg',import.meta.url).href,
+  search:new URL('./v3-assets/search.svg',import.meta.url).href,
+  undo:new URL('./v3-assets/undo.svg',import.meta.url).href,
+  help:new URL('./v3-assets/help.svg',import.meta.url).href,
+  settings:new URL('./v3-assets/settings.svg',import.meta.url).href,
+  more:new URL('./v3-assets/more.svg',import.meta.url).href,
+  documents:new URL('./v3-assets/documents.svg',import.meta.url).href,
+  'object-list':new URL('./v3-assets/object-list.svg',import.meta.url).href,
+  video:new URL('./v3-assets/video.svg',import.meta.url).href,
+  audio:new URL('./v3-assets/audio.svg',import.meta.url).href,
+  subtitle:new URL('./v3-assets/subtitle.svg',import.meta.url).href,
+  attachment:new URL('./v3-assets/attachment.svg',import.meta.url).href,
+  chapter:new URL('./v3-assets/chapter.svg',import.meta.url).href,
+  tag:new URL('./v3-assets/tag.svg',import.meta.url).href,
+  open:new URL('./v3-assets/open.svg',import.meta.url).href,
+  'create-output':new URL('./v3-assets/create-output.svg',import.meta.url).href,
+  ready:new URL('./v3-assets/ready.svg',import.meta.url).href,
+  'empty-add':new URL('./v3-assets/empty-add.svg',import.meta.url).href,
+});
+
+function svgIcon(doc,name) {
+  if(!ICON_URLS[name])throw Error('V3_UNKNOWN_DESIGN_ICON:'+name);
+  const element=doc.createElement('img');
+  element.src=ICON_URLS[name];
+  element.alt='';
+  element.className='sfv3-svg-icon';
+  element.setAttribute('aria-hidden','true');
+  return element;
+}
+
+function iconTab(doc,tab,icon,label) {
+  let text=tab.querySelector('.sfv3-tab-label');
+  if(!text) {
+    tab.replaceChildren(svgIcon(doc,icon));
+    text=appendText(doc,tab,'span','sfv3-tab-label','');
+  }
+  text.textContent=label;
+}
+
+
 function appendText(doc, parent, tag, className, value) {
   const el = doc.createElement(tag);
   el.className = className;
@@ -68,12 +113,13 @@ export function mountSoftmuxV3Surface(doc = document) {
   const header = root.querySelector('.sf14-header');
   const identity = header?.querySelector('.sf14-identity strong');
   if (identity) identity.textContent = '软封';
+  header?.querySelector('.sf14-mark')?.replaceChildren(svgIcon(doc,'softmux'));
   const nav = header?.querySelector('.sf14-nav');
   if (nav) {
     const legacy = doc.createElement('details');
     legacy.className = 'sfv3-legacy-menu';
     const summary = doc.createElement('summary');
-    summary.textContent = '⋯';
+    summary.replaceChildren(svgIcon(doc,'more'));
     summary.title = '保留的旧工具';
     summary.setAttribute('aria-label', '保留的旧工具');
     nav.parentNode.insertBefore(legacy, nav);
@@ -83,15 +129,15 @@ export function mountSoftmuxV3Surface(doc = document) {
   }
   const headerActions = header?.querySelector('.sf14-header-actions');
   if (headerActions) {
-    for (const [id, glyph, name] of [
-      ['sf14Add','＋','添加资源'],
-      ['sf14SourceToggle','☰','打开来源资源'],
-      ['sf14Help','?','帮助'],
-      ['sf14Settings','⚙','界面设置'],
+    for (const [id, iconName, name] of [
+      ['sf14Add','add-file','添加资源'],
+      ['sf14SourceToggle','documents','打开来源资源'],
+      ['sf14Help','help','帮助'],
+      ['sf14Settings','settings','界面设置'],
     ]) {
       const button = find(doc, id);
       if (!button) continue;
-      button.textContent = glyph;
+      button.replaceChildren(svgIcon(doc,iconName));
       button.title = name;
       button.setAttribute('aria-label', name);
       button.classList.add('sfv3-icon-action');
@@ -120,11 +166,13 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourcesBtn.type = 'button';
   sourcesBtn.title = '来源资源';
   sourcesBtn.setAttribute('aria-label', '来源资源');
+  sourcesBtn.replaceChildren(svgIcon(doc,'documents'));
   sourcesBtn.addEventListener('click', () => find(doc, 'sf14SourceToggle')?.click());
   const addBtn = appendText(doc, rail, 'button', 'sfv3-rail-action', '＋');
   addBtn.type = 'button';
   addBtn.title = '添加资源';
   addBtn.setAttribute('aria-label', '添加资源');
+  addBtn.replaceChildren(svgIcon(doc,'add-file'));
   addBtn.addEventListener('click', () => find(doc, 'sf14Add')?.click());
   single.prepend(rail);
 
@@ -146,7 +194,8 @@ export function mountSoftmuxV3Surface(doc = document) {
   const empty = doc.createElement('div');
   empty.className = 'sfv3-empty';
   empty.id = 'sfv3Empty';
-  appendText(doc, empty, 'span', 'sfv3-empty-icon', '+');
+  const emptyIcon=appendText(doc, empty, 'span', 'sfv3-empty-icon', '');
+  emptyIcon.appendChild(svgIcon(doc,'empty-add'));
   appendText(doc, empty, 'strong', 'sfv3-empty-title', '拖入文件，或点击这里添加');
   appendText(doc, empty, 'span', 'sfv3-empty-types', 'MKV · 视频 · 字幕 · 字体');
   // Move the actual existing drop target, with all original event handlers.
@@ -177,6 +226,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   const planBack=appendText(doc,planTitleRow,'button','sfv3-plan-return','查看来源');
   planBack.type='button';
   planBack.title='返回只读来源，不取消已确认的目标';
+  planBack.prepend(svgIcon(doc,'open'));
   const planFacts=appendText(doc,planHeading,'p','sfv3-plan-facts','');
   planFacts.id='sfv3PlanFacts';
   planHeading.prepend(planTitleRow);
@@ -304,7 +354,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     const first=entries[0] || null;
     sourceTab.dataset.sfv3SourceKey=first?.key || '';
-    sourceTab.textContent=first?.file?.name || sourceInput.files?.[0]?.name || '未加载';
+    iconTab(doc,sourceTab,'mkv-document',first?.file?.name || sourceInput.files?.[0]?.name || '未加载');
     sourceTab.title=first?.file?.name || '选择文件';
     sourceTab.toggleAttribute('aria-current',
       root.dataset.sfv3Surface==='source' &&
@@ -318,14 +368,14 @@ export function mountSoftmuxV3Surface(doc = document) {
         tab.dataset.sfv3SourceKey=entry.key;
         tabstrip.insertBefore(tab,targetTab);
       }
-      tab.textContent=entry.file.name;
+      iconTab(doc,tab,'mkv-document',entry.file.name);
       tab.title=entry.file.name;
       tab.toggleAttribute('aria-current',
         root.dataset.sfv3Surface==='source' && viewedSourceKey===entry.key);
     }
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',root.dataset.sfv3Surface==='plan');
-    if(targetIntent)targetTab.textContent='拟输出 · '+targetIntent.baseFile.name;
+    if(targetIntent)iconTab(doc,targetTab,'create-output','拟输出 · '+targetIntent.baseFile.name);
   };
   const createGroup = (group,rows,readonly=false) => {
     if (!rows.length)return;
@@ -344,8 +394,13 @@ export function mountSoftmuxV3Surface(doc = document) {
       row.className='sfv3-observed-row';
       row.setAttribute('role','listitem');
       row.dataset.sourceObjectId=String(item.id);
-      const glyph=appendText(doc,row,'span','sfv3-kind-icon',
-        group==='视频'?'▣':group==='音频'?'◖':group==='字幕'?'▤':readonly?'◫':'◇');
+      const glyph=appendText(doc,row,'span','sfv3-kind-icon','');
+      const groupIcon={
+        '视频':'video','音频':'audio','字幕':'subtitle',
+        '附件':'attachment','字体':'attachment','章节':'chapter',
+        '标签':'tag','其他轨道':'object-list',
+      }[group] || 'object-list';
+      glyph.appendChild(svgIcon(doc,groupIcon));
       glyph.setAttribute('aria-hidden','true');
       const column=doc.createElement('div');
       column.className='sfv3-observed-text';
@@ -526,7 +581,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   planBack.addEventListener('click',()=>{
     setSurface('source');schedule();
   });
-  primary.textContent='创建拟输出';
+  primary.replaceChildren(svgIcon(doc,'create-output'),doc.createTextNode('创建拟输出'));
   primary.addEventListener('click',()=>openTargetPicker(null));
 
   const render = () => {
