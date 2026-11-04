@@ -5592,12 +5592,12 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
   const [chapterXml,tagXml]=await Promise.all([
     fs.readFile(chapterXmlFile,'utf8'),fs.readFile(tagXmlFile,'utf8'),
   ]);
-  assert.match(chapterXml,/<ChapterUID>\\s*510010\\s*<\\/ChapterUID>/);
-  assert.match(chapterXml,/<ChapterUID>\\s*510011\\s*<\\/ChapterUID>/);
+  assert.match(chapterXml,/<ChapterUID>\s*510010\s*<\/ChapterUID>/);
+  assert.match(chapterXml,/<ChapterUID>\s*510011\s*<\/ChapterUID>/);
   assert.ok((chapterXml.match(/<ChapterAtom>/g)||[]).length>=2,
     'native chapter export must contain a parent and nested child');
   assert.match(chapterXml,/P0 nested chapter/);
-  assert.match(tagXml,/<ChapterUID>\\s*510011\\s*<\\/ChapterUID>/,
+  assert.match(tagXml,/<ChapterUID>\s*510011\s*<\/ChapterUID>/,
     'native tag export must target the nested ChapterUID');
   assert.match(tagXml,/P0_NESTED_CHAPTER_KEEP/);
   const nativeRiskEvidence={
