@@ -10,7 +10,7 @@ Gate: `docs/ui-v3/UI_DESIGN_CONTRACT.md`.
 
 - [x] Record immutable Git baseline and owner-approved Figma frame identifiers.
 - [~] WU-01: source-first desktop/empty surface, real File and scanned-track binding, preserve old engine and legacy UI rollback. **Browser pilot passed; Figma visual review and full V3 semantic acceptance remain open.**
-- [ ] WU-02: source-object selection, preview/extract, explicit target picker (no hidden inferred target).
+- [~] WU-02: multi-MKV source tabs, exact-File target picker, real A→B SubRip transfer and mux tested. **ASS/font closure, complete object preview/selection and fully optional underlying OutputPlan remain open.**
 - [ ] WU-03: compositional output state and real mux/audit/save controls.
 - [ ] WU-04: source drawer, portrait/landscape/compact responsive reflow with state continuity.
 - [ ] WU-05: precise Figma visual comparison, motion design handoff, real-media functionality and rollback acceptance.
@@ -53,3 +53,20 @@ No visual, interaction, real-media, tablet or release acceptance is claimed mere
 - Uploaded `ui-v3-pilot-source-first-evidence` (artifact ID `13267111641`) with five PNG screenshots and JSON evidence.
 - **Evidence limit:** Screenshot creation is not a reviewed Figma pixel diff. WU-01's initial icons are placeholder glyphs; real multi-source behavior, asset-level Figma fidelity, all motion and full object editing/actual output remain unaccepted.
 - Project default remains the pre-V3 UI, `?ui=v3` is an opt-in branch pilot, no merge to `main`.
+
+## 2026-11-04 — WU-02 exact-source target and cross-MKV SubRip pilot
+
+**Real passing evidence:** [UI V3 pilot Actions #41761600859](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41761600859), on code HEAD `3741534f83c6228f5bf60a89cff2fcc52766d1bf`, completed unit tests/build, WU-01 browser flow and new WU-02 Chromium transfer. Evidence artifact `ui-v3-pilot-source-first-evidence`, ID `13291130846`.
+
+The scenario builds a real A.mkv with embedded SubRip plus a separate B.mkv and drives only the V3 `?ui=v3` UI. It opens A for observation without confirming output; target picker cancellation leaves the writer disabled; confirmation selects exact B File; existing FFmpeg.wasm secondary SubRip extraction and round-trip validation create the external track; genuine output mux produces a new MKV. Independent native `ffprobe` verifies the output video plus one SubRip track and source subtitle language/title; SHA-256 confirms both A and B inputs unchanged. This is **bounded SubRip evidence only**, not ASS/fonts, complete EBML preservation, Figma fidelity or full release acceptance.
+
+**Code changes:**
+- `src/softmux-v3-intent.js`: exact File object identity and resource-key target authority, auto-revoked on replacement/removal/switch.
+- `src/main.js`: real source-registry projections, explicit source-open / target-confirm events and guarded mux entry; adapter and File-grant authority remain legacy-owned.
+- `src/softmux-v3-surface.js`: multi-file tabs and target dialog; source-object subtitles route to actual native inspection/extraction only after target confirmation.
+- `src/softmux-v3.css`: target chooser + semantic source affordances; implementation still uses some placeholder glyphs.
+- `tests/softmux-v3-intent.test.mjs`, `tests/e2e/v3-cross-source-subrip.e2e.mjs`: exact identity rejection, cancellation, real result and responsive/keyboard assertions.
+
+**Design fidelity and domain boundary:** WU-02 adds a real explicit target *permission gate*. The existing legacy model still forms a candidate output composition internally on source selection, although V3 does not display or allow executing it without explicit confirmation. An actually optional OutputPlan with separate source/target domain state is not yet implemented. Never infer from a hidden panel or passing SubRip test that the full owner-approved V3 semantics are accepted.
+
+**Outstanding integration:** The ASS+font dependency closure work remains a separate unmerged draft PR #233. Do not merge that draft or enable its UI in V3 until its exact-head real-source tests and user approval pass. A targeted tab-focus fix (`c56079f8`) and browser regression assertion (`7f8f0cfe`) followed the passing core WU-02 run; their exact-head CI results must be checked separately. PR #239 remains Draft.
