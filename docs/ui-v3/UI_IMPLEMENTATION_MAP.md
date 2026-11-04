@@ -54,3 +54,18 @@ The main V3 output composition path is now conditional; this is **not** blanket 
 | Static visual reference | `docs/ui-v3/reference/*.png` | Design screenshot with static Figma labels, not an execution screenshot or a pixel-level success claim |
 | Review status | `docs/ui-v3/UI_ACCEPTANCE.md` | No merge to main until responsive screenshot diff, exact contextual controls, motion and real-media acceptance are all obtained |
 
+
+
+## WU-04 target object grouping and responsive inspector (2026-11-04)
+
+| V3 surface | Real authority and node | Implementation detail / acceptance |
+| --- | --- | --- |
+| Target track groups | `src/main.js:renderOutputComposition()` → `#compositionTracks` | Moves original `model.items` row DOM into per-kind sections, no cloned buttons or shadow project |
+| Target selection | Original `#compositionTracks button[data-composition-id]` delegated handler and `activateCompositionTrack()` | Selects one actual target in the existing inspector; V3 only opens its presentation wrapper |
+| Desktop/landscape inspector | `#sf14Inspector` and `.sf14-pane.sf14-inspector` | Existing editor gets a conditional right rail; no new field ownership |
+| Portrait/compact inspector | Same `#sf14Inspector` | Bottom contextual overlay in 820/620 views; one close button + scrim, no remount on resize |
+| Real completed artifact | Original `#downloadLink`, `#outputEvidencePanel`, `#sf14Output` | V3 `#sfv3InspectorOpen` reveals original evidence and download, no duplicated synthetic success |
+| Object icons | Local `src/v3-assets/*.svg` exported from approved Figma | CSS maps actual video/audio/subtitle/attachment/other object kind to exact exported vector, not text glyph |
+| Visual proof | `tests/e2e/v3-cross-source-subrip.e2e.mjs`, `v3-responsive-geometry.e2e.mjs` | Actual source→target→mux bytes plus 22-viewport states and selected-object mobile sheet checks; pixel-match not accepted |
+
+The inspector's contents are still the real older editor and may not visually conform to the selected-ASS Figma example. Refactor must happen by rehosting/presenting the same controls, not inventing another editable store or copying media `File` permissions.
