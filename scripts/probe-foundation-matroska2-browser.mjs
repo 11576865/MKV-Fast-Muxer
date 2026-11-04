@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {createReadStream} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
@@ -98,6 +99,19 @@ try {
   browser=await chromium.launch({
     headless:true,executablePath,args:['--no-sandbox'],
   });
+  // Extract the attachment using the independent native MKVToolNix binary,
+  // never through either JS inspector. Its SHA is the external byte oracle.
+  const attachmentRef=independentInfo.attachments?.[0];
+  if(!attachmentRef||!Number.isSafeInteger(attachmentRef.id) ||
+     attachmentRef.id<1)throw Error('NATIVE_ATTACHMENT_REFERENCE_MISSING');
+  const nativeExtracted=path.resolve(
+    '.e2e/output/foundation-independent-native-extracted.bin');
+  execFileSync('mkvextract',['attachments',fixture,
+    String(attachmentRef.id)+':'+nativeExtracted],{timeout:30000});
+  const nativeExtractedBytes=await fs.readFile(nativeExtracted);
+  if(nativeExtractedBytes.length!==attachmentRef.size)
+    throw Error('NATIVE_ATTACHMENT_OUTPUT_SIZE_MISMATCH');
+  const nativeAttachmentSha=sha(nativeExtractedBytes);
   const page=await browser.newPage();
   const pageErrors=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
@@ -278,7 +292,7 @@ try {
   // This is a genuine *alternative production read backend*, not an extra
   // verification step. It must create the same attachment list and raw Blob
   // extraction ranges without the product's legacy EBML header traversal.
-  const primaryParity=await page.evaluate(async()=>{
+  const primaryParity=await page.evaluate(async(nativeSha)=>{
     const {createMatroskaAttachmentReader}=await import(
       '/src/matroska-attachment-reader.js');
     const file=document.querySelector('#source')?.files?.[0];
@@ -307,6 +321,12 @@ try {
         attachment.id).data.arrayBuffer());
       const legacyBytes=new Uint8Array(await legacyReader.openAttachment(
         legacy.attachments[i].id).data.arrayBuffer());
+      if(i===0){
+        const hex=Array.from(new Uint8Array(await crypto.subtle.digest(
+          'SHA-256',nativeBytes))).map(n=>n.toString(16).padStart(2,'0')).join('');
+        if(hex!==nativeSha)
+          throw Error('FOUNDATION_EXTRACTED_ATTACHMENT_NOT_NATIVE_MKVEXTRACT');
+      }
       if(nativeBytes.length!==legacyBytes.length ||
          nativeBytes.some((value,k)=>value!==legacyBytes[k]))
         throw Error('PRIMARY_VS_LEGACY_EXTRACTED_FILEDATA_DIFFER');
@@ -316,18 +336,20 @@ try {
        primary.scanning.headerCount!==0)
       throw Error('PRIMARY_PATH_NOT_ACTUALLY_SELECTED');
     return {attachmentCount:primary.attachments.length,
+      independentlyExtractedSha256:nativeSha,
       exactFileUids:primary.attachments.map(a=>a.fileUid),
       sourceIdentityMatches:primaryReader.isCurrentInspection(primary),
       byteRangeParity:true,
       legacyScannerHeaderCalls:legacy.scanning.headerCount,
       primaryScannerHeaderCalls:primary.scanning.headerCount};
-  });
+  },nativeAttachmentSha);
   if(!primaryParity.sourceIdentityMatches||
      primaryParity.attachmentCount!==existingReader.attachmentUids.length||
      primaryParity.legacyScannerHeaderCalls<1)
     throw Error('PRIMARY_INVENTORY_AUTHORITY_OR_DIFF_INVALID');
   report.foundationPrimaryInventoryAgainstLegacy=primaryParity;
   report.foundationPrimaryAttachmentReadBackendPassed=true;
+  report.foundationPrimaryIndependentMkvextractSha256=nativeAttachmentSha;
 
 
   // File names belong to users, not to the parser: a valid selected
