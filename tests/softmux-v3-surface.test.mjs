@@ -132,3 +132,19 @@ test('V3 ASS Add-to stays an explicit target intent and reuses P3 complete font 
   assert.match(surface,/pendingAddition=\{/);
   assert.match(surface,/setSurface\('plan'\)/);
 });
+
+test('V3 ASS/font evidence projects real derived File members and stays out of source observation',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  assert.match(main,/const assFontBundles=importedAssetEntries/);
+  assert.match(main,/entry\.embeddedOrigin\?\.bundleKind==='ass-font-closure'/);
+  assert.match(main,/file===subtitle\.file/);
+  assert.match(main,/file===entry\.file/);
+  assert.match(main,/sourceStillPresent && subBound && fontsBound/);
+  assert.match(surface,/assFontPanel\.id='sfv3AssFontDependencies'/);
+  assert.match(surface,/targetValid && root\.dataset\.sfv3Surface==='plan'/);
+  assert.match(surface,/bundle\.sourceFile!==targetIntent\.baseFile/);
+  assert.match(surface,/bundle\.bound\?'bound':'pending'/);
+  assert.match(surface,/尚未执行最终封装及成品审计/);
+  assert.match(surface,/assFontPanel\.hidden=!actualBundles\.length/);
+});

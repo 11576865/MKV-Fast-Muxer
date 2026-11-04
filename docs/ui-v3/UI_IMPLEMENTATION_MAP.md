@@ -134,3 +134,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Async cancellation | Native source/member identity + `v3MayEditOutput()` only for Add-to | Moving away from authorized target during async addition causes stale refusal and rollback, while source inspection remains independently available |
 | Media execution and evidence | Existing `newSubtitleState`, `fontInspectPromise`, mux/audit/download | Native Browser E2E generates actual B with isolated embedded font, independent `ffprobe` packet/time proof and named-font libass render; V3 no-font refusal, exact-head new CI pending |
 | Unapproved | No universal ASS/SSA writing, arbitrary shaping, multiple ASS bundles from one A, UID/Tag relationships, fixed Figma pixel match or native tablet acceptance | PR #233 remains Draft/unmerged; #239 Draft remains opt-in, normal UI preserved |
+
+
+## WU-05 actual ASS/font dependency presentation (2026-11-04)
+
+| Requirement | Real owner | Read-only V3 projection / proof |
+| --- | --- | --- |
+| Source ASS/font closure membership | Existing `importedAssetEntries`, `embeddedOrigin` exact source `File` and stream index | `publishV3ResourceRegistry()` sends only real bundled subtitle/font facts to V3; no independent canonical state |
+| Current editor registration | Existing `subInput.files`, `fontInput.files` (exact File refs) | `bound` only if source remains imported and both subtitle plus all matched fonts are actually registered; else `pending` with explicit warning |
+| Presentation and scope | Approved V3-04 target, `#sfv3AssFontDependencies` | Visible only with exact confirmed target and output plan, zero controls; filenames/stream/source, not a final output or renderer certificate |
+| Regression | `v3-source-ass-preview.e2e.mjs` and real `cross-source-ass-font-bundle-scenario.mjs` | Require guarded chooser before target; positive real bundled names/binding before mux, negative no-font refusal with no phantom proof; exact-head CI pending |

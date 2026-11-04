@@ -162,6 +162,17 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
     assert.equal(await page.locator('#fontInput').evaluate(x=>x.files[0]?.name),'P3EmbeddedProof.ttf');
     assert.equal(await page.locator('#subInput').evaluate(x=>x.files.length),1);
     assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'plan');
+    await page.waitForFunction(()=>
+      document.querySelector('#sfv3AssFontDependencies:not([hidden])') &&
+      document.querySelector('#sfv3AssFontDependencies .sfv3-ass-font-bundle[data-binding="bound"]'),
+      null,{timeout:60000});
+    const dependencyCard=page.locator('#sfv3AssFontDependencies .sfv3-ass-font-bundle');
+    assert.equal(await dependencyCard.count(),1);
+    assert.match(await dependencyCard.textContent(),/A-with-ASS-and-font\.mkv/);
+    assert.match(await dependencyCard.textContent(),/P3EmbeddedProof\.ttf/);
+    assert.match(await dependencyCard.textContent(),/待封装与成品审计/);
+    assert.equal(await dependencyCard.locator('input,select,textarea,button').count(),0,
+      'real dependency facts remain read-only; edits stay in original editor');
     await page.screenshot({path:path.join(outDir,'v3-ass-font-authorized-plan.png')});
     await page.locator('#muxBtn').click();
     await page.waitForFunction(()=>/^完成。/.test(document.querySelector('#status')?.textContent||'') &&
@@ -215,6 +226,8 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
       null,{timeout:180000});
     assert.equal(await page.locator('#assetInventory .asset-entry[data-kind="subtitle"]').count(),0);
     assert.equal(await page.locator('#assetInventory .asset-entry[data-kind="font"]').count(),0);
+    assert.equal(await page.locator('#sfv3AssFontDependencies .sfv3-ass-font-bundle').count(),0,
+      'failed font closure cannot leave a misleading dependency proof in V3');
     await page.screenshot({path:path.join(outDir,'v3-no-font-fail-closed.png')});
     // The same ASS bytes without the source's font may NOT enter the output
     // as a false "self-contained" bundle. Observe an actual browser refusal.

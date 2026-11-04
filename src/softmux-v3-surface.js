@@ -366,6 +366,14 @@ export function mountSoftmuxV3Surface(doc = document) {
   planHeading.prepend(planTitleRow);
   compositionHost.prepend(planHeading);
   compositionHost.prepend(readout);
+  // V3-04 read-only provenance of the ONE real editor's ASS+font members.
+  // Source/target intent and source File identity remain owned by main.js.
+  const assFontPanel=doc.createElement('section');
+  assFontPanel.id='sfv3AssFontDependencies';
+  assFontPanel.className='sfv3-ass-font-dependencies';
+  assFontPanel.setAttribute('aria-label','已加入拟输出的来源 ASS 与字体依赖');
+  assFontPanel.hidden=true;
+  planHeading.after(assFontPanel);
   // Provenance is explicit: these are observations from the EXACT target
   // base File, not edits or a promise of surviving final MKV EBML structures.
   const structure=doc.createElement('section');
@@ -1135,6 +1143,48 @@ export function mountSoftmuxV3Surface(doc = document) {
     }else {
       planName.textContent='';
       planFacts.textContent='';
+    }
+    // Render derived members only in a still-authorized target plan.
+    // Never render a fabricated font closure for source observations.
+    const actualBundles=targetValid && root.dataset.sfv3Surface==='plan' &&
+      latestResources.activeBase===targetIntent.baseFile
+      ? (latestResources.assFontBundles||[]).filter(bundle=>
+          exactEntry(bundle.sourceKey,bundle.sourceFile) &&
+          bundle.sourceFile!==targetIntent.baseFile)
+      : [];
+    assFontPanel.hidden=!actualBundles.length;
+    assFontPanel.replaceChildren();
+    if(actualBundles.length) {
+      const head=doc.createElement('header');
+      head.className='sfv3-ass-font-head';
+      head.appendChild(svgIcon(doc,'subtitle'));
+      appendText(doc,head,'strong','', '来源 ASS 与字体依赖');
+      appendText(doc,head,'small','',actualBundles.length+' 组 · 来自实际资源列表');
+      assFontPanel.appendChild(head);
+      for(const bundle of actualBundles) {
+        const card=doc.createElement('article');
+        card.className='sfv3-ass-font-bundle';
+        card.dataset.sourceKey=bundle.sourceKey;
+        card.dataset.streamIndex=String(bundle.streamIndex);
+        card.dataset.binding=bundle.bound?'bound':'pending';
+        appendText(doc,card,'strong','sfv3-ass-font-subtitle',bundle.subtitleName);
+        appendText(doc,card,'small','sfv3-ass-font-origin',
+          bundle.sourceName+' · 原始字幕轨 #'+bundle.streamIndex);
+        appendText(doc,card,'p','sfv3-ass-font-binding',
+          bundle.bound
+            ? '字幕和字体已登记到拟输出编辑器 · 尚未执行最终封装及成品审计'
+            : '依赖尚未全部绑定 · 不能视为已确认的完整字体组');
+        const names=doc.createElement('ul');
+        names.className='sfv3-ass-font-names';
+        for(const fontName of bundle.fontNames)
+          appendText(doc,names,'li','',fontName);
+        if(!bundle.fontNames.length)
+          appendText(doc,names,'li','','未找到已登记字体');
+        card.appendChild(names);
+        assFontPanel.appendChild(card);
+      }
+      appendText(doc,assFontPanel,'p','sfv3-ass-font-scope',
+        '这里仅展示真实来源成员及编辑器绑定状态，不代表跨播放器字形一致、UID/Tag 关联保留或已通过成品验证。');
     }
     syncTabs();
     setReadOnlyAffordances();

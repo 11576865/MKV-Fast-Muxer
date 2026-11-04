@@ -40,7 +40,17 @@ try {
  const row=page.locator('#sfv3SourceContents .sfv3-row-select').filter({hasText:'V3 Source ASS'}).first();
  await row.click();
  assert.equal(await page.locator('#sfv3SourceInspectorPreview').isVisible(),true);
- assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),false);
+ assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),true);
+ assert.match(await page.locator('#sfv3SourceInspectorAdd').textContent(),/校验 ASS 与字体/);
+ await page.locator('#sfv3SourceInspectorAdd').click();
+ assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
+   'ASS Add-to only opens explicit target choice; no target is granted');
+ assert.equal(await page.locator('#sfv3ConfirmTarget').isDisabled(),true,
+   'one imported source cannot act as its own destination');
+ await page.locator('.sfv3-picker-cancel').click();
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ assert.equal(await page.locator('#sfv3AssFontDependencies').isVisible(),false,
+   'no font-closure evidence exists before actual source bundle processing');
  assert.equal(await page.locator('#sfv3SourceInspectorExtract').isVisible(),true);
  assert.match(await page.locator('#sfv3SourceInspectorExtract').textContent(),/不含字体/);
  const denied=await page.evaluate(i=>{

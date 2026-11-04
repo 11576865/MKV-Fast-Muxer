@@ -1040,3 +1040,56 @@
 .sf14.sfv3 .sfv3-source-sheet-extraction-host #originalTrackExtractionPanel a {
   max-width:100%;white-space:normal;overflow-wrap:anywhere;
 }
+
+
+/* V3-04: source-bound ASS/font provenance from the ORIGINAL editor's
+ * imported File members. This is read-only planning evidence, not a
+ * second font editor and not a final Matroska audit result. */
+.sf14.sfv3 .sfv3-ass-font-dependencies[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-ass-font-dependencies{
+  display:flex;flex-direction:column;gap:10px;
+  margin:12px 0 16px;padding:15px;
+  border:1px solid var(--sfv3-line);
+  border-radius:12px;background:var(--sfv3-chrome);
+  color:var(--sfv3-text);
+}
+.sf14.sfv3 .sfv3-ass-font-head{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+  font-size:13px;
+}
+.sf14.sfv3 .sfv3-ass-font-head .sfv3-svg-icon{width:19px;height:19px;}
+.sf14.sfv3 .sfv3-ass-font-head small{
+  color:var(--sfv3-muted);font-size:11px;font-weight:450;
+}
+.sf14.sfv3 .sfv3-ass-font-bundle{
+  min-width:0;padding:12px;border-radius:9px;
+  background:var(--sfv3-row);border:1px solid var(--sfv3-line);
+}
+.sf14.sfv3 .sfv3-ass-font-subtitle{
+  display:block;overflow-wrap:anywhere;font-size:13px;
+}
+.sf14.sfv3 .sfv3-ass-font-origin,
+.sf14.sfv3 .sfv3-ass-font-binding{
+  display:block;margin:6px 0 0;
+  color:var(--sfv3-muted);font-size:11px;line-height:1.55;
+}
+.sf14.sfv3 .sfv3-ass-font-names{
+  display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:0;
+  list-style:none;
+}
+.sf14.sfv3 .sfv3-ass-font-names li{
+  padding:5px 8px;border-radius:6px;
+  border:1px solid var(--sfv3-line);
+  background:var(--sfv3-row-raised);
+  color:var(--sfv3-soft);font-size:11px;overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-ass-font-scope{
+  margin:2px 0 0;color:var(--sfv3-muted);
+  font-size:11px;line-height:1.6;
+}
+@media(max-width:959px){
+  .sf14.sfv3 .sfv3-ass-font-dependencies{
+    margin:10px 0 14px;padding:12px;
+  }
+  .sf14.sfv3 .sfv3-ass-font-head{gap:6px;}
+}

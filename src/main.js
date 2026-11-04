@@ -704,8 +704,36 @@ function publishV3ResourceRegistry() {
       })),
     };
   });
+  // Read-only projection of ACTUAL derived ASS + dependent font members.
+  // A V3 label may describe what the original editor owns; it never claims
+  // render/final-MKV verification or creates a second composition model.
+  const assFontBundles=importedAssetEntries
+    .filter(entry=>entry.kind==='subtitle' &&
+      entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+      entry.embeddedOrigin?.kind==='subtitle-ass')
+    .map(subtitle=>{
+      const origin=subtitle.embeddedOrigin;
+      const fonts=importedAssetEntries.filter(entry=>entry.kind==='font' &&
+        entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+        entry.embeddedOrigin?.sourceFile===origin.sourceFile &&
+        entry.embeddedOrigin?.streamIndex===origin.streamIndex);
+      const sourceStillPresent=importedAssetEntries.some(entry=>
+        entry.kind==='container' && entry.key===origin.sourceKey &&
+        entry.file===origin.sourceFile);
+      const subBound=[...(subInput.files||[])].some(file=>file===subtitle.file);
+      const fontsBound=fonts.length>0 && fonts.every(entry=>
+        [...(fontInput.files||[])].some(file=>file===entry.file));
+      return {
+        sourceKey:origin.sourceKey,sourceFile:origin.sourceFile,
+        sourceName:origin.sourceName,streamIndex:origin.streamIndex,
+        subtitleName:subtitle.file?.name||'',
+        fontNames:fonts.map(entry=>entry.file?.name||''),
+        bound:Boolean(sourceStillPresent && subBound && fontsBound),
+      };
+    });
   root.dispatchEvent(new CustomEvent('softmux:v3-resource-registry',{
-    detail:{entries,activeBase:videoInput.files?.[0]||null,target:currentV3Target()},
+    detail:{entries,assFontBundles,activeBase:videoInput.files?.[0]||null,
+      target:currentV3Target()},
   }));
 }
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
