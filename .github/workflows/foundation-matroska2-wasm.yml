@@ -11,6 +11,7 @@ on:
       - 'scripts/native/foundation-matroska-json-probe.c'
       - 'scripts/workers/foundation-matroska-worker.js'
       - 'src/foundation-wasm-json-abi.js'
+      - 'scripts/stage-foundation-wasm-runtime.mjs'
       - 'src/foundation-structure-observation.js'
       - 'src/matroska-attachment-reader.js'
   workflow_dispatch:
@@ -132,6 +133,35 @@ jobs:
           FOUNDATION_STRUCTURED_WASM_JS: .e2e/foundation-build/libmatroska2/foundation_json_probe.js
         run: node scripts/probe-foundation-matroska2-browser.mjs
 
+      - name: Stage pinned BSD Wasm with license and audit the Vite distribution
+        run: |
+          set -euo pipefail
+          node scripts/stage-foundation-wasm-runtime.mjs \
+            --build .e2e/foundation-build/libmatroska2 \
+            --upstream .e2e/foundation-upstream \
+            --out public/vendor/matroska-foundation
+          node scripts/copy-core.mjs
+          npm run build
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const dir='dist/vendor/matroska-foundation';
+          const json=JSON.parse(await fs.readFile(dir+'/manifest.json','utf8'));
+          if(json.schema!=='softmux-foundation-matroska-runtime-v1'||
+             json.bridgeAbiVersion!==1||json.readOnly!==true||
+             json.productionActivation!=='disabled-by-default')
+            throw Error('STAGED_RUNTIME_MANIFEST_INVALID');
+          for(const [name,expected] of Object.entries(json.files)){
+            const bytes=await fs.readFile(dir+'/'+name);
+            const digest=createHash('sha256').update(bytes).digest('hex');
+            if(digest!==expected.sha256||bytes.length!==expected.bytes)
+              throw Error('STAGED_RUNTIME_DISTRIBUTION_MISMATCH_'+name);
+          }
+          if(!Object.hasOwn(json.files,'LICENSE'))
+            throw Error('STAGED_RUNTIME_LICENSE_MISSING');
+          console.log('FOUNDATION_LICENSED_VITE_DISTRIBUTION_PASS');
+          NODE
+
       - name: Upload actual compiler, Wasm and independent file evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,5 +181,7 @@ jobs:
             .e2e/foundation-build/libmatroska2/foundation_json_probe.js
             .e2e/foundation-build/libmatroska2/foundation_json_probe.wasm
             .e2e/foundation-upstream/LICENSE
+            dist/vendor/matroska-foundation/manifest.json
+            dist/vendor/matroska-foundation/LICENSE
           if-no-files-found: warn
           retention-days: 14
