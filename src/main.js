@@ -3954,6 +3954,26 @@ assetInventory?.addEventListener('click',event=>{
 
 // The V3 presenter may *request* a target choice; only the real importer
 // and source adapter can validate/commit it. No synthetic File permission.
+// V3 document tabs open exact imported Files for observation only. It is
+// deliberately separate from confirming a target; the writer gate stays shut.
+document.addEventListener('softmux:v3-open-source', event => {
+  if(!v3Pilot || isBusy() || batchRunning || importInProgress ||
+      currentV3Target())return;
+  const {sourceKey,sourceFile}=event.detail||{};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry)return;
+  if(videoInput.files?.[0]!==sourceFile){
+    const radio=[...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(x=>x.dataset.assetSource===sourceKey && !x.disabled);
+    if(!radio)return;
+    radio.checked=true;
+    radio.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if(videoInput.files?.[0]!==sourceFile)return;
+  event.preventDefault();
+  publishV3ResourceRegistry();
+});
 document.addEventListener('softmux:v3-confirm-target', event => {
   if (!v3Pilot || isBusy() || batchRunning || importInProgress) return;
   const {baseKey,baseFile}=event.detail || {};
