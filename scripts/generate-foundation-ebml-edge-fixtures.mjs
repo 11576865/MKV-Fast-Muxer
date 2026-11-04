@@ -18,7 +18,7 @@ const input=path.join(root,'p0-independent-attachmenttag.mkv');
 const sha=buf=>createHash('sha256').update(buf).digest('hex');
 const expectedId={ebml:0x1a45dfa3,segment:0x18538067,
   attachments:0x1941a469,seekHead:0x114d9b74,
-  cluster:0x1f43b675,cues:0x1c53bb6b};
+  cluster:0x1f43b675,tags:0x1254c367,cues:0x1c53bb6b};
 
 function decodeElement(buf,start,limit=buf.length){
   if(start>=limit)throw Error('FIXTURE_EBML_START_OUT_OF_BOUNDS');
@@ -161,6 +161,23 @@ const unknownCluster=Buffer.concat([
   uintSize(8,terminalPayload.length),
   terminalPayload,
 ]);
+// Valid Matroska, but deliberately outside our conservative unknown-Cluster
+// read-only admission: a top-level Tags master follows the unknown Cluster.
+// Its bound must NOT be guessed as the end of the whole Segment.
+const finalTags=kept.filter(x=>x.id===expectedId.tags).at(-1);
+if(!finalTags)throw Error('FIXTURE_SOURCE_TAGS_MISSING');
+const nonterminalPayload=Buffer.concat([
+  ...kept.filter(x=>x!==lastCluster && x!==finalTags).map(x=>
+    bytes.subarray(x.start,x.end)),
+  terminalCluster,
+  bytes.subarray(finalTags.start,finalTags.end),
+]);
+const nonterminalCluster=Buffer.concat([
+  bytes.subarray(0,ebml.end),
+  bytes.subarray(segment.start,segment.start+segment.idWidth),
+  uintSize(8,nonterminalPayload.length),
+  nonterminalPayload,
+]);
 const badCRC=Buffer.from(valid);
 const crcPosition=badCRC.indexOf(crcHeader);
 if(crcPosition<0)throw Error('FIXTURE_INSERTED_CRC_NOT_LOCATED');
@@ -172,6 +189,7 @@ const files=[
   ['foundation-edge-crc-nested-valid.mkv',nestedValid],
   ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
   ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
+  ['foundation-edge-cluster-unknown-nonterminal.mkv',nonterminalCluster],
 ];
 await fs.mkdir(out,{recursive:true});
 for(const [name,data] of files){
@@ -193,6 +211,7 @@ const report={
     name,bytes:data.length,sha256:sha(data),
     unknownSegment:name.includes('segment-unknown'),
     unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
+    unknownClusterNonterminal:name.includes('cluster-unknown-nonterminal'),
     crcStatus:name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
     nestedAttachedFileCRC:name.includes('nested'),
