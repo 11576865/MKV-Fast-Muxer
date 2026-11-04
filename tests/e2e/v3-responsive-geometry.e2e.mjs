@@ -42,7 +42,7 @@ const measure=async(state,width,height)=>page.evaluate(({state,width,height})=>{
   const root=document.getElementById('sf14Root');
   const select=(query)=>root?.querySelector(query);
   const box=query=>{
-    const node=select(query);
+    const node=query==='#sf14Root'?root:select(query);
     if(!node)return null;
     const cs=getComputedStyle(node),r=node.getBoundingClientRect();
     const shown=cs.display!=='none'&&cs.visibility!=='hidden'&&r.width>0&&r.height>0;
