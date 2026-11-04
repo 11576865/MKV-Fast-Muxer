@@ -356,3 +356,42 @@
   }
   .sf14.sfv3 .sfv3-tab {max-width:120px;}
 }
+
+/* WU-03: output document appears only after the actual plan grant; its
+ * heading reads existing composition/readiness, never owns edit state. */
+.sf14.sfv3 .sfv3-plan-heading{
+  display:flex;flex-direction:column;gap:7px;
+  padding:23px clamp(18px,2.3vw,32px) 14px;
+  background:var(--sfv3-bg);
+  border-bottom:1px solid var(--sfv3-line);
+}
+.sf14.sfv3 .sfv3-plan-heading[hidden] {display:none!important;}
+.sf14.sfv3 .sfv3-plan-title-row{
+  display:flex;align-items:center;gap:13px;min-width:0;flex-wrap:wrap;
+}
+.sf14.sfv3 .sfv3-plan-name{
+  margin:0;font-size:clamp(23px,2.3vw,30px);font-weight:710;
+  color:var(--sfv3-text);overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-plan-state-tag{
+  padding:5px 11px;border-radius:7px;
+  color:var(--sfv3-accent);background:var(--sfv3-accent-back);
+  font-size:11px;font-weight:700;
+}
+.sf14.sfv3 .sfv3-plan-return{
+  margin-left:auto;border:1px solid var(--sfv3-line);
+  border-radius:8px;min-height:38px;padding:8px 12px;
+  background:var(--sfv3-row);color:var(--sfv3-soft);
+  font-size:12px;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-plan-return:hover {
+  background:var(--sfv3-row-raised);color:var(--sfv3-text);
+}
+.sf14.sfv3 .sfv3-plan-facts{
+  margin:0;color:var(--sfv3-muted);
+  font-size:11px;line-height:1.5;overflow-wrap:anywhere;
+}
+@media(max-width:719px){
+  .sf14.sfv3 .sfv3-plan-heading{padding:16px 13px 11px;}
+  .sf14.sfv3 .sfv3-plan-return{margin-left:0;}
+}
