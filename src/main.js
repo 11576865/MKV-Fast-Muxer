@@ -15,6 +15,7 @@ import {
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
 import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
+import { createV3TargetAuthority } from './softmux-v3-intent.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
 import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
@@ -649,6 +650,37 @@ const embeddedSourceInventories = new Map();
 const embeddedSourceBusy = new Set();
 const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
+const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
+const v3TargetAuthority = createV3TargetAuthority();
+const currentV3Target = () => v3TargetAuthority.current({
+  entries:importedAssetEntries,activeFile:videoInput.files?.[0] || null,
+});
+function publishV3ResourceRegistry() {
+  if (!v3Pilot) return;
+  const root=document.getElementById('sf14Root');
+  if (!root?.classList.contains('sfv3')) return;
+  const entries=importedAssetEntries.filter(e=>e.kind==='container').map(entry=>{
+    const snapshot=secondarySubtitleInventories.get(entry.key);
+    const current=snapshot?.sourceFile===entry.file ? snapshot : null;
+    const observed=current?.state==='inspected' ? (current.streams||[]) : [];
+    return {
+      key:entry.key,file:entry.file,kind:'container',
+      selected:videoInput.files?.[0]===entry.file,
+      subtitleState:current?.state || 'not-inspected',
+      subtitleReason:current?.reason || '',
+      subtitleTracks:observed.filter(stream=>stream.codec_type==='subtitle').map(stream=>({
+        index:stream.index,codec:stream.codec_name,
+        title:String(stream.tags?.title||''),
+        language:String(stream.tags?.language||'und'),
+        allowed:secondarySubripEligibility(stream,importedAssetEntries,entry.file).allowed,
+        reason:secondarySubripEligibility(stream,importedAssetEntries,entry.file).reason,
+      })),
+    };
+  });
+  root.dispatchEvent(new CustomEvent('softmux:v3-resource-registry',{
+    detail:{entries,activeBase:videoInput.files?.[0]||null,target:currentV3Target()},
+  }));
+}
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
 const attachmentOnlyMode = () => attachmentOnlyRouteEligible(importedAssetEntries,liveMediaAdapterFiles());
 const includedGenericAttachments = () => genericAttachmentEntries().filter(entry=>entry.include!==false);
@@ -1765,6 +1797,9 @@ function updateUI() {
     muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
   } else if(!mediaAttachmentReadiness(genericAttachmentEntries()).ready) muxBtn.disabled=true;
   if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
+  // V3's visible source list is not authorization to execute. Even a hidden
+  // legacy button remains blocked until an exact File-bound target is chosen.
+  if(v3Pilot && !currentV3Target())muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -3594,6 +3629,7 @@ function renderImportedAssetInventory() {
     assetInspectorHost.hidden = !sourceInspectorMarkup;
   }
   renderOutputComposition();
+  publishV3ResourceRegistry();
 }
 
 async function importUnifiedAssets(files) {
@@ -3907,6 +3943,62 @@ assetInventory?.addEventListener('click',event=>{
   catch(error){status.textContent=error.message;}
 });
 
+// The V3 presenter may *request* a target choice; only the real importer
+// and source adapter can validate/commit it. No synthetic File permission.
+document.addEventListener('softmux:v3-confirm-target', event => {
+  if (!v3Pilot || isBusy() || batchRunning || importInProgress) return;
+  const {baseKey,baseFile}=event.detail || {};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===baseKey && e.file===baseFile);
+  if (!entry || !baseFile || typeof baseKey!=='string') return;
+  if (videoInput.files?.[0] !== baseFile) {
+    const radio=[...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(x=>x.dataset.assetSource===baseKey);
+    if (!radio || radio.disabled) return;
+    radio.checked=true;
+    radio.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  const result=v3TargetAuthority.confirm({
+    baseKey,baseFile,entries:importedAssetEntries,
+    activeFile:videoInput.files?.[0]||null,
+  });
+  if (!result.accepted) return;
+  event.preventDefault();
+  document.getElementById('sf14Root')?.dispatchEvent(
+    new CustomEvent('softmux:v3-target-confirmed',{detail:{baseKey,baseFile}}));
+  updateUI();
+  publishV3ResourceRegistry();
+});
+document.addEventListener('softmux:v3-inspect-secondary', event=>{
+  if (!v3Pilot || isBusy() || batchRunning || importInProgress) return;
+  const {sourceKey,sourceFile}=event.detail||{};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if (!entry || videoInput.files?.[0]===sourceFile) return;
+  const button=[...assetInventory.querySelectorAll('button[data-secondary-subtitle-inspect]')]
+    .find(x=>x.dataset.secondarySubtitleInspect===sourceKey && !x.disabled);
+  if(!button)return;
+  event.preventDefault();
+  button.click();
+});
+document.addEventListener('softmux:v3-add-secondary', event=>{
+  if (!v3Pilot || !currentV3Target() || isBusy() || batchRunning || importInProgress) return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex))return;
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry || entry.file===videoInput.files?.[0])return;
+  const snapshot=secondarySubtitleInventories.get(sourceKey);
+  const stream=snapshot?.sourceFile===sourceFile && snapshot.state==='inspected' &&
+    snapshot.streams.find(s=>s.index===streamIndex && s.codec_type==='subtitle');
+  if(!stream || !secondarySubripEligibility(stream,importedAssetEntries,sourceFile).allowed)return;
+  const button=[...assetInventory.querySelectorAll('button[data-secondary-subtitle-add]')]
+    .find(x=>x.dataset.secondarySubtitleAdd===sourceKey &&
+      Number(x.dataset.streamIndex)===streamIndex && !x.disabled);
+  if(!button)return;
+  event.preventDefault();
+  button.click();
+});
 assetInventory?.addEventListener('change', (event) => {
   const generic=event.target.closest('[data-generic-include]');
   if(generic) {
@@ -6200,6 +6292,10 @@ async function executeCurrentMuxTask(explicit = null) {
   // The batch owns the shared FFmpeg instance across all prepare/mux/save
   // phases. A synthetic single-task click must not start between jobs.
   if (isBusy() || (batchRunning && !independent)) return;
+  if (v3Pilot && !independent && !currentV3Target()) {
+    status.textContent='请先明确选择目标容器；来源观察不能授权封装。';
+    return;
+  }
   if(!independent && genericAttachmentEntries().length) {
     if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
     const readiness=mediaAttachmentReadiness(genericAttachmentEntries());
@@ -8830,6 +8926,8 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
     // and real-media gates pass. The existing product remains the default.
     if (new URLSearchParams(window.location.search).get('ui') === 'v3') {
       mountSoftmuxV3Surface(document);
+      publishV3ResourceRegistry();
+      updateUI();
     }
   }
 }
