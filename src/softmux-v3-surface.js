@@ -42,7 +42,7 @@ export function mountSoftmuxV3Surface(doc = document) {
 
   root.classList.add('sfv3');
   root.dataset.sfv3Surface = 'source';
-  root.dataset.sfv3Contract = 'approved-v3-wu01';
+  root.dataset.sfv3Contract = 'approved-v3-wu02-pilot';
 
   const header = root.querySelector('.sf14-header');
   const identity = header?.querySelector('.sf14-identity strong');
@@ -210,8 +210,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     return true;
   };
   const syncTabs = () => {
-    for (const item of [...tabstrip.querySelectorAll('.sfv3-secondary-tab')]) item.remove();
     const entries=getEntries();
+    // Reconcile keyed tab buttons without detaching the focused source tab
+    // when an unrelated async scan refreshes the underlying inventory.
+    const needed=new Set(entries.slice(1).map(entry=>entry.key));
+    for(const tab of [...tabstrip.querySelectorAll('.sfv3-secondary-tab')]) {
+      if(!needed.has(tab.dataset.sfv3SourceKey))tab.remove();
+    }
     const first=entries[0] || null;
     sourceTab.dataset.sfv3SourceKey=first?.key || '';
     sourceTab.textContent=first?.file?.name || sourceInput.files?.[0]?.name || '未加载';
@@ -220,13 +225,18 @@ export function mountSoftmuxV3Surface(doc = document) {
       root.dataset.sfv3Surface==='source' &&
       (!first || viewedSourceKey===first.key));
     for (const entry of entries.slice(1)) {
-      const tab = appendText(doc,tabstrip,'button','sfv3-tab sfv3-secondary-tab',entry.file.name);
-      tab.type='button';
-      tab.dataset.sfv3SourceKey=entry.key;
+      let tab=[...tabstrip.querySelectorAll('.sfv3-secondary-tab')]
+        .find(x=>x.dataset.sfv3SourceKey===entry.key);
+      if(!tab) {
+        tab=appendText(doc,tabstrip,'button','sfv3-tab sfv3-secondary-tab',entry.file.name);
+        tab.type='button';
+        tab.dataset.sfv3SourceKey=entry.key;
+        tabstrip.insertBefore(tab,targetTab);
+      }
+      tab.textContent=entry.file.name;
       tab.title=entry.file.name;
       tab.toggleAttribute('aria-current',
         root.dataset.sfv3Surface==='source' && viewedSourceKey===entry.key);
-      tabstrip.insertBefore(tab,targetTab);
     }
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',root.dataset.sfv3Surface==='plan');
