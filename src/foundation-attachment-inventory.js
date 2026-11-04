@@ -58,6 +58,7 @@ export async function buildFoundationAttachmentInventory({
   const nodes=observation.nodes;
   const stack=[];
   const groups=[];
+  const attachmentMasters=new Set();
   const topLevel=new Map();
   let ebml=null,segment=null,docTypeNode=null;
   let attachmentElements=0,hasTracks=false,hasCluster=false;
@@ -77,6 +78,8 @@ export async function buildFoundationAttachmentInventory({
       segment=node;
     }
     if(parent===ebml && id===STRUCTURAL_IDS.DocType){
+      if(node.name!=='DocType'||node.master)
+        throw Error('FOUNDATION_INVENTORY_DOCTYPE_CLASS_INVALID');
       if(docTypeNode)throw Error('FOUNDATION_INVENTORY_DUPLICATE_DOCTYPE');
       docTypeNode=node;
     }
@@ -84,10 +87,17 @@ export async function buildFoundationAttachmentInventory({
       topLevel.set(id,(topLevel.get(id)||0)+1);
       if(id===0x1654ae6b)hasTracks=true;
       if(id===0x1f43b675)hasCluster=true;
-      if(id===STRUCTURAL_IDS.Attachments)attachmentElements++;
+      if(id===STRUCTURAL_IDS.Attachments){
+        if(node.name!=='Attachments'||!node.master)
+          throw Error('FOUNDATION_INVENTORY_ATTACHMENT_MASTER_INVALID');
+        attachmentElements++;
+        attachmentMasters.add(node);
+      }
     }
-    if(parent && numericId(parent)===STRUCTURAL_IDS.Attachments &&
+    if(attachmentMasters.has(parent) &&
        id===STRUCTURAL_IDS.AttachedFile){
+      if(node.name!=='AttachedFile'||!node.master)
+        throw Error('FOUNDATION_INVENTORY_ATTACHED_FILE_CLASS_INVALID');
       if(groups.length>=MAX_ATTACHMENTS)
         throw Error('FOUNDATION_INVENTORY_ATTACHMENT_BUDGET');
       groups.push({element:node,fields:new Map()});
@@ -97,6 +107,8 @@ export async function buildFoundationAttachmentInventory({
       if(!group)throw Error('FOUNDATION_INVENTORY_ATTACHMENT_PARENT_INVALID');
       const field=Object.entries(FIELD_IDS).find(([,value])=>value===id)?.[0];
       if(field){
+        if(node.name!==field||node.master)
+          throw Error('FOUNDATION_INVENTORY_FIELD_ID_CLASS_MISMATCH');
         if(group.fields.has(field))
           throw Error('FOUNDATION_INVENTORY_DUPLICATE_'+field.toUpperCase());
         group.fields.set(field,node);
