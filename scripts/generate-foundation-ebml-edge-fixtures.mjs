@@ -191,6 +191,30 @@ const nestedValid=build(nestedValidAttachments,false);
 const nestedInnerCorrupt=build(nestedCorruptInnerAttachments,false);
 const misplacedCrc=build(misplacedCrcAttachments,false);
 const duplicateCrc=build(duplicateCrcAttachments,false);
+// Deliberately test the Foundation C ABI's 8192-node admission budget with
+// repeatable *legal* Segment-level EBML Void elements. Both files inherit the
+// original native MKVToolNix-authored payload; no producer parsing code is
+// installed into the product. Include a below-limit positive and an
+// above-limit negative so the test distinguishes an enforced resource budget
+// from a blanket "many Voids are broken" parse failure.
+function withSegmentVoids(count){
+  if(!Number.isSafeInteger(count)||count<1||count>10000)
+    throw Error('FIXTURE_VOID_NODE_COUNT_INVALID');
+  const filler=Buffer.alloc(count*2);
+  for(let i=0;i<count;i++){
+    filler[i*2]=0xec;filler[i*2+1]=0x80; // EBML Void, zero data bytes
+  }
+  const payload=Buffer.concat([
+    ...kept.map(x=>bytes.subarray(x.start,x.end)),filler,
+  ]);
+  return Buffer.concat([
+    bytes.subarray(0,ebml.end),
+    bytes.subarray(segment.start,segment.start+segment.idWidth),
+    uintSize(8,payload.length),payload,
+  ]);
+}
+const withinNodeBudget=withSegmentVoids(7000);
+const beyondNodeBudget=withSegmentVoids(8300);
 // RFC 9559 permits unknown-size Cluster masters. Place the last source
 // Cluster as the LAST Segment child. We deliberately remove stale indexes
 // before moving it, and never claim this fixture models live streaming.
@@ -255,6 +279,8 @@ const files=[
   ['foundation-edge-crc-misplaced.mkv',misplacedCrc],
   ['foundation-edge-crc-duplicate.mkv',duplicateCrc],
   ['foundation-edge-crc-oversized.mkv',oversizedCrc],
+  ['foundation-edge-nodes-7000-void.mkv',withinNodeBudget],
+  ['foundation-edge-nodes-8300-void.mkv',beyondNodeBudget],
   ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
   ['foundation-edge-cluster-unknown-nonterminal.mkv',nonterminalCluster],
   ['foundation-edge-cluster-unknown-trailing-void.mkv',ambiguousVoidCluster],
@@ -278,6 +304,8 @@ const report={
   generated:files.map(([name,data])=>({
     name,bytes:data.length,sha256:sha(data),
     unknownSegment:name.includes('segment-unknown'),
+    segmentVoidCount:name.includes('nodes-7000-void')?7000:
+      name.includes('nodes-8300-void')?8300:0,
     unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
     unknownClusterNonterminal:name.includes('cluster-unknown-nonterminal'),
     unknownClusterTrailingVoid:name.includes('cluster-unknown-trailing-void'),
