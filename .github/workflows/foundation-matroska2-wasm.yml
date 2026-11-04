@@ -36,9 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg mkvtoolnix
+          sudo apt-get install -y -qq ffmpeg mkvtoolnix python3-fonttools fonts-dejavu-core
           mkdir -p .e2e/output
-          bash tests/e2e/generate-fixtures.sh
+          E2E_PYTHON=/usr/bin/python3 bash tests/e2e/generate-fixtures.sh
           bash tests/e2e/generate-independent-matroska-fixture.sh
           mkvmerge -J .e2e/fixtures/p0-independent-mkvtoolnix.mkv > .e2e/output/foundation-reference-mkvmerge.json
 
