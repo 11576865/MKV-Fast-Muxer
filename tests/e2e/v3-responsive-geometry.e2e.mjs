@@ -147,6 +147,14 @@ try{
     document.querySelector('#sfv3SourceContents .sfv3-observed-row') &&
     document.querySelector('#sfv3FileName')?.textContent==='V3 Responsive Fixture.mkv',
     null,{timeout:150000});
+  // Exact-source summary is not allowed to display inferred counts.
+  const counters=await page.locator('#sfv3SourceCounters .sfv3-counter')
+    .evaluateAll(nodes=>nodes.map(node=>({
+      kind:node.dataset.kind,value:node.querySelector('.sfv3-counter-count')?.textContent,
+    })));
+  assert.deepEqual(counters.filter(x=>x.kind==='video'),[{kind:'video',value:'01'}]);
+  assert.deepEqual(counters.filter(x=>x.kind==='audio'),[{kind:'audio',value:'00'}]);
+  assert.deepEqual(counters.filter(x=>x.kind==='subtitle'),[{kind:'subtitle',value:'00'}]);
   await audit('source');
   await page.setViewportSize({width:1440,height:900});
   await page.locator('#sfv3EnterOutput').click();
