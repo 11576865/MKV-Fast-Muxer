@@ -67,6 +67,14 @@ jobs:
             --attach-file .e2e/fixtures/foundation-large-payload.bin
           mkvmerge -J .e2e/fixtures/foundation-large-attachment.mkv > .e2e/output/foundation-large-reference-mkvmerge.json
           test "$(stat -c %s .e2e/fixtures/foundation-large-attachment.mkv)" -gt 100000000
+          # Separate 4 MiB+ native attachment, used to prove that a correct
+          # CRC cannot bypass the Foundation-primary bounded verification budget.
+          truncate -s 4194305 .e2e/fixtures/foundation-crc-limit.bin
+          mkvmerge --quiet -o .e2e/fixtures/foundation-crc-limit-native.mkv \
+            --no-attachments .e2e/fixtures/p0-independent-mkvtoolnix.mkv \
+            --attachment-name crc-limit.bin \
+            --attachment-mime-type application/octet-stream \
+            --attach-file .e2e/fixtures/foundation-crc-limit.bin
           # Independent compatibility matrix: 0, 1, 2, 3 attachments with
           # tags, nested chapters, UTF-8 names, descriptions and MIME variety.
           mkvmerge --quiet -o .e2e/fixtures/foundation-no-attachments.mkv \
@@ -120,6 +128,17 @@ jobs:
           }
           NODE
           node scripts/generate-foundation-ebml-edge-fixtures.mjs
+          mkvmerge -J .e2e/fixtures/foundation-edge-crc-oversized.mkv > \
+            .e2e/output/foundation-edge-crc-oversized-native.json
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          const native=JSON.parse(await fs.readFile(
+            '.e2e/output/foundation-edge-crc-oversized-native.json','utf8'));
+          if(native.container?.recognized!==true||
+             native.attachments?.length!==1||
+             native.attachments[0].size<=4*1024*1024)
+            throw Error('FOUNDATION_CRC_OVERSIZED_NATIVE_ORACLE_INVALID');
+          NODE
           for case in foundation-edge-crc-valid foundation-edge-segment-unknown \
                       foundation-edge-crc-nested-valid \
                       foundation-edge-cluster-unknown-terminal \
