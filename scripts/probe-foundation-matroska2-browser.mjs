@@ -40,12 +40,13 @@ await fs.mkdir(path.dirname(reportFile),{recursive:true});
 let server=null,browser=null;
 try {
   const [jsBytes,wasmBytes,sourceBytes,structuredJsBytes,
-    structuredWasmBytes,independentInfo,workerJsBytes]=await Promise.all([
+    structuredWasmBytes,independentInfo,workerJsBytes,observerJsBytes]=await Promise.all([
     fs.readFile(js),fs.readFile(wasm),fs.readFile(fixture),
     fs.readFile(structuredJs),fs.readFile(structuredWasm),
     fs.readFile('.e2e/output/foundation-reference-mkvmerge.json','utf8')
       .then(parseMkvmergeJsonWithExactUids),
     fs.readFile('scripts/workers/foundation-matroska-worker.js'),
+    fs.readFile('src/foundation-structure-observation.js'),
   ]);
   const sourceSha=sha(sourceBytes);
   report.sourceSha256=sourceSha;
@@ -59,6 +60,7 @@ try {
     '/foundation-json.js':{data:structuredJsBytes,type:'text/javascript'},
     '/foundation_json_probe.wasm':{data:structuredWasmBytes,type:'application/wasm'},
     '/foundation-worker.js':{data:workerJsBytes,type:'text/javascript'},
+    '/foundation-structure-observation.js':{data:observerJsBytes,type:'text/javascript'},
     '/':{data:Buffer.from('<!doctype html><meta charset="utf-8"><title>Foundation WASM read audit</title><input id="source" type="file">'),
       type:'text/html; charset=utf-8'},
   };
@@ -181,6 +183,36 @@ try {
   report.workerFSReadOnly=true;
   report.workerFSStructuredParity=true;
   report.workerFSAccess=lazy.workerStats;
+
+  // Cross the production adapter, not only the stand-alone research Worker.
+  // The same real browser File and already-tested C/WASM Worker are used,
+  // while the product's source-bound observer owns termination and contracts.
+  const productBridge=await page.evaluate(async()=>{
+    const {createFoundationStructureObserver}=await import(
+      '/foundation-structure-observation.js');
+    const file=document.querySelector('#source')?.files?.[0];
+    if(!file)throw Error('PRODUCT_ADAPTER_FILE_INPUT_MISSING');
+    const bridge=createFoundationStructureObserver({
+      file,source:{id:'browser-current-source'},
+      workerFactory:()=>new Worker('/foundation-worker.js'),
+      isCurrent:()=>document.querySelector('#source')?.files?.[0]===file,
+    });
+    try {
+      const observation=await bridge.inspect();
+      return {
+        nodes:observation.nodes,uids:observation.uids,
+        writerAuthorization:observation.claims.writerAuthorization,
+        sourceBytes:observation.workerFS.sourceBytes,
+      };
+    } finally { bridge.dispose(); }
+  });
+  assert.deepEqual(productBridge.nodes,result.structured.nodes,
+    'PRODUCT_ADAPTER_STRUCTURED_OUTPUT_MISMATCH');
+  if(productBridge.writerAuthorization!==false||
+     productBridge.sourceBytes!==sourceBytes.length)
+    throw Error('PRODUCT_ADAPTER_CLAIM_OR_SOURCE_IDENTITY_INVALID');
+  report.productAdapterInvokedInChromium=true;
+  report.productAdapterConsistentWithNative=true;
   // Independent high-volume MKV stress test: upload a real >96 MiB
   // Matroska File from disk directly into Chromium's file picker. The JS
   // harness never fs.readFile()s the large source, and the browser Worker
