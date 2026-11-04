@@ -640,3 +640,29 @@
     animation:none!important;transition:none!important;
   }
 }
+
+
+/* In the real product output dock, inspection and completed-artifact access
+ * remain reachable even after the contextual pane is dismissed. */
+.sf14.sfv3[data-sfv3-surface="plan"] .sf14-output{
+  position:relative;gap:8px;
+}
+.sf14.sfv3 .sfv3-inspector-open{
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;min-height:40px;padding:9px 12px;
+  border:1px solid var(--sfv3-line);border-radius:9px;
+  background:var(--sfv3-row-raised);color:var(--sfv3-text);
+  font-size:12px;white-space:nowrap;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-inspector-open[aria-expanded="true"]{
+  background:var(--sfv3-accent-back);color:var(--sfv3-accent);
+}
+.sf14.sfv3[data-sfv3-surface="source"] .sfv3-inspector-open{
+  display:none!important;
+}
+@media(max-width:719px){
+  .sf14.sfv3 .sfv3-inspector-open {
+    min-height:38px;padding:8px 10px;white-space:normal;
+    line-height:1.4;font-size:11px;
+  }
+}
