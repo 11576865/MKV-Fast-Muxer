@@ -4110,6 +4110,29 @@ document.addEventListener('softmux:v3-preview-source', event=>{
   event.preventDefault();
   previewRefreshBtn.click();
 });
+// V3 source inspection may request an independently verified native single-
+// stream extraction. This is NOT a target edit or a claim of bundled fonts.
+document.addEventListener('softmux:v3-extract-source',event=>{
+  if(!v3Pilot || isBusy() || batchRunning || batchStartPending ||
+      importInProgress ||
+      document.getElementById('sf14Root')?.dataset.sfv3Surface!=='source')return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex)||streamIndex<0)return;
+  const entry=importedAssetEntries.find(item=>item.kind==='container' &&
+    item.key===sourceKey && item.file===sourceFile);
+  if(!entry || !sourceFile || videoInput.files?.[0]!==sourceFile ||
+      scannedSourceFile!==sourceFile ||
+      trackState?.fileKey!==fileKey(sourceFile))return;
+  const stream=trackState.streams?.find(item=>item.index===streamIndex &&
+    item.codec_type==='subtitle' && ['ass','ssa'].includes(item.codec_name));
+  if(!stream || !embeddedPreviewTracks({
+      source:sourceFile,scannedSource:scannedSourceFile,state:trackState,
+    }).some(item=>item.sourceFile===sourceFile && item.streamIndex===streamIndex))return;
+  try{planOriginalTrackExtraction(sourceFile,stream,{format:'native'});}
+  catch{return;}
+  event.preventDefault();
+  void extractOriginalTrack(streamIndex,'native');
+});
 document.addEventListener('softmux:v3-add-secondary', event=>{
   if (!v3Pilot || !v3MayEditOutput() || isBusy() || batchRunning || importInProgress) return;
   const {sourceKey,sourceFile,streamIndex}=event.detail||{};

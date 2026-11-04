@@ -112,3 +112,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Generate real image | One `previewSubtitleSelect`, `previewRefreshBtn`, `refreshSubtitlePreview()` and FFmpeg/libass + existing embedded-font reader | Move the original `#sf14PreviewDrawer` to `#sfv3SourcePreviewHost` and restore on close; no duplicate status/image/controls |
 | Evidence | `tests/e2e/v3-source-ass-preview.e2e.mjs` | Actual MKV ASS, PNG rendering, negative forged File, unchanged source SHA, no OutputPlan; exact-head CI pending |
 | Still excluded | PR #233 cross-source ASS/font dependency bundle, independent extraction, full Figma selected-ASS frame | Not accepted or silently enabled |
+
+
+## WU-04 source ASS native original-track extraction (2026-11-04)
+
+| Requirement | Real owner | V3 binding and evidence |
+| --- | --- | --- |
+| Extract selected scanned ASS/SSA in source-only view | Exact imported `File` registry, `scannedSourceFile`, `trackState.streams` | `#sfv3SourceInspectorExtract` requests `softmux:v3-extract-source` with exact source key/reference + validated stream index; no target grant |
+| Produce original-track file + proof | `extractOriginalTrack()`, `planOriginalTrackExtraction(...,{format:'native'})`, Stream Copy, probe/readback, SHA-256 | Same `#originalTrackExtractionPanel`, `#originalTrackDownload`, `#originalTrackReport` moved into source sheet and restored; no parallel result model |
+| Explicit scope | Existing `softmux-original-track-extraction-v1` report policy | Native ASS only; no font attachments, Chapters, global Tags or absolute Matroska timing guarantee; not equivalent to PR #233 cross-MKV ASS/font bundle |
+| Regression | `tests/e2e/v3-source-ass-preview.e2e.mjs` | Real MKV ASS source, forged File refused, browser download, independent ffprobe and report hash, no target/plan state; pending exact-head CI |

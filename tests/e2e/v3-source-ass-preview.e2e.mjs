@@ -41,6 +41,8 @@ try {
  await row.click();
  assert.equal(await page.locator('#sfv3SourceInspectorPreview').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),false);
+ assert.equal(await page.locator('#sfv3SourceInspectorExtract').isVisible(),true);
+ assert.match(await page.locator('#sfv3SourceInspectorExtract').textContent(),/不含字体/);
  const denied=await page.evaluate(i=>{
   const file=document.querySelector('#videoInput').files[0];
   const key=document.querySelector('#sfv3SourceTab').dataset.sfv3SourceKey;
@@ -50,6 +52,15 @@ try {
   return event.defaultPrevented;
  },stream.index);
  assert.equal(denied,false,'forged File must fail closed');
+ const deniedExtraction=await page.evaluate(i=>{
+  const file=document.querySelector('#videoInput').files[0];
+  const key=document.querySelector('#sfv3SourceTab').dataset.sfv3SourceKey;
+  const event=new CustomEvent('softmux:v3-extract-source',{bubbles:true,cancelable:true,
+    detail:{sourceKey:key,sourceFile:new File(['fake'],file.name,{lastModified:file.lastModified}),streamIndex:i}});
+  document.querySelector('#sf14Root').dispatchEvent(event);
+  return event.defaultPrevented;
+ },stream.index);
+ assert.equal(deniedExtraction,false,'forged File cannot gain original-track extraction permission');
  await page.locator('#sfv3SourceInspectorPreview').click();
  assert.equal(await page.locator('#sfv3SourceInspector #sf14PreviewDrawer').count(),1);
  await page.waitForFunction(()=>{
@@ -63,9 +74,58 @@ try {
  assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),0);
  assert.equal(await page.locator('#previewImage').count(),1);
  await page.screenshot({path:path.join(dir,'v3-native-ass-preview.png')});
+ // The same source selection must extract a genuine standalone ASS with
+ // the existing Stream Copy + independent output probe + JSON audit path.
+ await page.locator('#sfv3SourceInspectorExtract').click();
+ assert.equal(await page.locator('#sfv3SourceInspector #originalTrackExtractionPanel').count(),1,
+   'native original-track result must move, never be cloned');
+ await page.waitForFunction(()=>{
+  const a=document.getElementById('originalTrackDownload');
+  return a && !a.hidden && a.href.startsWith('blob:') &&
+    /单轨编码\/参数回读通过/.test(document.getElementById('originalTrackExtractionStatus')?.textContent||'');
+ },null,{timeout:180000});
+ assert.equal(await page.locator('#originalTrackDownload').count(),1);
+ assert.equal(await page.locator('#originalTrackReport').count(),1);
+ const [trackDownload]=await Promise.all([
+  page.waitForEvent('download'),
+  page.locator('#originalTrackDownload').click(),
+ ]);
+ const extractedPath=path.join(dir,'real-source-extraction.ass');
+ await trackDownload.saveAs(extractedPath);
+ const extractedBytes=await fs.readFile(extractedPath);
+ assert.ok(extractedBytes.length>0);
+ assert.match(extractedBytes.toString('utf8'),/V3 ASS Native Preview/);
+ const nativeExtractProbe=JSON.parse(execFileSync('ffprobe',[
+  '-v','error','-show_streams','-of','json',extractedPath,
+ ],{encoding:'utf8'}));
+ assert.equal(nativeExtractProbe.streams?.length,1);
+ assert.equal(nativeExtractProbe.streams[0].codec_name,'ass');
+ const [reportDownload]=await Promise.all([
+  page.waitForEvent('download'),
+  page.locator('#originalTrackReport').click(),
+ ]);
+ const reportPath=path.join(dir,'real-source-extraction.json');
+ await reportDownload.saveAs(reportPath);
+ const audit=JSON.parse(await fs.readFile(reportPath,'utf8'));
+ assert.equal(audit.schema,'softmux-original-track-extraction-v1');
+ assert.equal(audit.source.streamIndex,stream.index);
+ assert.equal(audit.audit.ok,true);
+ assert.equal(audit.output.format,'native');
+ assert.equal(audit.output.sha256,sha(extractedBytes));
+ assert.equal(audit.policy.includeAttachments,false);
+ assert.equal(audit.policy.includeChapters,false);
+ assert.equal(audit.policy.includeGlobalTags,false);
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+ assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),0);
+ evidence.extraction={sha256:sha(extractedBytes),size:extractedBytes.length,
+   streamIndex:stream.index,format:'native',attachmentsIncluded:false,reportValidated:true};
+ await page.screenshot({path:path.join(dir,'v3-native-ass-extraction.png')});
  await page.locator('#sfv3SourceInspectorClose').click();
  assert.equal(await page.locator('#sf14PreviewDrawer').count(),1);
  assert.equal(await page.locator('#sfv3SourceInspector #sf14PreviewDrawer').count(),0);
+ assert.equal(await page.locator('#originalTrackExtractionPanel').count(),1);
+ assert.equal(await page.locator('#sfv3SourceInspector #originalTrackExtractionPanel').count(),0);
  assert.equal(sha(await fs.readFile(mkv)),original);
  assert.deepEqual(errors,[]);
  evidence.passed=true;

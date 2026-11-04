@@ -410,6 +410,18 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetPreview.id='sfv3SourceInspectorPreview';
   sourceSheetPreview.type='button';
   sourceSheetPreview.hidden=true;
+  const sourceSheetExtract=appendText(doc,sourceSheetActions,'button',
+    'sfv3-source-sheet-extract','提取 ASS（不含字体）');
+  sourceSheetExtract.id='sfv3SourceInspectorExtract';
+  sourceSheetExtract.type='button';
+  sourceSheetExtract.hidden=true;
+  const nativeExtractionPanel=find(doc,'originalTrackExtractionPanel');
+  const nativeExtractionHome=nativeExtractionPanel?.parentNode;
+  const nativeExtractionNext=nativeExtractionPanel?.nextSibling;
+  const sourceSheetExtractionHost=doc.createElement('div');
+  sourceSheetExtractionHost.id='sfv3SourceExtractionHost';
+  sourceSheetExtractionHost.className='sfv3-source-sheet-extraction-host';
+  sourceSheetExtractionHost.hidden=true;
   const nativePreviewDrawer=find(doc,'sf14PreviewDrawer');
   const nativePreviewHome=nativePreviewDrawer?.parentNode;
   const nativePreviewNext=nativePreviewDrawer?.nextSibling;
@@ -420,7 +432,8 @@ export function mountSoftmuxV3Surface(doc = document) {
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
-  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,sourceSheetActions,sourceSheetPreviewHost);
+  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,
+    sourceSheetActions,sourceSheetPreviewHost,sourceSheetExtractionHost);
   single.appendChild(sourceSheet);
 
   // V3 target picker is an explicit action, never an implicit file import side effect.
@@ -473,10 +486,19 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     sourceSheetPreviewHost.hidden=true;
   };
+  const restoreNativeExtraction=()=>{
+    if(nativeExtractionPanel?.parentNode===sourceSheetExtractionHost &&
+        nativeExtractionHome){
+      nativeExtractionHome.insertBefore(nativeExtractionPanel,
+        nativeExtractionNext?.parentNode===nativeExtractionHome?nativeExtractionNext:null);
+    }
+    sourceSheetExtractionHost.hidden=true;
+  };
   const closeSourceSheet=(restoreFocus=false)=>{
     const previouslySelected=selectedSource;
     selectedSource=null;
     restoreNativePreview();
+    restoreNativeExtraction();
     sourceSheet.hidden=true;
     root.dataset.sfv3SourceInspector='closed';
     for(const node of contents.querySelectorAll('.sfv3-row-select[aria-expanded="true"]'))
@@ -514,7 +536,11 @@ export function mountSoftmuxV3Surface(doc = document) {
         ? '可使用现有 FFmpeg/libass 预览源 ASS；此操作不加入拟输出，预览字体不代表已验证封装依赖闭包。'
         : '当前对象只可观察；此处不提供未经验证的修改、提取或预览操作。');
     sourceSheetPreview.hidden=!previewable;
-    if(!previewable)restoreNativePreview();
+    sourceSheetExtract.hidden=!previewable || !nativeExtractionPanel;
+    if(!previewable) {
+      restoreNativePreview();
+      restoreNativeExtraction();
+    }
     sourceSheetAdd.hidden=!selectedSource.transfer;
     sourceSheet.hidden=false;
     root.dataset.sfv3SourceInspector='open';
@@ -541,6 +567,28 @@ export function mountSoftmuxV3Surface(doc = document) {
     })){
       sourceSheetNotice.textContent='当前来源预览未通过实际轨道或运行状态检查。';
       restoreNativePreview();
+    }
+  });
+  sourceSheetExtract.addEventListener('click',()=>{
+    const selected=selectedSource;
+    if(!selected?.preview || !nativeExtractionPanel ||
+        root.dataset.sfv3Surface!=='source' ||
+        !exactEntry(selected.sourceKey,selected.sourceFile) ||
+        activeView()?.file!==selected.sourceFile ||
+        sourceInput.files?.[0]!==selected.sourceFile ||
+        !activeView()?.scanned){
+      restoreNativeExtraction();
+      return;
+    }
+    sourceSheetExtractionHost.hidden=false;
+    sourceSheetExtractionHost.appendChild(nativeExtractionPanel);
+    if(!signal('softmux:v3-extract-source',{
+      sourceKey:selected.preview.sourceKey,
+      sourceFile:selected.preview.sourceFile,
+      streamIndex:selected.preview.streamIndex,
+    })){
+      sourceSheetNotice.textContent='提取未获执行器许可：请确认来源身份与运行状态。';
+      restoreNativeExtraction();
     }
   });
   sourceSheetAdd.addEventListener('click',()=>{
@@ -705,6 +753,7 @@ export function mountSoftmuxV3Surface(doc = document) {
           closeSourceSheet(true);return;
         }
         restoreNativePreview();
+        restoreNativeExtraction();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
         updateSourceSheet();
       });

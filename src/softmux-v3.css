@@ -1013,3 +1013,30 @@
     justify-content:flex-start;flex-wrap:wrap;
   }
 }
+
+
+/* V3-05 native source ASS extraction. Result panel, status, download links
+ * and verification report are the original production DOM, not a V3 copy. */
+.sf14.sfv3 .sfv3-source-sheet-extract {
+  min-height:42px;padding:9px 14px;
+  border:1px solid var(--sfv3-line);border-radius:9px;
+  background:var(--sfv3-row-raised);color:var(--sfv3-text);
+  font-weight:650;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-source-sheet-extract[hidden],
+.sf14.sfv3 .sfv3-source-sheet-extraction-host[hidden] {display:none!important;}
+.sf14.sfv3 .sfv3-source-sheet-extraction-host{
+  width:100%;min-width:0;
+}
+.sf14.sfv3 .sfv3-source-sheet-extraction-host #originalTrackExtractionPanel {
+  margin:0;width:100%;min-width:0;
+  border:1px solid var(--sfv3-line);border-radius:10px;
+  background:var(--sfv3-row);padding:12px;
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-source-sheet-extraction-host #originalTrackExtractionPanel[hidden]{
+  display:none!important;
+}
+.sf14.sfv3 .sfv3-source-sheet-extraction-host #originalTrackExtractionPanel a {
+  max-width:100%;white-space:normal;overflow-wrap:anywhere;
+}

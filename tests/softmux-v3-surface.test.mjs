@@ -104,3 +104,15 @@ test('V3 ASS source preview routes exact File/stream to the existing native rend
   assert.match(surface,/sourceSheetPreviewHost\.appendChild\(nativePreviewDrawer\)/);
   assert.match(surface,/sourceInput\.files\?\.\[0\]!==selected\.sourceFile/);
 });
+
+test('V3 source ASS Stream Copy extraction reuses the native readback/audit pipeline',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  assert.match(main,/softmux:v3-extract-source/);
+  assert.match(main,/trackState\?\.fileKey!==fileKey\(sourceFile\)/);
+  assert.match(main,/planOriginalTrackExtraction\(sourceFile,stream,\{format:'native'\}\)/);
+  assert.match(main,/extractOriginalTrack\(streamIndex,'native'\)/);
+  assert.match(surface,/sourceSheetExtractionHost\.appendChild\(nativeExtractionPanel\)/);
+  assert.match(surface,/nativeExtractionHome\.insertBefore\(nativeExtractionPanel/);
+  assert.match(surface,/sourceSheetExtract\.hidden=!previewable \|\| !nativeExtractionPanel/);
+});
