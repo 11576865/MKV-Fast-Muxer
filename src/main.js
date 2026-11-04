@@ -4,6 +4,7 @@ import {runContainerBatchReview,containerObservationReport,MAX_CONTAINER_REVIEW_
 import {createMatroskaAttachmentReader} from './matroska-attachment-reader.js';
 import {embeddedAttachmentEligibility,createEmbeddedAttachmentOutputEntry,pruneEmbeddedAttachmentsForRemovedSource} from './embedded-attachment-composition.js';
 import {secondarySubripEligibility,createSecondarySubripEntry,pruneSecondarySubtitlesForSource,MAX_EMBEDDED_SUBRIP_BYTES} from './embedded-subtitle-composition.js';
+import {secondaryAssEligibility,prepareSecondaryAssFontBundle,pruneSecondaryAssFontBundleForSource,MAX_CROSS_SOURCE_ASS_BYTES} from './secondary-ass-font-bundle.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
 import './style.css';
 import './workbench.css';
@@ -3447,14 +3448,17 @@ function renderSecondarySourceSubtitles(entry, selected, canChange) {
   const disabled=!canChange||busy;
   const text=observed?.state==='inspected'
     ? observed.streams.filter(stream=>stream.codec_type==='subtitle').length+
-        ' 条实际字幕轨 · SubRip 可直接加入'
+        ' 条实际字幕轨 · SubRip 可直接加入；ASS/SSA 需通过内封字体依赖校验'
     : observed?.state==='unverified' ? '读取失败：'+observed.reason
     : busy ? '正在读取来源轨道…'
     : '读取原字幕轨信息，不改变当前拟输出来源。';
   const streams=observed?.state==='inspected'
     ? observed.streams.filter(stream=>stream.codec_type==='subtitle').slice(0,64) : [];
   const rows=streams.map(stream=>{
-    const eligible=secondarySubripEligibility(stream,importedAssetEntries,entry.file);
+    const isAss=['ass','ssa'].includes(stream.codec_name);
+    const eligible=isAss
+      ? secondaryAssEligibility(stream,importedAssetEntries,entry.file)
+      : secondarySubripEligibility(stream,importedAssetEntries,entry.file);
     return `<div class="embedded-source-attachment-row" data-secondary-subtitle-row="${stream.index}">
       <div class="embedded-source-attachment-info">
         <strong>${escapeHtml(String(stream.tags?.title||'字幕轨 #'+stream.index))}</strong>
@@ -3462,7 +3466,7 @@ function renderSecondarySourceSubtitles(entry, selected, canChange) {
       </div>
       <button type="button" data-secondary-subtitle-add="${escapeHtml(entry.key)}"
         data-stream-index="${stream.index}"
-        ${eligible.allowed&&!disabled?'':'disabled'}>加入拟输出</button>
+        ${eligible.allowed&&!disabled?'':'disabled'}>${isAss?'加入字幕与字体':'加入拟输出'}</button>
       ${eligible.allowed?'':`<small class="embedded-source-attachment-reason">${escapeHtml(eligible.reason)}</small>`}
     </div>`;
   }).join('');
@@ -3800,7 +3804,8 @@ assetInventory?.addEventListener('click', async event => {
   extractingOriginalTrack=true;cancelRequested=false;
   let staged=null;
   const prefix='secondary-subtitle-'+Date.now();
-  const probePath=prefix+'.probe.json', output=prefix+'.srt';
+  const probePath=prefix+'.probe.json';
+  let output=prefix+'.srt',committedMembers=[];
   try {
     if(inspect)secondarySubtitleInventories.set(key,{
       sourceFile:source.file,state:'inspecting',streams:[],
@@ -3828,9 +3833,15 @@ assetInventory?.addEventListener('click', async event => {
       if(!stream||!previous||stream.codec_name!==previous.codec_name ||
           stream.codec_type!==previous.codec_type)
         throw Error('来源轨道已变化，无法复用此前的轨道索引。');
-      const eligible=secondarySubripEligibility(stream,importedAssetEntries,source.file);
+      const assLike=['ass','ssa'].includes(stream.codec_name);
+      const eligible=assLike
+        ? secondaryAssEligibility(stream,importedAssetEntries,source.file)
+        : secondarySubripEligibility(stream,importedAssetEntries,source.file);
       if(!eligible.allowed)throw Error(eligible.reason);
+      if(assLike && (fontMode.value==='force'||fontSubsetEnabled?.checked))
+        throw Error('跨来源 ASS 为保留原样式和字体，需要关闭强制字体与字体子集化。');
       const plan=planOriginalTrackExtraction(source.file,stream,{format:'native'});
+      output=prefix+plan.extension;
       const extracted=await execWithCapturedLogs(
         buildTrackExtractionCommand(plan,staged.path,output));
       if(extracted.code!==0)throw Error('字幕 Stream Copy 失败：'+usefulLogTail(extracted.logs));
@@ -3839,22 +3850,33 @@ assetInventory?.addEventListener('click', async event => {
       const audit=auditExtractedOriginalTrack(plan,check);
       if(!audit.ok)throw Error('来源字幕回读失败：'+audit.issues.join('；'));
       const bytes=await ffmpeg.readFile(output);
-      if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>MAX_EMBEDDED_SUBRIP_BYTES)
-        throw Error('来源 SubRip 字幕超过当前 16 MiB 范围或未生成内容。');
+      const maximum=assLike?MAX_CROSS_SOURCE_ASS_BYTES:MAX_EMBEDDED_SUBRIP_BYTES;
+      if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>maximum)
+        throw Error('来源字幕超出当前安全读取范围或未生成内容。');
       if(!current())throw Error('来源已改变或操作已取消');
-      const member=createSecondarySubripEntry({
-        sourceEntry:source,stream,bytes,existingEntries:importedAssetEntries,
-      });
+      const bundle=assLike
+        ? await prepareSecondaryAssFontBundle({
+          sourceEntry:source,stream,bytes,existingEntries:importedAssetEntries,
+          isCurrent:current,
+        })
+        : {subtitle:createSecondarySubripEntry({
+          sourceEntry:source,stream,bytes,existingEntries:importedAssetEntries,
+        }),fonts:[]};
       if(!current())throw Error('来源已改变或操作已取消');
-      importedAssetEntries=[...importedAssetEntries,member];
+      const member=bundle.subtitle;
+      committedMembers=[member,...bundle.fonts];
+      importedAssetEntries=[...importedAssetEntries,...committedMembers];
       applyImportedAssetRoles();
       // setAdapterFiles(subInput, ...) starts async content-sniff inspection.
       // Until that promise finishes the canonical newSubtitleState is empty;
       // treating the pending state as a missing/unsupported track discards
       // the actual imported source subtitle. Hold the shared execution lock
       // and await the same inspection that normal picker input uses.
-      await subtitleInspectPromise;
+      await Promise.all([subtitleInspectPromise,fontInspectPromise]);
       if(!current())throw Error('来源已改变或操作已取消');
+      if(assLike && bundle.fonts.some(entry=>
+        !selectedFontRecognition().recognized.some(font=>font.file===entry.file)))
+        throw Error('来源 ASS 字体未能通过正式字体识别。');
       const position=newSubtitleState.findIndex(item=>item.file===member.file);
       if(position<0)throw Error('字幕未能进入原有字幕封装路径。');
       const changes=[];
@@ -3871,8 +3893,8 @@ assetInventory?.addEventListener('click', async event => {
       // inferred title/language controls would otherwise overwrite the
       // source-observed metadata we just committed.
       renderNewTrackLists();
-      status.textContent='已将 '+source.file.name+' 的 SubRip 轨 #'+index+
-        ' 加入拟输出；目标来源保持 '+mainSource.name+'。';
+      status.textContent='已将 '+source.file.name+' 的 '+(assLike?'ASS/SSA 和所需字体':'SubRip')+
+        ' 轨 #'+index+' 加入拟输出；目标来源保持 '+mainSource.name+'。';
     }
   } catch(error) {
     const message=error?.message||String(error);
@@ -3880,10 +3902,8 @@ assetInventory?.addEventListener('click', async event => {
       sourceFile:source.file,state:'unverified',streams:[],reason:message,
     });
     status.textContent='来源字幕处理未完成：'+message;
-    if(add){
-      importedAssetEntries=importedAssetEntries.filter(e=>!(
-        e.embeddedOrigin?.kind==='subtitle'&&e.embeddedOrigin.sourceFile===source.file&&
-        e.embeddedOrigin.streamIndex===Number(add.dataset.streamIndex)));
+    if(add&&committedMembers.length){
+      importedAssetEntries=importedAssetEntries.filter(e=>!committedMembers.includes(e));
       applyImportedAssetRoles();
     }
   } finally {
@@ -4107,6 +4127,15 @@ assetInventory?.addEventListener('click', (event) => {
   if(removed?.kind==='container'){
     importedAssetEntries=pruneEmbeddedAttachmentsForRemovedSource(importedAssetEntries,removed.file);
     importedAssetEntries=pruneSecondarySubtitlesForSource(importedAssetEntries,removed.file);
+    importedAssetEntries=pruneSecondaryAssFontBundleForSource(importedAssetEntries,removed.file);
+  } else if(removed?.embeddedOrigin?.bundleKind==='ass-font-closure'){
+    // An ASS without its source-linked font bundle can no longer be represented
+    // as self-contained. Removing any member revokes the complete group.
+    const origin=removed.embeddedOrigin;
+    importedAssetEntries=importedAssetEntries.filter(e=>!(
+      e.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+      e.embeddedOrigin.sourceFile===origin.sourceFile &&
+      e.embeddedOrigin.streamIndex===origin.streamIndex));
   }
   if (chosenImportSourceKey === key) chosenImportSourceKey = '';
   if (focusedImportedAssetKey === key) focusedImportedAssetKey = '';

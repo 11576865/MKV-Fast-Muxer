@@ -1,6 +1,7 @@
 import {scenarioMediaAttachments} from './media-attachments-scenario.mjs';
 import {scenarioCrossSourceAttachmentReuse} from './cross-source-attachment-reuse-scenario.mjs';
 import {scenarioCrossSourceSubrip} from './cross-source-subrip-scenario.mjs';
+import {scenarioCrossSourceAssFontBundle} from './cross-source-ass-font-bundle-scenario.mjs';
 import {scenarioAudioOnlyMux} from './audio-only-mux-scenario.mjs';
 import assert from 'node:assert/strict';
 import {scenarioCandidateMembership} from './candidate-membership-scenario.mjs';
@@ -7741,6 +7742,7 @@ try {
   await scenarioMultiSourceDrafts(browser,{root,outDir,baseUrl});
   await scenarioCrossSourceAttachmentReuse(browser,{root,outDir:path.join(outDir,'cross-source-attachments'),baseUrl});
   await scenarioCrossSourceSubrip(browser,{root,outDir:path.join(outDir,'cross-source-subrip'),baseUrl});
+  await scenarioCrossSourceAssFontBundle(browser,{root,outDir:path.join(outDir,'cross-source-ass-font'),baseUrl});
   await scenarioAttachmentOnlyWorkbench(browser,{root,outDir,baseUrl});
   await scenarioCandidateMembership(browser,{root,outDir,baseUrl});
   await scenarioS13SameMetadataCompositionSelection(browser);
