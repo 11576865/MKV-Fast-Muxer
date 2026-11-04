@@ -114,6 +114,30 @@ try {
   assert.equal(await realSubtitleTitle.inputValue(),'Caption from A');
   assert.equal(await page.locator('#compositionTracks button[aria-pressed="true"]').count(),1);
   assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]').count(),1);
+  // WU-03: a source tab remains read-only EVEN AFTER an output target exists.
+  // Do not rely on CSS hiding the underlying legacy source-editor controls.
+  await page.locator('#sfv3SourceTab').click();
+  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'source');
+  await page.waitForFunction(()=>document.getElementById('muxBtn')?.disabled===true);
+  const sourceCheckbox=page.locator('#assetInventory input[data-asset-include]').first();
+  assert.ok(await sourceCheckbox.count(),'real imported subtitle should have an include control');
+  assert.equal(await sourceCheckbox.isDisabled(),true,
+    'source view must mark legacy output-mutating inventory controls disabled');
+  const attempted=await sourceCheckbox.evaluate(el=>{
+    const before=el.checked;
+    el.checked=!before;
+    const event=new Event('change',{bubbles:true,cancelable:true});
+    el.dispatchEvent(event);
+    return {before,blocked:event.defaultPrevented};
+  });
+  assert.equal(attempted.blocked,true,
+    'source-side synthetic change should be stopped before the real mutation handler');
+  await page.locator('#sfv3TargetTab').click();
+  await page.waitForFunction(()=>document.querySelector('#muxBtn')?.disabled===false);
+  assert.equal(await page.locator('#assetInventory input[data-asset-include]').first().isChecked(),
+    attempted.before,'source-only edit attempt must not change canonical subtitle inclusion');
+  assert.equal(await page.locator('#sfv3PlanHeading').isVisible(),true);
+  evidence.steps.push('read-only source view blocks actual edit handlers after target creation; target editor still works');
   await screenshot('wu02-confirmed-target.png');
   await page.locator('#muxBtn').click();
   await page.waitForFunction(()=>/^完成。/.test(document.querySelector('#status')?.textContent||''),
