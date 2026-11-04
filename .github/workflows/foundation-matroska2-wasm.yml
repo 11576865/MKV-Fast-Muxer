@@ -80,7 +80,7 @@ jobs:
       - name: Install browser probe dependencies
         run: |
           set -euo pipefail
-          npm ci --ignore-scripts
+          npm install --ignore-scripts --no-audit --no-fund
           if command -v google-chrome >/dev/null 2>&1; then
             echo "FOUNDATION_CHROMIUM_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
           elif command -v google-chrome-stable >/dev/null 2>&1; then
@@ -111,5 +111,6 @@ jobs:
             .e2e/output/foundation-matroska2-chromium-probe.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
             .e2e/foundation-build/libmatroska2/mkvtree.wasm
+            .e2e/foundation-upstream/LICENSE
           if-no-files-found: warn
           retention-days: 14
