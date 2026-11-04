@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/foundation-matroska2-wasm.yml'
       - 'scripts/probe-foundation-matroska2-wasm.mjs'
+      - 'scripts/patch-foundation-corec-emscripten.mjs'
   workflow_dispatch:
 
 permissions:
@@ -42,6 +43,14 @@ jobs:
           bash tests/e2e/generate-independent-matroska-fixture.sh
           mkvmerge -J .e2e/fixtures/p0-independent-mkvtoolnix.mkv > .e2e/output/foundation-reference-mkvmerge.json
 
+      - name: Apply tiny upstream Core-C Emscripten platform adapter (test only)
+        run: |
+          set -euo pipefail
+          node scripts/patch-foundation-corec-emscripten.mjs
+          git -C .e2e/foundation-upstream diff --check
+          git -C .e2e/foundation-upstream diff -- corec/corec/portab.h > .e2e/output/foundation-wasm-corec-portability.diff
+          test -s .e2e/output/foundation-wasm-corec-portability.diff
+
       - name: Compile actual BSD libEBML2 and libMatroska2 into Emscripten Wasm
         run: |
           set -euo pipefail
@@ -75,6 +84,7 @@ jobs:
           path: |
             .e2e/output/foundation-wasm-configure.log
             .e2e/output/foundation-wasm-build.log
+            .e2e/output/foundation-wasm-corec-portability.diff
             .e2e/output/foundation-reference-mkvmerge.json
             .e2e/output/foundation-matroska2-wasm-probe.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
