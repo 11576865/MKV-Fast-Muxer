@@ -322,6 +322,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     if(from.subtitleState!=='inspected') {
       if (!request.inspectStarted) {
+        if (!from.canInspect) {
+          flowMessage='正在等待目标基础容器就绪，尚未开始提取。';
+          return;
+        }
         request.inspectStarted=true;
         if(!signal('softmux:v3-inspect-secondary',{
           sourceKey:request.sourceKey,sourceFile:request.sourceFile,
@@ -343,6 +347,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     if(track.codec!=='subrip' || !track.allowed) {
       pendingAddition=null;
       flowMessage=track.reason||'当前仅支持经过核验的 SubRip 跨容器加入；ASS 与字体需要独立闭包验证。';
+      return;
+    }
+    if(!track.canAdd) {
+      flowMessage='正在等候字幕提取入口就绪；未声称已经加入。';
       return;
     }
     pendingAddition=null;
@@ -461,7 +469,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         appendText(doc,contents,'p','sfv3-observation-note',msg);
         const inspect=appendText(doc,contents,'button','sfv3-inspect-source','读取内封字幕');
         inspect.type='button';
-        inspect.disabled=snapshot.subtitleState==='inspecting';
+        inspect.disabled=snapshot.subtitleState==='inspecting' || !snapshot.canInspect;
         inspect.addEventListener('click',()=>{
           if(!signal('softmux:v3-inspect-secondary',{
             sourceKey:from.key,sourceFile:from.file,
