@@ -161,6 +161,30 @@ try{
   await page.locator('#sfv3ConfirmTarget').click();
   await page.waitForFunction(()=>document.querySelector('#sf14Root')?.dataset.sfv3Surface==='plan');
   await audit('plan');
+  // A true responsive selected-object inspector must use the ONE original
+  // editor as a bottom sheet, not duplicate or discard an input on rotation.
+  for(const [width,height] of [[820,1180],[620,900]]) {
+    await page.setViewportSize({width,height});
+    await page.locator('#compositionTracks button[data-composition-id]').first().click();
+    assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'open');
+    const inspector=page.locator('.sf14-pane.sf14-inspector');
+    assert.equal(await inspector.isVisible(),true,'selected object sheet visible at '+width);
+    const rect=await inspector.boundingBox();
+    assert.ok(rect && rect.x>=-2 && rect.x+rect.width<=width+2 &&
+      rect.y>=0 && rect.y+rect.height<=height+2,
+      'bottom contextual sheet stays in viewport at '+width+': '+JSON.stringify(rect));
+    assert.equal(await page.locator('#newSubtitleList').count(),1,
+      'object inspector must not duplicate actual editor at '+width);
+    assert.equal(await page.locator('#sfv3InspectorScrim').isVisible(),true);
+    await page.screenshot({path:path.join(out,'plan-'+width+'x'+height+'-inspector.png'),
+      fullPage:false});
+    await page.locator('#sfv3InspectorClose').click();
+    assert.equal(await inspector.isVisible(),false,
+      'closing responsive sheet returns to same output document');
+    assert.equal(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
+      'V3 Responsive Fixture.mkv','File identity unchanged after inspector interaction');
+  }
+  report.contextualInspectorTested=true;
   assert.deepEqual(errors,[]);
   report.passed=true;
   console.log('V3 geometry + exact-File continuity PASS, cases='+report.cases.length);
