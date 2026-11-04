@@ -48,6 +48,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # Fail immediately on ESM syntax errors instead of spending runner time
+      # on S03/S10 and then losing downstream browser evidence uploads.
+      - name: Check browser E2E syntax before real fixture execution
+        run: node --check tests/e2e/browser-mux.e2e.mjs
+
       - name: Unit tests
         run: npm test
 
@@ -221,11 +226,6 @@ jobs:
             .e2e/s03-font-inputs/fixture-manifest.json
           if-no-files-found: warn
           retention-days: 14
-
-      # Fail immediately on ESM syntax errors instead of spending runner time
-      # on S03/S10 and then losing downstream browser evidence uploads.
-      - name: Check browser E2E syntax before real fixture execution
-        run: node --check tests/e2e/browser-mux.e2e.mjs
 
       - name: Browser end-to-end mux tests
         run: npm run test:e2e
