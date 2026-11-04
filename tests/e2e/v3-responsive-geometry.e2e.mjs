@@ -114,6 +114,12 @@ async function audit(state){
     assert.equal(m.surface,state,'changing viewport must not silently change the current document');
     assert.equal(m.viewportOverflow,false,'document horizontal scrollbar at '+width+' '+state);
     assert.equal(m.rootOverflow,false,'root exceeds viewport at '+width+' '+state);
+    assert.equal(m.boxes.root?.x,0,
+      'V3 must not inherit the legacy tablet 72px canvas offset at '+width+' '+state);
+    assert.equal(m.boxes.root?.w,width,
+      'V3 must occupy the full responsive viewport at '+width+' '+state);
+    assert.equal(m.boxes.header?.x,0,
+      'V3 header must align to viewport, not legacy offset at '+width+' '+state);
     assert.deepEqual(m.criticalOffscreen,[],
       'important navigation/content is offscreen at '+width+' '+state);
     assert.equal(m.nativeEditorNodes,1,'responsive views must not clone live editor DOM');
