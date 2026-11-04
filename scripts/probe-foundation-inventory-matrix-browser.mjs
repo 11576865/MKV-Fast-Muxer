@@ -241,6 +241,66 @@ try {
       sourceNativeByteParity:true,
     });
   }
+  // Negative controls use byte-corrupted copies of the *same* independent
+  // native MKV, not fake worker responses. Neither the official C/WASM path
+  // nor the legacy inspector may return "inspected" for these inputs.
+  const original=await fs.readFile(path.join(ROOT,
+    'p0-independent-mkvtoolnix.mkv'));
+  const changedDocType=Buffer.from(original);
+  const docTypeAt=changedDocType.indexOf(Buffer.from('matroska'));
+  if(docTypeAt<0||docTypeAt>65536)
+    throw Error('MATRIX_NEGATIVE_DOCTYPE_MARKER_MISSING');
+  changedDocType.write('webm    ',docTypeAt,'ascii');
+  const invalidFilename=Buffer.from(original);
+  const filenameAt=invalidFilename.indexOf(Buffer.from('p0-generic-report.bin'));
+  if(filenameAt<0)
+    throw Error('MATRIX_NEGATIVE_FILENAME_MARKER_MISSING');
+  invalidFilename[filenameAt]=0xff;
+  const badElementId=Buffer.from(original);
+  badElementId[0]=0x00;
+  const negatives=[
+    {id:'wrong-doctype',buffer:changedDocType},
+    {id:'invalid-utf8-filename',buffer:invalidFilename},
+    {id:'truncated-segment',buffer:Buffer.from(original.subarray(0,-17))},
+    {id:'invalid-ebml-id',buffer:badElementId},
+  ];
+  report.negativeControls=[];
+  for(const negative of negatives){
+    await page.locator('#source').setInputFiles({
+      name:negative.id+'.mkv',
+      mimeType:'video/x-matroska',buffer:negative.buffer,
+    });
+    const denied=await page.evaluate(async()=>{
+      const {createMatroskaAttachmentReader}=await import(
+        '/src/matroska-attachment-reader.js');
+      const file=document.querySelector('#source')?.files?.[0];
+      const primary=createMatroskaAttachmentReader(file,{
+        inspectionBackend:'foundation-primary',
+        foundationWorkerFactory:()=>new Worker('/foundation-worker.js'),
+      });
+      const legacy=createMatroskaAttachmentReader(file);
+      const modern=await primary.inspect();
+      const old=await legacy.inspect();
+      if(modern.state!=='unverified'||old.state!=='unverified'||
+         modern.attachments.length!==0||old.attachments.length!==0)
+        throw Error('MATRIX_CORRUPTED_INPUT_NOT_REJECTED_'+
+          modern.state+'_'+old.state);
+      let extracted=false;
+      try{primary.openAttachment('attachment:0:uid:1');extracted=true;}
+      catch(error){
+        if(error.message!=='ATTACHMENT_INSPECTION_REQUIRED')throw error;
+      }
+      if(extracted)throw Error('MATRIX_INVALID_ATTACHMENT_EXTRACTED');
+      return {primary:modern.state,legacy:old.state,
+        primaryCode:modern.diagnostic?.code||'UNKNOWN',
+        legacyCode:old.diagnostic?.code||'UNKNOWN',
+        extractionDenied:true};
+    });
+    report.negativeControls.push({id:negative.id,...denied});
+  }
+  if(await digestFile(path.join(ROOT,
+    'p0-independent-mkvtoolnix.mkv'))!==report.cases[0].sourceSha256)
+    throw Error('MATRIX_NEGATIVE_CONTROL_MODIFIED_SOURCE');
   if(browserErrors.length)
     throw Error('MATRIX_BROWSER_ERRORS_'+browserErrors.join(';'));
   report.browserErrorCount=0;
@@ -259,4 +319,5 @@ try {
 }
 if(report.result!=='FOUNDATION_PRIMARY_INDEPENDENT_MATRIX_PASS'||
    report.cases.length!==CASES.length ||
-   report.totalAttachments!==6)process.exitCode=1;
+   report.totalAttachments!==6 ||
+   report.negativeControls?.length!==4)process.exitCode=1;
