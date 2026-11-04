@@ -676,12 +676,19 @@ function publishV3ResourceRegistry() {
           })) : [],
       subtitleState:current?.state || 'not-inspected',
       subtitleReason:current?.reason || '',
+      canInspect:Boolean([...assetInventory.querySelectorAll(
+        'button[data-secondary-subtitle-inspect]')].find(x=>
+          x.dataset.secondarySubtitleInspect===entry.key && !x.disabled)),
       subtitleTracks:observed.filter(stream=>stream.codec_type==='subtitle').map(stream=>({
         index:stream.index,codec:stream.codec_name,
         title:String(stream.tags?.title||''),
         language:String(stream.tags?.language||'und'),
         allowed:secondarySubripEligibility(stream,importedAssetEntries,entry.file).allowed,
         reason:secondarySubripEligibility(stream,importedAssetEntries,entry.file).reason,
+        canAdd:Boolean([...assetInventory.querySelectorAll(
+          'button[data-secondary-subtitle-add]')].find(x=>
+            x.dataset.secondarySubtitleAdd===entry.key &&
+            Number(x.dataset.streamIndex)===stream.index && !x.disabled)),
       })),
     };
   });
