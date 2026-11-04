@@ -60,7 +60,7 @@ try {
   const files=Object.create(null);
   for(const name of [
     'matroska-attachment-reader','foundation-structure-observation',
-    'foundation-attachment-inventory','foundation-wasm-json-abi',
+    'foundation-attachment-inventory','foundation-attachment-crc32','foundation-wasm-json-abi',
     'source-asset-session','output-composition','container-tree',
     'preservation-preflight','matroska-attachment-relation-graph',
   ]){
