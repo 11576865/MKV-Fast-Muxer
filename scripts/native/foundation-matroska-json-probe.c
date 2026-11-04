@@ -23,11 +23,15 @@
 #include <corec/helpers/parser/parser.h>
 #include <corec/str/str.h>
 
-#define JSON_CAP (1024 * 1024)
+#define INITIAL_JSON_BYTES 4096u
+#define MAX_JSON_BYTES (16u * 1024u * 1024u)
+#define FOUNDATION_ABI_VERSION 1u
 #define NODE_LIMIT 8192
 #define DEPTH_LIMIT 32
-static char output[JSON_CAP];
-static size_t used = 0;
+/* One buffer per *isolated Wasm module instance*, explicitly released by
+ * the JS consumer. No fixed 1 MiB BSS buffer or dangling result on errors. */
+static char *output = NULL;
+static size_t used = 0, capacity = 0;
 static unsigned count = 0;
 static int parse_failed = 0;
 static struct {
@@ -37,15 +41,45 @@ static unsigned parent_count = 0;
 
 void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
 
+/* The ABI is intentionally single-operation-per-Worker. JS must copy the
+ * result string before calling release. Successive calls never reuse stale
+ * output or retain a result on a malformed-input failure. */
+void foundation_release(void) {
+  free(output);
+  output = NULL;
+  used = capacity = 0;
+  count = parent_count = 0;
+  parse_failed = 0;
+}
+unsigned foundation_abi_version(void) { return FOUNDATION_ABI_VERSION; }
+size_t foundation_json_length(void) { return output ? used : 0; }
+
 static void append(const char *value) {
-  size_t size = strlen(value);
-  if (parse_failed || used > JSON_CAP-1 || size > JSON_CAP-1-used) {
+  if (parse_failed) return;
+  const size_t size = strlen(value);
+  if (size > MAX_JSON_BYTES - 1u - used) {
     parse_failed = 1;
     return;
   }
-  memcpy(output+used,value,size);
-  used+=size;
-  output[used]=0;
+  const size_t needed = used + size + 1u;
+  if (needed > capacity) {
+    size_t grown = capacity ? capacity : INITIAL_JSON_BYTES;
+    while (grown < needed) {
+      if (grown > MAX_JSON_BYTES / 2u) { grown = MAX_JSON_BYTES; break; }
+      grown *= 2u;
+    }
+    if (grown < needed || grown > MAX_JSON_BYTES) {
+      parse_failed = 1;
+      return;
+    }
+    char *next = (char*)realloc(output,grown);
+    if (!next) { parse_failed = 1; return; }
+    output = next;
+    capacity = grown;
+  }
+  memcpy(output + used,value,size);
+  used += size;
+  output[used] = 0;
 }
 static void json_string(const char *s) {
   append("\"");
@@ -181,9 +215,10 @@ int foundation_probe(const char *path) {
   ebml_element *root=NULL;
   tchar_t name[MAXPATHFULL];
   int depth=-1,rc=0;
-  used=0;count=0;parent_count=0;parse_failed=0;output[0]=0;
-  append("{\"schema\":\"foundation-matroska-structured-tree-v0\",\"nodes\":[");
+  foundation_release();
   if(!path||!path[0]||strlen(path)>=1024)return 11;
+  append("{\"schema\":\"foundation-matroska-structured-tree-v0\",\"nodes\":[");
+  if(parse_failed){foundation_release();return 16;}
   ParserContext_Init(&ctx,NULL,NULL,NULL);
   if(MATROSKA_Init(&ctx)!=ERR_NONE){rc=12;goto cleanup;}
   Node_FromStr(&ctx,name,TSIZEOF(name),path);
@@ -202,8 +237,8 @@ cleanup:
   if(root)NodeDelete((node*)root);
   if(input)StreamClose(input);
   ParserContext_Done(&ctx);
-  if(rc){used=0;output[0]=0;} // No partial success JSON.
+  if(rc) foundation_release(); // Never expose incomplete JSON.
   return rc;
 }
-const char *foundation_json(void) { return output; }
+const char *foundation_json(void) { return output ? output : ""; }
 int main(void){return 0;}
