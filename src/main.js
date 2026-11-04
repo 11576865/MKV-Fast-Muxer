@@ -652,6 +652,10 @@ const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
 const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
 const v3TargetAuthority = createV3TargetAuthority();
+const v3MayEditOutput = () => !v3Pilot || Boolean(
+  currentV3Target() &&
+  document.getElementById('sf14Root')?.dataset.sfv3Surface === 'plan'
+);
 const currentV3Target = () => v3TargetAuthority.current({
   entries:importedAssetEntries,activeFile:videoInput.files?.[0] || null,
 });
@@ -1815,7 +1819,7 @@ function updateUI() {
   if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
   // V3's visible source list is not authorization to execute. Even a hidden
   // legacy button remains blocked until an exact File-bound target is chosen.
-  if(v3Pilot && !currentV3Target())muxBtn.disabled=true;
+  if(v3Pilot && !v3MayEditOutput())muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -3735,7 +3739,7 @@ assetInspectorHost?.addEventListener('toggle', (event) => {
 }, true);
 
 function editSourceFromInventory(event) {
-  if (!trackState || isBusy() || batchRunning) return;
+  if (!v3MayEditOutput() || !trackState || isBusy() || batchRunning) return;
   const element = event.target;
   const trackIndex = element.dataset.treeTrackIndex ?? element.dataset.treeTrackInclude;
   const attachmentIndex = element.dataset.treeAttachmentIndex ?? element.dataset.treeAttachmentInclude;
@@ -3796,6 +3800,7 @@ for (const target of [assetInventory, assetInspectorHost]) {
   target?.addEventListener('change', (event) => {
     if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) return;
     if (event.target.matches('[data-tree-preserve-all]')) {
+      if (!v3MayEditOutput()) return;
       appendPreserveAll.checked = event.target.checked;
       appendPreserveAll.dispatchEvent(new Event('change', { bubbles: true }));
       return;
@@ -3810,7 +3815,8 @@ assetInventory?.addEventListener('click', async event => {
   const inspect=event.target.closest('button[data-embedded-inspect]');
   const add=event.target.closest('button[data-embedded-add]');
   const button=inspect||add;
-  if (!button || isBusy() || batchRunning || batchStartPending || importInProgress) return;
+  if (!button || isBusy() || batchRunning || batchStartPending || importInProgress ||
+      (add && !v3MayEditOutput())) return;
   const sourceKey=inspect?.dataset.embeddedInspect||add?.dataset.embeddedAdd;
   if (embeddedSourceBusy.has(sourceKey)) return;
   const source=importedAssetEntries.find(x=>x.kind==='container'&&x.key===sourceKey);
@@ -3860,7 +3866,8 @@ assetInventory?.addEventListener('click', async event => {
 assetInventory?.addEventListener('click', async event => {
   const inspect=event.target.closest('button[data-secondary-subtitle-inspect]');
   const add=event.target.closest('button[data-secondary-subtitle-add]');
-  if ((!inspect&&!add)||isBusy()||batchRunning||batchStartPending||importInProgress) return;
+  if ((!inspect&&!add)||isBusy()||batchRunning||batchStartPending||importInProgress ||
+      (add&&!v3MayEditOutput())) return;
   const key=inspect?.dataset.secondarySubtitleInspect||add?.dataset.secondarySubtitleAdd;
   if(secondarySubtitleBusy.has(key))return;
   const source=importedAssetEntries.find(e=>e.kind==='container'&&e.key===key);
@@ -3970,7 +3977,7 @@ assetInventory?.addEventListener('click', async event => {
 
 assetInventory?.addEventListener('click',event=>{
   const button=event.target.closest('[data-asset-as-attachment]');
-  if(!button||isBusy()||batchRunning||batchStartPending||importInProgress)return;
+  if(!button||isBusy()||batchRunning||batchStartPending||importInProgress||!v3MayEditOutput())return;
   const index=importedAssetEntries.findIndex(entry=>entry.key===button.dataset.assetAsAttachment);
   if(index<0)return;
   try{importedAssetEntries[index]=assignOpaqueAttachmentRole(importedAssetEntries[index]);applyImportedAssetRoles();}
@@ -3981,6 +3988,10 @@ assetInventory?.addEventListener('click',event=>{
 // and source adapter can validate/commit it. No synthetic File permission.
 // V3 document tabs open exact imported Files for observation only. It is
 // deliberately separate from confirming a target; the writer gate stays shut.
+document.addEventListener('softmux:v3-surface-changed', () => {
+  if(!v3Pilot)return;
+  updateUI();
+});
 document.addEventListener('softmux:v3-open-source', event => {
   if(!v3Pilot || isBusy() || batchRunning || importInProgress ||
       currentV3Target())return;
@@ -4036,7 +4047,7 @@ document.addEventListener('softmux:v3-inspect-secondary', event=>{
   button.click();
 });
 document.addEventListener('softmux:v3-add-secondary', event=>{
-  if (!v3Pilot || !currentV3Target() || isBusy() || batchRunning || importInProgress) return;
+  if (!v3Pilot || !v3MayEditOutput() || isBusy() || batchRunning || importInProgress) return;
   const {sourceKey,sourceFile,streamIndex}=event.detail||{};
   if(!Number.isSafeInteger(streamIndex))return;
   const entry=importedAssetEntries.find(e=>e.kind==='container' &&
@@ -4056,7 +4067,7 @@ document.addEventListener('softmux:v3-add-secondary', event=>{
 assetInventory?.addEventListener('change', (event) => {
   const generic=event.target.closest('[data-generic-include]');
   if(generic) {
-    if(isBusy()||batchRunning||importInProgress)return;
+    if(isBusy()||batchRunning||importInProgress||!v3MayEditOutput())return;
     const entry=importedAssetEntries.find(item=>item.key===generic.dataset.genericInclude&&item.kind==='attachment');
     if(!entry)return;
     entry.include=generic.checked;updateUI();
@@ -4066,7 +4077,7 @@ assetInventory?.addEventListener('change', (event) => {
   }
   const member = event.target.closest('[data-asset-include]');
   if(member) {
-    if(isBusy() || batchRunning || importInProgress)return;
+    if(isBusy() || batchRunning || importInProgress || !v3MayEditOutput())return;
     const entry=importedAssetEntries.find(item=>item.key===member.dataset.assetInclude);
     const rows=entry?.kind==='subtitle'?newSubtitleState:entry?.kind==='audio'?externalAudioState:[];
     const index=rows.findIndex(row=>row.file===entry?.file);
@@ -4095,7 +4106,7 @@ assetInventory?.addEventListener('change', (event) => {
 function handleInspectorTrackMove(event) {
   const moveButton = event.target.closest('button[data-tree-track-move]');
   if (!moveButton) return false;
-  if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return true;
+  if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked || !v3MayEditOutput()) return true;
   const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
   if (!track || !track.include) return true;
   if (!moveTrack(track, Number(moveButton.dataset.treeTrackMove))) return true;
@@ -4442,7 +4453,7 @@ clearAllDefaults?.addEventListener('click', () => {
 });
 
 function setTrackInclusion(type, include) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes = trackState.tracks
     .filter(track => track.type === type)
     .map(track => ({ index: track.index, field: 'include', value: include }));
@@ -4452,7 +4463,7 @@ function setTrackInclusion(type, include) {
 }
 
 function restoreTrackMetadata(type) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const targets = trackState.tracks.filter(track => track.type === type);
   const changes = targets.flatMap(track => [
     { index: track.index, field: 'language', value: track.originalLanguage },
@@ -4476,7 +4487,7 @@ resetAudioMetadata?.addEventListener('click', () => restoreTrackMetadata('audio'
 resetSubtitleMetadata?.addEventListener('click', () => restoreTrackMetadata('subtitle'));
 
 function setAttachmentInclusion(include) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes=trackState.attachments.map(item=>({
     index:item.index,field:'include',value:include,
   }));
@@ -4490,7 +4501,7 @@ function setAttachmentInclusion(include) {
 keepAllAttachments?.addEventListener('click', () => setAttachmentInclusion(true));
 dropAllAttachments?.addEventListener('click', () => setAttachmentInclusion(false));
 resetAttachmentMetadata?.addEventListener('click', () => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes=trackState.attachments.flatMap(item=>[
     {index:item.index,field:'filename',value:item.originalFilename},
     {index:item.index,field:'mimetype',value:item.originalMimetype},
@@ -5927,7 +5938,7 @@ function renderAttachmentList() {
 }
 
 attachmentList.addEventListener('input', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const input = event.target.closest('input[data-attachment-field]');
   if (!input) return;
   const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
@@ -5938,7 +5949,7 @@ attachmentList.addEventListener('input', (event) => {
 });
 
 attachmentList.addEventListener('change', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const includeInput = event.target.closest('input[data-attachment-action="include"]');
   const fieldInput = event.target.closest('input[data-attachment-field]');
   const target = includeInput || fieldInput;
@@ -5969,7 +5980,7 @@ function escapeHtml(value) {
 }
 
 trackList.addEventListener('change', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const actionInput = event.target.closest('input[data-track-action]');
   const fieldInput = event.target.closest('input[data-track-field]');
   const target = actionInput || fieldInput;
@@ -6000,7 +6011,7 @@ trackList.addEventListener('change', (event) => {
 });
 
 trackList.addEventListener('input', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const input = event.target.closest('input[data-track-field]');
   if (!input) return;
   const track = trackState.tracks.find((item) => item.index === Number(input.dataset.trackIndex));
@@ -6011,6 +6022,7 @@ trackList.addEventListener('input', (event) => {
 });
 
 trackList.addEventListener('click', (event) => {
+  if(!v3MayEditOutput()) return;
   const button = event.target.closest('button[data-track-move]');
   if (!button || !trackState) return;
   const track = trackState.tracks.find((item) => item.index === Number(button.dataset.trackIndex));
@@ -6346,7 +6358,7 @@ async function executeCurrentMuxTask(explicit = null) {
   // The batch owns the shared FFmpeg instance across all prepare/mux/save
   // phases. A synthetic single-task click must not start between jobs.
   if (isBusy() || (batchRunning && !independent)) return;
-  if (v3Pilot && !independent && !currentV3Target()) {
+  if (v3Pilot && !independent && !v3MayEditOutput()) {
     status.textContent='请先明确选择目标容器；来源观察不能授权封装。';
     return;
   }
