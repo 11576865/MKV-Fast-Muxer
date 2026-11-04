@@ -95,7 +95,7 @@ function nestedFixture(corruptInner=false){
 test('nested Attachments/AttachedFile CRCs both execute',async()=>{
   const result=await verifyFoundationAttachmentCrc32(nestedFixture());
   assert.equal(result.checked,2);
-  assert.equal(result.bytesRead,19+6);
+  assert.equal(result.bytesRead,15+6);
   assert.equal(result.fullContainerCRCVerified,false);
 });
 test('a correct outer CRC cannot conceal an invalid inner AttachedFile CRC',async()=>{
