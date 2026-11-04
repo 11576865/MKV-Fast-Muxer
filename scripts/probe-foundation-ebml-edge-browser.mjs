@@ -181,7 +181,8 @@ try{
           throw Error('EDGE_OFFICIAL_LIBRARY_NOT_PRIMARY');
       }else{
         if(modern.state!=='unverified'||modern.attachments.length!==0)
-          throw Error('EDGE_CORRUPT_CRC_WAS_TRUSTED');
+          throw Error('EDGE_REJECT_REQUIRED_INPUT_WAS_ACCEPTED_'+
+            modern.state);
         let extracted=false;
         try{newer.openAttachment('attachment:0:uid:1');extracted=true;}
         catch(error){
