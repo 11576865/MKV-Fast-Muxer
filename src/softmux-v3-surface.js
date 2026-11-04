@@ -163,6 +163,24 @@ export function mountSoftmuxV3Surface(doc = document) {
   primary.hidden = true;
   readout.prepend(heading);
   readout.append(empty, contents, primary);
+  // The output heading is a VIEW of the one committed target authority.
+  // It neither stores a second plan nor duplicates a mutating mux button.
+  const planHeading=doc.createElement('header');
+  planHeading.id='sfv3PlanHeading';
+  planHeading.className='sfv3-plan-heading';
+  planHeading.hidden=true;
+  const planTitleRow=doc.createElement('div');
+  planTitleRow.className='sfv3-plan-title-row';
+  const planName=appendText(doc,planTitleRow,'h1','sfv3-plan-name','');
+  planName.id='sfv3PlanName';
+  appendText(doc,planTitleRow,'span','sfv3-plan-state-tag','拟输出');
+  const planBack=appendText(doc,planTitleRow,'button','sfv3-plan-return','查看来源');
+  planBack.type='button';
+  planBack.title='返回只读来源，不取消已确认的目标';
+  const planFacts=appendText(doc,planHeading,'p','sfv3-plan-facts','');
+  planFacts.id='sfv3PlanFacts';
+  planHeading.prepend(planTitleRow);
+  compositionHost.prepend(planHeading);
   compositionHost.prepend(readout);
 
   const bottom = doc.createElement('footer');
@@ -228,6 +246,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     root.dataset.sfv3TargetConfirmed = String(Boolean(targetIntent));
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',mode === 'plan');
+    planHeading.hidden=mode!=='plan';
     return true;
   };
   const syncTabs = () => {
@@ -457,6 +476,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   targetTab.addEventListener('click',()=>{
     setSurface('plan');schedule();
   });
+  planBack.addEventListener('click',()=>{
+    setSurface('source');schedule();
+  });
   primary.textContent='创建拟输出';
   primary.addEventListener('click',()=>openTargetPicker(null));
 
@@ -550,6 +572,22 @@ export function mountSoftmuxV3Surface(doc = document) {
       root.dataset.sfv3TargetConfirmed='false';
       root.dataset.sfv3Surface='source';
       flowMessage='目标文件身份已改变，先前的拟输出授权失效。';
+    }
+    planHeading.hidden=root.dataset.sfv3Surface!=='plan' || !targetIntent;
+    if(targetIntent) {
+      planName.textContent='拟输出 · '+targetIntent.baseFile.name;
+      const currentCount=find(doc,'compositionCount')?.textContent?.trim() || '';
+      const changes=find(doc,'compositionChanges');
+      const delta=changes && !changes.hidden ? changes.textContent.trim() : '';
+      planFacts.textContent=[
+        targetIntent.baseFile.name+' 为基础',
+        currentCount,
+        delta,
+        find(doc,'muxBtn')?.disabled ? '尚未满足执行条件' : '可以执行封装',
+      ].filter(Boolean).join('  ·  ');
+    }else {
+      planName.textContent='';
+      planFacts.textContent='';
     }
     syncTabs();
     runPendingAddition();
