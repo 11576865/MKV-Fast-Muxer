@@ -81,9 +81,20 @@ jobs:
             --attachment-description "nested-chapter-xml" \
             --attachment-mime-type application/xml \
             --attach-file .e2e/fixtures/p0-independent-chapters.xml
+          # Separate audio-only source, not derived from the P0 video:
+          # verifies that inventory inspection does not assume video Tracks.
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "sine=frequency=660:sample_rate=48000:duration=1" \
+            -c:a pcm_s16le .e2e/fixtures/foundation-audio.wav
+          mkvmerge --quiet -o .e2e/fixtures/foundation-audio-only.mkv \
+            --attachment-name "录音说明.txt" \
+            --attachment-description "audio-only-track-source" \
+            --attachment-mime-type text/plain \
+            --attach-file .e2e/fixtures/notes.txt \
+            .e2e/fixtures/foundation-audio.wav
           for case in p0-independent-mkvtoolnix p0-independent-tracktag \
                       p0-independent-attachmenttag foundation-no-attachments \
-                      foundation-three-attachments; do
+                      foundation-three-attachments foundation-audio-only; do
             mkvmerge -J ".e2e/fixtures/$case.mkv" > ".e2e/output/foundation-matrix-$case.json"
           done
           node --input-type=module <<'NODE'
@@ -94,6 +105,7 @@ jobs:
             'p0-independent-attachmenttag':2,
             'foundation-no-attachments':0,
             'foundation-three-attachments':3,
+            'foundation-audio-only':1,
           };
           for(const [name,count] of Object.entries(checks)){
             const doc=JSON.parse(await fs.readFile(
