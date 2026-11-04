@@ -70,7 +70,7 @@ try {
   // succeed through a standalone observer-only demonstration.
   for(const name of [
     'matroska-attachment-reader','foundation-structure-observation',
-    'foundation-wasm-json-abi','foundation-attachment-inventory',
+    'foundation-wasm-json-abi','foundation-attachment-inventory','foundation-attachment-crc32',
     'source-asset-session','output-composition','container-tree',
     'preservation-preflight','matroska-attachment-relation-graph',
   ]){
