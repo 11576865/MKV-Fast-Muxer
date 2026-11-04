@@ -57,7 +57,9 @@ static int supported_cluster_child_id(uint32_t id) {
     case 0xafu:    /* deprecated EncryptedBlock */
     case 0x5854u:  /* deprecated SilentTracks */
     case 0xbfu:    /* CRC-32 */
-    case 0xecu:    /* Void */
+      // Deliberately reject Void 0xEC here. Although legal inside Cluster,
+      // it can also be a following top-level Segment child and is therefore
+      // ambiguous when an unknown-sized Cluster is bounded by parent EOF.
       return 1;
     default: return 0;
   }
