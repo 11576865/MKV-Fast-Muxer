@@ -61,10 +61,12 @@ try {
      img.naturalHeight>0 && !img.src.includes('figma.com/api/mcp/asset/'));
  },null,{timeout:25000});
  const iconSlots=await page.locator('#sf14Root img.sfv3-svg-icon').evaluateAll(nodes=>
-   nodes.map(node=>({url:node.src,natural:[node.naturalWidth,node.naturalHeight],
-     box:[Math.round(node.getBoundingClientRect().width),Math.round(node.getBoundingClientRect().height)]})));
- assert.ok(iconSlots.length>=9);
- assert.ok(iconSlots.every(icon=>icon.box[0]>0&&icon.box[1]>0));
+   nodes.filter(node=>node.getClientRects().length>0)
+     .map(node=>({url:node.src,natural:[node.naturalWidth,node.naturalHeight],
+       box:[Math.round(node.getBoundingClientRect().width),Math.round(node.getBoundingClientRect().height)]})));
+ assert.ok(iconSlots.length>=9,'visible source view needs at least nine real SVG affordances');
+ assert.ok(iconSlots.every(icon=>icon.box[0]>0&&icon.box[1]>0),
+   'only visible icon slots must occupy nonzero layout geometry');
  evidence.checks.push('all visible Figma-exported SVG icon slots resolve from local build assets');
  await page.screenshot({path:path.join(output,'1440-loaded-source.png'),fullPage:false});
  evidence.views.push('1440-loaded-source.png');
