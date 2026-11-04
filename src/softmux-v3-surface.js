@@ -192,19 +192,38 @@ export function mountSoftmuxV3Surface(doc = document) {
   scrim.hidden=true;
   scrim.setAttribute('aria-label','关闭对象检查器');
   single.appendChild(scrim);
-  const closeInspector=()=>{
+  // Contextual inspectors are non-modal regions. Move keyboard focus into
+  // visible controls and return it to the initiating real composition row
+  // (not an unrelated tab) when the user explicitly dismisses the panel.
+  let inspectorReturnElement=null;
+  let inspectorReturnCompositionId='';
+  const closeInspector=(restoreFocus=false)=>{
     root.dataset.sfv3Inspector='closed';
     scrim.hidden=true;
     const trigger=find(doc,'sfv3InspectorOpen');
     if(trigger)trigger.setAttribute('aria-expanded','false');
+    if(restoreFocus) {
+      const liveRow=inspectorReturnCompositionId
+        ? [...currentTracks.querySelectorAll('button[data-composition-id]')]
+            .find(node=>node.dataset.compositionId===inspectorReturnCompositionId)
+        : null;
+      const returnTo=inspectorReturnElement?.isConnected
+        ? inspectorReturnElement : liveRow || trigger;
+      returnTo?.focus();
+    }
+    inspectorReturnElement=null;
+    inspectorReturnCompositionId='';
   };
-  const openInspector=()=>{
+  const openInspector=(origin=null)=>{
     if(root.dataset.sfv3Surface!=='plan' || !inspectorPane) return;
+    inspectorReturnElement=origin||find(doc,'sfv3InspectorOpen');
+    inspectorReturnCompositionId=origin?.dataset?.compositionId||'';
     root.dataset.sfv3Inspector='open';
     scrim.hidden=false;
     showRelevantEvidence();
     const trigger=find(doc,'sfv3InspectorOpen');
     if(trigger)trigger.setAttribute('aria-expanded','true');
+    contextDismiss.focus();
   };
   const realOutputDock=root.querySelector('.sf14-output');
   const inspectorOpenButton=doc.createElement('button');
@@ -216,25 +235,22 @@ export function mountSoftmuxV3Surface(doc = document) {
   inspectorOpenButton.setAttribute('aria-controls','sf14Inspector');
   inspectorOpenButton.setAttribute('aria-expanded','false');
   realOutputDock?.appendChild(inspectorOpenButton);
-  inspectorOpenButton.addEventListener('click',openInspector);
+  inspectorOpenButton.addEventListener('click',()=>openInspector(inspectorOpenButton));
   const syncInspectorButton=()=>{
     inspectorOpenButton.setAttribute('aria-expanded',
       String(root.dataset.sfv3Inspector==='open'));
   };
-  contextDismiss.addEventListener('click',()=>{
-    closeInspector();syncInspectorButton();inspectorOpenButton.focus();
-  });
-  scrim.addEventListener('click',()=>{
-    closeInspector();syncInspectorButton();inspectorOpenButton.focus();
-  });
+  contextDismiss.addEventListener('click',()=>closeInspector(true));
+  scrim.addEventListener('click',()=>closeInspector(true));
   currentTracks.addEventListener('click',event=>{
-    if(event.target.closest('button[data-composition-id]'))openInspector();
+    const selected=event.target.closest('button[data-composition-id]');
+    if(selected)openInspector(selected);
   });
   root.addEventListener('keydown',event=>{
     if(event.key!=='Escape' || root.dataset.sfv3Inspector!=='open' ||
        root.querySelector('dialog[open]'))return;
-    closeInspector();
-    find(doc,'sfv3TargetTab')?.focus();
+    event.preventDefault();
+    closeInspector(true);
   });
 
   const header = root.querySelector('.sf14-header');
@@ -766,6 +782,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         restoreNativeExtraction();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
         updateSourceSheet();
+        sourceSheetClose.focus();
       });
       if (item.transfer) {
         const button=appendText(doc,row,'button','sfv3-row-action','加入到…');

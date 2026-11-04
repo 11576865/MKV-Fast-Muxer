@@ -1130,3 +1130,31 @@
     gap:8px;padding:10px;
   }
 }
+
+
+/* WU-06: 44px minimum tap affordances for both existing contextual
+ * inspector surfaces and explicit target choice. This does not assert
+ * physical-device hit-target acceptance. */
+.sf14.sfv3 .sfv3-row-select,
+.sf14.sfv3 .sfv3-source-sheet-close,
+.sf14.sfv3 .sfv3-source-sheet-add,
+.sf14.sfv3 .sfv3-source-sheet-preview,
+.sf14.sfv3 .sfv3-source-sheet-extract,
+.sf14.sfv3 .sfv3-inspector-close,
+.sf14.sfv3 .sfv3-picker-cancel,
+.sf14.sfv3 .sfv3-picker-confirm{
+  min-height:44px;
+}
+.sf14.sfv3 .sfv3-source-sheet-close,
+.sf14.sfv3 .sfv3-inspector-close{
+  min-width:44px;
+}
+.sf14.sfv3 .sfv3-source-sheet :is(button, a):focus-visible,
+.sf14.sfv3 .sf14-pane.sf14-inspector button:focus-visible{
+  outline:2px solid var(--sfv3-accent);
+  outline-offset:2px;
+}
+.sf14.sfv3 .sfv3-source-sheet-actions{
+  flex-wrap:wrap;
+  align-items:center;
+}

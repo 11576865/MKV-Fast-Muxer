@@ -38,7 +38,7 @@ const browser=await chromium.launch({
 });
 const page=await browser.newPage({
   viewport:{width:1440,height:900},deviceScaleFactor:1,
-  reducedMotion:'reduce',acceptDownloads:true,
+  reducedMotion:'reduce',acceptDownloads:true,hasTouch:true,
 });
 page.setDefaultTimeout(45000);
 const errors=[];
@@ -174,8 +174,10 @@ try{
   await audit('source');
   await page.setViewportSize({width:820,height:1180});
   const sourceSelection=page.locator('#sfv3SourceContents .sfv3-row-select').first();
-  await sourceSelection.click();
+  await sourceSelection.tap();
   const sourceSheet=page.locator('#sfv3SourceInspector');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),
+    'sfv3SourceInspectorClose','source touch selection moves focus to the contextual close control');
   assert.equal(await sourceSheet.isVisible(),true,
     'actual source object selection should open an inspector without an output plan');
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
@@ -186,6 +188,10 @@ try{
   assert.ok(sourceRect && sourceRect.x>=-2 && sourceRect.x+sourceRect.width<=822 &&
     sourceRect.y>=0 && sourceRect.y+sourceRect.height<=1182,
     '820px source sheet remains within the viewport');
+  const closeHit=await page.locator('#sfv3SourceInspectorClose').boundingBox();
+  const selectHit=await sourceSelection.boundingBox();
+  assert.ok(closeHit?.width>=44 && closeHit.height>=44 &&
+    selectHit?.height>=44, 'source selection and contextual close meet 44px simulated hit minimum');
   await page.setViewportSize({width:620,height:900});
   sourceRect=await sourceSheet.boundingBox();
   assert.ok(sourceRect && sourceRect.x>=-2 && sourceRect.x+sourceRect.width<=622 &&
@@ -196,7 +202,19 @@ try{
   await page.keyboard.press('Escape');
   assert.equal(await sourceSheet.isVisible(),false,'Escape closes source context');
   assert.equal(await sourceSelection.getAttribute('aria-expanded'),'false');
+  assert.equal(await sourceSelection.evaluate(node=>document.activeElement===node),true,
+    'Escape restores source keyboard focus to the original observed row');
+  await sourceSelection.tap();
+  assert.equal(await sourceSheet.isVisible(),true,
+    'real touchscreen emulation reopens the single source inspector');
+  await page.locator('#sfv3SourceInspectorClose').tap();
+  assert.equal(await sourceSheet.isVisible(),false);
+  assert.equal(await sourceSelection.evaluate(node=>document.activeElement===node),true,
+    'touch close restores focus to the original observed row');
+  assert.equal(await page.locator('#sfv3SourceInspector').count(),1,
+    'touch interactions never clone source inspectors');
   report.sourceObjectInspectorTested=true;
+  report.touchSourceAndKeyboardTested=true;
   await page.setViewportSize({width:1440,height:900});
   await page.locator('#sfv3EnterOutput').click();
   await page.locator('#sfv3ConfirmTarget').click();
@@ -218,8 +236,12 @@ try{
   for(const [width,height] of [[820,1180],[620,900]]) {
     await page.setViewportSize({width,height});
     await page.emulateMedia({reducedMotion:width===620?'reduce':'no-preference'});
-    await page.locator('#compositionTracks button[data-composition-id]').first().click();
+    const selection=page.locator('#compositionTracks button[data-composition-id]').first();
+    const selectionId=await selection.getAttribute('data-composition-id');
+    await selection.tap();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'open');
+    assert.equal(await page.evaluate(()=>document.activeElement?.id),'sfv3InspectorClose',
+      'touch selection enters the actual composition inspector at '+width);
     const inspector=page.locator('.sf14-pane.sf14-inspector');
     assert.equal(await inspector.isVisible(),true,'selected object sheet visible at '+width);
     const rect=await inspector.boundingBox();
@@ -253,9 +275,11 @@ try{
     await inspector.evaluate(node=>Promise.all(node.getAnimations().map(animation=>animation.finished)));
     await page.screenshot({path:path.join(out,'plan-'+width+'x'+height+'-inspector.png'),
       fullPage:false});
-    await page.locator('#sfv3InspectorClose').click();
+    await page.locator('#sfv3InspectorClose').tap();
     assert.equal(await inspector.isVisible(),false,
       'closing responsive sheet returns to same output document');
+    assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.compositionId),
+      selectionId,'closing target sheet restores the exact real composition row at '+width);
     assert.equal(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
       'V3 Responsive Fixture.mkv','File identity unchanged after inspector interaction');
   }
@@ -268,6 +292,14 @@ try{
   assert.equal(await page.locator('#workspaceUndoBtn').count(),1,
     'undo must retain one original control and event authority');
   await page.locator('#sfv3InspectorClose').click();
+  // The footer entry point remains a distinct focus origin: Escape should
+  // return to it, not to a target tab or an unrelated first composition row.
+  await page.locator('#sfv3InspectorOpen').tap();
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'sfv3InspectorClose');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'closed');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'sfv3InspectorOpen');
+  report.touchTargetAndKeyboardTested=true;
   report.contextualInspectorTested=true;
   assert.deepEqual(errors,[]);
   report.passed=true;

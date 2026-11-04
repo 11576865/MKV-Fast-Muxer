@@ -154,3 +154,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Readable Figma-style provenance | V3-04 `32:2` desktop and V3-06 `35:2` portrait source-derived ASS subtitle row | Inline `sfv3-target-ass-font-note` with actual source filename and matched dependent font count, green style only in authorized target. No extra editor/button, no verification claim |
 | Regression proof | Actual Chromium A ASS+embedded font → explicit B + native mux scenario | Assert visible bound row, source+font facts, singleton real composition control, 820/620 bounds, and no highlighted row after missing-font refusal; exact-head Browser E2E pending |
 | Prior failure | Browser E2E `567837b8` test literal drift | Change obsolete “待封装与成品审计” assertion to the actual “尚未执行最终封装及成品审计” phrasing; complete native-output CI must rerun |
+
+
+## WU-06 contextual focus/portable tap targets (2026-11-04)
+
+| Requirement | Owner and action | Evidence / boundary |
+| --- | --- | --- |
+| Source selected → source inspector | Exact observed `File` source registry and single `#sfv3SourceInspectorClose` | Open focuses native Close; Close/Escape returns to real source `.sfv3-row-select` button; no new editor |
+| Composition selected → real inspector | Existing actual `button[data-composition-id]` and one `.sf14-inspector` | Record invoked row ID, focus original Close, return to current row with same ID after rerender; independent dock entry returns to dock on Escape |
+| Touch hit geometry | V3 CSS only; source and target Close, picker, preview, extract and add | 44px minimum, with V3 scoped visible focus outlines; not a physical-device result |
+| Regression | `tests/e2e/v3-responsive-geometry.e2e.mjs`, `hasTouch:true`, true Chromium `tap()` + Escape | 820/620 bounds, exactly one editor and source inspector, actual source `File` continuity, precise activeElement return; exact-head pending |

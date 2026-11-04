@@ -162,3 +162,18 @@ test('V3 target transfer highlighting is bound to exact derived File, not subtit
   assert.match(css,/composition-row\[data-sfv3-ass-font="bound"\]/);
   assert.match(css,/@media\(max-width:959px\)/);
 });
+
+
+test('V3 source/target inspectors focus their close and restore exact invoking object',async()=>{
+  const view=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(view,/inspectorReturnCompositionId=origin\?\.dataset\?\.compositionId\|\|''/);
+  assert.match(view,/node\.dataset\.compositionId===inspectorReturnCompositionId/);
+  assert.match(view,/contextDismiss\.focus\(\)/);
+  assert.match(view,/sourceSheetClose\.focus\(\)/);
+  assert.match(view,/sourceSheetClose\.addEventListener\('click',\(\)=>closeSourceSheet\(true\)\)/);
+  assert.match(view,/closeInspector\(true\)/);
+  assert.match(view,/event\.key!=='Escape'/);
+  assert.match(css,/\.sfv3-source-sheet-close,/);
+  assert.match(css,/min-height:44px/);
+});
