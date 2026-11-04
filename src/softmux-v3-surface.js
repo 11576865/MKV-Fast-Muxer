@@ -238,6 +238,46 @@ export function mountSoftmuxV3Surface(doc = document) {
     root.dispatchEvent(event);
     return event.defaultPrevented;
   };
+  // The visible source remains observation-only, including after a target
+  // exists elsewhere. DOM affordances AND the canonical handlers fail closed.
+  // Import/remove/select/inspect still work; only output edits are locked.
+  const mutatorSelectors = [
+    '[data-tree-track-field]', '[data-tree-attachment-field]',
+    '[data-tree-track-include]', '[data-tree-track-flag]',
+    '[data-tree-attachment-include]', '[data-tree-track-move]',
+    '[data-tree-preserve-all]', '[data-generic-include]',
+    '[data-asset-include]', '[data-asset-as-attachment]',
+    '[data-embedded-add]', '[data-secondary-subtitle-add]',
+    '[data-track-action]', '[data-track-field]', '[data-track-move]',
+    '[data-attachment-action]', '[data-attachment-field]',
+    '[data-new-sub-field]', '[data-new-audio-field]',
+    '#appendPreserveAll', '#preserveAttachments', '#fontMode',
+    '#muxBtn', '#compositionMuxBtn', '#editorMuxBtn',
+  ].join(', ');
+  const originalDisableState = new WeakMap();
+  const setReadOnlyAffordances = () => {
+    const readOnly = root.dataset.sfv3Surface === 'source';
+    for(const control of root.querySelectorAll(mutatorSelectors)) {
+      if (!('disabled' in control))continue;
+      if(readOnly) {
+        if(!originalDisableState.has(control))
+          originalDisableState.set(control,control.disabled);
+        control.disabled=true;
+        control.dataset.sfv3SourceReadonly='true';
+      }else if(originalDisableState.has(control)) {
+        control.disabled=originalDisableState.get(control);
+        originalDisableState.delete(control);
+        delete control.dataset.sfv3SourceReadonly;
+      }
+    }
+  };
+  for(const kind of ['click','change','input'])root.addEventListener(kind,event=>{
+    if(root.dataset.sfv3Surface!=='source')return;
+    const attempted=event.target?.closest?.(mutatorSelectors);
+    if(!attempted)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  },true);
   const setSurface = mode => {
     if (mode === 'plan' && (!targetIntent ||
       targetIntent.baseFile !== sourceInput.files?.[0])) return false;
@@ -247,6 +287,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',mode === 'plan');
     planHeading.hidden=mode!=='plan';
+    setReadOnlyAffordances();
+    const EventCtor=doc.defaultView?.CustomEvent;
+    if(EventCtor)root.dispatchEvent(new EventCtor('softmux:v3-surface-changed',{
+      bubbles:true,detail:{surface:mode},
+    }));
     return true;
   };
   const syncTabs = () => {
@@ -441,7 +486,9 @@ export function mountSoftmuxV3Surface(doc = document) {
         inspectStarted:false,
       };
       viewedSourceKey=track.sourceKey;
-      setSurface('source');
+      // After a confirmed Add-to intent, route subsequent native extraction
+      // through the target editor scope. Source view itself stays read-only.
+      setSurface('plan');
       flowMessage='目标已确认；准备从来源提取所选字幕。';
     }else {
       setSurface('plan');
@@ -590,6 +637,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       planFacts.textContent='';
     }
     syncTabs();
+    setReadOnlyAffordances();
     runPendingAddition();
     bottom.textContent=flowMessage || (!file?'尚未加载资源':
       !mainScanned && mainSource?'正在等待来源扫描':
