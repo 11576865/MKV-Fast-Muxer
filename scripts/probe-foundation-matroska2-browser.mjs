@@ -64,6 +64,19 @@ try {
     '/':{data:Buffer.from('<!doctype html><meta charset="utf-8"><title>Foundation WASM read audit</title><input id="source" type="file">'),
       type:'text/html; charset=utf-8'},
   };
+  // Serve the actual existing product reader with its normal module
+  // imports; the browser test must cross the integration seam rather than
+  // succeed through a standalone observer-only demonstration.
+  for(const name of [
+    'matroska-attachment-reader','foundation-structure-observation',
+    'source-asset-session','output-composition','container-tree',
+    'preservation-preflight','matroska-attachment-relation-graph',
+  ]){
+    serve['/src/'+name+'.js']={
+      data:await fs.readFile('src/'+name+'.js'),
+      type:'text/javascript',
+    };
+  }
   server=createServer((req,res)=>{
     const row=serve[req.url||''];
     if(!row){res.writeHead(404);res.end();return;}
@@ -213,6 +226,36 @@ try {
     throw Error('PRODUCT_ADAPTER_CLAIM_OR_SOURCE_IDENTITY_INVALID');
   report.productAdapterInvokedInChromium=true;
   report.productAdapterConsistentWithNative=true;
+  const existingReader=await page.evaluate(async()=>{
+    const {createMatroskaAttachmentReader}=await import(
+      '/src/matroska-attachment-reader.js');
+    const file=document.querySelector('#source')?.files?.[0];
+    if(!file)throw Error('EXISTING_READER_INPUT_MISSING');
+    const reader=createMatroskaAttachmentReader(file,{
+      foundationWorkerFactory:()=>new Worker('/foundation-worker.js'),
+    });
+    const inventory=await reader.inspect();
+    if(inventory.state!=='inspected')
+      throw Error('EXISTING_READER_REFUSED_'+inventory.diagnostic?.code);
+    const observed=await reader.inspectFoundationStructure(inventory,{
+      isCurrent:()=>document.querySelector('#source')?.files?.[0]===file,
+    });
+    if(!reader.isCurrentInspection(inventory)||
+       observed.source!==reader.source||
+       observed.claims.writerAuthorization!==false)
+      throw Error('EXISTING_READER_IDENTITY_OR_READ_ONLY_CONTRACT_VIOLATED');
+    return {attachmentUids:inventory.attachments.map(a=>a.fileUid),
+      officialAttachmentUids:observed.uids.FileUID||[],
+      nodeCount:observed.nodeCount,sourceId:observed.source.id};
+  });
+  if(existingReader.nodeCount!==result.structured.nodes.length||
+     !existingReader.attachmentUids.length||
+     JSON.stringify(existingReader.attachmentUids.slice().sort())!==
+       JSON.stringify(existingReader.officialAttachmentUids.slice().sort()))
+    throw Error('EXISTING_READER_VS_OFFICIAL_WASM_FILEUID_MISMATCH');
+  report.existingProductReaderFoundationIntegrationPassed=true;
+  report.existingProductReaderAttachmentCount=existingReader.attachmentUids.length;
+
   // Independent high-volume MKV stress test: upload a real >96 MiB
   // Matroska File from disk directly into Chromium's file picker. The JS
   // harness never fs.readFile()s the large source, and the browser Worker
