@@ -65,11 +65,25 @@ static void json_string(const char *s) {
   }
   append("\"");
 }
+/* Only expose exact Matroska UID scalar values via the upstream
+ * EBML integer API. No JS Number/floating-point conversion is permitted. */
+static int is_uid_class(const char *name) {
+  return name && (
+    strcmp(name,"TrackUID")==0 ||
+    strcmp(name,"FileUID")==0 ||
+    strcmp(name,"ChapterUID")==0 ||
+    strcmp(name,"EditionUID")==0 ||
+    strcmp(name,"TagTrackUID")==0 ||
+    strcmp(name,"TagAttachmentUID")==0 ||
+    strcmp(name,"TagChapterUID")==0 ||
+    strcmp(name,"TagEditionUID")==0);
+}
+
 /* The sample mkvtree's mutable level counter is for pretty printing, not
  * a reliable machine-readable parent relationship. Reconstruct depth from
  * the actual element file positions and the upstream-reported master ends.
  * This never decodes raw EBML IDs/lengths ourselves. */
-static void emit(ebml_element *e) {
+static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   char part[208];
   const char *label=EBML_ElementGetClassName(e);
   const filepos_t pos=EBML_ElementPosition(e);
@@ -99,9 +113,15 @@ static void emit(ebml_element *e) {
   append(part);
   json_string(label);
   snprintf(part,sizeof(part),
-    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s}",
+    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s",
     (long long)pos,(long long)end,(long long)data,master?"true":"false");
   append(part);
+  if(has_uid){
+    snprintf(part,sizeof(part),",\"uintValue\":\"%llu\"",
+      (unsigned long long)uid);
+    append(part);
+  }
+  append("}");
   if(master){
     parents[parent_count].start=pos;
     parents[parent_count].end=end;
@@ -114,7 +134,16 @@ static void emit(ebml_element *e) {
 static ebml_element *visit(ebml_element *element,
   const ebml_parser_context *context,struct stream *input,int *level) {
   if (parse_failed)return NULL;
-  emit(element);
+  const int is_uid = !Node_IsPartOf(element,EBML_MASTER_CLASS) &&
+    is_uid_class(EBML_ElementGetClassName(element));
+  if(is_uid && EBML_ElementReadData(element,input,NULL,0,
+      SCOPE_ALL_DATA,0)!=ERR_NONE){
+    parse_failed=1;
+    return NULL;
+  }
+  const uint64_t uid=is_uid?
+    (uint64_t)EBML_IntegerValue((ebml_integer*)element):0;
+  emit(element,is_uid,uid);
   if (parse_failed)return NULL;
   if (Node_IsPartOf(element,EBML_MASTER_CLASS)) {
     int upper=0;
@@ -140,7 +169,7 @@ static ebml_element *visit(ebml_element *element,
     return child;
   }
   // Native parser handles the binary/unknown element boundaries.
-  EBML_ElementSkipData(element,input,context,NULL,0);
+  if(!is_uid)EBML_ElementSkipData(element,input,context,NULL,0);
   return NULL;
 }
 
