@@ -119,6 +119,9 @@ export async function buildFoundationAttachmentInventory({
 
   if(!ebml||!segment||!docTypeNode)
     throw Error('FOUNDATION_INVENTORY_REQUIRED_STRUCTURE_MISSING');
+  // Preserve existing inspector's conservative 64KiB EBML header budget.
+  if(BigInt(ebml.endOffset)>65536n)
+    throw Error('FOUNDATION_INVENTORY_EBML_HEADER_TOO_LARGE');
   const docType=await textField(file,docTypeNode);
   if(docType!=='matroska')
     throw Error('FOUNDATION_INVENTORY_DOCTYPE_NOT_MATROSKA');
@@ -129,6 +132,9 @@ export async function buildFoundationAttachmentInventory({
     for(const required of ['FileName','FileMediaType','FileUID','FileData'])
       if(!fields.has(required))
         throw Error('FOUNDATION_INVENTORY_REQUIRED_FIELD_'+required);
+    const uidSpan=payload(fields.get('FileUID'),file);
+    if(uidSpan.length<1||uidSpan.length>8)
+      throw Error('FOUNDATION_INVENTORY_UID_BYTE_WIDTH_INVALID');
     const fileUid=fields.get('FileUID').uintValue;
     if(typeof fileUid!=='string'||!/^(0|[1-9][0-9]*)$/.test(fileUid))
       throw Error('FOUNDATION_INVENTORY_EXACT_UID_MISSING');
