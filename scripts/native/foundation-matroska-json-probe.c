@@ -37,8 +37,31 @@ static int parse_failed = 0;
 static struct {
   filepos_t start, end;
   uint32_t id;
+  int unknown_cluster;
 } parents[DEPTH_LIMIT];
 static unsigned parent_count = 0;
+
+/* Only a *terminal* unknown-size Cluster is currently admitted. The
+ * upstream traversal can otherwise treat following Segment siblings as
+ * descendants of an unbounded Cluster. Constrain the immediate children
+ * to actual Matroska Cluster members, never Tags/Chapters/Attachments or
+ * unknown extension elements. This is schema checking, not an EBML parser.
+ */
+static int supported_cluster_child_id(uint32_t id) {
+  switch(id) {
+    case 0xe7u:    /* Timestamp */
+    case 0xa7u:    /* Position */
+    case 0xabu:    /* PrevSize */
+    case 0xa3u:    /* SimpleBlock */
+    case 0xa0u:    /* BlockGroup */
+    case 0xafu:    /* deprecated EncryptedBlock */
+    case 0x5854u:  /* deprecated SilentTracks */
+    case 0xbfu:    /* CRC-32 */
+    case 0xecu:    /* Void */
+      return 1;
+    default: return 0;
+  }
+}
 static filepos_t input_end = -1;
 
 void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
@@ -133,6 +156,13 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   while(parent_count && (pos<parents[parent_count-1].start ||
                          pos>=parents[parent_count-1].end))
     parent_count--;
+  if(parent_count && parents[parent_count-1].unknown_cluster &&
+     !supported_cluster_child_id(element_id)){
+    // A top-level Tags/Attachments/etc. after an unknown-size Cluster
+    // must not be misclassified as a Cluster child bounded by EOF.
+    parse_failed=1;
+    return;
+  }
   // Matroska RFC 9559 explicitly permits unknown-sized Segment/Cluster.
   // A terminal unknown-sized Cluster is bounded by its direct Segment parent,
   // but must fail if libEBML2 subsequently finds a following sibling.
@@ -182,6 +212,7 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
     parents[parent_count].start=pos;
     parents[parent_count].end=end;
     parents[parent_count].id=element_id;
+    parents[parent_count].unknown_cluster=unknown_cluster;
     parent_count++;
   }
 }
