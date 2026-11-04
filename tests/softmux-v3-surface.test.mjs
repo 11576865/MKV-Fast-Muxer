@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {sourceRowsFromComposition} from '../src/softmux-v3-surface.js';
+import {sourceRowsFromComposition,sourceRowsFromObservation} from '../src/softmux-v3-surface.js';
 
 function row(id,kind,name,detail) {
   const fields = new Map([
@@ -51,4 +51,31 @@ test('V3 pilot is isolated from existing default workbench',async()=>{
   assert.match(css,/\.sf14\.sfv3\[data-sfv3-surface="source"\]/);
   assert.match(css,/@media \(max-width:959px\)/);
   assert.match(css, /prefers-reduced-motion/);
+});
+
+test('V3 source observation is derived from exact scanned stream facts, not candidate output rows',()=>{
+  assert.deepEqual(sourceRowsFromObservation([
+    {index:0,type:'video',codec:'hevc',title:'',language:'und'},
+    {index:3,type:'subtitle',codec:'ass',title:'简体中文',language:'chi'},
+    {index:4,type:'audio',codec:'aac',title:'',language:'jpn'},
+    {index:-1,type:'subtitle',codec:'fake'},
+    {type:'subtitle',codec:'srt',title:'no index'},
+  ]),[
+    {id:'source:observed:0',kind:'视频',name:'hevc · #0',detail:'hevc · und · 来源轨 #0'},
+    {id:'source:observed:3',kind:'字幕',name:'简体中文',detail:'ass · chi · 来源轨 #3'},
+    {id:'source:observed:4',kind:'音频',name:'aac · #4',detail:'aac · jpn · 来源轨 #4'},
+  ]);
+});
+test('V3 no-target path short-circuits output construction in its real renderer',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const start=main.indexOf('function renderOutputComposition()');
+  const finish=main.indexOf('function activateCompositionTrack(',start);
+  const segment=main.slice(start,finish);
+  assert.ok(start>=0 && finish>start);
+  const gate=segment.indexOf('if (v3Pilot && !currentV3Target())');
+  const model=segment.indexOf('buildContainerDocument({');
+  assert.ok(gate>=0 && model>gate,'V3 must verify optional target BEFORE building output model');
+  assert.match(segment.slice(gate,model),/compositionTracks\.replaceChildren\(\)/);
+  assert.match(segment.slice(gate,model),/return null;/);
+  assert.match(segment.slice(0,gate),/updateSoftmux1014SourceSections/);
 });
