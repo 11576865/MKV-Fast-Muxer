@@ -69,3 +69,17 @@ The main V3 output composition path is now conditional; this is **not** blanket 
 | Visual proof | `tests/e2e/v3-cross-source-subrip.e2e.mjs`, `v3-responsive-geometry.e2e.mjs` | Actual source→target→mux bytes plus 22-viewport states and selected-object mobile sheet checks; pixel-match not accepted |
 
 The inspector's contents are still the real older editor and may not visually conform to the selected-ASS Figma example. Refactor must happen by rehosting/presenting the same controls, not inventing another editable store or copying media `File` permissions.
+
+
+## WU-04 selected-object details and structure observation (2026-11-04)
+
+| UI element / contract | Real authority | Scope and proof |
+| --- | --- | --- |
+| V3 selected-object heading `#sfv3ObjectContext` | Current real `#compositionTracks button[aria-pressed=true]` and existing `.composition-kind`, title, detail | Read-only presentation, no extra property store, no source identity inference |
+| History disclosure `#sfv3HistoryDrawer` | Original `#workspaceHistoryPanel` with `#workspaceUndoBtn` / `#workspaceRedoBtn` | DOM rehost after primary editor and preview; default closed, still accessible |
+| Finished-file disclosure `#sfv3DeliveryDrawer` | Original `#outputEvidencePanel`, `#downloadLink` and audit receipt | Default empty; only exposes original evidence when real output state exists, never duplicates successful output |
+| Source chapters `#sfv3ObservedStructure [data-kind="chapters"]` | Exact `latestSections.sourceFile === current targetIntent.baseFile` and scanned ffprobe Chapter observations | Source fact only; NOT final output Chapter, nested EBML or safe write authorization |
+| Source tags `#sfv3ObservedStructure [data-kind="tags"]` | Same exact File-bound source observation, global format tags only | No inferred TagTarget UID, EBML edit or preservation guarantee |
+| Browser verification | `tests/e2e/v3-responsive-geometry.e2e.mjs` | Native FFmpeg ffmetadata fixture + independent ffprobe, true Chapter/Tag browser DOM, 22 responsive states, native inspector/history singleton and zero editable structure affordances; [V3 CI #41791074428](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41791074428) passed code SHA `79181a72d053075b2ab474b685af2323c59c9b91` |
+
+Remaining issue: selected ASS, Default/Forced instructional context, motion and exact Figma visual parity require separate verified scenarios; never use this source-only Chapter/Tag view to assert output EBML fidelity.
