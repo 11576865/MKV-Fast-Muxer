@@ -108,7 +108,46 @@ export function mountSoftmuxV3Surface(doc = document) {
 
   root.classList.add('sfv3');
   root.dataset.sfv3Surface = 'source';
-  root.dataset.sfv3Contract = 'approved-v3-wu02-pilot';
+  root.dataset.sfv3Contract = 'approved-v3-wu04-object-context-pilot';
+  root.dataset.sfv3Inspector = 'closed';
+  // Context panel REHOSTS the existing inspector exactly once. Selection
+  // opens presentation only; all editing still belongs to the live editor.
+  const inspectorPane=root.querySelector('.sf14-pane.sf14-inspector');
+  const inspectorHead=inspectorPane?.querySelector('.sf14-pane-head');
+  const contextDismiss=doc.createElement('button');
+  contextDismiss.id='sfv3InspectorClose';
+  contextDismiss.type='button';
+  contextDismiss.className='sfv3-inspector-close';
+  contextDismiss.textContent='关闭';
+  contextDismiss.setAttribute('aria-label','关闭对象检查器');
+  inspectorHead?.appendChild(contextDismiss);
+  const scrim=doc.createElement('button');
+  scrim.id='sfv3InspectorScrim';
+  scrim.type='button';
+  scrim.className='sfv3-inspector-scrim';
+  scrim.hidden=true;
+  scrim.setAttribute('aria-label','关闭对象检查器');
+  single.appendChild(scrim);
+  const closeInspector=()=>{
+    root.dataset.sfv3Inspector='closed';
+    scrim.hidden=true;
+  };
+  const openInspector=()=>{
+    if(root.dataset.sfv3Surface!=='plan' || !inspectorPane) return;
+    root.dataset.sfv3Inspector='open';
+    scrim.hidden=false;
+  };
+  contextDismiss.addEventListener('click',closeInspector);
+  scrim.addEventListener('click',closeInspector);
+  currentTracks.addEventListener('click',event=>{
+    if(event.target.closest('button[data-composition-id]'))openInspector();
+  });
+  root.addEventListener('keydown',event=>{
+    if(event.key!=='Escape' || root.dataset.sfv3Inspector!=='open' ||
+       root.querySelector('dialog[open]'))return;
+    closeInspector();
+    find(doc,'sfv3TargetTab')?.focus();
+  });
 
   const header = root.querySelector('.sf14-header');
   const identity = header?.querySelector('.sf14-identity strong');
@@ -344,6 +383,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',mode === 'plan');
     planHeading.hidden=mode!=='plan';
+    if(mode!=='plan')closeInspector();
     setReadOnlyAffordances();
     const EventCtor=doc.defaultView?.CustomEvent;
     if(EventCtor)root.dispatchEvent(new EventCtor('softmux:v3-surface-changed',{
@@ -702,6 +742,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       targetIntent=null;pendingAddition=null;
       root.dataset.sfv3TargetConfirmed='false';
       root.dataset.sfv3Surface='source';
+      closeInspector();
       flowMessage='目标文件身份已改变，先前的拟输出授权失效。';
     }
     planHeading.hidden=root.dataset.sfv3Surface!=='plan' || !targetIntent;
