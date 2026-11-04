@@ -47,7 +47,7 @@ test('V3 pilot is isolated from existing default workbench',async()=>{
   assert.match(ui,/root\.dataset\.sfv3Surface = 'source'/);
   assert.match(ui,/appendChild\(dropzone\)/);
   assert.match(ui,/sourceRowsFromComposition/);
-  assert.match(ui,/sourceFile === file|sourceFile === file/); // exact File identity, no name-only claim
+  assert.match(ui,/latestSections\.sourceFile\s*===\s*file/); // exact File identity, no name-only claim
   assert.match(css,/\.sf14\.sfv3\[data-sfv3-surface="source"\]/);
   assert.match(css,/@media \(max-width:959px\)/);
   assert.match(css, /prefers-reduced-motion/);
