@@ -9,6 +9,7 @@ on:
       - 'scripts/patch-foundation-corec-emscripten.mjs'
       - 'scripts/probe-foundation-matroska2-browser.mjs'
       - 'scripts/native/foundation-matroska-json-probe.c'
+      - 'scripts/workers/foundation-matroska-worker.js'
   workflow_dispatch:
 
 permissions:
@@ -63,7 +64,8 @@ jobs:
           target_link_options(foundation_json_probe PRIVATE
             "-sEXPORT_NAME=createFoundationJSON"
             "-sEXPORTED_FUNCTIONS=_main,_foundation_probe,_foundation_json"
-            "-sEXPORTED_RUNTIME_METHODS=FS,ccall")
+            "-lworkerfs.js"
+            "-sEXPORTED_RUNTIME_METHODS=FS,ccall,WORKERFS")
           CMAKE
           git -C .e2e/foundation-upstream diff --check
           git -C .e2e/foundation-upstream diff -- libmatroska2/CMakeLists.txt > .e2e/output/foundation-wasm-structured-target.diff
@@ -81,7 +83,7 @@ jobs:
             -DCONFIG_LZO1X=OFF -DCONFIG_CODEC_HELPER=OFF \
             -DCONFIG_DEBUGCHECKS=OFF \
             "-DFOUNDATION_BRIDGE_SOURCE=${GITHUB_WORKSPACE}/scripts/native/foundation-matroska-json-probe.c" \
-            '-DCMAKE_EXE_LINKER_FLAGS=-sMODULARIZE=1 -sEXPORT_NAME=createFoundationMkvtree -sEXPORTED_RUNTIME_METHODS=FS,callMain -sINVOKE_RUN=0 -sALLOW_MEMORY_GROWTH=1 -sEMULATE_FUNCTION_POINTER_CASTS=1 -sASSERTIONS=2 -sENVIRONMENT=web,node' \
+            '-DCMAKE_EXE_LINKER_FLAGS=-sMODULARIZE=1 -sEXPORT_NAME=createFoundationMkvtree -sEXPORTED_RUNTIME_METHODS=FS,callMain -sINVOKE_RUN=0 -sALLOW_MEMORY_GROWTH=1 -sEMULATE_FUNCTION_POINTER_CASTS=1 -sASSERTIONS=2 -sENVIRONMENT=web,worker,node' \
             2>&1 | tee .e2e/output/foundation-wasm-configure.log
           cmake --build .e2e/foundation-build --target mkvtree foundation_json_probe -j 2 \
             2>&1 | tee .e2e/output/foundation-wasm-build.log
