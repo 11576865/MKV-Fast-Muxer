@@ -666,6 +666,7 @@ function publishV3ResourceRegistry() {
     return {
       key:entry.key,file:entry.file,kind:'container',
       selected:videoInput.files?.[0]===entry.file,
+      scanned:scannedSourceFile===entry.file && trackState?.fileKey===fileKey(entry.file),
       // Only an exact scanned primary File may expose all source tracks.
       primaryStreams:scannedSourceFile===entry.file && trackState?.fileKey===fileKey(entry.file)
         ? (trackState.streams||[]).map(stream=>({
@@ -2354,6 +2355,29 @@ function renderOutputComposition() {
   const source = videoInput.files?.[0] || null;
   const scanned = source && scannedSourceFile === source &&
     trackState?.fileKey === fileKey(source) ? trackState : null;
+  // Source observation is independent from output composition. In V3,
+  // opening an MKV NEVER constructs even an internal proposed output before
+  // the user has explicitly selected a base with an exact File-bound grant.
+  // Legacy UI keeps its established eager composition for compatibility.
+  updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    sourceFile: scanned ? source : null,
+  })));
+  if (v3Pilot && !currentV3Target()) {
+    currentProjectSourceProjection=null;
+    currentProjectSourceFile=null;
+    selectedCompositionId='';
+    lastCompositionSourceKey='';
+    compositionTracks.replaceChildren();
+    compositionCount.textContent='尚未创建拟输出';
+    compositionChanges.hidden=true;
+    compositionIssues.hidden=true;
+    outputCompositionPanel.hidden=true;
+    if (compositionMuxBtn) compositionMuxBtn.disabled=true;
+    if (editorMuxBtn) editorMuxBtn.disabled=true;
+    document.querySelector('.workspace')?.setAttribute('data-has-composition','false');
+    return null;
+  }
   const containerDocument = buildContainerDocument({
     video: source,
     trackState: scanned,
@@ -2366,12 +2390,6 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
-  // Source attachment/chapter/format-tag objects are rendered from the
-  // same exact-File-bound scan; unscanned inputs yield no observed objects.
-  updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
-    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
-    sourceFile: scanned ? source : null,
-  })));
   // Preserve the exact File reference, not just the name/size/mtime display
   // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
