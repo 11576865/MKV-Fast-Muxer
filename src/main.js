@@ -666,6 +666,14 @@ function publishV3ResourceRegistry() {
     return {
       key:entry.key,file:entry.file,kind:'container',
       selected:videoInput.files?.[0]===entry.file,
+      // Only an exact scanned primary File may expose all source tracks.
+      primaryStreams:scannedSourceFile===entry.file && trackState?.fileKey===fileKey(entry.file)
+        ? (trackState.streams||[]).map(stream=>({
+            index:stream.index,codec:stream.codec_name,
+            type:stream.codec_type,
+            title:String(stream.tags?.title||''),
+            language:String(stream.tags?.language||'und'),
+          })) : [],
       subtitleState:current?.state || 'not-inspected',
       subtitleReason:current?.reason || '',
       subtitleTracks:observed.filter(stream=>stream.codec_type==='subtitle').map(stream=>({
