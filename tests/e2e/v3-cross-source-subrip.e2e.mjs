@@ -104,16 +104,31 @@ try {
   assert.equal(await page.locator('#sfv3PlanHeading').isVisible(),true);
   assert.match(await page.locator('#sfv3PlanName').textContent(),/B-base\.mkv/);
   assert.match(await page.locator('#sfv3PlanFacts').textContent(),/为基础/);
+  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'closed');
+  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),false);
+  const groups=page.locator('#compositionTracks .sfv3-target-group');
+  assert.ok(await groups.count()>=2,'target must display actual grouped Matroska objects');
+  assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),
+    await page.locator('#compositionTracks .sfv3-target-group [data-composition-id]').count(),
+    'grouping must move the real editor buttons, not create a second copy');
   // Choosing an output object must route to the SINGLE existing editor,
   // not a second React/Figma form with divorced title or flags state.
   const embeddedOutputSub=page.locator('#compositionTracks button[data-composition-id]')
     .filter({hasText:'Caption from A'});
   await embeddedOutputSub.click();
+  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-inspector'),'open',
+    'selecting real target object must open the contextual inspector');
+  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true);
   const realSubtitleTitle=page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]');
   await realSubtitleTitle.waitFor();
   assert.equal(await realSubtitleTitle.inputValue(),'Caption from A');
   assert.equal(await page.locator('#compositionTracks button[aria-pressed="true"]').count(),1);
   assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]').count(),1);
+  await page.locator('#sfv3InspectorClose').click();
+  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),false);
+  await page.locator('#sfv3InspectorOpen').click();
+  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true,
+    'same existing editor must remain accessible after dismissing it');
   // WU-03: a source tab remains read-only EVEN AFTER an output target exists.
   // Do not rely on CSS hiding the underlying legacy source-editor controls.
   await page.locator('#sfv3SourceTab').click();
@@ -142,6 +157,9 @@ try {
   await page.locator('#muxBtn').click();
   await page.waitForFunction(()=>/^完成。/.test(document.querySelector('#status')?.textContent||''),
     null,{timeout:180000});
+  await page.locator('#sfv3InspectorOpen').click();
+  assert.equal(await page.locator('#downloadLink').isVisible(),true,
+    'real finished-file link must be accessible through the contextual inspector');
   const [download]=await Promise.all([
     page.waitForEvent('download'),page.locator('#downloadLink').click(),
   ]);
