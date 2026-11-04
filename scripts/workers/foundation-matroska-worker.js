@@ -22,7 +22,7 @@ self.onmessage=async event=>{
        typeof originalRead!=='function')
       throw Error('WORKER_SYNC_BLOB_ACCESS_UNAVAILABLE');
     const file=event.data.file;
-    if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\\.mkv$/i.test(file.name)||
+    if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.mkv$/i.test(file.name)||
        file.size<1)
       throw Error('WORKER_FILE_NAME_OR_SIZE_INVALID');
 
