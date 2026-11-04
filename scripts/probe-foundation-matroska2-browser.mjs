@@ -136,10 +136,40 @@ try {
      nodes.length>8192||
      nodes.some(node=>typeof node.name!=='string'||
        typeof node.id!=='string'||
-       !Number.isInteger(node.depth)||
+       !Number.isInteger(node.depth)||node.depth<0||
        typeof node.offset!=='string'||
+       typeof node.endOffset!=='string'||
        typeof node.dataBytes!=='string'))
     throw Error('FOUNDATION_STRUCTURED_NODES_NOT_WELL_FORMED');
+  // This is the graph-consistency gate missing from the initial prototype.
+  // Every child must be physically contained in the parent identified by its
+  // depth; a negative or stale CLI indentation must fail the test.
+  const parents=[];
+  let previousOffset=-1n,maxDepth=0;
+  for(const node of nodes){
+    if(!/^-?\\d+$/.test(node.offset)||
+       !/^-?\\d+$/.test(node.endOffset))
+      throw Error('STRUCTURED_WASM_OFFSET_NOT_DECIMAL');
+    const start=BigInt(node.offset),end=BigInt(node.endOffset);
+    if(start<0n||end<start||start<previousOffset||
+       node.depth>parents.length)
+      throw Error('STRUCTURED_WASM_FILE_ORDER_OR_DEPTH_INVALID');
+    while(parents.length>node.depth)parents.pop();
+    if(node.depth!==parents.length)
+      throw Error('STRUCTURED_WASM_PARENT_MISSING');
+    if(parents.length){
+      const parent=parents.at(-1);
+      if(start<parent.start||end>parent.end)
+        throw Error('STRUCTURED_WASM_CHILD_OUTSIDE_PARENT');
+    }
+    previousOffset=start;
+    maxDepth=Math.max(maxDepth,node.depth);
+    if(node.master)parents.push({start,end});
+  }
+  if(maxDepth<3)
+    throw Error('STRUCTURED_WASM_NESTED_CHAPTER_STRUCTURE_NOT_SEEN');
+  report.structuredMaxDepth=maxDepth;
+  report.structuredParentRangesValidated=true;
   report.structuredNameCounts=Object.fromEntries(
     [...new Set(nodes.map(node=>node.name))].map(name=>
       [name,nodes.filter(node=>node.name===name).length]));
