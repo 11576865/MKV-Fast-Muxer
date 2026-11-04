@@ -10,11 +10,27 @@ import {chromium} from 'playwright';
 const out=path.resolve('.e2e/ui-v3-responsive');
 await mkdir(out,{recursive:true});
 const mkv=path.join(out,'V3 Responsive Fixture.mkv');
+const metadata=path.join(out,'v3-real-chapters.ffmeta');
+await writeFile(metadata,[
+  ';FFMETADATA1','title=Verified Base Source',
+  '[CHAPTER]','TIMEBASE=1/1000','START=0','END=850',
+  'title=Actual Intro Chapter',
+  '',
+].join('\n'));
 execFileSync('ffmpeg',[
   '-hide_banner','-loglevel','error','-y',
   '-f','lavfi','-i','color=c=black:s=640x360:r=24:d=1',
+  '-f','ffmetadata','-i',metadata,
+  '-map','0:v:0','-map_metadata','1','-map_chapters','1',
   '-c:v','mpeg4','-q:v','5',mkv,
 ],{stdio:'pipe'});
+const probe=JSON.parse(execFileSync('ffprobe',[
+  '-v','error','-show_chapters','-show_format','-of','json',mkv,
+],{encoding:'utf8'}));
+assert.ok(probe.chapters?.some(row=>row.tags?.title==='Actual Intro Chapter'),
+  'native ffprobe fixture must contain a real Chapter');
+assert.equal(probe.format?.tags?.title,'Verified Base Source',
+  'native ffprobe fixture must contain a real format Tag');
 const browser=await chromium.launch({
   headless:true,
   ...(process.env.E2E_BROWSER_EXECUTABLE?{executablePath:process.env.E2E_BROWSER_EXECUTABLE}:{}),
@@ -160,6 +176,17 @@ try{
   await page.locator('#sfv3EnterOutput').click();
   await page.locator('#sfv3ConfirmTarget').click();
   await page.waitForFunction(()=>document.querySelector('#sf14Root')?.dataset.sfv3Surface==='plan');
+  const structure=page.locator('#sfv3ObservedStructure');
+  await structure.waitFor({state:'visible'});
+  assert.equal(await structure.locator('.sfv3-structure-group[data-kind="chapters"] .sfv3-structure-row').count(),1,
+    'exact B source Chapter observation must be visible with no write affordance');
+  assert.match(await structure.textContent(),/Actual Intro Chapter/);
+  assert.match(await structure.textContent(),/Verified Base Source/);
+  assert.match(await structure.textContent(),/只读/);
+  assert.match(await structure.textContent(),/不等于完整 Matroska EBML/);
+  assert.equal(await structure.locator('input,textarea,button,select').count(),0,
+    'source observed Chapters and Tags must not become fake editable targets');
+  report.readonlyStructureTested=true;
   await audit('plan');
   // A true responsive selected-object inspector must use the ONE original
   // editor as a bottom sheet, not duplicate or discard an input on rotation.
@@ -175,6 +202,14 @@ try{
       'bottom contextual sheet stays in viewport at '+width+': '+JSON.stringify(rect));
     assert.equal(await page.locator('#newSubtitleList').count(),1,
       'object inspector must not duplicate actual editor at '+width);
+    assert.equal(await page.locator('#sfv3HistoryDrawer').isVisible(),true,
+      'secondary editing history must remain accessible at '+width);
+    assert.equal(await page.locator('#sfv3HistoryDrawer').getAttribute('open'),null,
+      'secondary editing history must start collapsed at '+width);
+    assert.equal(await page.locator('#workspaceHistoryPanel').count(),1,
+      'history must be the same original DOM instance at '+width);
+    assert.match(await page.locator('#sfv3ObjectContext').textContent(),/视频|Video|MPEG/,
+      'selected object detail must reflect the real selected composition row');
     assert.equal(await page.locator('#sf14BackToComposition').isVisible(),false,
       'the hidden legacy Back button must not duplicate V3 Close at '+width);
     const actualVideoIcon=await page.locator(
@@ -191,6 +226,14 @@ try{
     assert.equal(await page.locator('#videoInput').evaluate(el=>el.files[0]?.name),
       'V3 Responsive Fixture.mkv','File identity unchanged after inspector interaction');
   }
+  await page.setViewportSize({width:820,height:1180});
+  await page.locator('#compositionTracks button[data-composition-id]').first().click();
+  await page.locator('#sfv3HistoryDrawer > summary').click();
+  assert.equal(await page.locator('#sfv3HistoryDrawer').getAttribute('open'),'',
+    'history disclosure must open when requested');
+  assert.equal(await page.locator('#workspaceUndoBtn').count(),1,
+    'undo must retain one original control and event authority');
+  await page.locator('#sfv3InspectorClose').click();
   report.contextualInspectorTested=true;
   assert.deepEqual(errors,[]);
   report.passed=true;
