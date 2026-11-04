@@ -15,3 +15,17 @@
 V3 is opt-in on an implementation branch until the whole-contract cutover. `?ui=legacy` remains an existing diagnostic rollback; implementing a new `?ui=v3` pilot must not make the unaccepted interface the product default.
 
 No separate editor store or second mutating container object may be created.
+
+## WU-02 connected ownership (2026-11-04)
+
+| Intent | Authoritative owner | V3 observable surface |
+| --- | --- | --- |
+| Which imported MKV files exist | `src/main.js` `importedAssetEntries` with exact `File` references | resource-registry event, multiple source tabs; no second File store |
+| Which source to observe | native `[data-asset-source]` adapter and `trackState` source scan | `softmux:v3-open-source` validated without target approval |
+| Which MKV is approved as prospective target | `createV3TargetAuthority` bound to active exact `File` + imported key | modal confirmation; no target tab before approval |
+| Which secondary subtitles exist | actual source-bound `secondarySubtitleInventories` FFmpeg.wasm probe | non-primary source inspection, never guessed from names |
+| Which A SubRip can enter B | existing `secondarySubripEligibility` and `data-secondary-subtitle-add` control | validated action dispatched through main; no new muxer |
+| Actual executing writer | existing `executeCurrentMuxTask` and matching single-task buttons | guarded by `currentV3Target` for V3 (batch frozen contexts unaffected) |
+| Source replacement or removal | `importedAssetEntries`, File-adapter update; bound intent invalidation | target tab revoked; previously selected File cannot impersonate replacement |
+
+Known gap: this is an explicit writer-authorization gate around the legacy *internally eager* output composition, not yet an optional target model in the core domain. Never label it complete optional OutputPlan.
