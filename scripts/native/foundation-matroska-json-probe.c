@@ -124,6 +124,7 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   const filepos_t end=EBML_ElementPositionEnd(e);
   const filepos_t data=EBML_ElementDataSize(e,1);
   const int master=Node_IsPartOf(e,EBML_MASTER_CLASS);
+  const int finite=EBML_ElementIsFiniteSize(e);
 
   // Synthetic upstream traversal root, not a file-resident EBML element.
   if(count==0 && label && strcmp(label,"Matroska Stream")==0)return;
@@ -147,8 +148,9 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   append(part);
   json_string(label);
   snprintf(part,sizeof(part),
-    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s",
-    (long long)pos,(long long)end,(long long)data,master?"true":"false");
+    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s,\"finite\":%s",
+    (long long)pos,(long long)end,(long long)data,
+    master?"true":"false",finite?"true":"false");
   append(part);
   if(has_uid){
     snprintf(part,sizeof(part),",\"uintValue\":\"%llu\"",
