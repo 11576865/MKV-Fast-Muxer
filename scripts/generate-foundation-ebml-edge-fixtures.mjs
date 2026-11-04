@@ -178,6 +178,18 @@ const nonterminalCluster=Buffer.concat([
   uintSize(8,nonterminalPayload.length),
   nonterminalPayload,
 ]);
+// Void is valid at Segment or Cluster scope. A trailing Void cannot be
+// reliably assigned to the correct parent after a size-unknown Cluster.
+// Our intentionally narrow reader must refuse rather than declare success.
+const ambiguousVoidPayload=Buffer.concat([
+  terminalPayload,Buffer.from([0xec,0x80]),
+]);
+const ambiguousVoidCluster=Buffer.concat([
+  bytes.subarray(0,ebml.end),
+  bytes.subarray(segment.start,segment.start+segment.idWidth),
+  uintSize(8,ambiguousVoidPayload.length),
+  ambiguousVoidPayload,
+]);
 const badCRC=Buffer.from(valid);
 const crcPosition=badCRC.indexOf(crcHeader);
 if(crcPosition<0)throw Error('FIXTURE_INSERTED_CRC_NOT_LOCATED');
@@ -190,6 +202,7 @@ const files=[
   ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
   ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
   ['foundation-edge-cluster-unknown-nonterminal.mkv',nonterminalCluster],
+  ['foundation-edge-cluster-unknown-trailing-void.mkv',ambiguousVoidCluster],
 ];
 await fs.mkdir(out,{recursive:true});
 for(const [name,data] of files){
@@ -212,6 +225,7 @@ const report={
     unknownSegment:name.includes('segment-unknown'),
     unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
     unknownClusterNonterminal:name.includes('cluster-unknown-nonterminal'),
+    unknownClusterTrailingVoid:name.includes('cluster-unknown-trailing-void'),
     crcStatus:name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
     nestedAttachedFileCRC:name.includes('nested'),
