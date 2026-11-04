@@ -5583,6 +5583,30 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
   const digest = async file => createHash('sha256').update(await fs.readFile(file)).digest('hex');
   const riskyBefore = await digest(risky);
   const safeBefore = await digest(safe);
+  // Independent native evidence: establish that the selected source really
+  // contains a nested ChapterUID and a Tag targeting that *nested* chapter.
+  // A UI warning by itself cannot prove that the fixture has those features.
+  const chapterXmlFile=path.join(outDir,'s08-risk-source-chapters.xml');
+  const tagXmlFile=path.join(outDir,'s08-risk-source-tags.xml');
+  execFileSync('mkvextract',[risky,'chapters',chapterXmlFile],{stdio:'pipe'});
+  execFileSync('mkvextract',[risky,'tags',tagXmlFile],{stdio:'pipe'});
+  const [chapterXml,tagXml]=await Promise.all([
+    fs.readFile(chapterXmlFile,'utf8'),fs.readFile(tagXmlFile,'utf8'),
+  ]);
+  assert.match(chapterXml,/<ChapterUID>\s*510010\s*<\/ChapterUID>/);
+  assert.match(chapterXml,/<ChapterUID>\s*510011\s*<\/ChapterUID>/);
+  assert.ok((chapterXml.match(/<ChapterAtom>/g)||[]).length>=2,
+    'native chapter export must contain a parent and nested child');
+  assert.match(chapterXml,/P0 nested chapter/);
+  assert.match(tagXml,/<ChapterUID>\s*510011\s*<\/ChapterUID>/,
+    'native tag export must target the nested ChapterUID');
+  assert.match(tagXml,/P0_NESTED_CHAPTER_KEEP/);
+  const nativeRiskEvidence={
+    tool:'mkvextract',chapterXmlSha256:createHash('sha256').update(chapterXml).digest('hex'),
+    tagXmlSha256:createHash('sha256').update(tagXml).digest('hex'),
+    chapterUids:['510010','510011'],targetedChapterUid:'510011',
+    nestedChapterAndTargetedTag:true,
+  };
   const { context, page } = await openApp(browser, { modern: true });
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -5655,6 +5679,13 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
     const delivered = path.join(outDir, 's08-modern-source-switch-safe.mkv');
     await saveDownload(page, '#downloadLink', delivered);
     const result = probe(delivered);
+    const safeProbe = probe(safe);
+    // The ordinary safe-file delivery after rejection must not silently
+    // transcode selected video/audio tracks as a recovery side effect.
+    const avCodecs=inventory=>['video','audio'].map(kind=>
+      streams(inventory,kind).map(row=>row.codec_name).sort());
+    assert.deepEqual(avCodecs(result),avCodecs(safeProbe),
+      'safe source video/audio codec identities must survive the recovery mux');
     assert.ok(streams(result, 'video').length >= 1);
     assert.ok(streams(result, 'audio').length >= 1);
     assert.ok(streams(result, 'subtitle').length >= 1,
@@ -5673,6 +5704,9 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
       delivered: path.basename(delivered),
       deliveredSha256: await digest(delivered),
       independentlyProbed: true,
+      nativeRiskEvidence,
+      safeSourceVideoAudioCodecs:avCodecs(safeProbe),
+      deliveredVideoAudioCodecs:avCodecs(result),
       limitation: 'Specific MKVToolNix fixture and hosted Chromium only; no universal EBML preservation or device claim.',
     };
     await fs.writeFile(path.join(outDir, 'softmux-s08-modern-source-safety-evidence.json'),
