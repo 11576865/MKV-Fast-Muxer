@@ -101,6 +101,19 @@ try {
   await page.locator('#sfv3TargetTab').click();
   assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'plan');
   assert.equal(await page.locator('#outputCompositionPanel').isVisible(),true);
+  assert.equal(await page.locator('#sfv3PlanHeading').isVisible(),true);
+  assert.match(await page.locator('#sfv3PlanName').textContent(),/B-base\.mkv/);
+  assert.match(await page.locator('#sfv3PlanFacts').textContent(),/为基础/);
+  // Choosing an output object must route to the SINGLE existing editor,
+  // not a second React/Figma form with divorced title or flags state.
+  const embeddedOutputSub=page.locator('#compositionTracks button[data-composition-id]')
+    .filter({hasText:'Caption from A'});
+  await embeddedOutputSub.click();
+  const realSubtitleTitle=page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]');
+  await realSubtitleTitle.waitFor();
+  assert.equal(await realSubtitleTitle.inputValue(),'Caption from A');
+  assert.equal(await page.locator('#compositionTracks button[aria-pressed="true"]').count(),1);
+  assert.equal(await page.locator('#newSubtitleList [data-new-sub-field="title"][data-index="0"]').count(),1);
   await screenshot('wu02-confirmed-target.png');
   await page.locator('#muxBtn').click();
   await page.waitForFunction(()=>/^完成。/.test(document.querySelector('#status')?.textContent||''),
