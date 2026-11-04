@@ -94,12 +94,12 @@ static void emit(ebml_element *e) {
   }
   if(count>1)append(",");
   snprintf(part,sizeof(part),
-    "{\\"depth\\":%u,\\"id\\":\\"0x%08x\\",\\"name\\":",
+    "{\"depth\":%u,\"id\":\"0x%08x\",\"name\":",
     depth,(unsigned)EBML_ElementClassID(e));
   append(part);
   json_string(label);
   snprintf(part,sizeof(part),
-    ",\\"offset\\":\\"%lld\\",\\"endOffset\\":\\"%lld\\",\\"dataBytes\\":\\"%lld\\",\\"master\\":%s}",
+    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s}",
     (long long)pos,(long long)end,(long long)data,master?"true":"false");
   append(part);
   if(master){
