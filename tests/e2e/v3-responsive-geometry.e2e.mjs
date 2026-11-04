@@ -175,6 +175,13 @@ try{
       'bottom contextual sheet stays in viewport at '+width+': '+JSON.stringify(rect));
     assert.equal(await page.locator('#newSubtitleList').count(),1,
       'object inspector must not duplicate actual editor at '+width);
+    assert.equal(await page.locator('#sf14BackToComposition').isVisible(),false,
+      'the hidden legacy Back button must not duplicate V3 Close at '+width);
+    const actualVideoIcon=await page.locator(
+      '#compositionTracks [data-sfv3-object-kind="video"] .composition-kind'
+    ).first().evaluate(node=>getComputedStyle(node,'::before').backgroundImage);
+    assert.ok(actualVideoIcon.startsWith('url(') && actualVideoIcon.includes('svg'),
+      'real Matroska object icon must resolve an exported SVG at '+width);
     assert.equal(await page.locator('#sfv3InspectorScrim').isVisible(),true);
     await page.screenshot({path:path.join(out,'plan-'+width+'x'+height+'-inspector.png'),
       fullPage:false});
