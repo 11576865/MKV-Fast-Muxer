@@ -12,6 +12,7 @@ on:
       - 'scripts/workers/foundation-matroska-worker.js'
       - 'src/foundation-wasm-json-abi.js'
       - 'scripts/stage-foundation-wasm-runtime.mjs'
+      - 'scripts/probe-staged-foundation-runtime-browser.mjs'
       - 'src/foundation-structure-observation.js'
       - 'src/matroska-attachment-reader.js'
   workflow_dispatch:
@@ -162,6 +163,9 @@ jobs:
           console.log('FOUNDATION_LICENSED_VITE_DISTRIBUTION_PASS');
           NODE
 
+      - name: Execute the actual Vite-distributed licensed Wasm Worker in Chromium
+        run: node scripts/probe-staged-foundation-runtime-browser.mjs
+
       - name: Upload actual compiler, Wasm and independent file evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -181,6 +185,7 @@ jobs:
             .e2e/foundation-build/libmatroska2/foundation_json_probe.js
             .e2e/foundation-build/libmatroska2/foundation_json_probe.wasm
             .e2e/foundation-upstream/LICENSE
+            .e2e/output/foundation-staged-runtime-chromium.json
             dist/vendor/matroska-foundation/manifest.json
             dist/vendor/matroska-foundation/LICENSE
           if-no-files-found: warn
