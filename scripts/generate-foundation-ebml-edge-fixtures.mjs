@@ -119,6 +119,21 @@ function nestedAttachments(corruptInner=false){
 }
 const nestedValidAttachments=nestedAttachments(false);
 const nestedCorruptInnerAttachments=nestedAttachments(true);
+// Negative RFC 8794 controls from real MKVToolNix attachment bytes.
+// The first CRC must precede every other child. The second case includes
+// two independently correct checksums, but a repeated CRC is still invalid.
+const firstAttachedBytes=bytes.subarray(attachedFiles[0].start,attachedFiles[0].end);
+const remainingAttachedBytes=Buffer.concat(attachedFiles.slice(1).map(x=>
+  bytes.subarray(x.start,x.end)));
+if(!remainingAttachedBytes.length)
+  throw Error('FIXTURE_CRC_PLACEMENT_REQUIRES_TWO_NATIVE_CHILDREN');
+const misplacedCrcAttachments=wrapMaster(attachmentId,Buffer.concat([
+  firstAttachedBytes,crcField(remainingAttachedBytes),remainingAttachedBytes,
+]));
+const secondCrc=crcField(attPayload);
+const duplicateCrcAttachments=wrapMaster(attachmentId,Buffer.concat([
+  crcField(Buffer.concat([secondCrc,attPayload])),secondCrc,attPayload,
+]));
 const plainAttachments=bytes.subarray(originalAtt.start,originalAtt.end);
 const kept=entries.filter(x=>x.id!==expectedId.seekHead &&
   x.id!==expectedId.cues);
@@ -139,6 +154,8 @@ const valid=build(protectedAttachments,false);
 const unknown=build(plainAttachments,true);
 const nestedValid=build(nestedValidAttachments,false);
 const nestedInnerCorrupt=build(nestedCorruptInnerAttachments,false);
+const misplacedCrc=build(misplacedCrcAttachments,false);
+const duplicateCrc=build(duplicateCrcAttachments,false);
 // RFC 9559 permits unknown-size Cluster masters. Place the last source
 // Cluster as the LAST Segment child. We deliberately remove stale indexes
 // before moving it, and never claim this fixture models live streaming.
@@ -200,6 +217,8 @@ const files=[
   ['foundation-edge-segment-unknown.mkv',unknown],
   ['foundation-edge-crc-nested-valid.mkv',nestedValid],
   ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
+  ['foundation-edge-crc-misplaced.mkv',misplacedCrc],
+  ['foundation-edge-crc-duplicate.mkv',duplicateCrc],
   ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
   ['foundation-edge-cluster-unknown-nonterminal.mkv',nonterminalCluster],
   ['foundation-edge-cluster-unknown-trailing-void.mkv',ambiguousVoidCluster],
@@ -226,7 +245,9 @@ const report={
     unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
     unknownClusterNonterminal:name.includes('cluster-unknown-nonterminal'),
     unknownClusterTrailingVoid:name.includes('cluster-unknown-trailing-void'),
-    crcStatus:name.includes('corrupt')?'corrupt':
+    crcStatus:name.includes('crc-misplaced')?'misplaced':
+      name.includes('crc-duplicate')?'duplicate':
+      name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
     nestedAttachedFileCRC:name.includes('nested'),
     outerCRCValid:name.includes('nested-inner-corrupt')?
