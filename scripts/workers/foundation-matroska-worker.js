@@ -22,7 +22,8 @@ self.onmessage=async event=>{
        typeof originalRead!=='function')
       throw Error('WORKER_SYNC_BLOB_ACCESS_UNAVAILABLE');
     const file=event.data.file;
-    if(file.name!=='independent.mkv'||file.size<1)
+    if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\\.mkv$/i.test(file.name)||
+       file.size<1)
       throw Error('WORKER_FILE_NAME_OR_SIZE_INVALID');
 
     // The platform-owned synchronous blob reader is used internally by
@@ -49,7 +50,7 @@ self.onmessage=async event=>{
     FS.mkdir('/source');
     FS.mount(moduleInstance.WORKERFS,{files:[file]},'/source');
     mounted=true;
-    const sourcePath='/source/independent.mkv';
+    const sourcePath='/source/'+file.name;
     const stat=FS.stat(sourcePath);
     if(stat.size!==file.size)
       throw Error('WORKERFS_FILE_LENGTH_MISMATCH');
