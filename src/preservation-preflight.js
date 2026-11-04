@@ -172,3 +172,21 @@ export function preservationBlockMessage(name, inspection) {
   return '结构保留预检阻断“' + name + '”：' + inspection.reasons.join('；') +
     '。当前 FFmpeg/Wasm 重封装未证明能安全保留这些结构；原文件未被修改。';
 }
+
+// S05. A source Tag that targets an AttachmentUID may become dangling if the
+// ordinary remux discards *any* original attachment. Without a proven exact
+// target-to-output UID mapping, fail closed instead of assuming the deletion
+// concerns an unrelated decoy. This is a scoped writer admission rule, not a
+// certificate that all other EBML references survive.
+export function attachmentUidExclusionBlockMessage(name, inspection, sourceRows) {
+  if (!Array.isArray(sourceRows) ||
+      !sourceRows.some(row=>row?.include===false)) return '';
+  if (inspection?.state!=='UNVERIFIED_REFERENCES' ||
+      !Array.isArray(inspection.warnings) ||
+      !inspection.warnings.some(w=>
+        typeof w==='string' &&
+        w.startsWith('指向特定附件 UID 的标签'))) return '';
+  return '结构保留预检阻断“'+String(name)+'”：来源存在 AttachmentUID 定向标签，'+
+    '当前计划排除原附件，但尚未验证排除后所有 Tag 目标仍然有效。'+
+    '为避免悬空 UID 关联，拒绝在普通重封装路径写出；原文件不会被修改。';
+}
