@@ -43,7 +43,8 @@ try {
     await fs.readFile('.e2e/output/foundation-reference-mkvmerge.json','utf8'));
   const candidates=new Set([
     'foundation_json_probe.js','foundation_json_probe.wasm',
-    'foundation-worker.js','foundation-wasm-json-abi.js','manifest.json','LICENSE',
+    'foundation-worker.js','foundation-wasm-json-abi.js',
+    'foundation-runtime-worker-factory.js','manifest.json','LICENSE',
   ]);
   server=createServer(async(req,res)=>{
     const reqPath=req.url||'/';
@@ -74,10 +75,16 @@ try {
   const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/');
-  const probe=()=>page.evaluate(()=>new Promise((resolve,reject)=>{
+  const probe=()=>page.evaluate(async()=>{
+    const {createPackagedFoundationWorkerFactory}=await import(
+      '/vendor/matroska-foundation/foundation-runtime-worker-factory.js');
     const file=document.querySelector('#mk')?.files?.[0];
-    if(!file){reject(Error('DIST_BROWSER_FILE_MISSING'));return;}
-    const worker=new Worker('/vendor/matroska-foundation/foundation-worker.js');
+    if(!file)throw Error('DIST_BROWSER_FILE_MISSING');
+    const makeWorker=createPackagedFoundationWorkerFactory({
+      baseUrl:'/',origin:location.origin,WorkerCtor:Worker,
+    });
+    return new Promise((resolve,reject)=>{
+    const worker=makeWorker();
     let finished=false;
     const settle=(cb,val)=>{
       if(finished)return;finished=true;clearTimeout(timer);worker.terminate();cb(val);
@@ -90,7 +97,8 @@ try {
       else settle(reject,Error('DIST_WORKER_RESULT_'+e.data?.error));
     };
     worker.postMessage({type:'probe',file});
-  }));
+    });
+  });
   await page.locator('#mk').setInputFiles({
     name:'发行测试 中文.mkv',mimeType:'video/x-matroska',buffer:baseline,
   });
@@ -117,6 +125,7 @@ try {
   if(sha(await fs.readFile(source))!==originalSha)
     throw Error('DIST_RUNTIME_ORIGINAL_SOURCE_CHANGED');
   report.result='PACKAGED_FOUNDATION_WASM_CHROMIUM_READ_PASS';
+  report.explicitProductWorkerFactoryPassed=true;
   report.manifestSha256=sha(await fs.readFile(path.join(root,'manifest.json')));
   report.stagedFiles=Object.keys(manifest.files);
   report.small={nodeCount:nodes.length,exactTrackUidCount:uids('TrackUID').length,
