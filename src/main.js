@@ -3571,6 +3571,7 @@ function renderImportedAssetInventory() {
       assetInspectorHost.hidden = true;
     }
     renderOutputComposition();
+    publishV3ResourceRegistry();
     return;
   }
   assetInventory.innerHTML = entries.map((entry) => {
