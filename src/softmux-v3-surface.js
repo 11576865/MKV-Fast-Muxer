@@ -27,6 +27,27 @@ export function sourceRowsFromComposition(doc) {
     }));
 }
 
+// Native source projection for V3: no output model or composition DOM is
+// consulted when observing a File without an approved output plan.
+export function sourceRowsFromObservation(streams = []) {
+  return streams
+    .filter(stream => Number.isSafeInteger(stream?.index) && stream.index >= 0)
+    .map(stream => {
+      const type=String(stream.type||'');
+      const kind=type==='video'?'视频':type==='audio'?'音频':
+        type==='subtitle'?'字幕':'其他轨道';
+      const codec=String(stream.codec||'unknown');
+      const title=String(stream.title||'').trim();
+      const language=String(stream.language||'und');
+      return {
+        id:'source:observed:'+stream.index,
+        kind,
+        name:title || (codec+' · #'+stream.index),
+        detail:codec+' · '+language+' · 来源轨 #'+stream.index,
+      };
+    });
+}
+
 export function mountSoftmuxV3Surface(doc = document) {
   const root = find(doc, 'sf14Root');
   const single = find(doc, 'sf14Single');
@@ -444,8 +465,8 @@ export function mountSoftmuxV3Surface(doc = document) {
     const from=activeView();
     const file=from?.file||sourceInput.files?.[0]||null;
     const mainSource=Boolean(file && file===sourceInput.files?.[0]);
-    const mainScanned=Boolean(mainSource && !actualComposition.hidden);
-    const sourceRows=mainScanned?sourceRowsFromComposition(doc):[];
+    const mainScanned=Boolean(mainSource && from?.scanned);
+    const sourceRows=mainScanned?sourceRowsFromObservation(from.primaryStreams):[];
     const obs=mainSource && latestSections.scanned &&
       latestSections.sourceFile===file ? latestSections:null;
     name.textContent=file?.name || '未加载文件';
