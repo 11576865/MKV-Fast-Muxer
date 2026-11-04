@@ -45,6 +45,16 @@ jobs:
           E2E_PYTHON=/usr/bin/python3 bash tests/e2e/generate-fixtures.sh
           bash tests/e2e/generate-independent-matroska-fixture.sh
           mkvmerge -J .e2e/fixtures/p0-independent-mkvtoolnix.mkv > .e2e/output/foundation-reference-mkvmerge.json
+          # Real attachment-heavy MKV, >96 MiB, with sparse source payload.
+          # This file remains in the job workspace, never uploaded as CI artifact.
+          truncate -s 100663296 .e2e/fixtures/foundation-large-payload.bin
+          mkvmerge -o .e2e/fixtures/foundation-large-attachment.mkv \
+            --no-attachments .e2e/fixtures/p0-independent-mkvtoolnix.mkv \
+            --attachment-name foundation-large.bin \
+            --attachment-mime-type application/octet-stream \
+            --attach-file .e2e/fixtures/foundation-large-payload.bin
+          mkvmerge -J .e2e/fixtures/foundation-large-attachment.mkv > .e2e/output/foundation-large-reference-mkvmerge.json
+          test "$(stat -c %s .e2e/fixtures/foundation-large-attachment.mkv)" -gt 100000000
 
       - name: Apply tiny upstream Core-C Emscripten platform adapter (test only)
         run: |
@@ -130,6 +140,7 @@ jobs:
             .e2e/output/foundation-wasm-corec-portability.diff
             .e2e/output/foundation-wasm-structured-target.diff
             .e2e/output/foundation-reference-mkvmerge.json
+            .e2e/output/foundation-large-reference-mkvmerge.json
             .e2e/output/foundation-matroska2-wasm-probe.json
             .e2e/output/foundation-matroska2-chromium-probe.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
