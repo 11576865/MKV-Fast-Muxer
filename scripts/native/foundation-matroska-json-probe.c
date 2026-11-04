@@ -38,6 +38,7 @@ static struct {
   filepos_t start, end;
 } parents[DEPTH_LIMIT];
 static unsigned parent_count = 0;
+static filepos_t input_end = -1;
 
 void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
 
@@ -50,6 +51,7 @@ void foundation_release(void) {
   used = capacity = 0;
   count = parent_count = 0;
   parse_failed = 0;
+  input_end = -1;
 }
 unsigned foundation_abi_version(void) { return FOUNDATION_ABI_VERSION; }
 size_t foundation_json_length(void) { return output ? used : 0; }
@@ -121,14 +123,25 @@ static void emit(ebml_element *e,int has_uid,uint64_t uid) {
   char part[208];
   const char *label=EBML_ElementGetClassName(e);
   const filepos_t pos=EBML_ElementPosition(e);
-  const filepos_t end=EBML_ElementPositionEnd(e);
-  const filepos_t data=EBML_ElementDataSize(e,1);
   const int master=Node_IsPartOf(e,EBML_MASTER_CLASS);
   const int finite=EBML_ElementIsFiniteSize(e);
 
   // Synthetic upstream traversal root, not a file-resident EBML element.
   if(count==0 && label && strcmp(label,"Matroska Stream")==0)return;
-  if(parse_failed || pos<0 || end<pos || ++count>NODE_LIMIT){
+  // For a *last* unknown-sized Segment, libEBML2 correctly reports
+  // finite=false, but may leave EndPosition/DataSize unresolved. Use its
+  // official element-data starting position and the read-only stream length
+  // (not a home-grown VINT decoder) to bound the emitted parent hierarchy.
+  // Other unknown-sized Masters remain unsupported in this narrow API.
+  const int unknown_segment=master && !finite && label &&
+    strcmp(label,"Segment")==0;
+  if(!finite && !unknown_segment){parse_failed=1;return;}
+  const filepos_t end=unknown_segment?
+    input_end:EBML_ElementPositionEnd(e);
+  const filepos_t data=unknown_segment?
+    end-EBML_ElementPositionData(e):EBML_ElementDataSize(e,1);
+  if(parse_failed || pos<0 || data<0 || end<pos ||
+     end>input_end || ++count>NODE_LIMIT){
     parse_failed=1;return;
   }
   while(parent_count && (pos<parents[parent_count-1].start ||
@@ -226,6 +239,10 @@ int foundation_probe(const char *path) {
   Node_FromStr(&ctx,name,TSIZEOF(name),path);
   input=StreamOpen(&ctx,name,SFLAG_RDONLY);
   if(!input){rc=13;goto cleanup;}
+  input_end=Stream_Seek(input,0,SEEK_END);
+  if(input_end<0||Stream_Seek(input,0,SEEK_SET)!=0){
+    rc=17;goto cleanup;
+  }
   root=EBML_ElementCreate(input,MATROSKA_getContextStream(),0,PROFILE_MATROSKA_ANY);
   if(!root){rc=14;goto cleanup;}
   EBML_ElementSetInfiniteSize(root,1);
