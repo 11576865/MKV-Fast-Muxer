@@ -10,6 +10,9 @@ on:
       - 'scripts/probe-foundation-matroska2-browser.mjs'
       - 'scripts/native/foundation-matroska-json-probe.c'
       - 'scripts/workers/foundation-matroska-worker.js'
+      - 'src/foundation-wasm-json-abi.js'
+      - 'src/foundation-structure-observation.js'
+      - 'src/matroska-attachment-reader.js'
   workflow_dispatch:
 
 permissions:
@@ -73,7 +76,7 @@ jobs:
           set_target_properties(foundation_json_probe PROPERTIES C_STANDARD 11)
           target_link_options(foundation_json_probe PRIVATE
             "-sEXPORT_NAME=createFoundationJSON"
-            "-sEXPORTED_FUNCTIONS=_main,_foundation_probe,_foundation_json"
+            "-sEXPORTED_FUNCTIONS=_main,_foundation_probe,_foundation_json,_foundation_json_length,_foundation_release,_foundation_abi_version"
             "-lworkerfs.js"
             "-sEXPORTED_RUNTIME_METHODS=FS,ccall,WORKERFS")
           CMAKE
