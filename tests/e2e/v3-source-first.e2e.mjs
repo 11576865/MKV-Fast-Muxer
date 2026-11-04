@@ -41,14 +41,17 @@ try {
    const root=document.getElementById('sf14Root');
    const name=document.getElementById('sfv3FileName');
    const c=document.getElementById('outputCompositionPanel');
-   return root?.classList.contains('sfv3') && name?.textContent==='V3 Source 01.mkv' && c && !c.hidden &&
-       document.querySelector('#sfv3SourceContents .sfv3-observed-row');
+   return root?.classList.contains('sfv3') && name?.textContent==='V3 Source 01.mkv' && c && c.hidden &&
+       document.querySelector('#sfv3SourceContents .sfv3-observed-row') &&
+       !document.querySelector('#compositionTracks [data-composition-id]');
  },null,{timeout:150000});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#sfv3EnterOutput').isVisible(),true);
  assert.equal(await page.locator('#outputCompositionPanel').isVisible(),false,
    'real legacy editable composition must not be presented as source observation');
  assert.ok((await page.locator('#sfv3SourceContents .sfv3-observed-row').count())>=1);
+ assert.equal(await page.locator('#compositionTracks [data-composition-id]').count(),0,
+   'no internal output composition should exist before explicit target authorization');
  assert.equal(await page.locator('#sfv3FileName').textContent(),'V3 Source 01.mkv');
  await page.screenshot({path:path.join(output,'1440-loaded-source.png'),fullPage:false});
  evidence.views.push('1440-loaded-source.png');
