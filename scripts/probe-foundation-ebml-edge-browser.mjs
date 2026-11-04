@@ -20,6 +20,9 @@ const cases=[
   {id:'foundation-edge-crc-valid',crc:'valid',unknownSegment:false},
   {id:'foundation-edge-segment-unknown',crc:'absent',unknownSegment:true},
   {id:'foundation-edge-crc-corrupt',crc:'corrupt',unknownSegment:false},
+  {id:'foundation-edge-crc-nested-valid',crc:'valid',crcChecks:2,unknownSegment:false},
+  {id:'foundation-edge-crc-nested-inner-corrupt',crc:'corrupt',crcChecks:2,
+    outerCrcValid:true,unknownSegment:false},
 ];
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const report={schema:'foundation-ebml-edge-chromium-v1',result:'NOT_RUN',
@@ -159,7 +162,7 @@ try{
       return result;
     },scenario.crc==='corrupt'?null:native);
     if(scenario.crc==='valid' &&
-       (!actual.crc||actual.crc.checked!==1||
+       (!actual.crc||actual.crc.checked!==(scenario.crcChecks||1)||
         actual.crc.bytesRead<=0||
         actual.crc.fullContainerCRCVerified!==false))
       throw Error('EDGE_CRC32_CHECK_NOT_ACTUALLY_EXECUTED');
@@ -173,6 +176,8 @@ try{
     if(sha(await fs.readFile(source))!==before)
       throw Error('EDGE_ORIGINAL_SOURCE_MODIFIED_'+scenario.id);
     report.cases.push({id:scenario.id,crc:scenario.crc,
+      crcChecksExpected:scenario.crcChecks||1,
+      outerCrcValid:scenario.outerCrcValid??null,
       unknownSegment:scenario.unknownSegment,
       fileBytes:sourceBytes.length,
       sourceSha256:before,
