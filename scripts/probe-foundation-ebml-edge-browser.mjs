@@ -26,6 +26,10 @@ const cases=[
   {id:'foundation-edge-crc-misplaced',crc:'misplaced',unknownSegment:false},
   {id:'foundation-edge-crc-duplicate',crc:'duplicate',unknownSegment:false},
   {id:'foundation-edge-crc-oversized',crc:'oversized',unknownSegment:false},
+  {id:'foundation-edge-nodes-7000-void',crc:'absent',
+    segmentVoidCount:7000,unknownSegment:false},
+  {id:'foundation-edge-nodes-8300-void',crc:'absent',
+    segmentVoidCount:8300,unknownSegment:false,expectRefusal:true},
   {id:'foundation-edge-metadata-4096',crc:'absent',
     metadataLength:4096,unknownSegment:false},
   {id:'foundation-edge-metadata-4097',crc:'absent',
@@ -204,7 +208,8 @@ try{
     },{
       nativeExpected:
         (['corrupt','misplaced','duplicate','oversized'].includes(scenario.crc)||
-         scenario.metadataLength===4097)?null:native,
+         scenario.metadataLength===4097||
+         scenario.segmentVoidCount===8300)?null:native,
       unknownClusterTerminal:scenario.unknownClusterTerminal===true,
       expectRefusal:scenario.expectRefusal===true,
     });
@@ -223,6 +228,16 @@ try{
     if(scenario.crc==='oversized' &&
        actual.modernError!=='FOUNDATION_CRC_RESOURCE_LIMIT')
       throw Error('EDGE_VALID_BUT_OVERBUDGET_CRC_NOT_REJECTED_'+
+        actual.modernError);
+    if(scenario.segmentVoidCount===7000 &&
+       (actual.modern!=='inspected'||actual.items.length!==2||
+        actual.nodeBackend!=='foundation-libmatroska-c-wasm'))
+      throw Error('EDGE_FOUNDATION_WITHIN_NODE_BUDGET_NOT_INSPECTED');
+    if(scenario.segmentVoidCount===8300 &&
+       (actual.modern!=='unverified'||actual.count!==0||
+        actual.modernError!==
+          'FOUNDATION_WORKER_REJECTED_INPUT_FOUNDATION_ABI_PROBE_FAILED_15'))
+      throw Error('EDGE_FOUNDATION_NODE_BUDGET_NOT_ENFORCED_'+
         actual.modernError);
     if(scenario.metadataLength===4096 &&
        (actual.modern!=='inspected'||actual.items.length!==1))
@@ -250,6 +265,7 @@ try{
       outerCrcValid:scenario.outerCrcValid??null,
       unknownSegment:scenario.unknownSegment,
       metadataLength:scenario.metadataLength||null,
+      segmentVoidCount:scenario.segmentVoidCount||0,
       unknownClusterTerminal:scenario.unknownClusterTerminal||false,
       unknownClusterNonterminal:scenario.unknownClusterNonterminal||false,
       unknownClusterTrailingVoid:scenario.unknownClusterTrailingVoid||false,
