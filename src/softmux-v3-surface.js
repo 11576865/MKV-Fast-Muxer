@@ -342,6 +342,14 @@ export function mountSoftmuxV3Surface(doc = document) {
   planHeading.prepend(planTitleRow);
   compositionHost.prepend(planHeading);
   compositionHost.prepend(readout);
+  // Provenance is explicit: these are observations from the EXACT target
+  // base File, not edits or a promise of surviving final MKV EBML structures.
+  const structure=doc.createElement('section');
+  structure.id='sfv3ObservedStructure';
+  structure.className='sfv3-observed-structure';
+  structure.setAttribute('aria-label','基础容器章节和标签的来源观察，只读');
+  structure.hidden=true;
+  currentTracks.after(structure);
 
   const bottom = doc.createElement('footer');
   bottom.id = 'sfv3SourceStatus';
@@ -817,6 +825,48 @@ export function mountSoftmuxV3Surface(doc = document) {
     contextEyebrow.textContent=selectedRow?'当前选中 · '+selectedKind:'拟输出 · 对象检查器';
     contextTitle.textContent=selectedTitle||'拟输出容器';
     contextMeta.textContent=selectedDetail||'未选中具体对象；可查看真实成品证据与编辑历史';
+    const structureBound=Boolean(targetValid && latestSections.scanned &&
+      latestSections.sourceFile===targetIntent.baseFile);
+    structure.hidden=root.dataset.sfv3Surface!=='plan' || !structureBound;
+    if(structureBound) {
+      structure.replaceChildren();
+      const header=doc.createElement('header');
+      header.className='sfv3-observed-structure-heading';
+      appendText(doc,header,'strong','','基础容器附加结构');
+      appendText(doc,header,'span','','来源观察 · 只读');
+      structure.appendChild(header);
+      const material=[
+        ['chapters','章节','chapter'],
+        ['tags','标签','tag'],
+      ];
+      for(const [key,label,icon] of material) {
+        const rows=Array.isArray(latestSections[key])?latestSections[key]:[];
+        const group=doc.createElement('section');
+        group.className='sfv3-structure-group';
+        group.dataset.kind=key;
+        const groupHead=doc.createElement('div');
+        groupHead.className='sfv3-structure-group-head';
+        groupHead.appendChild(svgIcon(doc,icon));
+        appendText(doc,groupHead,'strong','',label);
+        appendText(doc,groupHead,'small','',rows.length?
+          rows.length+' 条 ffprobe 观察':'本次扫描未报告');
+        group.appendChild(groupHead);
+        for(const item of rows) {
+          const row=doc.createElement('div');
+          row.className='sfv3-structure-row';
+          row.dataset.observedId=String(item.id||'');
+          appendText(doc,row,'strong','',String(item.title||'未命名'));
+          if(item.detail)appendText(doc,row,'small','',String(item.detail));
+          appendText(doc,row,'span','sfv3-structure-readonly','只读');
+          group.appendChild(row);
+        }
+        structure.appendChild(group);
+      }
+      appendText(doc,structure,'p','sfv3-structure-scope',
+        '仅显示基础来源的 ffprobe 扁平章节与格式层标签；不等于完整 Matroska EBML、TagTargets 或成品保留证明。实际结果以封装后的独立审计为准。');
+    } else {
+      structure.replaceChildren();
+    }
     if(targetIntent) {
       planName.textContent='拟输出 · '+targetIntent.baseFile.name;
       const currentCount=find(doc,'compositionCount')?.textContent?.trim() || '';
