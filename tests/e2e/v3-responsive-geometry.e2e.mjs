@@ -230,6 +230,58 @@ try{
   assert.equal(await structure.locator('input,textarea,button,select').count(),0,
     'source observed Chapters and Tags must not become fake editable targets');
   report.readonlyStructureTested=true;
+  assert.equal(await structure.evaluate(node=>node.tagName),'DETAILS',
+    'Chapter/Tag observations remain accessible as a collapsed disclosure');
+  assert.equal(await structure.getAttribute('open'),null,
+    'read-only evidence must NOT displace the composed tracks by default');
+  const disclosure=structure.locator('summary');
+  await disclosure.click();
+  assert.equal(await structure.getAttribute('open'),'',
+    'Chapter/Tag evidence can be expanded by explicit user action');
+  assert.equal(await structure.locator('.sfv3-structure-row').first().isVisible(),true);
+  await disclosure.click();
+  assert.equal(await structure.getAttribute('open'),null);
+
+  // P0-A: the complete output composition is always ahead of recovery
+  // and secondary source evidence, including after responsive reflow.
+  const hierarchy=await page.evaluate(()=>{
+    const tracks=document.getElementById('compositionTracks');
+    const composition=document.getElementById('outputCompositionPanel');
+    const recovery=document.getElementById('sf14Recovery');
+    const structure=document.getElementById('sfv3ObservedStructure');
+    const follows=(a,b)=>Boolean(a && b &&
+      (a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING));
+    return {
+      trackBeforeRecovery:follows(tracks,recovery),
+      recoveryAfterComposition:follows(composition,recovery),
+      recoveryBeforeStructure:follows(recovery,structure),
+      trackCount:tracks?.querySelectorAll('button[data-composition-id]').length||0,
+      recoveryOwnerCount:document.querySelectorAll('#sf14Recovery').length,
+      compositionOwnerCount:document.querySelectorAll('#compositionTracks').length,
+    };
+  });
+  assert.equal(hierarchy.trackBeforeRecovery,true);
+  assert.equal(hierarchy.recoveryAfterComposition,true);
+  assert.equal(hierarchy.recoveryBeforeStructure,true);
+  assert.ok(hierarchy.trackCount>0);
+  assert.equal(hierarchy.recoveryOwnerCount,1);
+  assert.equal(hierarchy.compositionOwnerCount,1);
+  report.p0HierarchyViewportChecks=[];
+  for(const [width,height] of [[1440,900],[1180,820],[820,1180],[620,900]]){
+    await page.setViewportSize({width,height});
+    const first=await page.locator('#compositionTracks button[data-composition-id]').first().boundingBox();
+    assert.ok(first && first.width>175 && first.height>39 &&
+      first.y>=0 && first.y+first.height<height-75 &&
+      first.y<height*.58,
+      'actual editable track must appear in upper primary viewport at '+width+
+      ': '+JSON.stringify(first));
+    assert.equal(await structure.getAttribute('open'),null);
+    assert.equal(await page.locator('#sf14Recovery').getAttribute('open'),null);
+    await page.screenshot({path:path.join(out,'delivery-plan-'+width+'x'+height+'.png'),
+      fullPage:false});
+    report.p0HierarchyViewportChecks.push({width,height,
+      firstTrackTop:first.y,firstTrackHeight:first.height});
+  }
   await audit('plan');
   // A true responsive selected-object inspector must use the ONE original
   // editor as a bottom sheet, not duplicate or discard an input on rotation.

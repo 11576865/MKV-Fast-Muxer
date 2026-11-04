@@ -1297,3 +1297,51 @@
     max-height:calc(100dvh - 114px);
   }
 }
+
+
+/* P0-A Delivery gate: the composed MKV's REAL video/audio/subtitle rows
+ * outrank recovery, chapter/tag observation and diagnostics in the plan.
+ * Controls are rehosted, never cloned or stripped of existing handlers. */
+.sf14.sfv3[data-sfv3-surface="plan"] #sf14Recovery {
+  margin:12px clamp(14px,2.3vw,32px) 8px;
+}
+.sf14.sfv3 .sfv3-observed-structure {
+  display:block;
+  min-width:0;margin:8px clamp(14px,2.3vw,32px) 18px;
+  padding:0;
+  background:var(--sfv3-chrome);
+  border:1px solid var(--sfv3-line);
+  border-radius:11px;
+}
+.sf14.sfv3 .sfv3-observed-structure:not([open]) > :not(summary){
+  display:none!important;
+}
+.sf14.sfv3 .sfv3-observed-structure > summary {
+  display:flex;
+  align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:10px;min-height:44px;
+  padding:10px 14px;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-observed-structure > summary:focus-visible{
+  outline:2px solid var(--sfv3-accent);outline-offset:2px;
+}
+.sf14.sfv3 .sfv3-observed-structure[open]{
+  padding-bottom:14px;
+}
+.sf14.sfv3 .sfv3-observed-structure[open] > .sfv3-structure-group{
+  margin:10px 14px 0;
+}
+.sf14.sfv3 .sfv3-observed-structure[open] > .sfv3-structure-scope{
+  margin:12px 14px 0;
+}
+@media(max-width:719px){
+  .sf14.sfv3[data-sfv3-surface="plan"] #sf14Recovery{
+    margin:9px 12px 5px;
+  }
+  .sf14.sfv3 .sfv3-observed-structure{
+    margin:7px 12px 14px;
+  }
+  .sf14.sfv3 .sfv3-observed-structure > summary{
+    padding:10px 12px;
+  }
+}

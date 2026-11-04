@@ -209,3 +209,26 @@ test('V3-09 renders the original native ASS preview beside real controls at 820 
   assert.match(ui,/sourceSheetPreviewHost\.appendChild\(nativePreviewDrawer\)/);
   assert.match(ui,/nativePreviewHome\.insertBefore\(nativePreviewDrawer/);
 });
+
+
+test('P0 delivery gate: actual composition precedes recovery and chapters/tags',async()=>{
+  const view=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(view,/actualComposition\.after\(recovery\)/);
+  assert.match(view,/compositionHost\.appendChild\(structure\)/);
+  assert.match(view,/const structure=doc\.createElement\('details'\)/);
+  assert.match(view,/const header=doc\.createElement\('summary'\)/);
+  assert.match(css,/\.sfv3-observed-structure:not\(\[open\]\) > :not\(summary\)/);
+  assert.match(css,/\.sfv3-observed-structure > summary/);
+});
+test('P0 delivery gate: empty canvas keeps the single native click/drop importer',async()=>{
+  const view=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.match(view,/empty\.appendChild\(dropzone\)/);
+  assert.match(css,/\.sfv3-empty #assetDropzone \{/);
+  assert.match(css,/position:absolute;inset:0;width:100%;height:100%/);
+  assert.match(main,/assetDropzone\?\.addEventListener\('click'/);
+  assert.match(main,/assetDropzone\?\.addEventListener\('drop'/);
+  assert.doesNotMatch(view,/empty\.addEventListener\('drop'/);
+});

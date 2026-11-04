@@ -342,6 +342,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   appendText(doc, empty, 'strong', 'sfv3-empty-title', '拖入文件，或点击这里添加');
   appendText(doc, empty, 'span', 'sfv3-empty-types', 'MKV · 视频 · 字幕 · 字体');
   // Move the actual existing drop target, with all original event handlers.
+  // The SAME original #assetDropzone already covers the entire V3 empty
+  // canvas as an invisible hit surface. Reuse its real click/drop handlers;
+  // no second importer, click adapter or duplicate File input is needed.
   empty.appendChild(dropzone);
   const contents = doc.createElement('div');
   contents.className = 'sfv3-source-contents';
@@ -392,12 +395,22 @@ export function mountSoftmuxV3Surface(doc = document) {
   planHeading.after(assFontPanel);
   // Provenance is explicit: these are observations from the EXACT target
   // base File, not edits or a promise of surviving final MKV EBML structures.
-  const structure=doc.createElement('section');
+  // P0-A: source Chapters/Tags are useful evidence, but are NOT the
+  // prospective MKV's editable tracks. Make them a collapsed secondary
+  // disclosure AFTER the primary output composition. The original real
+  // composition/editor and its warning gates keep their exact DOM owners.
+  const structure=doc.createElement('details');
   structure.id='sfv3ObservedStructure';
   structure.className='sfv3-observed-structure';
   structure.setAttribute('aria-label','基础容器章节和标签的来源观察，只读');
   structure.hidden=true;
-  currentTracks.after(structure);
+  // The original recovery is an independent sibling, available even when
+  // no MKV is loaded. Moving it after the composition preserves that scope.
+  const recovery=find(doc,'sf14Recovery');
+  if(recovery?.parentNode===compositionHost &&
+      actualComposition?.parentNode===compositionHost)
+    actualComposition.after(recovery);
+  compositionHost.appendChild(structure);
 
   const bottom = doc.createElement('footer');
   bottom.id = 'sfv3SourceStatus';
@@ -1178,10 +1191,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     structure.hidden=root.dataset.sfv3Surface!=='plan' || !structureBound;
     if(structureBound) {
       structure.replaceChildren();
-      const header=doc.createElement('header');
+      const header=doc.createElement('summary');
       header.className='sfv3-observed-structure-heading';
-      appendText(doc,header,'strong','','基础容器附加结构');
-      appendText(doc,header,'span','','来源观察 · 只读');
+      appendText(doc,header,'strong','','章节与标签 · 来源观察');
+      appendText(doc,header,'span','','只读 · 展开查看');
       structure.appendChild(header);
       const material=[
         ['chapters','章节','chapter'],

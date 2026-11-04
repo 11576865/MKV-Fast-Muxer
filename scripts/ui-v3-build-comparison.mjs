@@ -12,8 +12,8 @@ const emptyActual=path.resolve('.e2e/ui-v3-evidence');
 const cases=[
   {id:'desktop-source',figma:'v3-desktop-source-1440x900.png',live:'source-1440x900.png',liveRoot:actual,frame:'28:2'},
   {id:'portrait-source',figma:'v3-portrait-source-820x1180.png',live:'source-820x1180.png',liveRoot:actual,frame:'33:2'},
-  {id:'landscape-target',figma:'v3-landscape-target-1180x820.png',live:'plan-1180x820.png',liveRoot:actual,frame:'36:2'},
-  {id:'compact-target',figma:'v3-compact-target-620x900.png',live:'plan-620x900.png',liveRoot:actual,frame:'37:223'},
+  {id:'landscape-target',figma:'v3-landscape-target-1180x820.png',live:'delivery-plan-1180x820.png',liveRoot:actual,frame:'36:2'},
+  {id:'compact-target',figma:'v3-compact-target-620x900.png',live:'delivery-plan-620x900.png',liveRoot:actual,frame:'37:223'},
   {id:'desktop-empty',figma:'v3-desktop-empty-1440x900.png',live:'1440-empty.png',liveRoot:emptyActual,frame:'39:2'},
 ];
 const browser=await chromium.launch({
