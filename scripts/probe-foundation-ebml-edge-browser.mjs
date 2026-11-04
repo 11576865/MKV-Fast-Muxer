@@ -137,7 +137,9 @@ try{
           const observed=await newer.inspectFoundationStructure(modern);
           const clusters=observed.nodes.filter(node=>
             Number(BigInt(node.id))===0x1f43b675);
-          if(clusters.length!==1||clusters[0].finite!==false||
+          const infinite=clusters.filter(node=>node.finite===false);
+          if(!clusters.length||infinite.length!==1||
+             infinite[0]!==clusters.at(-1)||
              !modern.structure.hasClusterElement||
              modern.structure.segmentSizeKnown!==true)
             throw Error('EDGE_UNKNOWN_CLUSTER_SEMANTICS_NOT_PRESERVED');
