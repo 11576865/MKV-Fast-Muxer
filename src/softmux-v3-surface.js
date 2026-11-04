@@ -131,14 +131,37 @@ export function mountSoftmuxV3Surface(doc = document) {
   const closeInspector=()=>{
     root.dataset.sfv3Inspector='closed';
     scrim.hidden=true;
+    const trigger=find(doc,'sfv3InspectorOpen');
+    if(trigger)trigger.setAttribute('aria-expanded','false');
   };
   const openInspector=()=>{
     if(root.dataset.sfv3Surface!=='plan' || !inspectorPane) return;
     root.dataset.sfv3Inspector='open';
     scrim.hidden=false;
+    const trigger=find(doc,'sfv3InspectorOpen');
+    if(trigger)trigger.setAttribute('aria-expanded','true');
   };
-  contextDismiss.addEventListener('click',closeInspector);
-  scrim.addEventListener('click',closeInspector);
+  const realOutputDock=root.querySelector('.sf14-output');
+  const inspectorOpenButton=doc.createElement('button');
+  inspectorOpenButton.id='sfv3InspectorOpen';
+  inspectorOpenButton.type='button';
+  inspectorOpenButton.className='sfv3-inspector-open';
+  inspectorOpenButton.textContent='对象详情 / 成品';
+  inspectorOpenButton.setAttribute('aria-label','查看对象详情与真实成品');
+  inspectorOpenButton.setAttribute('aria-controls','sf14Inspector');
+  inspectorOpenButton.setAttribute('aria-expanded','false');
+  realOutputDock?.appendChild(inspectorOpenButton);
+  inspectorOpenButton.addEventListener('click',openInspector);
+  const syncInspectorButton=()=>{
+    inspectorOpenButton.setAttribute('aria-expanded',
+      String(root.dataset.sfv3Inspector==='open'));
+  };
+  contextDismiss.addEventListener('click',()=>{
+    closeInspector();syncInspectorButton();inspectorOpenButton.focus();
+  });
+  scrim.addEventListener('click',()=>{
+    closeInspector();syncInspectorButton();inspectorOpenButton.focus();
+  });
   currentTracks.addEventListener('click',event=>{
     if(event.target.closest('button[data-composition-id]'))openInspector();
   });
