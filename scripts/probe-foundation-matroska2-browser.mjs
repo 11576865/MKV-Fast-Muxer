@@ -256,6 +256,19 @@ try {
   report.existingProductReaderFoundationIntegrationPassed=true;
   report.existingProductReaderAttachmentCount=existingReader.attachmentUids.length;
 
+  // File names belong to users, not to the parser: a valid selected
+  // Matroska with spaces/non-ASCII names must work without rewriting source
+  // identity or enabling any path traversal.
+  await page.locator('#source').setInputFiles({
+    name:'作品 第1话 中文字幕.mkv',
+    mimeType:'video/x-matroska',
+    buffer:sourceBytes,
+  });
+  const internationalName=await probeWorker();
+  assert.deepEqual(internationalName.structured,result.structured,
+    'WORKERFS_UNICODE_FILENAME_CHANGED_PARSE_SEMANTICS');
+  report.workerFSUnicodeFilenamePassed=true;
+
   // Independent high-volume MKV stress test: upload a real >96 MiB
   // Matroska File from disk directly into Chromium's file picker. The JS
   // harness never fs.readFile()s the large source, and the browser Worker
