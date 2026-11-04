@@ -7,7 +7,9 @@ on:
       - 'src/softmux-v3-*'
       - 'src/main.js'
       - 'tests/softmux-v3-surface.test.mjs'
+      - 'tests/softmux-v3-intent.test.mjs'
       - 'tests/e2e/v3-source-first.e2e.mjs'
+      - 'tests/e2e/v3-cross-source-subrip.e2e.mjs'
       - 'docs/ui-v3/**'
       - '.github/workflows/ui-v3-pilot.yml'
   workflow_dispatch:
@@ -66,11 +68,16 @@ jobs:
           exit 1
       - name: Real Chromium V3 source-first UI pilot
         run: node tests/e2e/v3-source-first.e2e.mjs
+      - name: Real Chromium V3 exact-source SubRip transfer to explicit target
+        run: node tests/e2e/v3-cross-source-subrip.e2e.mjs
       - name: Upload exact-HEAD V3 UI screenshots and evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-v3-pilot-source-first-evidence
-          path: .e2e/ui-v3-evidence/
+          path: |
+            .e2e/ui-v3-evidence/
+            .e2e/ui-v3-cross-source/
+
           retention-days: 14
           if-no-files-found: warn
