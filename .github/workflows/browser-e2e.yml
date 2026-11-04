@@ -226,6 +226,26 @@ jobs:
         run: npm run test:e2e
 
 
+      - name: Upload P3 cross-MKV ASS and source font browser/native render evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p3-cross-mkv-ass-font-real-browser-native-render
+          path: |
+            .e2e/output/cross-source-ass-font/A-with-ASS-and-font.mkv
+            .e2e/output/cross-source-ass-font/B-with-original-media.mkv
+            .e2e/output/cross-source-ass-font/A-with-ASS-no-font.mkv
+            .e2e/output/cross-source-ass-font/B-with-A-ASS-font-browser.mkv
+            .e2e/output/cross-source-ass-font/B-with-A-ASS-font-v3-browser.mkv
+            .e2e/output/cross-source-ass-font/v3-ass-font-authorized-plan.png
+            .e2e/output/cross-source-ass-font/v3-no-font-fail-closed.png
+            .e2e/output/cross-source-ass-font/v3-cross-source-ass-font-evidence.json
+            .e2e/output/cross-source-ass-font/v3-independent-render/
+            .e2e/output/cross-source-ass-font/cross-source-ass-font-evidence.json
+            .e2e/output/cross-source-ass-font/independent-render/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload P3 cross-MKV SubRip actual browser output and native packet proof
         if: always()
         uses: actions/upload-artifact@v4

@@ -116,3 +116,19 @@ test('V3 source ASS Stream Copy extraction reuses the native readback/audit pipe
   assert.match(surface,/nativeExtractionHome\.insertBefore\(nativeExtractionPanel/);
   assert.match(surface,/sourceSheetExtract\.hidden=!previewable \|\| !nativeExtractionPanel/);
 });
+
+
+test('V3 ASS Add-to stays an explicit target intent and reuses P3 complete font closure',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  assert.match(main,/from '.\/secondary-ass-font-bundle.js'/);
+  assert.match(main,/prepareSecondaryAssFontBundle\(\{/);
+  assert.match(main,/Promise.all\(\[subtitleInspectPromise,fontInspectPromise\]\)/);
+  assert.match(main,/!add \|\| v3MayEditOutput\(\)/);
+  assert.match(main,/pruneSecondaryAssFontBundleForSource\(importedAssetEntries,removed.file\)/);
+  assert.match(surface,/\['subrip','ass','ssa'\]\.includes\(track.codec\)/);
+  assert.match(surface,/\['subrip','ass','ssa'\]\.includes\(stream\?\.codec\)/);
+  assert.match(surface,/sourceSheetAdd\.textContent=\['ass','ssa'\]/);
+  assert.match(surface,/pendingAddition=\{/);
+  assert.match(surface,/setSurface\('plan'\)/);
+});

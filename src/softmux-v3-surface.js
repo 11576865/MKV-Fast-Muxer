@@ -542,6 +542,8 @@ export function mountSoftmuxV3Surface(doc = document) {
       restoreNativeExtraction();
     }
     sourceSheetAdd.hidden=!selectedSource.transfer;
+    sourceSheetAdd.textContent=['ass','ssa'].includes(selectedSource.transfer?.codec)
+      ? '加入到…（校验 ASS 与字体）' : '加入到…';
     sourceSheet.hidden=false;
     root.dataset.sfv3SourceInspector='open';
   };
@@ -760,7 +762,9 @@ export function mountSoftmuxV3Surface(doc = document) {
       if (item.transfer) {
         const button=appendText(doc,row,'button','sfv3-row-action','加入到…');
         button.type='button';
-        button.title='选择拟输出基础容器，不直接修改来源';
+        button.textContent=['ass','ssa'].includes(item.transfer?.codec)
+          ? '加入到… · 验证字体' : '加入到…';
+        button.title='先确认目标，再由实际执行器校验字幕和字体依赖；不直接修改来源';
         button.addEventListener('click',()=>openTargetPicker(item.transfer));
       } else if(readonly) {
         appendText(doc,row,'span','sfv3-readonly-indicator','只读');
@@ -798,7 +802,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     if(!possible.length)pickerStatus.textContent='请先导入另一份 MKV 作为目标。';
     else if(!pickerOptions.querySelector('input:checked'))
       pickerOptions.querySelector('input').checked=true;
-    confirmChoice.textContent=pendingTrack?'确认目标并加入字幕':'创建拟输出';
+    confirmChoice.textContent=pendingTrack
+      ? (['ass','ssa'].includes(pendingTrack.codec)
+          ? '确认目标并验证字幕与字体' : '确认目标并加入字幕')
+      : '创建拟输出';
     if(typeof picker.showModal==='function')picker.showModal();else picker.open=true;
   };
   const runPendingAddition = () => {
@@ -843,9 +850,9 @@ export function mountSoftmuxV3Surface(doc = document) {
       flowMessage='字幕轨身份已改变，未执行加入。';
       return;
     }
-    if(track.codec!=='subrip' || !track.allowed) {
+    if(!['subrip','ass','ssa'].includes(track.codec) || !track.allowed) {
       pendingAddition=null;
-      flowMessage=track.reason||'当前仅支持经过核验的 SubRip 跨容器加入；ASS 与字体需要独立闭包验证。';
+      flowMessage=track.reason||'字幕格式不受支持，或已存在相同来源的待输出字幕与字体组合。';
       return;
     }
     if(!track.canAdd) {
@@ -857,7 +864,9 @@ export function mountSoftmuxV3Surface(doc = document) {
       sourceKey:request.sourceKey,sourceFile:request.sourceFile,
       streamIndex:request.streamIndex,
     })) {
-      flowMessage='已提交来源字幕提取与核验，请等待真实处理结果。';
+      flowMessage=['ass','ssa'].includes(track.codec)
+        ? '正在执行来源 ASS/SSA、实际字体 face 和字形闭包校验；只有全部通过才加入。'
+        : '已提交来源字幕提取与核验，请等待真实处理结果。';
     }else {
       flowMessage='来源字幕已变化或执行器正忙，没有启动加入。';
     }
@@ -980,8 +989,9 @@ export function mountSoftmuxV3Surface(doc = document) {
           name:(track.title||'字幕轨 #'+track.index),
           detail:track.codec+' · '+track.language+' · 轨道 #'+track.index,
           reason:track.allowed ? '' : track.reason,
-          transfer:track.allowed && track.codec==='subrip'?{
+          transfer:track.allowed && ['subrip','ass','ssa'].includes(track.codec)?{
             sourceKey:from.key,sourceFile:from.file,streamIndex:track.index,
+            codec:track.codec,
           }:null,
         }));
         createGroup('字幕',rows,true);
@@ -1021,11 +1031,15 @@ export function mountSoftmuxV3Surface(doc = document) {
         const isSubtitle=kind==='字幕' && Number.isSafeInteger(streamIndex);
         groups.get(kind).push({
           id:row.id,name:row.name,detail:row.detail,
-          transfer:isSubtitle && stream?.codec==='subrip' && from ? {
+          transfer:isSubtitle && ['subrip','ass','ssa'].includes(stream?.codec) && from ? {
             sourceKey:from.key,sourceFile:from.file,streamIndex,
+            codec:stream.codec,
           }:null,
-          reason:isSubtitle && stream?.codec!=='subrip'
-            ? '此字幕格式的跨 MKV 转移尚未完成独立依赖验收；不会提供虚假的加入操作。':'',
+          reason:isSubtitle && !['subrip','ass','ssa'].includes(stream?.codec)
+            ? '此字幕格式不在已测试的跨 MKV 转移范围内；不会提供虚假的加入操作。'
+            : isSubtitle && ['ass','ssa'].includes(stream?.codec)
+            ? '加入时必须通过来源字体 face、字形覆盖与实际文件依赖检查；预览与单轨提取不构成加入许可。'
+            : '',
           preview:isSubtitle && ['ass','ssa'].includes(stream?.codec) && from?.scanned ? {
             sourceKey:from.key,sourceFile:from.file,streamIndex,
           }:null,

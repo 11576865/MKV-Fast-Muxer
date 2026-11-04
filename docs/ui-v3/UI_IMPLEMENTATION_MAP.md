@@ -122,3 +122,15 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Produce original-track file + proof | `extractOriginalTrack()`, `planOriginalTrackExtraction(...,{format:'native'})`, Stream Copy, probe/readback, SHA-256 | Same `#originalTrackExtractionPanel`, `#originalTrackDownload`, `#originalTrackReport` moved into source sheet and restored; no parallel result model |
 | Explicit scope | Existing `softmux-original-track-extraction-v1` report policy | Native ASS only; no font attachments, Chapters, global Tags or absolute Matroska timing guarantee; not equivalent to PR #233 cross-MKV ASS/font bundle |
 | Regression | `tests/e2e/v3-source-ass-preview.e2e.mjs` | Real MKV ASS source, forged File refused, browser download, independent ffprobe and report hash, no target/plan state; pending exact-head CI |
+
+
+## WU-05 bounded A ASS + source fonts → explicit B target (2026-11-04)
+
+| Capability/transition | Single real owner | V3 binding / proof |
+| --- | --- | --- |
+| Source ASS/SSA selection | Exact scanned `File` and stream index, `src/softmux-v3-surface.js` | Read-only source object inspector; “加入到…（校验 ASS 与字体）” only requests target picker and is **not** a font-closure approval |
+| A→B authorization | `createV3TargetAuthority()`, real importer and active `videoInput.files[0]` | V3 `#sfv3TargetPicker`, user-confirmed B before `runPendingAddition`, no auto target |
+| Source eligibility and actual closure | Backported `secondaryAssEligibility()`, `prepareSecondaryAssFontBundle()` from independent PR #233; existing FFmpeg.wasm/probe/font reader | Exact source/stream/attachment identity, font family/face/cmap coverage; atomic derived subtitle+font member publication or no members |
+| Async cancellation | Native source/member identity + `v3MayEditOutput()` only for Add-to | Moving away from authorized target during async addition causes stale refusal and rollback, while source inspection remains independently available |
+| Media execution and evidence | Existing `newSubtitleState`, `fontInspectPromise`, mux/audit/download | Native Browser E2E generates actual B with isolated embedded font, independent `ffprobe` packet/time proof and named-font libass render; V3 no-font refusal, exact-head new CI pending |
+| Unapproved | No universal ASS/SSA writing, arbitrary shaping, multiple ASS bundles from one A, UID/Tag relationships, fixed Figma pixel match or native tablet acceptance | PR #233 remains Draft/unmerged; #239 Draft remains opt-in, normal UI preserved |
