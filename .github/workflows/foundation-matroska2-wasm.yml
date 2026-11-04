@@ -14,6 +14,8 @@ on:
       - 'scripts/stage-foundation-wasm-runtime.mjs'
       - 'scripts/probe-staged-foundation-runtime-browser.mjs'
       - 'src/foundation-structure-observation.js'
+      - 'src/foundation-attachment-inventory.js'
+      - 'tests/foundation-primary-attachment-inventory.test.mjs'
       - 'src/matroska-attachment-reader.js'
   workflow_dispatch:
 
