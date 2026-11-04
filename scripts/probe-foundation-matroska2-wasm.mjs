@@ -32,6 +32,7 @@ const report = {
   partialReaderCapability: false,
 };
 await fs.mkdir(path.dirname(output), { recursive: true });
+const capturedStdout = [], capturedStderr = [];
 
 try {
   assert.notEqual(process.env.FOUNDATION_WASM_JS, undefined,
@@ -54,7 +55,7 @@ try {
   const createModule = require(cjs);
   assert.equal(typeof createModule, 'function', 'NO_EMSCRIPTEN_FACTORY');
 
-  const stdout = [], stderr = [];
+  const stdout = capturedStdout, stderr = capturedStderr;
   const Module = await createModule({
     locateFile: name => path.join(path.dirname(wasmJs), name),
     print: line => stdout.push(String(line)),
@@ -97,6 +98,11 @@ try {
   report.result = 'FAILED';
   report.error = error?.stack || String(error);
 } finally {
+  // A runtime trap must retain whatever the real upstream reader printed
+  // before failure; otherwise compiler-success/runtime-failure gets mistaken
+  // for an unsupported file rather than a broken port.
+  report.stdoutPreview ??= capturedStdout.join('\n').slice(0, 2400);
+  report.stderrPreview ??= capturedStderr.join('\n').slice(0, 1400);
   await fs.writeFile(output, JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({
     result: report.result, observed: report.observed || null,
