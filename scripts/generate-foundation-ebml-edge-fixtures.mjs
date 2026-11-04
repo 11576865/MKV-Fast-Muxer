@@ -134,6 +134,41 @@ const secondCrc=crcField(attPayload);
 const duplicateCrcAttachments=wrapMaster(attachmentId,Buffer.concat([
   crcField(Buffer.concat([secondCrc,attPayload])),secondCrc,attPayload,
 ]));
+// Resource-limit control is independently authored by mkvmerge. Its CRC is
+// mathematically valid, but the protected master is larger than the product's
+// 4 MiB CRC-reading limit. Never interpret a native-recognized input as a
+// grant to read unlimited bytes or to authorize writing.
+async function oversizedCrcAttachments(){
+  const big=await fs.readFile(path.join(root,'foundation-crc-limit-native.mkv'));
+  const header=decodeElement(big,0);
+  if(header.id!==expectedId.ebml)
+    throw Error('FIXTURE_CRC_LIMIT_NATIVE_EBML_INVALID');
+  const segments=children(big,header.end,big.length)
+    .filter(x=>x.id===expectedId.segment);
+  if(segments.length!==1)
+    throw Error('FIXTURE_CRC_LIMIT_NATIVE_SEGMENT_INVALID');
+  const sourceSegment=segments[0];
+  const sourceChildren=children(big,sourceSegment.dataStart,sourceSegment.end);
+  const masters=sourceChildren.filter(x=>x.id===expectedId.attachments);
+  if(masters.length!==1)
+    throw Error('FIXTURE_CRC_LIMIT_NATIVE_ATTACHMENTS_INVALID');
+  const only=masters[0];
+  const body=big.subarray(only.dataStart,only.end);
+  if(body.length<=4*1024*1024)
+    throw Error('FIXTURE_CRC_LIMIT_PROTECTED_RANGE_TOO_SMALL');
+  const patched=wrapMaster(big.subarray(only.start,only.start+only.idWidth),
+    Buffer.concat([crcField(body),body]));
+  const retained=sourceChildren.filter(x=>x.id!==expectedId.seekHead &&
+    x.id!==expectedId.cues);
+  const rewritten=Buffer.concat(retained.map(x=>
+    x===only?patched:big.subarray(x.start,x.end)));
+  return Buffer.concat([
+    big.subarray(0,header.end),
+    big.subarray(sourceSegment.start,sourceSegment.start+sourceSegment.idWidth),
+    uintSize(8,rewritten.length),rewritten,
+  ]);
+}
+const oversizedCrc=await oversizedCrcAttachments();
 const plainAttachments=bytes.subarray(originalAtt.start,originalAtt.end);
 const kept=entries.filter(x=>x.id!==expectedId.seekHead &&
   x.id!==expectedId.cues);
@@ -219,6 +254,7 @@ const files=[
   ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
   ['foundation-edge-crc-misplaced.mkv',misplacedCrc],
   ['foundation-edge-crc-duplicate.mkv',duplicateCrc],
+  ['foundation-edge-crc-oversized.mkv',oversizedCrc],
   ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
   ['foundation-edge-cluster-unknown-nonterminal.mkv',nonterminalCluster],
   ['foundation-edge-cluster-unknown-trailing-void.mkv',ambiguousVoidCluster],
@@ -245,7 +281,8 @@ const report={
     unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
     unknownClusterNonterminal:name.includes('cluster-unknown-nonterminal'),
     unknownClusterTrailingVoid:name.includes('cluster-unknown-trailing-void'),
-    crcStatus:name.includes('crc-misplaced')?'misplaced':
+    crcStatus:name.includes('crc-oversized')?'oversized':
+      name.includes('crc-misplaced')?'misplaced':
       name.includes('crc-duplicate')?'duplicate':
       name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
