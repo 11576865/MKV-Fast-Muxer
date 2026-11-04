@@ -47,7 +47,7 @@ const report={
   productionDefaultChanged:false,
   legacyRetirementAuthorized:false,
   pendingAdmission:[
-    'malformed-and-hostile-corpus',
+    'wider-malformed-fuzz-and-resource-exhaustion-corpus',
     'unknown-sized-segments-and-CRC-variations',
     'multi-GB-and-mobile-device-pressure',
     'full-container-output-preservation',
@@ -111,6 +111,11 @@ try {
       await fs.readFile(path.join(OUT,'foundation-matrix-'+sample.id+'.json'),
         'utf8'));
     const nativeAttachments=expected.attachments||[];
+    const nativeTrackTypes=(expected.tracks||[]).map(track=>track.type);
+    if(sample.id==='foundation-audio-only' &&
+       (!nativeTrackTypes.length ||
+        nativeTrackTypes.some(type=>type!=='audio')))
+      throw Error('MATRIX_AUDIO_ONLY_FILE_CONTAINS_NONAUDIO_TRACKS');
     assert.equal(nativeAttachments.length,sample.count,
       'NATIVE_FIXTURE_COUNT_MISMATCH_'+sample.id);
     const beforeHash=await digestFile(filePath);
@@ -256,6 +261,7 @@ try {
     report.cases.push({
       id:sample.id,reason:sample.reason,
       sourceBytes:stat.size,sourceSha256:beforeHash,
+      sourceTrackTypes:nativeTrackTypes,
       attachmentCount:actual.count,
       nativeExtractedSha256:actual.items.map(x=>x.sha256),
       exactFileUids:actual.items.map(x=>x.fileUid),
