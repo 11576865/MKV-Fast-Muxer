@@ -69,7 +69,7 @@ try {
   // succeed through a standalone observer-only demonstration.
   for(const name of [
     'matroska-attachment-reader','foundation-structure-observation',
-    'foundation-wasm-json-abi',
+    'foundation-wasm-json-abi','foundation-attachment-inventory',
     'source-asset-session','output-composition','container-tree',
     'preservation-preflight','matroska-attachment-relation-graph',
   ]){
@@ -275,6 +275,60 @@ try {
     throw Error('EXISTING_READER_VS_OFFICIAL_WASM_FILEUID_MISMATCH');
   report.existingProductReaderFoundationIntegrationPassed=true;
   report.existingProductReaderAttachmentCount=existingReader.attachmentUids.length;
+  // This is a genuine *alternative production read backend*, not an extra
+  // verification step. It must create the same attachment list and raw Blob
+  // extraction ranges without the product's legacy EBML header traversal.
+  const primaryParity=await page.evaluate(async()=>{
+    const {createMatroskaAttachmentReader}=await import(
+      '/src/matroska-attachment-reader.js');
+    const file=document.querySelector('#source')?.files?.[0];
+    const make=()=>new Worker('/foundation-worker.js');
+    const legacyReader=createMatroskaAttachmentReader(file);
+    const primaryReader=createMatroskaAttachmentReader(file,{
+      inspectionBackend:'foundation-primary',
+      foundationWorkerFactory:make,
+    });
+    const legacy=await legacyReader.inspect();
+    const primary=await primaryReader.inspect();
+    if(legacy.state!=='inspected'||primary.state!=='inspected')
+      throw Error('PRIMARY_INVENTORY_UNVERIFIED_'+primary.diagnostic?.code+
+        '_LEGACY_'+legacy.diagnostic?.code);
+    const normalize=x=>x.attachments.map(a=>({
+      id:a.id,ordinal:a.ordinal,filename:a.filename,mimeType:a.mimeType,
+      description:a.description,fileUid:a.fileUid,byteLength:a.byteLength,
+      dataRange:a.dataRange,
+    }));
+    if(JSON.stringify(normalize(legacy))!==JSON.stringify(normalize(primary)))
+      throw Error('PRIMARY_VS_LEGACY_ATTACHMENT_FIELDS_DIFFER');
+    if(JSON.stringify(legacy.structure)!==JSON.stringify(primary.structure))
+      throw Error('PRIMARY_VS_LEGACY_STRUCTURE_DIFFER');
+    for(const [i,attachment] of primary.attachments.entries()){
+      const nativeBytes=new Uint8Array(await primaryReader.openAttachment(
+        attachment.id).data.arrayBuffer());
+      const legacyBytes=new Uint8Array(await legacyReader.openAttachment(
+        legacy.attachments[i].id).data.arrayBuffer());
+      if(nativeBytes.length!==legacyBytes.length ||
+         nativeBytes.some((value,k)=>value!==legacyBytes[k]))
+        throw Error('PRIMARY_VS_LEGACY_EXTRACTED_FILEDATA_DIFFER');
+    }
+    if(primary.scanning.structureBackend!=='foundation-libmatroska-c-wasm'||
+       primary.scanning.fileDataBytesRead!==0||
+       primary.scanning.headerCount!==0)
+      throw Error('PRIMARY_PATH_NOT_ACTUALLY_SELECTED');
+    return {attachmentCount:primary.attachments.length,
+      exactFileUids:primary.attachments.map(a=>a.fileUid),
+      sourceIdentityMatches:primaryReader.isCurrentInspection(primary),
+      byteRangeParity:true,
+      legacyScannerHeaderCalls:legacy.scanning.headerCount,
+      primaryScannerHeaderCalls:primary.scanning.headerCount};
+  });
+  if(!primaryParity.sourceIdentityMatches||
+     primaryParity.attachmentCount!==existingReader.attachmentUids.length||
+     primaryParity.legacyScannerHeaderCalls<1)
+    throw Error('PRIMARY_INVENTORY_AUTHORITY_OR_DIFF_INVALID');
+  report.foundationPrimaryInventoryAgainstLegacy=primaryParity;
+  report.foundationPrimaryAttachmentReadBackendPassed=true;
+
 
   // File names belong to users, not to the parser: a valid selected
   // Matroska with spaces/non-ASCII names must work without rewriting source
@@ -302,6 +356,43 @@ try {
     throw Error('LARGE_MKV_FIXTURE_TOO_SMALL');
   await page.locator('#source').setInputFiles(largeFixture);
   const large=await probeWorker();
+  const largePrimaryParity=await page.evaluate(async()=>{
+    const {createMatroskaAttachmentReader}=await import(
+      '/src/matroska-attachment-reader.js');
+    const file=document.querySelector('#source')?.files?.[0];
+    const old=createMatroskaAttachmentReader(file);
+    const modern=createMatroskaAttachmentReader(file,{
+      inspectionBackend:'foundation-primary',
+      foundationWorkerFactory:()=>new Worker('/foundation-worker.js'),
+    });
+    const legacy=await old.inspect(),primary=await modern.inspect();
+    if(legacy.state!=='inspected'||primary.state!=='inspected')
+      throw Error('LARGE_PRIMARY_UNVERIFIED_'+primary.diagnostic?.code);
+    const key=x=>x.attachments.map(a=>[
+      a.id,a.fileUid,a.filename,a.mimeType,a.description,
+      a.byteLength,a.dataRange.offset,a.dataRange.length,
+    ]);
+    if(JSON.stringify(key(primary))!==JSON.stringify(key(legacy)))
+      throw Error('LARGE_PRIMARY_ATTACHMENT_BYTES_OR_UID_NOT_EQUAL');
+    // Do not load the >96MiB attachment; even extract parity only reads
+    // a 32-byte head slice in addition to the native structural scans.
+    for(const [i,a] of primary.attachments.entries()){
+      const modernHead=await modern.openAttachment(a.id).data.slice(
+        0,32).arrayBuffer();
+      const legacyHead=await old.openAttachment(
+        legacy.attachments[i].id).data.slice(0,32).arrayBuffer();
+      if(JSON.stringify([...new Uint8Array(modernHead)])!==
+         JSON.stringify([...new Uint8Array(legacyHead)]))
+        throw Error('LARGE_PRIMARY_FILEDATA_PREFIX_MISMATCH');
+    }
+    return {attachments:primary.attachments.length,
+      backend:primary.scanning.structureBackend,parity:true};
+  });
+  if(!largePrimaryParity.parity||
+     largePrimaryParity.backend!=='foundation-libmatroska-c-wasm')
+    throw Error('LARGE_PRIMARY_NOT_OFFICIAL');
+  report.foundationPrimaryLargeFileParity=largePrimaryParity;
+
   const largeNames=large.structured.nodes.map(node=>node.name);
   const largeTracks=largeNames.filter(name=>name==='TrackEntry').length;
   const largeAttachments=largeNames.filter(name=>name==='AttachedFile').length;
