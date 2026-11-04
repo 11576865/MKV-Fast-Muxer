@@ -707,3 +707,126 @@
     width:34px;height:34px;min-width:34px;
   }
 }
+
+
+/* WU-04 / V3 contextual density. Reuse the original controls but stop
+ * rendering provenance/history/unsupported structure explanations as equal
+ * priority to the selected object's actual title and edit fields. */
+.sf14.sfv3 .sfv3-object-context {
+  display:flex;flex-direction:column;gap:5px;
+  margin:10px 0 12px;padding:14px;
+  border:1px solid var(--sfv3-line);border-radius:11px;
+  background:var(--sfv3-row);min-width:0;
+}
+.sf14.sfv3 .sfv3-object-eyebrow {
+  font-size:11px;color:var(--sfv3-accent);
+}
+.sf14.sfv3 .sfv3-object-title {
+  color:var(--sfv3-text);font-weight:750;
+  font-size:clamp(15px,1.35vw,18px);line-height:1.4;
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-object-meta {
+  font-size:11px;color:var(--sfv3-muted);line-height:1.5;
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-inspector-disclosure {
+  margin:8px 0;border:1px solid var(--sfv3-line);
+  border-radius:9px;background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-inspector-disclosure > summary {
+  display:flex;align-items:center;min-height:42px;
+  padding:10px 12px;color:var(--sfv3-soft);
+  font-size:12px;font-weight:650;cursor:pointer;
+  list-style:none;
+}
+.sf14.sfv3 .sfv3-inspector-disclosure > summary::-webkit-details-marker {display:none;}
+.sf14.sfv3 .sfv3-inspector-disclosure > summary::after {
+  content:"⌄";margin-left:auto;font-size:15px;line-height:1;
+}
+.sf14.sfv3 .sfv3-inspector-disclosure[open] > summary::after {
+  transform:rotate(180deg);
+}
+.sf14.sfv3 .sfv3-inspector-disclosure > #workspaceHistoryPanel,
+.sf14.sfv3 .sfv3-inspector-disclosure > #outputEvidencePanel {
+  margin:0 8px 10px;max-width:calc(100% - 16px);
+}
+.sf14.sfv3 .sfv3-delivery-disclosure:has(> #outputEvidencePanel[hidden]) {
+  display:none!important;
+}
+.sf14.sfv3 .sf14-inspector #sf14OptionsDrawer,
+.sf14.sfv3 .sf14-inspector #sf14PreviewDrawer {
+  border-color:var(--sfv3-line);background:var(--sfv3-row);
+}
+.sf14.sfv3 .sf14-inspector .object-selection-hint {
+  background:var(--sfv3-row);border-color:var(--sfv3-line);
+  color:var(--sfv3-muted);
+}
+
+/* Chapter and Tag rows are observed facts from an exact target source;
+ * they are not represented as successfully included output objects. */
+.sf14.sfv3 .sfv3-observed-structure {
+  display:flex;flex-direction:column;gap:10px;
+  margin:18px 0 10px;padding:14px;
+  border:1px solid var(--sfv3-line);border-radius:11px;
+  background:var(--sfv3-chrome);
+}
+.sf14.sfv3 .sfv3-observed-structure[hidden] {display:none!important;}
+.sf14.sfv3 .sfv3-observed-structure-heading {
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex-wrap:wrap;
+}
+.sf14.sfv3 .sfv3-observed-structure-heading strong {
+  color:var(--sfv3-text);font-size:13px;
+}
+.sf14.sfv3 .sfv3-observed-structure-heading span {
+  font-size:11px;color:var(--sfv3-accent);
+}
+.sf14.sfv3 .sfv3-structure-group {
+  display:flex;flex-direction:column;gap:6px;
+}
+.sf14.sfv3 .sfv3-structure-group-head{
+  display:flex;align-items:center;gap:8px;
+  min-height:28px;color:var(--sfv3-soft);
+}
+.sf14.sfv3 .sfv3-structure-group-head .sfv3-svg-icon {
+  width:18px;height:18px;flex:0 0 auto;
+}
+.sf14.sfv3 .sfv3-structure-group-head strong {
+  font-size:12px;line-height:1.4;
+}
+.sf14.sfv3 .sfv3-structure-group-head small {
+  font-size:11px;color:var(--sfv3-muted);margin-left:auto;
+}
+.sf14.sfv3 .sfv3-structure-row {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  gap:3px 10px;align-items:center;
+  min-height:45px;padding:9px 12px;
+  border:1px solid var(--sfv3-line);border-radius:8px;
+  background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-structure-row strong {
+  min-width:0;font-size:12px;color:var(--sfv3-text);overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-structure-row small {
+  min-width:0;grid-column:1;grid-row:2;
+  font-size:11px;color:var(--sfv3-muted);overflow-wrap:anywhere;
+}
+.sf14.sfv3 .sfv3-structure-readonly {
+  grid-column:2;grid-row:1/span 2;
+  padding:5px 9px;border-radius:7px;
+  color:var(--sfv3-muted);font-size:11px;
+  background:var(--sfv3-row-raised);
+}
+.sf14.sfv3 .sfv3-structure-scope {
+  margin:0;font-size:11px;color:var(--sfv3-muted);
+  line-height:1.65;
+}
+@media(max-width:719px){
+  .sf14.sfv3 .sfv3-observed-structure {
+    margin:12px 0 6px;padding:10px;
+  }
+  .sf14.sfv3 .sfv3-object-context{
+    margin:5px 0 10px;padding:11px;
+  }
+}
