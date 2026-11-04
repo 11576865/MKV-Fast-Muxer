@@ -8,6 +8,7 @@ on:
       - 'scripts/probe-foundation-matroska2-wasm.mjs'
       - 'scripts/patch-foundation-corec-emscripten.mjs'
       - 'scripts/probe-foundation-matroska2-browser.mjs'
+      - 'scripts/probe-foundation-inventory-matrix-browser.mjs'
       - 'scripts/native/foundation-matroska-json-probe.c'
       - 'scripts/workers/foundation-matroska-worker.js'
       - 'src/foundation-wasm-json-abi.js'
@@ -62,6 +63,46 @@ jobs:
             --attach-file .e2e/fixtures/foundation-large-payload.bin
           mkvmerge -J .e2e/fixtures/foundation-large-attachment.mkv > .e2e/output/foundation-large-reference-mkvmerge.json
           test "$(stat -c %s .e2e/fixtures/foundation-large-attachment.mkv)" -gt 100000000
+          # Independent compatibility matrix: 0, 1, 2, 3 attachments with
+          # tags, nested chapters, UTF-8 names, descriptions and MIME variety.
+          mkvmerge --quiet -o .e2e/fixtures/foundation-no-attachments.mkv \
+            --no-attachments .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+          mkvmerge --quiet -o .e2e/fixtures/foundation-three-attachments.mkv \
+            --no-attachments .e2e/fixtures/p0-independent-mkvtoolnix.mkv \
+            --attachment-name "第一话 字幕.ass" \
+            --attachment-description "中文说明 — ASS 脚本" \
+            --attachment-mime-type text/x-ssa \
+            --attach-file .e2e/fixtures/zh.ass \
+            --attachment-name "metadata.json" \
+            --attachment-description "generic-text-resource" \
+            --attachment-mime-type application/json \
+            --attach-file .e2e/fixtures/notes.txt \
+            --attachment-name "章节.xml" \
+            --attachment-description "nested-chapter-xml" \
+            --attachment-mime-type application/xml \
+            --attach-file .e2e/fixtures/p0-independent-chapters.xml
+          for case in p0-independent-mkvtoolnix p0-independent-tracktag \
+                      p0-independent-attachmenttag foundation-no-attachments \
+                      foundation-three-attachments; do
+            mkvmerge -J ".e2e/fixtures/$case.mkv" > ".e2e/output/foundation-matrix-$case.json"
+          done
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          const checks={
+            'p0-independent-mkvtoolnix':1,
+            'p0-independent-tracktag':0,
+            'p0-independent-attachmenttag':2,
+            'foundation-no-attachments':0,
+            'foundation-three-attachments':3,
+          };
+          for(const [name,count] of Object.entries(checks)){
+            const doc=JSON.parse(await fs.readFile(
+              '.e2e/output/foundation-matrix-'+name+'.json','utf8'));
+            if(!doc.container?.recognized||
+               (doc.attachments||[]).length!==count)
+              throw Error('FOUNDATION_MATRIX_NATIVE_FIXTURE_MISMATCH_'+name);
+          }
+          NODE
 
       - name: Apply tiny upstream Core-C Emscripten platform adapter (test only)
         run: |
@@ -136,6 +177,9 @@ jobs:
           FOUNDATION_STRUCTURED_WASM_JS: .e2e/foundation-build/libmatroska2/foundation_json_probe.js
         run: node scripts/probe-foundation-matroska2-browser.mjs
 
+      - name: Audit five independent MKV layouts with Foundation-primary and mkvextract
+        run: node scripts/probe-foundation-inventory-matrix-browser.mjs
+
       - name: Stage pinned BSD Wasm with license and audit the Vite distribution
         run: |
           set -euo pipefail
@@ -182,6 +226,8 @@ jobs:
             .e2e/output/foundation-large-reference-mkvmerge.json
             .e2e/output/foundation-matroska2-wasm-probe.json
             .e2e/output/foundation-matroska2-chromium-probe.json
+            .e2e/output/foundation-inventory-matrix-chromium.json
+            .e2e/output/foundation-matrix-*.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
             .e2e/foundation-build/libmatroska2/mkvtree.wasm
             .e2e/foundation-build/libmatroska2/foundation_json_probe.js
