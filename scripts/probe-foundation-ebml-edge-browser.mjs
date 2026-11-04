@@ -23,6 +23,8 @@ const cases=[
   {id:'foundation-edge-crc-nested-valid',crc:'valid',crcChecks:2,unknownSegment:false},
   {id:'foundation-edge-crc-nested-inner-corrupt',crc:'corrupt',crcChecks:2,
     outerCrcValid:true,unknownSegment:false},
+  {id:'foundation-edge-crc-misplaced',crc:'misplaced',unknownSegment:false},
+  {id:'foundation-edge-crc-duplicate',crc:'duplicate',unknownSegment:false},
   {id:'foundation-edge-cluster-unknown-terminal',crc:'absent',
     unknownSegment:false,unknownClusterTerminal:true},
   {id:'foundation-edge-cluster-unknown-nonterminal',crc:'absent',
@@ -87,7 +89,7 @@ try{
     const sourceBytes=await fs.readFile(source);
     const before=sha(sourceBytes);
     let native=[];
-    if(scenario.crc!=='corrupt'){
+    if(!['corrupt','misplaced','duplicate'].includes(scenario.crc)){
       const nativeData=parseMkvmergeJsonWithExactUids(
         await fs.readFile(path.join(out,scenario.id+'-native.json'),'utf8'));
       if(!nativeData.container?.recognized||
@@ -193,7 +195,7 @@ try{
       }
       return result;
     },{
-      nativeExpected:scenario.crc==='corrupt'?null:native,
+      nativeExpected:['corrupt','misplaced','duplicate'].includes(scenario.crc)?null:native,
       unknownClusterTerminal:scenario.unknownClusterTerminal===true,
       expectRefusal:scenario.expectRefusal===true,
     });
@@ -205,6 +207,10 @@ try{
     if(scenario.crc==='corrupt' &&
        actual.modernError!=='FOUNDATION_CRC32_MISMATCH')
       throw Error('EDGE_CRC32_MISMATCH_NOT_DIAGNOSED_'+actual.modernError);
+    if(['misplaced','duplicate'].includes(scenario.crc) &&
+       actual.modernError!=='FOUNDATION_CRC_MISPLACED_OR_REPEATED')
+      throw Error('EDGE_INVALID_CRC_CHILD_ORDER_NOT_REJECTED_'+
+        scenario.id+'_'+actual.modernError);
     if(scenario.unknownSegment &&
        (!actual.structure||actual.structure.segmentSizeKnown!==false||
         actual.structure.segmentFiniteExact!==false))
