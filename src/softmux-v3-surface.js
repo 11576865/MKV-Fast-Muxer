@@ -392,15 +392,28 @@ export function mountSoftmuxV3Surface(doc = document) {
     schedule();
   });
   picker.addEventListener('close',()=>{pendingTrack=null;});
+  const showSourceEntry = key => {
+    const entry=getEntries().find(x=>x.key===key);
+    if(!entry)return;
+    viewedSourceKey=entry.key;
+    // Observing another file is NOT permission to use it as a target.
+    // Until a target is confirmed, opening a tab also asks the one canonical
+    // scanner to inspect that exact File; no second scan/editor is invented.
+    if(!targetIntent && entry.file!==latestResources.activeBase) {
+      if(!signal('softmux:v3-open-source',{
+        sourceKey:entry.key,sourceFile:entry.file,
+      }))flowMessage='来源暂时无法打开；可能仍在执行扫描。';
+    }
+    setSurface('source');
+    schedule();
+  };
   sourceTab.addEventListener('click',()=>{
-    viewedSourceKey=sourceTab.dataset.sfv3SourceKey||'';
-    setSurface('source');schedule();
+    showSourceEntry(sourceTab.dataset.sfv3SourceKey||'');
   });
   tabstrip.addEventListener('click',event=>{
     const tab=event.target.closest('button.sfv3-secondary-tab');
     if(!tab)return;
-    viewedSourceKey=tab.dataset.sfv3SourceKey;
-    setSurface('source');schedule();
+    showSourceEntry(tab.dataset.sfv3SourceKey);
   });
   targetTab.addEventListener('click',()=>{
     setSurface('plan');schedule();
