@@ -502,7 +502,8 @@
   flex-direction:column;background:var(--sfv3-chrome);
   border-left:1px solid var(--sfv3-line);
 }
-.sf14.sfv3 .sfv3-inspector-close {
+.sf14.sfv3 .sf14-pane.sf14-inspector .sf14-pane-head > .sfv3-inspector-close {
+  display:inline-flex!important;align-items:center;justify-content:center;
   min-height:38px;min-width:56px;padding:7px 10px;
   margin-left:auto;border:1px solid var(--sfv3-line);
   background:var(--sfv3-row-raised);color:var(--sfv3-text);
