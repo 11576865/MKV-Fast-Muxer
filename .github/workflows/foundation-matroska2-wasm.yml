@@ -9,6 +9,10 @@ on:
       - 'scripts/patch-foundation-corec-emscripten.mjs'
       - 'scripts/probe-foundation-matroska2-browser.mjs'
       - 'scripts/probe-foundation-inventory-matrix-browser.mjs'
+      - 'scripts/generate-foundation-ebml-edge-fixtures.mjs'
+      - 'scripts/probe-foundation-ebml-edge-browser.mjs'
+      - 'src/foundation-attachment-crc32.js'
+      - 'tests/foundation-attachment-crc32.test.mjs'
       - 'scripts/native/foundation-matroska-json-probe.c'
       - 'scripts/workers/foundation-matroska-worker.js'
       - 'src/foundation-wasm-json-abi.js'
@@ -115,6 +119,22 @@ jobs:
               throw Error('FOUNDATION_MATRIX_NATIVE_FIXTURE_MISMATCH_'+name);
           }
           NODE
+          node scripts/generate-foundation-ebml-edge-fixtures.mjs
+          for case in foundation-edge-crc-valid foundation-edge-segment-unknown; do
+            mkvmerge -J ".e2e/fixtures/$case.mkv" > ".e2e/output/$case-native.json"
+          done
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs/promises';
+          for(const name of [
+            'foundation-edge-crc-valid',
+            'foundation-edge-segment-unknown',
+          ]){
+            const info=JSON.parse(await fs.readFile(
+              '.e2e/output/'+name+'-native.json','utf8'));
+            if(!info.container?.recognized||info.attachments?.length!==2)
+              throw Error('FOUNDATION_EDGE_NATIVE_AUTHORING_UNRECOGNIZED_'+name);
+          }
+          NODE
 
       - name: Apply tiny upstream Core-C Emscripten platform adapter (test only)
         run: |
@@ -192,6 +212,9 @@ jobs:
       - name: Audit five independent MKV layouts with Foundation-primary and mkvextract
         run: node scripts/probe-foundation-inventory-matrix-browser.mjs
 
+      - name: Audit real unknown-sized Segment and CRC-protected attachments
+        run: node scripts/probe-foundation-ebml-edge-browser.mjs
+
       - name: Stage pinned BSD Wasm with license and audit the Vite distribution
         run: |
           set -euo pipefail
@@ -239,6 +262,9 @@ jobs:
             .e2e/output/foundation-matroska2-wasm-probe.json
             .e2e/output/foundation-matroska2-chromium-probe.json
             .e2e/output/foundation-inventory-matrix-chromium.json
+            .e2e/output/foundation-ebml-edge-chromium.json
+            .e2e/output/foundation-ebml-edge-fixtures.json
+            .e2e/output/foundation-edge-*-native.json
             .e2e/output/foundation-matrix-*.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
             .e2e/foundation-build/libmatroska2/mkvtree.wasm
