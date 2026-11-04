@@ -134,6 +134,22 @@ try {
   assert.deepEqual(errors,[]);
   evidence.steps.push('real B.mkv output contains one verified A SubRip; A and B source SHA unchanged');
   await screenshot('wu02-output-complete.png');
+  // Deleting the exact target File is NOT simply hiding a panel: the
+  // authorized output document and its writer ability must both disappear.
+  const targetRow=page.locator('#assetInventory .asset-entry[data-kind="container"]')
+    .filter({has:page.locator('.asset-entry-name',{hasText:'B-base.mkv'})});
+  await targetRow.locator('button[data-asset-remove]').click();
+  await page.waitForFunction(()=> {
+    const root=document.querySelector('#sf14Root');
+    return root?.dataset.sfv3TargetConfirmed==='false' &&
+      document.querySelector('#sfv3TargetTab')?.hidden===true &&
+      document.querySelector('#outputCompositionPanel')?.hidden===true &&
+      document.querySelector('#compositionTracks [data-composition-id]')===null &&
+      document.querySelector('#muxBtn')?.disabled===true;
+  },null,{timeout:90000});
+  assert.equal(await page.locator('#sfv3PlanHeading').isVisible(),false);
+  evidence.steps.push('removing exact B target revokes plan, empty output model and writer ability');
+  await screenshot('wu03-target-revoked.png');
   await fs.writeFile(path.join(out,'wu02-acceptance.json'),
     JSON.stringify({...evidence,passed:true,outputSHA256:checksum(await fs.readFile(dest))},null,2)+'\n');
   console.log('V3 WU02 real A SubRip -> explicit B target -> verified output: PASS');
