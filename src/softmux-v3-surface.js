@@ -135,6 +135,10 @@ export function mountSoftmuxV3Surface(doc = document) {
   if(history) {
     history.before(historyDrawer);
     historyDrawer.appendChild(history);
+    // Editing history is secondary to the selected object and its real
+    // inspector. Move the SAME disclosure below the original edit/preview
+    // controls rather than leaving an irrelevant history card at the top.
+    nativeEditor?.appendChild(historyDrawer);
   }
   const inspectorEvidence=find(doc,'outputEvidencePanel');
   const evidenceDrawer=doc.createElement('details');
