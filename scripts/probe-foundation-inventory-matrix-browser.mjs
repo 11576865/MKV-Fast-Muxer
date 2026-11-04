@@ -179,6 +179,14 @@ try {
       const legacyItems=legacyInventory.attachments.map(parityFields);
       if(JSON.stringify(primaryItems)!==JSON.stringify(legacyItems))
         throw Error('MATRIX_PRIMARY_VS_LEGACY_INVENTORY_MISMATCH');
+      // Existing TagAttachmentUID/TrackUID relation consumers must see
+      // exactly the same source graph when fed either inventory backend.
+      const primaryRelations=await primary.inspectRelations(primaryInventory);
+      const legacyRelations=await legacy.inspectRelations(legacyInventory);
+      if(primaryRelations.state!=='inspected'||
+         legacyRelations.state!=='inspected'||
+         JSON.stringify(primaryRelations)!==JSON.stringify(legacyRelations))
+        throw Error('MATRIX_DOWNSTREAM_RELATION_GRAPH_CHANGED');
       const actualItems=[];
       for(const [i,a] of primaryInventory.attachments.entries()){
         const independent=nativeEvidence[i];
@@ -216,14 +224,29 @@ try {
         legacyScannerHeaderCount:legacyInventory.scanning.headerCount,
         writerAuthorization:false,
         reference:'independent-mkvextract',
+        relationEdges:primaryRelations.edges.map(edge=>({
+          targetKind:edge.targetKind,
+          targetUid:edge.targetUid,
+          targetAttachmentId:edge.targetAttachmentId,
+          resolution:edge.resolution,
+        })),
+        relationsEqual:true,
         items:actualItems,
       };
     },native);
     if(actual.count!==sample.count||
+       !actual.relationsEqual||
        actual.primaryScannerHeaderCount!==0 ||
        actual.writerAuthorization!==false ||
        actual.sourceBytes!==stat.size)
       throw Error('MATRIX_RUNTIME_ENVELOPE_BROKEN_'+sample.id);
+    if(sample.id==='p0-independent-attachmenttag'){
+      const matched=actual.relationEdges.filter(edge=>
+        edge.targetKind==='attachment'&&edge.resolution==='matched');
+      if(matched.length!==1||
+         !native.some(item=>item.fileUid===matched[0].targetUid))
+        throw Error('MATRIX_TAG_ATTACHMENT_UID_TARGET_NOT_MATCHED');
+    }
     const afterHash=await digestFile(filePath);
     if(afterHash!==beforeHash)
       throw Error('MATRIX_SOURCE_MODIFIED_'+sample.id);
@@ -239,6 +262,9 @@ try {
       sourceUnmodified:true,
       readOnly:true,inventoryParity:true,
       sourceNativeByteParity:true,
+      relationGraphParity:true,
+      matchedAttachmentTagEdges:actual.relationEdges.filter(edge=>
+        edge.targetKind==='attachment'&&edge.resolution==='matched').length,
     });
   }
   // Negative controls use byte-corrupted copies of the *same* independent
