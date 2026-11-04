@@ -171,3 +171,12 @@ The scenario builds a real A.mkv with embedded SubRip plus a separate B.mkv and 
 - For verified SubRip, the sheet's Add-to action opens the **existing explicit target chooser**, and cancel leaves the output unauthorized. Unsupported ASS/font transfer offers a read-only explanation rather than promising an unvalidated conversion. Preview/Extract remain **not claimed**; no inactive or synthetic successful tool is shown.
 - Source replacement, tab switching, changing to an authorized target and a stale imported File all revoke the selection. 820/620 responsive bounds, keyboard Escape, File continuity and real Chromium A SubRip → B flow have added regression assertions.
 - Scope is V3-05 / V3-02 source interaction only. It does not implement Figma's full preview+extract for ASS, exact selected-ASS image fidelity, or final device acceptance. Draft PR #239 stays unmerged; new HEAD tests are **Pending CI** at branch submission, and no earlier green run proves this commit.
+
+
+## 2026-11-04 WU-04 — native ASS source preview (submission, exact-head CI pending)
+
+- Approved V3-05 source object selection now exposes a real preview action for exact primary-source ASS/SSA observations. Existing `embeddedPreviewTracks()`, `previewSubtitleSelect`, `previewRefreshBtn`, `refreshSubtitlePreview()` and FFmpeg/libass remain the single execution authority; no second renderer, editable File, output intent or mux grant was created.
+- `softmux:v3-preview-source` validates the real imported resource key + exact File identity, current active/scanned source, stream index, and native embedded ASS/SSA candidate; forged same-name File and unsupported codec fail closed.
+- Existing native `#sf14PreviewDrawer` is temporarily moved into the source inspector, preserving all actual preview controls and evidence; it returns to its original parent on dismissal, source invalidation or view change.
+- New real Chromium `tests/e2e/v3-source-ass-preview.e2e.mjs` constructs an MKV containing ASS, verifies genuine libass PNG, no-target/no-mux state, singleton original preview and source SHA unchanged. Workflow now executes this scenario and uploads its screenshots and JSON. **Pending exact-head CI**, no success claim until the new commit passes.
+- The new fixture has no embedded font. Complex internal-font preview remains a separate native product test, and ASS+font **cross-source addition** still belongs to unmerged Draft PR #233. Extraction UI, complete selected-ASS Figma parity, physical tablet/a11y and overall release gate remain unfinished; PR #239 stays Draft.

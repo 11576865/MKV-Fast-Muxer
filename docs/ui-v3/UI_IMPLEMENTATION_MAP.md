@@ -102,3 +102,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Context detail | Current source File, selected observed row and native stream index | Read-only source object identity; Escape/Close restore button focus, switch/removal revoke |
 | Verified Add-to | Existing `softmux:v3-confirm-target`, `openTargetPicker`, `softmux:v3-add-secondary` | SubRip-only; no inferred ASS/font closure; cancellation is not a plan |
 | Responsive source inspector | V3-05 Figma node `33:2` | 820/620 in-viewport sheet, desktop context rail, reduced motion; visual fidelity and real ASS Preview/Extract still open |
+
+
+## WU-04 primary ASS source preview ownership (2026-11-04)
+
+| Intent | Real authority | V3 presentation / acceptance |
+| --- | --- | --- |
+| Choose source ASS/SSA for preview | Exact imported File + scannedSourceFile + trackState + embeddedPreviewTracks() stream index | `softmux:v3-preview-source` requires source mode, exact current File, matching native embedded ASS candidate; never grants target |
+| Generate real image | One `previewSubtitleSelect`, `previewRefreshBtn`, `refreshSubtitlePreview()` and FFmpeg/libass + existing embedded-font reader | Move the original `#sf14PreviewDrawer` to `#sfv3SourcePreviewHost` and restore on close; no duplicate status/image/controls |
+| Evidence | `tests/e2e/v3-source-ass-preview.e2e.mjs` | Actual MKV ASS, PNG rendering, negative forged File, unchanged source SHA, no OutputPlan; exact-head CI pending |
+| Still excluded | PR #233 cross-source ASS/font dependency bundle, independent extraction, full Figma selected-ASS frame | Not accepted or silently enabled |

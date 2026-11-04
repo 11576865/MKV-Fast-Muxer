@@ -406,10 +406,21 @@ export function mountSoftmuxV3Surface(doc = document) {
   const sourceSheetNotice=appendText(doc,sourceSheet,'p','sfv3-source-sheet-notice','');
   const sourceSheetActions=doc.createElement('div');
   sourceSheetActions.className='sfv3-source-sheet-actions';
+  const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','生成 ASS 预览帧');
+  sourceSheetPreview.id='sfv3SourceInspectorPreview';
+  sourceSheetPreview.type='button';
+  sourceSheetPreview.hidden=true;
+  const nativePreviewDrawer=find(doc,'sf14PreviewDrawer');
+  const nativePreviewHome=nativePreviewDrawer?.parentNode;
+  const nativePreviewNext=nativePreviewDrawer?.nextSibling;
+  const sourceSheetPreviewHost=doc.createElement('div');
+  sourceSheetPreviewHost.id='sfv3SourcePreviewHost';
+  sourceSheetPreviewHost.className='sfv3-source-sheet-preview-host';
+  sourceSheetPreviewHost.hidden=true;
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
-  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,sourceSheetActions);
+  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetNotice,sourceSheetActions,sourceSheetPreviewHost);
   single.appendChild(sourceSheet);
 
   // V3 target picker is an explicit action, never an implicit file import side effect.
@@ -454,9 +465,18 @@ export function mountSoftmuxV3Surface(doc = document) {
       entries[0] || null;
   };
   let selectedSource=null;
+  const restoreNativePreview=()=>{
+    if(nativePreviewDrawer?.parentNode===sourceSheetPreviewHost && nativePreviewHome){
+      nativePreviewDrawer.open=false;
+      nativePreviewHome.insertBefore(nativePreviewDrawer,
+        nativePreviewNext?.parentNode===nativePreviewHome?nativePreviewNext:null);
+    }
+    sourceSheetPreviewHost.hidden=true;
+  };
   const closeSourceSheet=(restoreFocus=false)=>{
     const previouslySelected=selectedSource;
     selectedSource=null;
+    restoreNativePreview();
     sourceSheet.hidden=true;
     root.dataset.sfv3SourceInspector='closed';
     for(const node of contents.querySelectorAll('.sfv3-row-select[aria-expanded="true"]'))
@@ -485,15 +505,44 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceSheetOrigin.textContent='来源 · '+selectedSource.sourceFile.name+
       ' · '+selectedSource.group;
     sourceSheetDetail.textContent=selectedSource.detail||'当前来源已识别此对象';
+    const previewable=Boolean(selectedSource.preview &&
+      from.scanned && from.file===sourceInput.files?.[0] && nativePreviewDrawer);
     sourceSheetNotice.textContent=selectedSource.reason ||
       (selectedSource.transfer
         ? '可明确选择另一份 MKV 后，使用现有受验证的字幕提取与封装流程。'
+        : previewable
+        ? '可使用现有 FFmpeg/libass 预览源 ASS；此操作不加入拟输出，预览字体不代表已验证封装依赖闭包。'
         : '当前对象只可观察；此处不提供未经验证的修改、提取或预览操作。');
+    sourceSheetPreview.hidden=!previewable;
+    if(!previewable)restoreNativePreview();
     sourceSheetAdd.hidden=!selectedSource.transfer;
     sourceSheet.hidden=false;
     root.dataset.sfv3SourceInspector='open';
   };
   sourceSheetClose.addEventListener('click',()=>closeSourceSheet(true));
+  sourceSheetPreview.addEventListener('click',()=>{
+    const selected=selectedSource;
+    if(!selected?.preview || !nativePreviewDrawer ||
+        root.dataset.sfv3Surface!=='source' ||
+        !exactEntry(selected.sourceKey,selected.sourceFile) ||
+        activeView()?.file!==selected.sourceFile ||
+        sourceInput.files?.[0]!==selected.sourceFile ||
+        !activeView()?.scanned){
+      restoreNativePreview();
+      return;
+    }
+    sourceSheetPreviewHost.hidden=false;
+    sourceSheetPreviewHost.appendChild(nativePreviewDrawer);
+    nativePreviewDrawer.open=true;
+    if(!signal('softmux:v3-preview-source',{
+      sourceKey:selected.preview.sourceKey,
+      sourceFile:selected.preview.sourceFile,
+      streamIndex:selected.preview.streamIndex,
+    })){
+      sourceSheetNotice.textContent='当前来源预览未通过实际轨道或运行状态检查。';
+      restoreNativePreview();
+    }
+  });
   sourceSheetAdd.addEventListener('click',()=>{
     if(!selectedSource?.transfer)return;
     const selected=selectedSource;
@@ -655,6 +704,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         if(selectedSource?.id===item.id && selectedSource.sourceFile===from.file){
           closeSourceSheet(true);return;
         }
+        restoreNativePreview();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
         updateSourceSheet();
       });
@@ -927,6 +977,9 @@ export function mountSoftmuxV3Surface(doc = document) {
           }:null,
           reason:isSubtitle && stream?.codec!=='subrip'
             ? '此字幕格式的跨 MKV 转移尚未完成独立依赖验收；不会提供虚假的加入操作。':'',
+          preview:isSubtitle && ['ass','ssa'].includes(stream?.codec) && from?.scanned ? {
+            sourceKey:from.key,sourceFile:from.file,streamIndex,
+          }:null,
         });
       }
       for(const kind of ['视频','音频','字幕','其他轨道'])

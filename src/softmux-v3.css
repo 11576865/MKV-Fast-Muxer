@@ -976,3 +976,40 @@
 @media(prefers-reduced-motion:reduce){
   .sf14.sfv3 .sfv3-source-sheet{animation:none!important;transition:none!important;}
 }
+
+
+/* V3-05 rehosts the original FFmpeg/libass preview DOM inside the selected
+ * source ASS inspector. Never clone a frame, preview input or status node. */
+.sf14.sfv3 .sfv3-source-sheet-preview-host[hidden],
+.sf14.sfv3 .sfv3-source-sheet-preview[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-source-sheet-preview{
+  min-height:42px;padding:9px 14px;
+  border:1px solid var(--sfv3-line);border-radius:9px;
+  background:var(--sfv3-row-raised);color:var(--sfv3-text);
+  font-weight:650;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host{
+  width:100%;min-width:0;margin-top:3px;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host #sf14PreviewDrawer{
+  display:block;width:100%;margin:0;
+  border:1px solid var(--sfv3-line);
+  border-radius:10px;background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .subtitle-preview-card{
+  min-width:0;max-width:100%;padding:9px;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-stage{
+  max-width:100%;min-height:130px;
+}
+.sf14.sfv3 .sfv3-source-sheet-preview-host .preview-image-trigger{
+  max-width:100%;height:auto;
+}
+@media(max-width:959px){
+  .sf14.sfv3 .sfv3-source-sheet:has(.sfv3-source-sheet-preview-host:not([hidden])){
+    max-height:min(72dvh,790px);
+  }
+  .sf14.sfv3 .sfv3-source-sheet-actions{
+    justify-content:flex-start;flex-wrap:wrap;
+  }
+}

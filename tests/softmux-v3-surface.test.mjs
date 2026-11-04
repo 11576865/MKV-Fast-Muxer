@@ -93,3 +93,14 @@ test('V3 selected-source inspector is read-only, exact-File bound, and never inv
   assert.match(css,/\.sfv3-source-sheet\[hidden\]/);
   assert.match(css,/prefers-reduced-motion:reduce/);
 });
+
+test('V3 ASS source preview routes exact File/stream to the existing native renderer',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  assert.match(main,/softmux:v3-preview-source/);
+  assert.match(main,/scannedSourceFile!==sourceFile/);
+  assert.match(main,/previewRefreshBtn\.click\(\)/);
+  assert.match(surface,/nativePreviewHome\.insertBefore\(nativePreviewDrawer/);
+  assert.match(surface,/sourceSheetPreviewHost\.appendChild\(nativePreviewDrawer\)/);
+  assert.match(surface,/sourceInput\.files\?\.\[0\]!==selected\.sourceFile/);
+});

@@ -4085,6 +4085,31 @@ document.addEventListener('softmux:v3-inspect-secondary', event=>{
   event.preventDefault();
   button.click();
 });
+// An observed ASS/SSA stream can be previewed without a target. The
+// original FFmpeg/libass renderer is the sole owner of frame and font state.
+document.addEventListener('softmux:v3-preview-source', event=>{
+  if(!v3Pilot || isBusy() || batchRunning || batchStartPending ||
+      importInProgress || document.getElementById('sf14Root')?.dataset.sfv3Surface!=='source')return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex)||streamIndex<0)return;
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry || !sourceFile || videoInput.files?.[0]!==sourceFile ||
+      scannedSourceFile!==sourceFile || trackState?.fileKey!==fileKey(sourceFile))return;
+  const candidate=embeddedPreviewTracks({
+    source:sourceFile,scannedSource:scannedSourceFile,state:trackState,
+  }).find(track=>track.streamIndex===streamIndex && track.sourceFile===sourceFile);
+  if(!candidate || !previewSubtitleSelect || !previewRefreshBtn)return;
+  syncPreviewControls();
+  if(![...previewSubtitleSelect.options].some(option=>option.value===candidate.key))return;
+  previewSubtitleSelect.value=candidate.key;
+  previewSubtitleSelect.dispatchEvent(new Event('change',{bubbles:true}));
+  if(previewTimeInput)previewTimeInput.value='';
+  syncPreviewControls();
+  if(previewRefreshBtn.disabled)return;
+  event.preventDefault();
+  previewRefreshBtn.click();
+});
 document.addEventListener('softmux:v3-add-secondary', event=>{
   if (!v3Pilot || !v3MayEditOutput() || isBusy() || batchRunning || importInProgress) return;
   const {sourceKey,sourceFile,streamIndex}=event.detail||{};
