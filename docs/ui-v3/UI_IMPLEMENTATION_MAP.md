@@ -43,3 +43,14 @@ Known gap: this is an explicit writer-authorization gate around the legacy *inte
 | Remove B source target | imported-entry removal + `currentV3Target()` and V3 resource-registry | revokes target tab and composition, blocks mux and returns to source; tested via visible source drawer |
 
 The main V3 output composition path is now conditional; this is **not** blanket deletion of every legacy prospective-plan helper or an assertion that all read-only source entry points have been audited. Target-source authorization remains separate from user-edited track fields, and only authorized user interactions may advance from observation to output.
+
+## WU-03 source read-only and WU-04 asset ownership (2026-11-04)
+
+| User-visible function | One authoritative implementation | Constraint |
+| --- | --- | --- |
+| Source-only control locking | `src/softmux-v3-surface.js` event capture + `src/main.js:v3MayEditOutput` checks at actual native edit event handlers | Current source observation may inspect and remove imported files, but cannot mutate track include/default/forced, attachments, external include, track order or run single-task mux |
+| Explicit A→B addition after approval | Existing exact-File authority + target-bound native subtitle extraction | Transition to target surface before native Add-to execution; no duplicate output editor |
+| Desktop chrome/rail/track icons | `src/v3-assets/*.svg` exact Figma exports; `ICON_URLS` and `svgIcon` in `src/softmux-v3-surface.js` | Root SVG intrinsic sizes and exported strokes retained, Vite-local URLs; actual displayed icon assets checked in Chromium |
+| Static visual reference | `docs/ui-v3/reference/*.png` | Design screenshot with static Figma labels, not an execution screenshot or a pixel-level success claim |
+| Review status | `docs/ui-v3/UI_ACCEPTANCE.md` | No merge to main until responsive screenshot diff, exact contextual controls, motion and real-media acceptance are all obtained |
+

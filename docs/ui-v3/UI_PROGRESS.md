@@ -11,8 +11,8 @@ Gate: `docs/ui-v3/UI_DESIGN_CONTRACT.md`.
 - [x] Record immutable Git baseline and owner-approved Figma frame identifiers.
 - [~] WU-01: source-first desktop/empty surface, real File and scanned-track binding, preserve old engine and legacy UI rollback. **Browser pilot passed; Figma visual review and full V3 semantic acceptance remain open.**
 - [~] WU-02: multi-MKV source tabs, exact-File target picker, real A→B SubRip transfer and mux tested. **ASS/font closure, complete object preview/selection and fully optional underlying OutputPlan remain open.**
-- [~] WU-03: source-side output composition gated by confirmed target; real target heading, selected-object reuse, mux and revocation E2E passed. **Full optional-output domain, source-side edit isolation and final V3 design fidelity still open.**
-- [ ] WU-04: source drawer, portrait/landscape/compact responsive reflow with state continuity.
+- [~] WU-03: source-only/output model split, real mux and revocation E2E. Source-side mutators now blocked at both control and native event-handler boundaries; **not yet a whole-app permission proof**.
+- [~] WU-04: preserve source drawer and responsive first cut; exact SVG source-screen icons and immutable Figma visual reference renders committed. Continuous resize/contrast/pixel-diff acceptance still open.
 - [ ] WU-05: precise Figma visual comparison, motion design handoff, real-media functionality and rollback acceptance.
 
 ### WU-01 limitations
@@ -86,3 +86,15 @@ The scenario builds a real A.mkv with embedded SubRip plus a separate B.mkv and 
 **Meaningful limits:** This step removes eager output-document construction from the *primary V3 render path* but does not yet remove all legacy `buildMuxPlan()` helpers and special-case tools. Source-drawer mutating controls and output-editor scope need a complete read-only-vs-authorized audit before declaring full optional-domain coverage. The actual product interface is still the previous default; `?ui=v3` is an opt-in draft. Real ASS+font cross-source closure is separately pending PR #233. Figma screenshot diff, final responsive geometry, icons, motion and user acceptance remain pending.
 
 **Next admissible scope:** before moving beyond WU-03, audit source-view mutating controls and eliminate any unauthorized output change path; then WU-04 visual reconstruction must compare exact-head screenshots with the approved Figma source and portrait/landscape boards, keeping the same state/data fixtures and never treating placeholder glyphs as final icons.
+
+## 2026-11-04 — Source-view read-only enforcement and WU-04 SVG handoff
+
+**Passing implementation commit:** `489be3f00b1ceec56ab895d93172395825bf779f`; [exact-head V3 browser/unit/build run #41767751720](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41767751720) **PASS**. Includes actual A→B SubRip mux and read-only-source regression. Uploaded browser screenshots/JSON: `ui-v3-pilot-source-first-evidence` (artifact `13293213307`). At this checkpoint the full Browser E2E and S12 workflows on the same code commit had not yet finished, so they are not silently marked passed.
+
+**Read-only protection:** In V3 source mode, the original output-mutating inventory, track and attachment controls are marked disabled; captured DOM input/change/click events are rejected; corresponding native listeners also check actual target authorization AND the target editor surface. Source files can still be observed, inspected, opened, imported and removed. The authorized A→B transfer intentionally changes into target edit scope before invoking native extraction, so the source view remains read-only even if an OutputPlan exists. The browser scenario asserts a forged source-side checkbox change cannot modify canonical subtitle inclusion while target editing and output mux continue to work.
+
+**Exact source assets:** `src/v3-assets/` holds 19 unmodified SVG exports from approved Figma V3 desktop node `28:2` plus the 34px empty/import SVG from node `39:228`. See `src/v3-assets/README.md` for icon-to-node references. V3 rendering now uses local Vite asset URLs, with no expiring `figma.com/api/mcp/asset` runtime dependency. The initial SVG CI failure on `8a836efc` resulted from measuring non-visible icon slots as if displayed; the final exact-head test distinguishes all-loaded assets from nonzero visible boxes and passed.
+
+**Immutable design renders:** `docs/ui-v3/reference/` has exact Figma PNG renders for source desktop `28:2`, empty desktop `39:2`, portrait source `33:2`, landscape output `36:2` and compact output `37:223`, plus scope/limitations README. They are NOT runtime screen captures and cannot demonstrate real responsive motion.
+
+**Next stop rule:** Before promoting the UI, compare exact branch-head browser screenshots against these five baseline screenshots with matching state/fixture, font and viewport; fix position, density, overflow, icon roles and missing contextual actions. Confirm 820, 1180, 620 and intermediate widths, keyboard/touch focus, motion/reduced-motion and the unresolved ASS+font dependency work. No Canonical specification changes.
