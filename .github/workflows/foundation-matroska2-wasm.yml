@@ -7,6 +7,7 @@ on:
       - '.github/workflows/foundation-matroska2-wasm.yml'
       - 'scripts/probe-foundation-matroska2-wasm.mjs'
       - 'scripts/patch-foundation-corec-emscripten.mjs'
+      - 'scripts/probe-foundation-matroska2-browser.mjs'
   workflow_dispatch:
 
 permissions:
@@ -76,6 +77,26 @@ jobs:
           FOUNDATION_FIXTURE: .e2e/fixtures/p0-independent-mkvtoolnix.mkv
         run: node scripts/probe-foundation-matroska2-wasm.mjs
 
+      - name: Install browser probe dependencies
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "FOUNDATION_CHROMIUM_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "FOUNDATION_CHROMIUM_EXECUTABLE=$(command -v google-chrome-stable)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "FOUNDATION_CHROMIUM_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+
+      - name: Execute upstream Matroska parser Wasm in real Chromium
+        env:
+          FOUNDATION_WASM_JS: .e2e/foundation-build/libmatroska2/mkvtree.js
+          FOUNDATION_FIXTURE: .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+        run: node scripts/probe-foundation-matroska2-browser.mjs
+
       - name: Upload actual compiler, Wasm and independent file evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,6 +108,7 @@ jobs:
             .e2e/output/foundation-wasm-corec-portability.diff
             .e2e/output/foundation-reference-mkvmerge.json
             .e2e/output/foundation-matroska2-wasm-probe.json
+            .e2e/output/foundation-matroska2-chromium-probe.json
             .e2e/foundation-build/libmatroska2/mkvtree.js
             .e2e/foundation-build/libmatroska2/mkvtree.wasm
           if-no-files-found: warn
