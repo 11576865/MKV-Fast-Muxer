@@ -1,5 +1,6 @@
 import { createSourceAssetSession } from './source-asset-session.js';
 import { createFoundationStructureObserver } from './foundation-structure-observation.js';
+import { buildFoundationAttachmentInventory } from './foundation-attachment-inventory.js';
 import { inspectMatroskaPreservation } from './preservation-preflight.js';
 import { inspectMatroskaAttachmentRelations } from './matroska-attachment-relation-graph.js';
 
@@ -142,7 +143,10 @@ async function inspectOneAttachment(file, el, ordinal, budget) {
 export function createMatroskaAttachmentReader(file, {
   sourceSession = createSourceAssetSession(),
   foundationWorkerFactory = null,
+  inspectionBackend = 'legacy',
 } = {}) {
+  if(!['legacy','foundation-primary'].includes(inspectionBackend))
+    throw Error('ATTACHMENT_INSPECTION_BACKEND_INVALID');
   const asset = sourceSession.register(file, { kind: 'container' });
   let latest = null, activeFoundation = null;
   async function inspect() {
@@ -150,6 +154,43 @@ export function createMatroskaAttachmentReader(file, {
     // cancels any pending WASM observation bound to that inventory instance.
     activeFoundation?.cancel('FOUNDATION_SOURCE_REINSPECTED');
     latest = null;
+    if(inspectionBackend==='foundation-primary'){
+      let observer=null;
+      try{
+        // This is an *authoritative read-only inspection backend*, not an
+        // extra shadow oracle. It does not execute the legacy EBML walker.
+        // Missing runtime/malformed data means unverified, not silent fallback.
+        observer=createFoundationStructureObserver({
+          file,source:asset,workerFactory:foundationWorkerFactory,
+          isCurrent:()=>sourceSession.isCurrent(asset,file) &&
+            activeFoundation===observer,
+        });
+        activeFoundation=observer;
+        const tree=await observer.inspect();
+        if(activeFoundation!==observer ||
+           !sourceSession.isCurrent(asset,file))
+          throw Error('FOUNDATION_INVENTORY_SOURCE_STALE');
+        const inventory=freezePlain(await buildFoundationAttachmentInventory({
+          file,source:asset,observation:tree,
+        }));
+        if(activeFoundation!==observer ||
+           !sourceSession.isCurrent(asset,file))
+          throw Error('FOUNDATION_INVENTORY_SOURCE_CHANGED_DURING_READ');
+        latest=inventory;
+        return inventory;
+      }catch(error){
+        if(activeFoundation===observer)latest=null;
+        return freezePlain({
+          schema:ATTACHMENT_INVENTORY_SCHEMA,
+          state:'unverified',source:asset,attachments:[],
+          diagnostic:{code:error?.message||'FOUNDATION_INVENTORY_FAILED'},
+          claims:{wholeEbmlPreservation:'unverified'},
+        });
+      }finally{
+        observer?.dispose();
+        if(activeFoundation===observer)activeFoundation=null;
+      }
+    }
     const budget = { headers: 0 };
     const attachments = [];
     let hasTracks = false;
