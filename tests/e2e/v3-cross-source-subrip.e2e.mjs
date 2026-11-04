@@ -138,6 +138,9 @@ try {
   // authorized output document and its writer ability must both disappear.
   const targetRow=page.locator('#assetInventory .asset-entry[data-kind="container"]')
     .filter({has:page.locator('.asset-entry-name',{hasText:'B-base.mkv'})});
+  // V3 deliberately uses a collapsed source drawer in its target view.
+  // Exercise the actual visible entry point, not a hidden legacy control.
+  await page.locator('#sf14SourceToggle').click();
   await targetRow.locator('button[data-asset-remove]').click();
   await page.waitForFunction(()=> {
     const root=document.querySelector('#sf14Root');
