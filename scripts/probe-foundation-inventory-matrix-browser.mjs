@@ -28,6 +28,8 @@ const CASES=Object.freeze([
   {id:'foundation-no-attachments',count:0,reason:'remuxed-nested-chapter-without-files'},
   {id:'foundation-three-attachments',count:3,
     reason:'unicode-filename-description-and-mime-variation'},
+  {id:'foundation-audio-only',count:1,
+    reason:'independently-generated-audio-only-source-with-unicode-attachment'},
 ]);
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const digestFile=async file=>{
@@ -345,5 +347,5 @@ try {
 }
 if(report.result!=='FOUNDATION_PRIMARY_INDEPENDENT_MATRIX_PASS'||
    report.cases.length!==CASES.length ||
-   report.totalAttachments!==6 ||
+   report.totalAttachments!==7 ||
    report.negativeControls?.length!==4)process.exitCode=1;
