@@ -122,7 +122,8 @@ jobs:
           node scripts/generate-foundation-ebml-edge-fixtures.mjs
           for case in foundation-edge-crc-valid foundation-edge-segment-unknown \
                       foundation-edge-crc-nested-valid \
-                      foundation-edge-cluster-unknown-terminal; do
+                      foundation-edge-cluster-unknown-terminal \
+                      foundation-edge-cluster-unknown-nonterminal; do
             mkvmerge -J ".e2e/fixtures/$case.mkv" > ".e2e/output/$case-native.json"
           done
           node --input-type=module <<'NODE'
@@ -132,6 +133,7 @@ jobs:
             'foundation-edge-segment-unknown',
             'foundation-edge-crc-nested-valid',
             'foundation-edge-cluster-unknown-terminal',
+            'foundation-edge-cluster-unknown-nonterminal',
           ]){
             const info=JSON.parse(await fs.readFile(
               '.e2e/output/'+name+'-native.json','utf8'));
