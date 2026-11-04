@@ -69,6 +69,7 @@ try {
   // succeed through a standalone observer-only demonstration.
   for(const name of [
     'matroska-attachment-reader','foundation-structure-observation',
+    'foundation-wasm-json-abi',
     'source-asset-session','output-composition','container-tree',
     'preservation-preflight','matroska-attachment-relation-graph',
   ]){
@@ -143,11 +144,27 @@ try {
     if(!structuredModule.FS?.writeFile||!structuredModule.ccall)
       throw Error('BROWSER_STRUCTURED_C_ABI_MISSING');
     structuredModule.FS.writeFile('/independent.mkv',source);
-    const code=structuredModule.ccall(
-      'foundation_probe','number',['string'],['/independent.mkv']);
-    if(code!==0)throw Error('FOUNDATION_STRUCTURED_PROBE_REJECTED_'+code);
-    const jsonText=structuredModule.ccall('foundation_json','string',[],[]);
-    const structured=JSON.parse(jsonText);
+    const {readFoundationWasmStructure}=await import(
+      '/src/foundation-wasm-json-abi.js');
+    const structured=readFoundationWasmStructure(
+      structuredModule,'/independent.mkv');
+    // A completed call has no retained C JSON. Failures cannot expose the
+    // previous result, and the same Module can recover for the next call.
+    const empty=structuredModule.ccall('foundation_json_length','number',[],[]);
+    if(empty!==0||structuredModule.ccall('foundation_json','string',[],[])!=='')
+      throw Error('FOUNDATION_NATIVE_JSON_NOT_RELEASED');
+    try {
+      readFoundationWasmStructure(structuredModule,'/source-does-not-exist.mkv');
+      throw Error('FOUNDATION_ABI_BROKEN_INPUT_WAS_ACCEPTED');
+    } catch(error) {
+      if(error.message!=='FOUNDATION_ABI_PROBE_FAILED_13')throw error;
+    }
+    if(structuredModule.ccall('foundation_json_length','number',[],[])!==0)
+      throw Error('FOUNDATION_ABI_FAILED_CALL_LEAKED_RESULT');
+    const second=readFoundationWasmStructure(
+      structuredModule,'/independent.mkv');
+    if(JSON.stringify(second)!==JSON.stringify(structured))
+      throw Error('FOUNDATION_ABI_REPEATED_RESULT_CHANGED');
     if(structured.schema!=='foundation-matroska-structured-tree-v0'||
        !Array.isArray(structured.nodes)||!structured.nodes.length)
       throw Error('FOUNDATION_STRUCTURED_SCHEMA_INVALID');
@@ -224,6 +241,9 @@ try {
   if(productBridge.writerAuthorization!==false||
      productBridge.sourceBytes!==sourceBytes.length)
     throw Error('PRODUCT_ADAPTER_CLAIM_OR_SOURCE_IDENTITY_INVALID');
+  report.structuredCAbiVersioned=true;
+  report.structuredCAbiReleaseChecked=true;
+  report.structuredCAbiFailureRecoveryChecked=true;
   report.productAdapterInvokedInChromium=true;
   report.productAdapterConsistentWithNative=true;
   const existingReader=await page.evaluate(async()=>{
