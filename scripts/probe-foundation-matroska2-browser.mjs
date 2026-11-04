@@ -10,6 +10,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
 import {chromium} from 'playwright';
+import {parseMkvmergeJsonWithExactUids,exactPositiveUid} from '../src/mkvmerge-exact-uid-json.js';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const js=path.resolve(process.env.FOUNDATION_WASM_JS||
@@ -35,7 +36,7 @@ try {
     fs.readFile(js),fs.readFile(wasm),fs.readFile(fixture),
     fs.readFile(structuredJs),fs.readFile(structuredWasm),
     fs.readFile('.e2e/output/foundation-reference-mkvmerge.json','utf8')
-      .then(JSON.parse),
+      .then(parseMkvmergeJsonWithExactUids),
   ]);
   const sourceSha=sha(sourceBytes);
   report.sourceSha256=sourceSha;
@@ -181,6 +182,36 @@ try {
   if(report.structuredNameCounts.TrackEntry!==(independentInfo.tracks||[]).length||
      report.structuredNameCounts.AttachedFile!==(independentInfo.attachments||[]).length)
     throw Error('INDEPENDENT_MKVMERGE_NODE_COUNT_MISMATCH');
+  // Full 64-bit identities must match the independent native mkvmerge JSON.
+  // JSON.parse of raw UID numbers is unsafe; use the product's exact decimal
+  // parser, then compare text IDs without a Number conversion.
+  const values=name=>nodes.filter(node=>node.name===name)
+    .map(node=>exactPositiveUid(node.uintValue));
+  const sameUids=(left,right)=>
+    JSON.stringify([...left].sort())===JSON.stringify([...right].sort());
+  const nativeTrackUids=(independentInfo.tracks||[])
+    .map(track=>exactPositiveUid(track.properties?.uid));
+  const nativeAttachmentUids=(independentInfo.attachments||[])
+    .map(attachment=>exactPositiveUid(attachment.properties?.uid));
+  const typedTracks=values('TrackUID');
+  const typedAttachments=values('FileUID');
+  const chapterUids=values('ChapterUID');
+  const tagChapterUids=values('TagChapterUID');
+  if(!sameUids(typedTracks,nativeTrackUids)||
+     !sameUids(typedAttachments,nativeAttachmentUids)||
+     typedTracks.length!==(independentInfo.tracks||[]).length||
+     typedAttachments.length!==(independentInfo.attachments||[]).length)
+    throw Error('STRUCTURED_WASM_LOSSLESS_UID_ORACLE_MISMATCH');
+  if(chapterUids.length<2||!tagChapterUids.length||
+     !tagChapterUids.every(uid=>chapterUids.includes(uid)))
+    throw Error('STRUCTURED_WASM_CHAPTER_UID_TARGET_UNRESOLVED');
+  report.structuredExactUidEvidence={
+    trackUids:typedTracks,
+    fileUids:typedAttachments,
+    chapterUidCount:chapterUids.length,
+    tagChapterUidCount:tagChapterUids.length,
+    linkedChapterTargetsPreserved:true,
+  };
   report.structuredNodeCount=nodes.length;
   report.structuredSamples=nodes.filter(node=>expectedTypes.includes(node.name))
     .slice(0,20);
