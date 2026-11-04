@@ -25,6 +25,9 @@ const cases=[
     outerCrcValid:true,unknownSegment:false},
   {id:'foundation-edge-cluster-unknown-terminal',crc:'absent',
     unknownSegment:false,unknownClusterTerminal:true},
+  {id:'foundation-edge-cluster-unknown-nonterminal',crc:'absent',
+    unknownSegment:false,unknownClusterNonterminal:true,
+    expectRefusal:true},
 ];
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const report={schema:'foundation-ebml-edge-chromium-v1',result:'NOT_RUN',
@@ -100,7 +103,7 @@ try{
     }
     await page.locator('#source').setInputFiles(source);
     const actual=await page.evaluate(async context=>{
-      const {nativeExpected,unknownClusterTerminal}=context;
+      const {nativeExpected,unknownClusterTerminal,expectRefusal}=context;
       const {createMatroskaAttachmentReader}=await import(
         '/src/matroska-attachment-reader.js');
       const file=document.querySelector('#source').files[0];
@@ -120,7 +123,7 @@ try{
         count:modern.attachments.length,
         items:[],
       };
-      if(nativeExpected!==null){
+      if(nativeExpected!==null && !expectRefusal){
         if(modern.state!=='inspected' ||
            (!unknownClusterTerminal && legacy.state!=='inspected'))
           throw Error('EDGE_VALID_FIXTURE_REFUSED_'+modern.diagnostic?.code+
@@ -188,6 +191,7 @@ try{
     },{
       nativeExpected:scenario.crc==='corrupt'?null:native,
       unknownClusterTerminal:scenario.unknownClusterTerminal===true,
+      expectRefusal:scenario.expectRefusal===true,
     });
     if(scenario.crc==='valid' &&
        (!actual.crc||actual.crc.checked!==(scenario.crcChecks||1)||
@@ -204,6 +208,9 @@ try{
     if(scenario.unknownClusterTerminal &&
        actual.unknownClusterOfficialEvidence!==true)
       throw Error('EDGE_TERMINAL_UNKNOWN_CLUSTER_NOT_PROVEN');
+    if(scenario.unknownClusterNonterminal &&
+       (actual.modern!=='unverified'||actual.count!==0))
+      throw Error('EDGE_AMBIGUOUS_UNKNOWN_CLUSTER_NOT_REFUSED');
     if(sha(await fs.readFile(source))!==before)
       throw Error('EDGE_ORIGINAL_SOURCE_MODIFIED_'+scenario.id);
     report.cases.push({id:scenario.id,crc:scenario.crc,
@@ -211,6 +218,7 @@ try{
       outerCrcValid:scenario.outerCrcValid??null,
       unknownSegment:scenario.unknownSegment,
       unknownClusterTerminal:scenario.unknownClusterTerminal||false,
+      unknownClusterNonterminal:scenario.unknownClusterNonterminal||false,
       fileBytes:sourceBytes.length,
       sourceSha256:before,
       sourceUnmodified:true,
