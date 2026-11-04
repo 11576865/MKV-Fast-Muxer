@@ -17,7 +17,8 @@ const root='.e2e/fixtures', out='.e2e/output';
 const input=path.join(root,'p0-independent-attachmenttag.mkv');
 const sha=buf=>createHash('sha256').update(buf).digest('hex');
 const expectedId={ebml:0x1a45dfa3,segment:0x18538067,
-  attachments:0x1941a469,seekHead:0x114d9b74,cues:0x1c53bb6b};
+  attachments:0x1941a469,seekHead:0x114d9b74,
+  cluster:0x1f43b675,cues:0x1c53bb6b};
 
 function decodeElement(buf,start,limit=buf.length){
   if(start>=limit)throw Error('FIXTURE_EBML_START_OUT_OF_BOUNDS');
@@ -138,6 +139,28 @@ const valid=build(protectedAttachments,false);
 const unknown=build(plainAttachments,true);
 const nestedValid=build(nestedValidAttachments,false);
 const nestedInnerCorrupt=build(nestedCorruptInnerAttachments,false);
+// RFC 9559 permits unknown-size Cluster masters. Place the last source
+// Cluster as the LAST Segment child. We deliberately remove stale indexes
+// before moving it, and never claim this fixture models live streaming.
+const lastCluster=kept.filter(x=>x.id===expectedId.cluster).at(-1);
+if(!lastCluster)
+  throw Error('FIXTURE_SOURCE_CLUSTER_MISSING');
+const terminalCluster=Buffer.concat([
+  bytes.subarray(lastCluster.start,lastCluster.start+lastCluster.idWidth),
+  uintSize(8,0,true),
+  bytes.subarray(lastCluster.dataStart,lastCluster.end),
+]);
+const terminalPayload=Buffer.concat([
+  ...kept.filter(x=>x!==lastCluster).map(x=>
+    bytes.subarray(x.start,x.end)),
+  terminalCluster,
+]);
+const unknownCluster=Buffer.concat([
+  bytes.subarray(0,ebml.end),
+  bytes.subarray(segment.start,segment.start+segment.idWidth),
+  uintSize(8,terminalPayload.length),
+  terminalPayload,
+]);
 const badCRC=Buffer.from(valid);
 const crcPosition=badCRC.indexOf(crcHeader);
 if(crcPosition<0)throw Error('FIXTURE_INSERTED_CRC_NOT_LOCATED');
@@ -148,6 +171,7 @@ const files=[
   ['foundation-edge-segment-unknown.mkv',unknown],
   ['foundation-edge-crc-nested-valid.mkv',nestedValid],
   ['foundation-edge-crc-nested-inner-corrupt.mkv',nestedInnerCorrupt],
+  ['foundation-edge-cluster-unknown-terminal.mkv',unknownCluster],
 ];
 await fs.mkdir(out,{recursive:true});
 for(const [name,data] of files){
@@ -167,7 +191,8 @@ const report={
   removedStaleSeekHeadAndCues:true,
   generated:files.map(([name,data])=>({
     name,bytes:data.length,sha256:sha(data),
-    unknownSegment:name.includes('unknown'),
+    unknownSegment:name.includes('segment-unknown'),
+    unknownClusterTerminal:name.includes('cluster-unknown-terminal'),
     crcStatus:name.includes('corrupt')?'corrupt':
       name.includes('valid')?'valid':'absent',
     nestedAttachedFileCRC:name.includes('nested'),
