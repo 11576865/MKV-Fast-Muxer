@@ -170,7 +170,25 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
     assert.equal(await dependencyCard.count(),1);
     assert.match(await dependencyCard.textContent(),/A-with-ASS-and-font\.mkv/);
     assert.match(await dependencyCard.textContent(),/P3EmbeddedProof\.ttf/);
-    assert.match(await dependencyCard.textContent(),/待封装与成品审计/);
+    assert.match(await dependencyCard.textContent(),/尚未执行最终封装及成品审计/);
+    const realAssRow=page.locator('#compositionTracks .sfv3-target-group[data-kind="subtitle"] button.composition-row[data-sfv3-ass-font="bound"]');
+    assert.equal(await realAssRow.count(),1,
+      'real source ASS+font entry is visually identified without cloning a composition control');
+    assert.match(await realAssRow.textContent(),/来自 A-with-ASS-and-font\.mkv/);
+    assert.match(await realAssRow.textContent(),/字体依赖 1 项/);
+    assert.equal(await realAssRow.locator('.sfv3-target-ass-font-note').count(),1);
+    assert.equal(await page.locator('#compositionTracks button[data-composition-id]').count(),
+      await page.locator('#compositionTracks button.composition-row.composition-select').count(),
+      'V3 source-binding decoration must never create an extra editable composition button');
+    await page.setViewportSize({width:820,height:1180});
+    let assRect=await realAssRow.boundingBox();
+    assert.ok(assRect && assRect.x>=-2 && assRect.x+assRect.width<=822,
+      '820px real ASS row remains within the portrait viewport');
+    await page.setViewportSize({width:620,height:900});
+    assRect=await realAssRow.boundingBox();
+    assert.ok(assRect && assRect.x>=-2 && assRect.x+assRect.width<=622,
+      '620px real ASS row remains within the compact viewport');
+    await page.setViewportSize({width:1440,height:950});
     assert.equal(await dependencyCard.locator('input,select,textarea,button').count(),0,
       'real dependency facts remain read-only; edits stay in original editor');
     await page.screenshot({path:path.join(outDir,'v3-ass-font-authorized-plan.png')});
@@ -228,6 +246,8 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
     assert.equal(await page.locator('#assetInventory .asset-entry[data-kind="font"]').count(),0);
     assert.equal(await page.locator('#sfv3AssFontDependencies .sfv3-ass-font-bundle').count(),0,
       'failed font closure cannot leave a misleading dependency proof in V3');
+    assert.equal(await page.locator('#compositionTracks button[data-sfv3-ass-font="bound"]').count(),0,
+      'missing-font rejection cannot color any source ASS as transferred');
     await page.screenshot({path:path.join(outDir,'v3-no-font-fail-closed.png')});
     // The same ASS bytes without the source's font may NOT enter the output
     // as a false "self-contained" bundle. Observe an actual browser refusal.

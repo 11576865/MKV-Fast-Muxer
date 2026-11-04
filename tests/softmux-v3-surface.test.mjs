@@ -148,3 +148,17 @@ test('V3 ASS/font evidence projects real derived File members and stays out of s
   assert.match(surface,/尚未执行最终封装及成品审计/);
   assert.match(surface,/assFontPanel\.hidden=!actualBundles\.length/);
 });
+
+
+test('V3 target transfer highlighting is bound to exact derived File, not subtitle metadata',async()=>{
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(main,/newSubtitleState\[item\.target\.index\]\?\.file/);
+  assert.match(main,/entry\.file===subtitleFile/);
+  assert.match(main,/entry\.file===origin\.sourceFile/);
+  assert.match(main,/file===entry\.file/);
+  assert.match(main,/row\.dataset\.sfv3AssFont='bound'/);
+  assert.match(main,/trackMain\.appendChild\(note\)/);
+  assert.match(css,/composition-row\[data-sfv3-ass-font="bound"\]/);
+  assert.match(css,/@media\(max-width:959px\)/);
+});

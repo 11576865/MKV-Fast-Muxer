@@ -2690,6 +2690,40 @@ function renderOutputComposition() {
       const row=originalRows[index];
       if(!row)continue;
       row.dataset.sfv3ObjectKind=kind;
+      // V3-04 / V3-06: annotate the ONE real composition control using
+      // the exact derived external subtitle File and its actual font members.
+      // An original source object is not colored as transferred by name alone.
+      if(kind==='subtitle' && item.target?.type==='external' &&
+          item.target.kind==='subtitle' && Number.isSafeInteger(item.target.index)){
+        const subtitleFile=newSubtitleState[item.target.index]?.file;
+        const assMember=importedAssetEntries.find(entry=>
+          entry.kind==='subtitle' && entry.file===subtitleFile &&
+          entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+          entry.embeddedOrigin?.kind==='subtitle-ass');
+        if(assMember){
+          const origin=assMember.embeddedOrigin;
+          const activeSource=importedAssetEntries.some(entry=>
+            entry.kind==='container' && entry.key===origin.sourceKey &&
+            entry.file===origin.sourceFile);
+          const fonts=importedAssetEntries.filter(entry=>entry.kind==='font' &&
+            entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+            entry.embeddedOrigin.sourceFile===origin.sourceFile &&
+            entry.embeddedOrigin.streamIndex===origin.streamIndex);
+          const bound=activeSource && fonts.length>0 && fonts.every(entry=>
+            [...(fontInput.files||[])].some(file=>file===entry.file));
+          if(bound){
+            row.dataset.sfv3AssFont='bound';
+            const trackMain=row.querySelector('.composition-track-main');
+            if(trackMain){
+              const note=document.createElement('small');
+              note.className='sfv3-target-ass-font-note';
+              note.textContent='来自 '+origin.sourceName+' · 字体依赖 '+
+                fonts.length+' 项 · 已登记到拟输出编辑器';
+              trackMain.appendChild(note);
+            }
+          }
+        }
+      }
       groups.get(kind).list.append(row);
     }
     compositionTracks.replaceChildren(...groups.values().map(group=>group.section));

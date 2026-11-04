@@ -144,3 +144,13 @@ Remaining issue: selected ASS, Default/Forced instructional context, motion and 
 | Current editor registration | Existing `subInput.files`, `fontInput.files` (exact File refs) | `bound` only if source remains imported and both subtitle plus all matched fonts are actually registered; else `pending` with explicit warning |
 | Presentation and scope | Approved V3-04 target, `#sfv3AssFontDependencies` | Visible only with exact confirmed target and output plan, zero controls; filenames/stream/source, not a final output or renderer certificate |
 | Regression | `v3-source-ass-preview.e2e.mjs` and real `cross-source-ass-font-bundle-scenario.mjs` | Require guarded chooser before target; positive real bundled names/binding before mux, negative no-font refusal with no phantom proof; exact-head CI pending |
+
+
+## WU-05 Figma V3-04/V3-06 source-bound composition-row parity (2026-11-04)
+
+| Contract | Existing owner | V3-only presentation/test |
+| --- | --- | --- |
+| Real ASS source row accent | Original `renderOutputComposition()`, real `item.target`, `newSubtitleState`, imported `File` registry and source-scoped font members | Reuses exact `button[data-composition-id]` in its original source/plan row and sets `data-sfv3-ass-font="bound"` only on actual same-File ASS+font members |
+| Readable Figma-style provenance | V3-04 `32:2` desktop and V3-06 `35:2` portrait source-derived ASS subtitle row | Inline `sfv3-target-ass-font-note` with actual source filename and matched dependent font count, green style only in authorized target. No extra editor/button, no verification claim |
+| Regression proof | Actual Chromium A ASS+embedded font → explicit B + native mux scenario | Assert visible bound row, source+font facts, singleton real composition control, 820/620 bounds, and no highlighted row after missing-font refusal; exact-head Browser E2E pending |
+| Prior failure | Browser E2E `567837b8` test literal drift | Change obsolete “待封装与成品审计” assertion to the actual “尚未执行最终封装及成品审计” phrasing; complete native-output CI must rerun |

@@ -1093,3 +1093,40 @@
   }
   .sf14.sfv3 .sfv3-ass-font-head{gap:6px;}
 }
+
+
+/* V3-04 desktop / V3-06 portrait: only ACTUAL source-bound ASS+font
+ * composition controls receive the design's tinted transfer state.
+ * No extra composition button or inferred source transfer is created. */
+.sf14.sfv3[data-sfv3-surface="plan"]
+  .sfv3-target-group button.composition-row[data-sfv3-ass-font="bound"]{
+  background:#263c31;border-color:#648374;
+}
+.sf14.sfv3[data-sfv3-surface="plan"]
+  .sfv3-target-group button.composition-row[data-sfv3-ass-font="bound"]:hover{
+  background:#2e4638;border-color:#87aa94;
+}
+.sf14.sfv3[data-sfv3-surface="plan"]
+  .sfv3-target-group .sfv3-target-ass-font-note{
+  display:block;margin-top:4px;
+  color:#b6cebb;font-size:11px;line-height:1.5;
+  overflow-wrap:anywhere;
+}
+@media(max-width:959px){
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sfv3-target-group button.composition-row[data-sfv3-ass-font="bound"]{
+    min-height:58px;grid-template-columns:56px minmax(0,1fr) auto;
+    gap:10px;padding:10px 12px;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sfv3-target-group .sfv3-target-ass-font-note{
+    font-size:11px;
+  }
+}
+@media(max-width:620px){
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sfv3-target-group button.composition-row[data-sfv3-ass-font="bound"]{
+    grid-template-columns:48px minmax(0,1fr) auto;
+    gap:8px;padding:10px;
+  }
+}
