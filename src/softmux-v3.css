@@ -395,3 +395,39 @@
   .sf14.sfv3 .sfv3-plan-heading{padding:16px 13px 11px;}
   .sf14.sfv3 .sfv3-plan-return{margin-left:0;}
 }
+
+
+/* WU-04 first exact-asset pass. SVG root dimensions come from approved Figma;
+ * CSS controls surrounding affordance slots, not the exported SVG geometry. */
+.sf14.sfv3 img.sfv3-svg-icon{
+  display:block;flex:0 0 auto;max-width:none;
+}
+.sf14.sfv3 .sf14-mark{
+  display:grid;place-items:center;
+}
+.sf14.sfv3 .sfv3-tab{
+  display:flex;align-items:center;gap:8px;text-align:left;
+}
+.sf14.sfv3 .sfv3-tab-label{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sf14.sfv3 .sfv3-empty-icon,
+.sf14.sfv3 .sfv3-kind-icon,
+.sf14.sfv3 .sfv3-rail-action{
+  display:grid;place-items:center;
+}
+.sf14.sfv3 .sfv3-plan-cta,
+.sf14.sfv3 .sfv3-plan-return{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.sf14.sfv3 .sfv3-legacy-menu>summary{display:grid;place-items:center;}
+.sf14.sfv3 :is(.sfv3-svg-icon,.sfv3-tab-label){
+  pointer-events:none;
+}
+.sf14.sfv3 [data-sfv3-source-readonly="true"]{
+  opacity:.48;cursor:not-allowed;
+}
+@media(max-width:719px) {
+  .sf14.sfv3 .sfv3-tabs{gap:2px;}
+  .sf14.sfv3 .sfv3-tab{gap:6px;min-width:0;}
+}
