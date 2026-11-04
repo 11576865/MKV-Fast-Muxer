@@ -114,6 +114,46 @@ export function mountSoftmuxV3Surface(doc = document) {
   // opens presentation only; all editing still belongs to the live editor.
   const inspectorPane=root.querySelector('.sf14-pane.sf14-inspector');
   const inspectorHead=inspectorPane?.querySelector('.sf14-pane-head');
+  const inspectorContent=find(doc,'sf14Inspector');
+  // A read-only view of the selected real composition row; no shadow edit state.
+  const objectContext=doc.createElement('section');
+  objectContext.id='sfv3ObjectContext';
+  objectContext.className='sfv3-object-context';
+  objectContext.setAttribute('aria-live','polite');
+  const contextEyebrow=appendText(doc,objectContext,'small','sfv3-object-eyebrow','拟输出');
+  const contextTitle=appendText(doc,objectContext,'strong','sfv3-object-title','拟输出容器');
+  const contextMeta=appendText(doc,objectContext,'span','sfv3-object-meta','选择对象以检查其属性');
+  const nativeEditor=find(doc,'assetInspectorHost')?.parentElement;
+  if(nativeEditor)nativeEditor.insertBefore(objectContext,find(doc,'objectSelectionHint')||nativeEditor.firstChild);
+  const history=find(doc,'workspaceHistoryPanel');
+  const historyDrawer=doc.createElement('details');
+  historyDrawer.id='sfv3HistoryDrawer';
+  historyDrawer.className='sfv3-inspector-disclosure';
+  const historySummary=doc.createElement('summary');
+  historySummary.textContent='编辑历史与撤销';
+  historyDrawer.appendChild(historySummary);
+  if(history) {
+    history.before(historyDrawer);
+    historyDrawer.appendChild(history);
+  }
+  const inspectorEvidence=find(doc,'outputEvidencePanel');
+  const evidenceDrawer=doc.createElement('details');
+  evidenceDrawer.id='sfv3DeliveryDrawer';
+  evidenceDrawer.className='sfv3-inspector-disclosure sfv3-delivery-disclosure';
+  evidenceDrawer.appendChild(appendText(doc,evidenceDrawer,'summary','','成品验证与下载'));
+  if(inspectorEvidence) {
+    inspectorEvidence.before(evidenceDrawer);
+    evidenceDrawer.appendChild(inspectorEvidence);
+  }
+  const showRelevantEvidence=()=>{
+    if(inspectorEvidence && !inspectorEvidence.hidden)evidenceDrawer.open=true;
+  };
+  // This only presents existing execution evidence after it becomes visible.
+  // Never infer output success from a badge, pending plan or selected object.
+  const evidenceObserver=inspectorEvidence && new MutationObserver(showRelevantEvidence);
+  if(inspectorEvidence)evidenceObserver.observe(inspectorEvidence,{
+    attributes:true,attributeFilter:['hidden'],
+  });
   const contextDismiss=doc.createElement('button');
   contextDismiss.id='sfv3InspectorClose';
   contextDismiss.type='button';
@@ -138,6 +178,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     if(root.dataset.sfv3Surface!=='plan' || !inspectorPane) return;
     root.dataset.sfv3Inspector='open';
     scrim.hidden=false;
+    showRelevantEvidence();
     const trigger=find(doc,'sfv3InspectorOpen');
     if(trigger)trigger.setAttribute('aria-expanded','true');
   };
@@ -769,6 +810,13 @@ export function mountSoftmuxV3Surface(doc = document) {
       flowMessage='目标文件身份已改变，先前的拟输出授权失效。';
     }
     planHeading.hidden=root.dataset.sfv3Surface!=='plan' || !targetIntent;
+    const selectedRow=currentTracks.querySelector('button[data-composition-id][aria-pressed="true"]');
+    const selectedKind=selectedRow?.querySelector('.composition-kind')?.textContent?.trim()||'';
+    const selectedTitle=selectedRow?.querySelector('.composition-track-main strong')?.textContent?.trim()||'';
+    const selectedDetail=selectedRow?.querySelector('.composition-track-main small')?.textContent?.trim()||'';
+    contextEyebrow.textContent=selectedRow?'当前选中 · '+selectedKind:'拟输出 · 对象检查器';
+    contextTitle.textContent=selectedTitle||'拟输出容器';
+    contextMeta.textContent=selectedDetail||'未选中具体对象；可查看真实成品证据与编辑历史';
     if(targetIntent) {
       planName.textContent='拟输出 · '+targetIntent.baseFile.name;
       const currentCount=find(doc,'compositionCount')?.textContent?.trim() || '';
