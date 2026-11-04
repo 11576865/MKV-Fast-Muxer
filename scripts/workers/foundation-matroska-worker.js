@@ -22,8 +22,12 @@ self.onmessage=async event=>{
        typeof originalRead!=='function')
       throw Error('WORKER_SYNC_BLOB_ACCESS_UNAVAILABLE');
     const file=event.data.file;
-    if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.mkv$/i.test(file.name)||
-       file.size<1)
+    // Match the existing product File/WORKERFS source staging rule:
+    // retain the exact selected File, including spaces and Unicode names.
+    // Reject only directory traversal, path separators and NUL.
+    const name=String(file.name||'');
+    if(!name||name==='.'||name==='..'||/[\\/\0]/.test(name)||
+       file.size<1||name.length>255)
       throw Error('WORKER_FILE_NAME_OR_SIZE_INVALID');
 
     // The platform-owned synchronous blob reader is used internally by
