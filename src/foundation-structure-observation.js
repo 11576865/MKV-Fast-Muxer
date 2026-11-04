@@ -37,6 +37,7 @@ function validateTree(structured, file, source) {
         !Number.isInteger(original.depth) || original.depth < 0 ||
         original.depth > MAX_DEPTH ||
         typeof original.master !== 'boolean' ||
+        (original.finite !== undefined && typeof original.finite !== 'boolean') ||
         !/^(0|[1-9][0-9]*)$/.test(original.offset) ||
         !/^(0|[1-9][0-9]*)$/.test(original.endOffset) ||
         !/^(0|[1-9][0-9]*)$/.test(original.dataBytes))
@@ -63,6 +64,7 @@ function validateTree(structured, file, source) {
       id: original.id, name: original.name, depth: original.depth,
       offset: original.offset, endOffset: original.endOffset,
       dataBytes: original.dataBytes, master: original.master,
+      ...(original.finite === undefined ? {} : {finite: original.finite}),
       ...(original.uintValue === undefined ? {} : {uintValue: original.uintValue}),
     }));
     lastOffset = start;
