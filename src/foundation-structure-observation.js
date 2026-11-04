@@ -160,8 +160,13 @@ export function createFoundationStructureObserver({
           try {
             if (!isCurrent()) throw Error('FOUNDATION_SOURCE_STALE');
             if (signal?.aborted) throw Error('FOUNDATION_INSPECTION_ABORTED');
-            if (event?.data?.ok !== true)
-              throw Error('FOUNDATION_WORKER_REJECTED_INPUT');
+            if (event?.data?.ok !== true) {
+              const errorCode=event?.data?.errorCode;
+              const safeCode=typeof errorCode==='string' &&
+                /^(?:FOUNDATION_ABI|WORKERFS)_[A-Z0-9_]+$/.test(errorCode)?
+                '_'+errorCode:'';
+              throw Error('FOUNDATION_WORKER_REJECTED_INPUT'+safeCode);
+            }
             const observed = validateTree(event.data.structured,file,source);
             const stats = event.data.workerStats;
             if (!stats || stats.usedWorkerFS !== true ||
