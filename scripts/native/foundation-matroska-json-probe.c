@@ -31,7 +31,7 @@ static size_t used = 0;
 static unsigned count = 0;
 static int parse_failed = 0;
 
-void DebugMessage(const tchar_t *UNUSED_PARAM(Msg), ...) { }
+void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
 
 static void append(const char *value) {
   size_t size = strlen(value);
