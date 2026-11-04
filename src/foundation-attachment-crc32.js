@@ -9,22 +9,13 @@
  * Only Attachments/AttachedFile CRCs are checked. CRCs on other Matroska
  * masters are NOT certified by attachment inventory inspection.
  */
+import {assertEbmlMasterCrc32} from './ebml-crc32-bounded.js';
+
 const CRC_ID=0xbf;
 const ATTACHMENTS_ID=0x1941a469,ATTACHED_FILE_ID=0x61a7;
 const MAX_SINGLE_PROTECTED_BYTES=4*1024*1024;
 const MAX_TOTAL_PROTECTED_BYTES=16*1024*1024;
-const CHUNK=128*1024;
 const asId=node=>Number(BigInt(node.id));
-
-function crc32Update(previous,bytes){
-  let value=previous>>>0;
-  for(const octet of bytes){
-    value^=octet;
-    for(let k=0;k<8;k++)
-      value=(value&1)?((value>>>1)^0xedb88320):(value>>>1);
-  }
-  return value>>>0;
-}
 
 export async function verifyFoundationAttachmentCrc32({file,observation}={}){
   if(!file||!Number.isSafeInteger(file.size)||
@@ -63,27 +54,22 @@ export async function verifyFoundationAttachmentCrc32({file,observation}={}){
         if(covered>BigInt(MAX_SINGLE_PROTECTED_BYTES)||
            covered+BigInt(bytesRead)>BigInt(MAX_TOTAL_PROTECTED_BYTES))
           throw Error('FOUNDATION_CRC_RESOURCE_LIMIT');
-        const actualCRCBytes=new Uint8Array(
-          await file.slice(Number(crcEnd-4n),Number(crcEnd)).arrayBuffer());
-        if(actualCRCBytes.length!==4)
-          throw Error('FOUNDATION_CRC_STORED_VALUE_TRUNCATED');
-        const expected=(actualCRCBytes[0]|
-          (actualCRCBytes[1]<<8)|
-          (actualCRCBytes[2]<<16)|
-          (actualCRCBytes[3]<<24))>>>0;
-        let state=0xffffffff;
-        for(let at=Number(crcEnd);at<Number(parentEnd);){
-          const end=Math.min(Number(parentEnd),at+CHUNK);
-          const chunk=new Uint8Array(
-            await file.slice(at,end).arrayBuffer());
-          if(chunk.byteLength!==end-at)
-            throw Error('FOUNDATION_CRC_PROTECTED_DATA_TRUNCATED');
-          state=crc32Update(state,chunk);
-          bytesRead+=chunk.byteLength;
-          at=end;
+        // Reuse Softmux's existing RFC-8794 bounded CRC verifier rather
+        // than introducing a second CRC algorithm in the Foundation path.
+        try {
+          await assertEbmlMasterCrc32(file,{
+            masterDataStart:Number(parentDataStart),
+            masterEnd:Number(parentEnd),
+            crcStart:Number(crcStart),
+            crcEnd:Number(crcEnd),
+            crcDataStart:Number(crcEnd-4n),
+          });
+        } catch(error){
+          if(error?.message==='EBML_CRC32_VALUE_MISMATCH')
+            throw Error('FOUNDATION_CRC32_MISMATCH');
+          throw Error('FOUNDATION_CRC32_SCOPE_INVALID');
         }
-        if(((state^0xffffffff)>>>0)!==expected)
-          throw Error('FOUNDATION_CRC32_MISMATCH');
+        bytesRead+=Number(covered);
         checked++;
       }
     }
