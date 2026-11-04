@@ -431,3 +431,16 @@
   .sf14.sfv3 .sfv3-tabs{gap:2px;}
   .sf14.sfv3 .sfv3-tab{gap:6px;min-width:0;}
 }
+
+
+/* WU-04 paired visual evidence: old 681..1365 tablet skin reserves 72px
+ * on .sf14 itself. V3 owns the whole responsive canvas and already has
+ * its own rail breakpoints; the legacy offset must not persist.
+ * Higher specificity than .sf14-app .sf14 in softmux-figma-tablet.css. */
+.sf14-app .sf14.sfv3 {
+  padding-left:0;
+  padding-right:0;
+  margin-left:0;
+  width:100%;
+  max-width:100%;
+}
