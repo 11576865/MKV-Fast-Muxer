@@ -32,7 +32,7 @@ try{
   const files=new Map();
   for(const name of [
     'matroska-attachment-reader','foundation-structure-observation',
-    'foundation-attachment-inventory','foundation-attachment-crc32',
+    'foundation-attachment-inventory','foundation-attachment-crc32','ebml-crc32-bounded',
     'foundation-wasm-json-abi','source-asset-session',
     'output-composition','container-tree','preservation-preflight',
     'matroska-attachment-relation-graph',
