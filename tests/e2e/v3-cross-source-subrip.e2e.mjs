@@ -61,6 +61,15 @@ try {
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
     'opening A for read-only observation must not authorize any target');
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+  await aTab.focus();
+  const focusStable=await page.evaluate(async()=>{
+    const tab=document.activeElement;
+    document.getElementById('compositionTracks').appendChild(document.createComment('V3 observer focus test'));
+    await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+    return tab?.isConnected && document.activeElement===tab &&
+      tab.dataset.sfv3SourceKey;
+  });
+  assert.ok(focusStable,'async scanner repaint must preserve the selected tab and keyboard focus');
   await screenshot('wu02-view-A-before-target.png');
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   await page.locator('#sfv3SourceContents .sfv3-row-action').click();
