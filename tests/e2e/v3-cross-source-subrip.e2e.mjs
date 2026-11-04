@@ -42,26 +42,26 @@ const screenshot=async name=>{
 try {
   await page.goto(new URL('?ui=v3',base).href,{waitUntil:'networkidle'});
   await page.setInputFiles('#unifiedAssetInput',[b,a]);
+  // Two MKVs can legitimately be ambiguous: do not require the legacy
+  // engine to silently choose B before the user explicitly selects a target.
   await page.waitForFunction(()=>
     document.querySelectorAll('#assetInventory .asset-entry[data-kind="container"]').length===2 &&
-    document.querySelector('#videoInput')?.files?.[0]?.name==='B-base.mkv' &&
-    document.querySelector('#assetInventory [data-secondary-subtitle-inspect]') &&
-    document.querySelectorAll('#sfv3Tabs [data-sfv3-source-key]').length===2,
+    document.querySelectorAll('#sfv3Tabs [data-sfv3-source-key]').length===2 &&
+    !(document.querySelector('#assetImportStatus')?.textContent||'').includes('正在'),
     null,{timeout:120000});
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   const aTab=page.locator('#sfv3Tabs [data-sfv3-source-key]').filter({hasText:'A-with-SubRip'});
   await aTab.click();
-  assert.equal(await page.locator('#sfv3FileName').textContent(),'A-with-SubRip.mkv');
-  assert.equal(await page.locator('#videoInput').evaluate(el=>el.files?.[0]?.name),
-    'B-base.mkv','viewing A must not rebind the actual base source');
-  await screenshot('wu02-view-A-before-target.png');
-  const inspect=page.locator('#sfv3SourceContents .sfv3-inspect-source');
-  await inspect.click();
   await page.waitForFunction(()=>
-    document.querySelector('#sfv3SourceContents .sfv3-row-action') &&
-    document.querySelector('#assetInventory [data-secondary-subtitles][data-state="inspected"]'),
+    document.querySelector('#videoInput')?.files?.[0]?.name==='A-with-SubRip.mkv' &&
+    document.querySelector('#sfv3FileName')?.textContent==='A-with-SubRip.mkv' &&
+    document.querySelector('#sfv3SourceContents .sfv3-row-action'),
     null,{timeout:150000});
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+    'opening A for read-only observation must not authorize any target');
+  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+  await screenshot('wu02-view-A-before-target.png');
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   await page.locator('#sfv3SourceContents .sfv3-row-action').click();
   assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
