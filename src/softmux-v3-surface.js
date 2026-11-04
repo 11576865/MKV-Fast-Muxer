@@ -210,7 +210,14 @@ export function mountSoftmuxV3Surface(doc = document) {
   primary.textContent = '编辑拟输出';
   primary.title = '进入现有封装计划；不会直接修改来源文件';
   primary.hidden = true;
-  readout.prepend(heading);
+  const overview=doc.createElement('div');
+  overview.className='sfv3-overview';
+  const counters=doc.createElement('div');
+  counters.id='sfv3SourceCounters';
+  counters.className='sfv3-source-counters';
+  counters.hidden=true;
+  overview.append(heading,counters);
+  readout.prepend(overview);
   readout.append(empty, contents, primary);
   // The output heading is a VIEW of the one committed target authority.
   // It neither stores a second plan nor duplicates a mutating mux button.
@@ -593,6 +600,28 @@ export function mountSoftmuxV3Surface(doc = document) {
     const sourceRows=mainScanned?sourceRowsFromObservation(from.primaryStreams):[];
     const obs=mainSource && latestSections.scanned &&
       latestSections.sourceFile===file ? latestSections:null;
+    // Every number below is derived from the exact live File scan, never
+    // from prospective output rows. Unknown category != observed zero.
+    counters.replaceChildren();
+    const observedCounts=mainScanned ? [
+      ['视频','video',sourceRows.filter(row=>row.kind==='视频').length],
+      ['音频','audio',sourceRows.filter(row=>row.kind==='音频').length],
+      ['字幕','subtitle',sourceRows.filter(row=>row.kind==='字幕').length],
+      ...(obs?[['附件','attachment',obs.attachments.length]]:[]),
+    ] : from?.subtitleState==='inspected' ? [
+      ['字幕','subtitle',from.subtitleTracks?.length||0],
+    ] : [];
+    counters.hidden=observedCounts.length===0;
+    for(const [label,icon,count] of observedCounts){
+      const card=doc.createElement('div');
+      card.className='sfv3-counter';
+      card.dataset.kind=icon;
+      card.append(svgIcon(doc,icon));
+      appendText(doc,card,'strong','sfv3-counter-count',String(count).padStart(2,'0'));
+      appendText(doc,card,'span','sfv3-counter-label',label);
+      card.setAttribute('aria-label',label+' '+count);
+      counters.appendChild(card);
+    }
     name.textContent=file?.name || '未加载文件';
     contents.replaceChildren();
     empty.hidden=Boolean(file);
