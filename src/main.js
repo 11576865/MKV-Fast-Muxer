@@ -5374,8 +5374,12 @@ async function refreshSubtitlePreview() {
 
     previewStatus.textContent = '正在用 libass 渲染字幕到预览帧……';
     const filter = `ass=${assPath}:fontsdir=${fontDir}`;
-    const renderCode = await ffmpeg.exec([
-      '-hide_banner', '-loglevel', track.embedded ? 'info' : 'error', '-y',
+    // A successful FFmpeg exit may still produce a blank frame when libass
+    // cannot find ANY font provider in the isolated WASM filesystem.
+    // Capture the real per-command diagnostics and reject that condition
+    // rather than presenting a black PNG as a successful subtitle preview.
+    const renderResult = await execWithCapturedLogs([
+      '-hide_banner', '-loglevel', 'info', '-y',
       '-loop', '1',
       '-framerate', '10',
       '-i', basePath,
@@ -5384,7 +5388,17 @@ async function refreshSubtitlePreview() {
       '-frames:v', '1',
       outputPath,
     ]);
-    if (renderCode !== 0) throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderCode}）`);
+    if (renderResult.code !== 0)
+      throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderResult.code}）`);
+    const noFontProvider = renderResult.logs.some(line =>
+      /can't find selected font provider/i.test(line));
+    const selectedActualFont = renderResult.logs.some(line =>
+      /fontselect:.*->\s*\(/i.test(line));
+    if (noFontProvider && !selectedActualFont) {
+      // This diagnostic comes from libass itself. A source with no embedded
+      // fonts cannot inherit the host/browser's installed fonts in WASM.
+      throw new Error('LIBASS_PREVIEW_FONT_PROVIDER_UNAVAILABLE');
+    }
 
     const bytes = await ffmpeg.readFile(outputPath);
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength) throw new Error('预览 PNG 没有生成。');
@@ -5405,6 +5419,7 @@ async function refreshSubtitlePreview() {
       EMBEDDED_PREVIEW_FONT_HEADER_INVALID:'来源中声明的字体内容无法识别，未生成替代预览。',
       EMBEDDED_PREVIEW_FONT_BUDGET_EXCEEDED:'内封字体超过预览范围：最多32项、单项8 MiB、合计32 MiB。',
       EMBEDDED_PREVIEW_STALE_SOURCE:'来源已更换，请重新选择字幕预览。',
+      LIBASS_PREVIEW_FONT_PROVIDER_UNAVAILABLE:'WASM 字幕渲染器没有可用字体提供程序，无法确认文字已显示。请通过载入容器导入真实 TTF/OTF 字体，或选择包含内封字体的 MKV 来源后重新生成预览；原文件与拟输出不受影响。',
     };
     previewStatus.textContent = `无法生成预览帧：${embeddedErrorText[error?.message] || error?.message || error}`;
     logEl.textContent += `PREVIEW ERROR: ${error?.stack || error}\n`;
