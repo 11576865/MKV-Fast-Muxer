@@ -9,12 +9,23 @@ await mkdir(root,{recursive:true});
 const ref=path.resolve('docs/ui-v3/reference');
 const actual=path.resolve('.e2e/ui-v3-responsive');
 const emptyActual=path.resolve('.e2e/ui-v3-evidence');
+const assSource=path.resolve('.e2e/ui-v3-ass-source');
+const crossSource=path.resolve('.e2e/ui-v3-cross-source');
+const multitrack=path.resolve('.e2e/ui-v3-multitrack');
+// All ten representable static V3 screens. The eleventh approved Figma
+// screen (40:2) specifies state/adaptive RULES, not a browser bitmap, and
+// therefore has a structural evidence record below instead of a fake pair.
 const cases=[
-  {id:'desktop-source',figma:'v3-desktop-source-1440x900.png',live:'source-1440x900.png',liveRoot:actual,frame:'28:2'},
-  {id:'portrait-source',figma:'v3-portrait-source-820x1180.png',live:'source-820x1180.png',liveRoot:actual,frame:'33:2'},
-  {id:'landscape-target',figma:'v3-landscape-target-1180x820.png',live:'delivery-plan-1180x820.png',liveRoot:actual,frame:'36:2'},
-  {id:'compact-target',figma:'v3-compact-target-620x900.png',live:'delivery-plan-620x900.png',liveRoot:actual,frame:'37:223'},
-  {id:'desktop-empty',figma:'v3-desktop-empty-1440x900.png',live:'1440-empty.png',liveRoot:emptyActual,frame:'39:2'},
+  {id:'V3-01-desktop-source',figma:'v3-desktop-source-1440x900.png',live:'source-1440x900.png',liveRoot:actual,frame:'28:2'},
+  {id:'V3-02-desktop-ass-selected',figma:'v3-desktop-source-ass-selected-1440x900.png',live:'v3-ass-selected-1440x900.png',liveRoot:assSource,frame:'30:2'},
+  {id:'V3-03-explicit-target-picker',figma:'v3-desktop-target-picker-1440x900.png',live:'wu02-target-dialog.png',liveRoot:crossSource,frame:'31:2'},
+  {id:'V3-04-desktop-target',figma:'v3-desktop-target-1440x900.png',live:'five-track-1440x900.png',liveRoot:multitrack,frame:'32:2'},
+  {id:'V3-05-portrait-ass-selected',figma:'v3-portrait-source-820x1180.png',live:'v3-ass-selected-820x1180.png',liveRoot:assSource,frame:'33:2'},
+  {id:'V3-06-portrait-target',figma:'v3-portrait-target-820x1180.png',live:'five-track-820x1180.png',liveRoot:multitrack,frame:'35:2'},
+  {id:'V3-07-landscape-target',figma:'v3-landscape-target-1180x820.png',live:'five-track-1180x820.png',liveRoot:multitrack,frame:'36:2'},
+  {id:'V3-08-compact-target',figma:'v3-compact-target-620x900.png',live:'five-track-620x900.png',liveRoot:multitrack,frame:'37:223'},
+  {id:'V3-09-default-forced-help',figma:'v3-portrait-help-820x1180.png',live:'v3-source-ass-flags-and-font-observation.png',liveRoot:assSource,frame:'38:2'},
+  {id:'V3-10-desktop-empty',figma:'v3-desktop-empty-1440x900.png',live:'1440-empty.png',liveRoot:emptyActual,frame:'39:2'},
 ];
 const browser=await chromium.launch({
   headless:true,
@@ -66,12 +77,38 @@ Compare spacing, hierarchy, position, color, icon roles and overflow by inspecti
       pixels:sizes.figma,paired:file,verdict:'UNREVIEWED',score:null,
       reason:'Independent real screenshots paired with static mockups containing different fixtures.'});
   }
+  // Figma V3-11 (40:2) is a 1300x650 adaptive RULE diagram, not a
+  // 1300x650 application state. The real evidence is 11 viewport sizes x
+  // 2 authentic source/target surfaces from Chromium; never pass a fabricated
+  // browser mock screenshot as if it satisfied that design frame.
+  const responsive=JSON.parse(await readFile(path.join(actual,'v3-responsive-geometry.json'),'utf8'));
+  const testedWidths=[...new Set(responsive.cases.map(item=>item.width))];
+  const sourceCases=responsive.cases.filter(item=>item.state==='source');
+  const targetCases=responsive.cases.filter(item=>item.state==='plan');
+  if(!responsive.passed || testedWidths.length!==11 || sourceCases.length!==11 ||
+      targetCases.length!==11 || responsive.errors.length ||
+      responsive.cases.some(item=>!item.validFile || item.viewportOverflow ||
+        item.rootOverflow || item.nativeEditorNodes!==1 ||
+        item.criticalOffscreen.length)){
+    throw Error('V3-11 real responsive structural evidence is incomplete or failed');
+  }
+  const adaptive={id:'V3-11-adaptive-rules',frame:'40:2',
+    figma:'v3-adaptive-rules-1300x650.png',
+    evidence:'v3-responsive-geometry.json',type:'STATE_RULES_NOT_PIXEL_SCREEN',
+    testedWidths,sourceCases:sourceCases.length,targetCases:targetCases.length,
+    sourceAndTargetFileContinuity:true,passedBoundedGeometry:true,
+    visualAcceptance:'UNREVIEWED',physicalDeviceAcceptance:false,
+    note:'Figma 40:2 is a state/rules diagram. No pixel-score or fake UI render.'};
+  await stat(path.join(ref,adaptive.figma));
   await writeFile(path.join(root,'review-index.json'),
-    JSON.stringify({schema:'softmux-ui-v3-visual-review-pairs-v1',
+    JSON.stringify({schema:'softmux-ui-v3-visual-review-pairs-v2',
       strictDesignAuthority:'docs/ui-v3/UI_DESIGN_CONTRACT.md',
       actualRun:'This CI HEAD, see screenshot artifact and workflow commit SHA',
-      passedStructuralPairing:true,visuallyAccepted:false,comparisons:summaries},null,2)+'\n');
-  console.log('Created '+summaries.length+' equal-scale visual comparison pairs; visuallyAccepted=false');
+      approvedStates:11,pairedScreenshotStates:summaries.length,
+      adaptiveRuleStates:1,fixtureMatched:false,
+      passedStructuralPairing:true,visuallyAccepted:false,
+      physicalDeviceAccepted:false,comparisons:summaries,adaptive},null,2)+'\n');
+  console.log('Created '+summaries.length+' equal-scale V3 pairs + one adaptive-rule proof; visuallyAccepted=false');
   await page.close();
 }finally{
   await browser.close();
