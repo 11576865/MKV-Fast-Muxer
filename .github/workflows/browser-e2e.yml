@@ -214,6 +214,9 @@ jobs:
       - name: S10 - twenty actual Matroska batch deliveries
         run: npm run test:e2e:batch20
 
+      - name: S10 - verify all 20 MKV and audit report artifact pairs before upload
+        run: python3 scripts/verify-s10-native-artifact-set.py batch20 .e2e/batch20-output
+
       - name: Upload S10 twenty actual MKV acceptance manifest
         if: always()
         uses: actions/upload-artifact@v4
@@ -221,14 +224,16 @@ jobs:
           name: s10-twenty-real-matroska-batch-evidence
           path: |
             .e2e/batch20-output/softmux-s10-twenty-real-mkvs-evidence.json
-            .e2e/batch20-output/Batch Stress S09E01.mkv
-            .e2e/batch20-output/Batch Stress S09E10.mkv
-            .e2e/batch20-output/Batch Stress S09E20.mkv
-          if-no-files-found: warn
+            .e2e/batch20-output/Batch Stress S09E*.mkv
+            .e2e/batch20-output/Batch Stress S09E*.mux-report.json
+          if-no-files-found: error
           retention-days: 14
 
       - name: S10 - combined twenty-job execution and save recovery
         run: node tests/e2e/batch-recovery-real.e2e.mjs
+
+      - name: S10 - verify all 20 recovery MKV and audit report artifact pairs before upload
+        run: python3 scripts/verify-s10-native-artifact-set.py recovery .e2e/batch-recovery-output
 
       - name: Upload S10 combined recovery evidence
         if: always()
@@ -237,11 +242,9 @@ jobs:
           name: s10-combined-fault-recovery-native-evidence
           path: |
             .e2e/batch-recovery-output/s10-combined-recovery-evidence.json
-            .e2e/batch-recovery-output/Recovery S10E01.mkv
-            .e2e/batch-recovery-output/Recovery S10E02.mkv
-            .e2e/batch-recovery-output/Recovery S10E11.mkv
-            .e2e/batch-recovery-output/*.mux-report.json
-          if-no-files-found: warn
+            .e2e/batch-recovery-output/Recovery S10E*.mkv
+            .e2e/batch-recovery-output/Recovery S10E*.mux-report.json
+          if-no-files-found: error
           retention-days: 14
 
       - name: S03 - actual font collection faces and CFF subset shaping
