@@ -29,6 +29,9 @@ const ICON_URLS = Object.freeze({
   'create-output':new URL('./v3-assets/create-output.svg',import.meta.url).href,
   ready:new URL('./v3-assets/ready.svg',import.meta.url).href,
   'empty-add':new URL('./v3-assets/empty-add.svg',import.meta.url).href,
+  'picker-selected':new URL('./v3-assets/picker-selected.svg',import.meta.url).href,
+  'picker-empty-target':new URL('./v3-assets/picker-empty-target.svg',import.meta.url).href,
+  'picker-confirm':new URL('./v3-assets/picker-confirm.svg',import.meta.url).href,
 });
 
 function svgIcon(doc,name) {
@@ -566,7 +569,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   const confirmChoice = appendText(doc, pickerActions, 'button', 'sfv3-picker-confirm', '创建拟输出');
   confirmChoice.type = 'button';
   confirmChoice.id = 'sfv3ConfirmTarget';
-  confirmChoice.replaceChildren(svgIcon(doc,'create-output'));
+  confirmChoice.replaceChildren(svgIcon(doc,'picker-confirm'));
   const confirmChoiceLabel=appendText(doc,confirmChoice,'span','sfv3-picker-confirm-label','创建拟输出');
   picker.append(pickerOptions,pickerStatus,pickerActions);
   picker.insertBefore(pickerTitle,pickerOptions);
@@ -1010,7 +1013,10 @@ export function mountSoftmuxV3Surface(doc = document) {
       radio.value=entry.key;
       radio.checked=Boolean(targetIntent?.baseFile===entry.file) ||
         (!targetIntent && entry.file===latestResources.activeBase);
-      label.appendChild(radio);
+      const marker=doc.createElement('span');
+      marker.className='sfv3-picker-radio-frame';
+      marker.append(radio,svgIcon(doc,'picker-selected'));
+      label.appendChild(marker);
       const copy=doc.createElement('span');
       copy.className='sfv3-picker-choice-copy';
       appendText(doc,copy,'strong','sfv3-picker-file-name','以 '+entry.file.name+' 为基础');
@@ -1025,8 +1031,12 @@ export function mountSoftmuxV3Surface(doc = document) {
     emptyOption.className='sfv3-picker-unavailable';
     emptyOption.setAttribute('aria-disabled','true');
     emptyOption.setAttribute('role','note');
-    appendText(doc,emptyOption,'strong','sfv3-picker-empty-name','新建空 MKV');
-    appendText(doc,emptyOption,'small','sfv3-picker-empty-reason','暂不可用 · 未完成空容器封装验收');
+    emptyOption.appendChild(svgIcon(doc,'picker-empty-target'));
+    const emptyCopy=doc.createElement('span');
+    emptyCopy.className='sfv3-picker-choice-copy';
+    appendText(doc,emptyCopy,'strong','sfv3-picker-empty-name','新建空 MKV');
+    appendText(doc,emptyCopy,'small','sfv3-picker-empty-reason','暂不可用 · 未完成空容器封装验收');
+    emptyOption.appendChild(emptyCopy);
     pickerOptions.appendChild(emptyOption);
     confirmChoice.disabled=!possible.length;
     if(!possible.length)pickerStatus.textContent='请先导入另一份 MKV 作为目标。';
