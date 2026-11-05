@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "task_id": "2026-11-06-softmux-figma-v3",
+  "goal": "Implement Figma V3 Object-first / Adaptive (page 27:2, frames V3-01 through V3-11) over the existing Softmux 1.0 runtime without duplicating media state.",
+  "status": "in_progress",
+  "current_bounded_work_unit": "V3 candidate shell, source/target separation, live resource projections, direct actions, explicit target choice, adaptive layouts and regression tests",
+  "completed_units": [
+    "Identified Figma pages 0:1 original, 17:2 V2, 27:2 V3 and eleven V3 frames",
+    "Inspected existing 0.1047.0 app shell, source authority, output composition and cross-source subtitle handlers"
+  ],
+  "next_units": [
+    "Review candidate visuals against 11 design frames in Chromium",
+    "Run Node/build, browser media and responsive regressions",
+    "Finish any unsupported deep editing flows and enable release only after independent acceptance"
+  ],
+  "branch": "feat/softmux-figma-v3-object-first-20261106",
+  "pr": null,
+  "latest_durable_commit": "202c4ed7cc972215e805361d39e3508f147fb0d9",
+  "external_validation_states": {
+    "node": "Not run",
+    "build": "Not run",
+    "browser": "Not run",
+    "device": "Not run"
+  },
+  "blockers": [
+    "Current File-bound single-output engine cannot be replaced by a second synthetic output owner; V3 must delegate to existing production actions and disclose unsupported destination cases."
+  ],
+  "updated_at": "2026-11-06"
+}
