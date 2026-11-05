@@ -96,7 +96,30 @@ try {
   assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   assert.equal(await page.locator('#outputCompositionPanel').isVisible(),false);
+  // Figma V3-03: genuine target File stays a checked choice card; the blank
+  // MKV design choice is visible but cannot grant unsupported writer rights.
+  const picker=page.locator('#sfv3TargetPicker');
+  assert.equal(await picker.locator('.sfv3-picker-option').count(),1);
+  assert.equal(await picker.locator('.sfv3-picker-option input:checked').count(),1);
+  assert.match(await picker.locator('.sfv3-picker-file-name').textContent(),/以 B-base\\.mkv 为基础/);
+  assert.match(await picker.locator('.sfv3-picker-file-detail').textContent(),/原文件只读/);
+  assert.equal(await picker.locator('.sfv3-picker-unavailable[aria-disabled="true"]').count(),1);
+  assert.equal(await picker.locator('.sfv3-picker-unavailable input').count(),0);
+  const desktopPicker=await picker.boundingBox();
+  assert.ok(desktopPicker && desktopPicker.width>=310 && desktopPicker.width<=342 &&
+    desktopPicker.x>1440/2 && desktopPicker.x+desktopPicker.width<=1440 &&
+    desktopPicker.y>=0 && desktopPicker.y+desktopPicker.height<=900,
+    'V3-03 destination card must appear in desktop right object-context region');
   await screenshot('wu02-target-dialog.png');
+  await page.setViewportSize({width:820,height:1180});
+  const portraitPicker=await picker.boundingBox();
+  assert.ok(portraitPicker && portraitPicker.x>=0 &&
+    portraitPicker.x+portraitPicker.width<=820 && portraitPicker.y>=0 &&
+    portraitPicker.y+portraitPicker.height<=1180,
+    'same native destination dialog must remain inside portrait viewport');
+  await screenshot('wu02-target-dialog-820.png');
+  await page.setViewportSize({width:1440,height:900});
+  evidence.steps.push('V3-03 real File chooser matches desktop/right and portrait/center card states');
   await page.locator('.sfv3-picker-cancel').click();
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
