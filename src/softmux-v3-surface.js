@@ -299,6 +299,20 @@ export function mountSoftmuxV3Surface(doc = document) {
   targetTab.type = 'button';
   targetTab.id = 'sfv3TargetTab';
   targetTab.hidden = true;
+  // Exact Figma compact source selector. This only routes to the existing
+  // source tabs and File-scoped inspector: it owns no source/import state.
+  const compactSources=doc.createElement('details');
+  compactSources.id='sfv3CompactSources';
+  compactSources.className='sfv3-compact-sources';
+  compactSources.hidden=true;
+  const compactSourceSummary=doc.createElement('summary');
+  compactSourceSummary.setAttribute('aria-label','选择真实来源文件');
+  compactSourceSummary.append(svgIcon(doc,'documents'),
+    appendText(doc,doc.createElement('span'),'span','','来源'));
+  const compactSourceList=doc.createElement('div');
+  compactSourceList.className='sfv3-compact-source-list';
+  compactSources.append(compactSourceSummary,compactSourceList);
+  tabstrip.prepend(compactSources);
   header?.insertBefore(tabstrip, headerActions || null);
 
   const rail = doc.createElement('div');
@@ -384,6 +398,14 @@ export function mountSoftmuxV3Surface(doc = document) {
   planFacts.id='sfv3PlanFacts';
   planHeading.prepend(planTitleRow);
   compositionHost.prepend(planHeading);
+  // Figma V3-08 count strip derives solely from the ONE real composition
+  // list; it is a view of actual candidate objects, not an alternate model.
+  const planStats=doc.createElement('div');
+  planStats.id='sfv3PlanStats';
+  planStats.className='sfv3-plan-stats';
+  planStats.setAttribute('aria-label','当前拟输出轨道与附件对象数量');
+  planStats.hidden=true;
+  planHeading.after(planStats);
   compositionHost.prepend(readout);
   // V3-04 read-only provenance of the ONE real editor's ASS+font members.
   // Source/target intent and source File identity remain owned by main.js.
@@ -830,7 +852,30 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',root.dataset.sfv3Surface==='plan');
-    if(targetIntent)iconTab(doc,targetTab,'create-output','拟输出 · '+targetIntent.baseFile.name);
+    if(targetIntent) {
+      iconTab(doc,targetTab,'create-output','目标 · '+targetIntent.baseFile.name);
+      targetTab.title='已确认的拟输出文档 · 基础来源：'+targetIntent.baseFile.name;
+    }
+    // Compact's source menu reuses the existing exact-key source switching
+    // function; avoid hiding source navigation behind truncating tabs.
+    compactSources.hidden=!entries.length;
+    compactSourceSummary.replaceChildren(svgIcon(doc,'documents'),
+      doc.createTextNode('来源 ×'+entries.length));
+    compactSourceList.replaceChildren(...entries.map(entry=>{
+      const button=doc.createElement('button');
+      button.type='button';
+      button.className='sfv3-compact-source-choice';
+      button.textContent=entry.file.name;
+      button.title=entry.file.name;
+      button.dataset.sfv3SourceKey=entry.key;
+      button.setAttribute('aria-current',
+        root.dataset.sfv3Surface==='source'&&viewedSourceKey===entry.key?'page':'false');
+      button.addEventListener('click',()=>{
+        compactSources.open=false;
+        showSourceEntry(entry.key);
+      });
+      return button;
+    }));
   };
   const createGroup = (group,rows,readonly=false) => {
     if (!rows.length)return;
@@ -1193,6 +1238,31 @@ export function mountSoftmuxV3Surface(doc = document) {
       flowMessage='目标文件身份已改变，先前的拟输出授权失效。';
     }
     planHeading.hidden=root.dataset.sfv3Surface!=='plan' || !targetIntent;
+    planStats.hidden=planHeading.hidden;
+    if(!planStats.hidden){
+      const rows=[...currentTracks.querySelectorAll('.composition-row[data-sfv3-object-kind]')];
+      const counts={video:0,audio:0,subtitle:0,attachment:0,font:0};
+      for(const row of rows)
+        if(Object.hasOwn(counts,row.dataset.sfv3ObjectKind))
+          counts[row.dataset.sfv3ObjectKind]++;
+      const stats=[
+        ['video','视频',counts.video],
+        ['audio','音频',counts.audio],
+        ['subtitle','字幕',counts.subtitle],
+        ['attachment','附件',counts.attachment+counts.font],
+      ];
+      planStats.replaceChildren(...stats.map(([icon,label,count])=>{
+        const item=doc.createElement('div');
+        item.className='sfv3-plan-stat';
+        item.dataset.kind=icon;
+        item.append(svgIcon(doc,icon),
+          appendText(doc,item,'strong','',String(count).padStart(2,'0')),
+          appendText(doc,item,'span','',label));
+        item.setAttribute('aria-label',label+' '+count+
+          (icon==='attachment'?'（包括字体与其他附件）':''));
+        return item;
+      }));
+    }
     const selectedRow=currentTracks.querySelector('button[data-composition-id][aria-pressed="true"]');
     const selectedKind=selectedRow?.querySelector('.composition-kind')?.textContent?.trim()||'';
     const selectedTitle=selectedRow?.querySelector('.composition-track-main strong')?.textContent?.trim()||'';
@@ -1251,15 +1321,13 @@ export function mountSoftmuxV3Surface(doc = document) {
       structure.replaceChildren();
     }
     if(targetIntent) {
-      planName.textContent='拟输出 · '+targetIntent.baseFile.name;
+      planName.textContent=targetIntent.baseFile.name;
+      planName.title='目标文档基于：'+targetIntent.baseFile.name+
+        '；不会覆盖这个来源 File';
       const currentCount=find(doc,'compositionCount')?.textContent?.trim() || '';
-      const changes=find(doc,'compositionChanges');
-      const delta=changes && !changes.hidden ? changes.textContent.trim() : '';
       planFacts.textContent=[
-        targetIntent.baseFile.name+' 为基础',
+        '基础来源：'+targetIntent.baseFile.name,
         currentCount,
-        delta,
-        find(doc,'muxBtn')?.disabled ? '尚未满足执行条件' : '可以执行封装',
       ].filter(Boolean).join('  ·  ');
     }else {
       planName.textContent='';
@@ -1324,6 +1392,12 @@ export function mountSoftmuxV3Surface(doc = document) {
   const observer=new MutationObserver(schedule);
   observer.observe(currentTracks,{childList:true,subtree:true,characterData:true});
   observer.observe(actualComposition,{attributes:true,attributeFilter:['hidden']});
+  // Collapse secondary resource editors on compact widths; changing
+  // orientation never creates a parallel editor or revokes source identity.
+  doc.defaultView?.addEventListener('resize',()=>{
+    const details=currentTracks.querySelector('#sfv3ResourceDetails');
+    if(details)details.open=doc.defaultView.innerWidth>719;
+  });
   sourceInput.addEventListener('change',schedule);
   find(doc,'unifiedAssetInput')?.addEventListener('change',schedule);
   root.addEventListener('softmux:source-sections-updated',event=>{

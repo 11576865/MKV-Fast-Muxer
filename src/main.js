@@ -2691,6 +2691,24 @@ function renderOutputComposition() {
       const row=originalRows[index];
       if(!row)continue;
       row.dataset.sfv3ObjectKind=kind;
+      // Figma V3 uses ordered, inspectable MEDIA rows; the marker is
+      // presentation only and reuses the original native composition button.
+      if(['video','audio','subtitle'].includes(kind) && row.matches('button.composition-row')){
+        const number=String(model.items.slice(0,index+1).filter(
+          entry=>['video','audio','subtitle'].includes(entry.kind)
+        ).length).padStart(2,'0');
+        const order=document.createElement('span');
+        order.className='sfv3-track-order';
+        order.setAttribute('aria-hidden','true');
+        order.textContent=number;
+        const state=row.querySelector('.composition-state');
+        row.insertBefore(order,state||null);
+        const arrow=document.createElement('span');
+        arrow.className='sfv3-track-inspect';
+        arrow.setAttribute('aria-hidden','true');
+        arrow.textContent='›';
+        row.appendChild(arrow);
+      }
       // V3-04 / V3-06: annotate the ONE real composition control using
       // the exact derived external subtitle File and its actual font members.
       // An original source object is not colored as transferred by name alone.
@@ -2727,7 +2745,64 @@ function renderOutputComposition() {
       }
       groups.get(kind).list.append(row);
     }
-    compositionTracks.replaceChildren(...groups.values().map(group=>group.section));
+    // Figma V3-08: media rows first; the real native font/attachment
+    // controls remain available via one compact disclosure. Chapter/Tag
+    // cards open the EXISTING read-only structural inspector, not a fake
+    // second media model or independently editable view.
+    const mediaKinds=['video','audio','subtitle'];
+    const mediaGroups=mediaKinds.filter(kind=>groups.has(kind))
+      .map(kind=>groups.get(kind).section);
+    const resources=document.createElement('section');
+    resources.className='sfv3-compact-resources';
+    const resourcesHead=document.createElement('header');
+    resourcesHead.className='sfv3-compact-resources-head';
+    resourcesHead.textContent='附件与结构';
+    const readOnlyLabel=document.createElement('small');
+    readOnlyLabel.textContent='结构只读';
+    resourcesHead.appendChild(readOnlyLabel);
+    resources.appendChild(resourcesHead);
+    const actualResourceGroups=[...groups.entries()].filter(([kind])=>
+      !mediaKinds.includes(kind)).map(([,group])=>group.section);
+    const actualResourceCount=model.items.filter(item=>
+      ['font','attachment','other'].includes(item.kind)).length;
+    const resourceDetails=document.createElement('details');
+    resourceDetails.id='sfv3ResourceDetails';
+    resourceDetails.className='sfv3-resource-details';
+    resourceDetails.open=window.innerWidth>719 ||
+      Boolean(compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
+    const summary=document.createElement('summary');
+    summary.className='sfv3-resource-summary';
+    const resourceTitle=document.createElement('strong');
+    resourceTitle.textContent='字体与附件';
+    const count=document.createElement('span');
+    count.textContent=String(actualResourceCount);
+    const disclosure=document.createElement('span');
+    disclosure.textContent='查看 / 编辑';
+    summary.append(resourceTitle,count,disclosure);
+    resourceDetails.append(summary,...actualResourceGroups);
+    resources.appendChild(resourceDetails);
+    const structureProof=projectSourceStructureEvidence({
+      source,trackState:scanned,
+    });
+    for(const [kind,label] of [['chapter','章节'],['metadata','标签']]){
+      const action=document.createElement('button');
+      action.type='button';
+      action.className='sfv3-compact-structure-open';
+      action.dataset.sfv3StructureOpen=kind;
+      const title=document.createElement('strong');
+      title.textContent=label;
+      const quantity=document.createElement('span');
+      quantity.textContent=structureProof.observed
+        ? String(structureProof.items.filter(item=>item.kind===kind).length)
+        : '未扫描';
+      const state=document.createElement('span');
+      state.textContent='只读';
+      action.append(title,quantity,state);
+      action.disabled=!structureProof.observed;
+      action.title='仅查看来源已观察到的'+label+'；不表示成品 Matroska 保真';
+      resources.appendChild(action);
+    }
+    compositionTracks.replaceChildren(...mediaGroups,resources);
   }
   const meaningfulChanges = model.changes;
   compositionChanges.hidden = !meaningfulChanges.length;
@@ -2888,6 +2963,16 @@ document.addEventListener(
   }
 );
 compositionTracks?.addEventListener('click', event => {
+  const structureAction=event.target.closest('[data-sfv3-structure-open]');
+  if(v3Pilot && structureAction){
+    const details=document.getElementById('sfv3ObservedStructure');
+    if(details && !details.hidden){
+      details.open=true;
+      details.scrollIntoView({block:'nearest'});
+      details.querySelector('summary')?.focus();
+    }
+    return;
+  }
   const button = event.target.closest('button[data-composition-id]');
   if (!button) return;
   const currentDocument = buildContainerDocument({

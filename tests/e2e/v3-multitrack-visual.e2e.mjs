@@ -76,7 +76,15 @@ try{
        dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
        rows:rows.map(x=>({kind:x.dataset.sfv3ObjectKind,
          title:x.querySelector('strong')?.textContent,box:rect(x)})),
-       nativeEditorCount:document.querySelectorAll('#newSubtitleList').length};
+       nativeEditorCount:document.querySelectorAll('#newSubtitleList').length,
+       stats:[...document.querySelectorAll('#sfv3PlanStats .sfv3-plan-stat')]
+         .map(x=>({kind:x.dataset.kind,count:x.querySelector('strong')?.textContent})),
+       compactSourceMenuVisible:!!document.querySelector('#sfv3CompactSources summary')?.getClientRects().length,
+       resourceSummaryVisible:!!document.querySelector('#sfv3ResourceDetails > summary')?.getClientRects().length,
+       nativeResourceEditors:document.querySelectorAll('#sfv3ResourceDetails button[data-composition-id]').length,
+       compactStructureLinks:document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open').length,
+       mediaRowHeights:rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind))
+         .map(x=>Math.round(x.getBoundingClientRect().height))};
    });
    assert.ok(data.scrollWidth<=width+2,'no horizontal overflow '+width);
    assert.equal(data.selectedFile,path.basename(source));
@@ -101,10 +109,39 @@ try{
        JSON.stringify(scrollDiagnostic));
    for(const [kind,n] of [['video',1],['audio',2],['subtitle',2]])
      assert.equal(data.rows.filter(x=>x.kind===kind).length,n);
+   const stat=k=>data.stats.find(x=>x.kind===k)?.count;
+   assert.equal(stat('video'),'01','real video count should be visible');
+   assert.equal(stat('audio'),'02','real audio count should be visible');
+   assert.equal(stat('subtitle'),'02','real subtitle count should be visible');
+   if(width<=719){
+     assert.equal(data.compactSourceMenuVisible,true,'Figma compact source selector');
+     assert.equal(data.resourceSummaryVisible,true,'compact attachment/structure cards');
+     assert.ok(data.nativeResourceEditors>=1,
+       'real attachment/font editor rows remain under the disclosure');
+     assert.equal(data.compactStructureLinks,2,'real chapter/tag read-only entry points');
+     assert.ok(data.mediaRowHeights.every(h=>h>=49&&h<=56),
+       'Figma 53px rows expected, got '+JSON.stringify(data.mediaRowHeights));
+     assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),null,
+       'resource details collapsed by default on compact, not silently removed');
+     const orders=await page.locator('#compositionTracks .sfv3-track-order').allTextContents();
+     assert.deepEqual(orders,['01','02','03','04','05']);
+   }
    const picture='five-track-'+width+'x'+height+'.png';
    await page.screenshot({path:path.join(dir,picture)});
    evidence.viewports.push({width,height,...data});evidence.screenshots.push(picture);
  }
+ // Real source selector remains navigable, and must not implicitly revoke
+ // the confirmed File-bound target or clone the media editor.
+ await page.locator('#sfv3CompactSources > summary').click();
+ await page.locator('.sfv3-compact-source-choice').first().click();
+ assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'source');
+ await page.locator('#sfv3TargetTab').click();
+ assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3-surface'),'plan');
+ await page.locator('#sfv3ResourceDetails > summary').click();
+ assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),'',
+   'real font/attachment editors must remain accessible');
+ assert.ok(await page.locator('#sfv3ResourceDetails button[data-composition-id]').first().isVisible());
+ await page.locator('#sfv3ResourceDetails > summary').click();
  await page.locator('#compositionTracks button[data-sfv3-object-kind="subtitle"]').last().tap();
  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true);
  assert.equal(await page.locator('#newSubtitleList').count(),1);
