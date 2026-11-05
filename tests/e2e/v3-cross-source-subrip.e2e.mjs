@@ -107,6 +107,11 @@ try {
   assert.equal(await picker.locator('.sfv3-picker-unavailable input').count(),0);
   // The three required icons are exported from approved Figma nodes, loaded
   // through local Vite assets rather than temporary MCP URLs or text glyphs.
+  await page.waitForFunction(()=>{
+    const images=[...document.querySelectorAll('#sfv3TargetPicker img.sfv3-svg-icon')];
+    return ['picker-selected','picker-empty-target','picker-confirm'].every(asset=>
+      images.some(image=>image.src.includes(asset)&&image.complete&&image.naturalWidth>0));
+  },null,{timeout:15000});
   const pickerIconProof=await picker.locator('img.sfv3-svg-icon').evaluateAll(images=>
     images.map(img=>({src:img.getAttribute('src'),loaded:img.complete&&img.naturalWidth>0})));
   for(const asset of ['picker-selected','picker-empty-target','picker-confirm']) {
