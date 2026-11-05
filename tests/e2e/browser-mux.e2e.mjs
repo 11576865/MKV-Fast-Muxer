@@ -54,6 +54,25 @@ function streams(probeJson, type) {
   return (probeJson.streams || []).filter((stream) => stream.codec_type === type);
 }
 
+// Independent native compressed bitstream SHA-256. Neither the browser audit
+// nor FFmpeg.wasm supplies this oracle. A changed stream label, language,
+// disposition or container must not silently re-encode the media payload.
+function nativeCopyStreamHash(filename, selector) {
+  const result = execFileSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-i', filename,
+    '-map', selector, '-c', 'copy', '-f', 'hash', '-hash', 'SHA256', '-',
+  ], {encoding:'utf8', timeout:30000}).trim();
+  assert.match(result, /^SHA256=[a-f0-9]{64}$/i);
+  return result;
+}
+function byteSha256(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+async function saveAcceptanceReceipt(name, evidence) {
+  await fs.writeFile(path.join(outDir, name),
+    JSON.stringify(evidence,null,2)+'\n');
+}
+
 async function waitForStatus(page, prefix, timeout = 180_000) {
   try {
     await page.waitForFunction(
@@ -1129,7 +1148,28 @@ async function scenarioOriginalTracks(browser) {
     assert.equal(subtitles[1].tags?.language, 'eng');
     assert.equal(subtitles[1].tags?.title, 'Original Signs Edited');
     assert.equal(Boolean(subtitles[1].disposition?.forced), true);
-
+    const source = path.join(root,'source-multitrack.mkv');
+    const copySha = {
+      video: nativeCopyStreamHash(source,'0:v:0'),
+      retainedOpus: nativeCopyStreamHash(source,'0:a:1'),
+    };
+    assert.equal(nativeCopyStreamHash(output,'0:v:0'),copySha.video);
+    assert.equal(nativeCopyStreamHash(output,'0:a:0'),copySha.retainedOpus);
+    await saveAcceptanceReceipt('s04-selected-source-track-native-evidence.json',{
+      schema:'softmux-s04-selected-track-native-v1',status:'PASS',
+      source:'source-multitrack.mkv',
+      sourceSha256:byteSha256(await fs.readFile(source)),
+      output:'original-track-selection.mkv',
+      outputSha256:byteSha256(await fs.readFile(output)),
+      selectedAudioCodec:'opus',excludedOriginalAudioCodec:'aac',
+      copiedStreamSha256:copySha,
+      audio:audio.map(t=>({codec:t.codec_name,language:t.tags?.language,
+        title:t.tags?.title,default:!!t.disposition?.default})),
+      subtitles:subtitles.map(t=>({codec:t.codec_name,language:t.tags?.language,
+        title:t.tags?.title,forced:!!t.disposition?.forced})),
+      auditOk:report.audit.ok,
+      limitation:'bounded source-track selection/metadata; not a claim of all track UID remappings',
+    });
     console.log('Scenario 3 PASS');
   } finally {
     await context.close();
@@ -1585,7 +1625,28 @@ async function scenarioTrackReorder(browser) {
     await waitForStatus(page, '完成。');
     const output = path.join(outDir, 'reordered-audio.mkv');
     await saveDownload(page, '#downloadLink', output);
-    assert.deepEqual(streams(probe(output), 'audio').map((stream) => stream.codec_name), ['opus', 'aac']);
+    const out=probe(output), audio=streams(out,'audio');
+    assert.deepEqual(audio.map((stream) => stream.codec_name), ['opus', 'aac']);
+    const source=path.join(root,'source-multitrack.mkv');
+    const copySha={
+      video:nativeCopyStreamHash(source,'0:v:0'),
+      firstOpus:nativeCopyStreamHash(source,'0:a:1'),
+      secondAac:nativeCopyStreamHash(source,'0:a:0'),
+    };
+    assert.equal(nativeCopyStreamHash(output,'0:v:0'),copySha.video);
+    assert.equal(nativeCopyStreamHash(output,'0:a:0'),copySha.firstOpus);
+    assert.equal(nativeCopyStreamHash(output,'0:a:1'),copySha.secondAac);
+    await saveAcceptanceReceipt('s04-audio-reorder-native-evidence.json',{
+      schema:'softmux-s04-audio-reorder-native-v1',status:'PASS',
+      source:'source-multitrack.mkv',
+      sourceSha256:byteSha256(await fs.readFile(source)),
+      output:'reordered-audio.mkv',
+      outputSha256:byteSha256(await fs.readFile(output)),
+      audioOrder:audio.map(t=>({codec:t.codec_name,title:t.tags?.title,
+        language:t.tags?.language,default:!!t.disposition?.default})),
+      copiedStreamSha256:copySha,
+      limitation:'two verified audio streams in one MKV; no arbitrary codec/timebase claim',
+    });
     console.log('Scenario 16 PASS');
   } finally {
     await context.close();
@@ -1788,13 +1849,38 @@ async function scenarioBulkTrackMetadata(browser) {
     await page.locator('#muxBtn').click();
     await waitForStatus(page, '完成。');
     const output = path.join(outDir, 'bulk-track-metadata.mkv');
+    const reportPath=path.join(outDir,'bulk-track-metadata.mux-report.json');
     await saveDownload(page, '#downloadLink', output);
+    await saveDownload(page, '#reportLink', reportPath);
+    const report=JSON.parse(await fs.readFile(reportPath,'utf8'));
+    assert.equal(report.audit?.ok,true,JSON.stringify(report.audit?.issues||[]));
 
     const out = probe(output);
     assert.deepEqual(streams(out, 'audio').map((stream) => stream.tags?.language), ['zho', 'zho']);
     assert.equal(Boolean(streams(out, 'audio')[0].disposition?.default), true);
     assert.equal(Boolean(streams(out, 'audio')[1].disposition?.default), false);
     assert.equal(streams(out, 'subtitle').at(-1).tags?.language, 'zho');
+    const source=path.join(root,'source-multitrack.mkv');
+    const copySha={
+      video:nativeCopyStreamHash(source,'0:v:0'),
+      firstAac:nativeCopyStreamHash(source,'0:a:0'),
+      secondOpus:nativeCopyStreamHash(source,'0:a:1'),
+    };
+    assert.equal(nativeCopyStreamHash(output,'0:v:0'),copySha.video);
+    assert.equal(nativeCopyStreamHash(output,'0:a:0'),copySha.firstAac);
+    assert.equal(nativeCopyStreamHash(output,'0:a:1'),copySha.secondOpus);
+    await saveAcceptanceReceipt('s04-bulk-track-metadata-native-evidence.json',{
+      schema:'softmux-s04-bulk-metadata-native-v1',status:'PASS',
+      source:'source-multitrack.mkv',
+      sourceSha256:byteSha256(await fs.readFile(source)),
+      output:'bulk-track-metadata.mkv',
+      outputSha256:byteSha256(await fs.readFile(output)),
+      audio:streams(out,'audio').map(t=>({codec:t.codec_name,
+        language:t.tags?.language,default:!!t.disposition?.default})),
+      originalSubtitleLanguage:streams(out,'subtitle').at(-1).tags?.language,
+      copiedStreamSha256:copySha,auditOk:report.audit.ok,
+      limitation:'scoped bulk attributes/Default with real existing original tracks',
+    });
     console.log('Scenario 21 PASS');
   } finally {
     await context.close();
@@ -2870,6 +2956,45 @@ async function scenarioAdditionalSubtitleFormats(browser) {
       '-map', '0:s:2', '-c:s', 'srt', '-f', 'srt', 'pipe:1'], { encoding: 'utf8' });
     assert.equal(actualVttSrt.replace(/\r\n?/g, '\n').trimEnd(),
       '1\n00:00:00,123 --> 00:00:01,456\n第一行\nsecond line\n\n2\n00:00:01,000 --> 00:00:01,789\nOverlapping cue');
+    // S02 native delivered-bitstream evidence. Explicit subtitle format
+    // conversion (SSA->ASS, WebVTT->SubRip) is not video/audio transcoding.
+    const source=path.join(root,'base.mp4'),outputProbe=probe(output);
+    assert.deepEqual(streams(outputProbe,'video').map(x=>x.codec_name),
+      streams(probe(source),'video').map(x=>x.codec_name));
+    assert.deepEqual(streams(outputProbe,'audio').map(x=>x.codec_name),
+      streams(probe(source),'audio').map(x=>x.codec_name));
+    const copySha={
+      video:nativeCopyStreamHash(source,'0:v:0'),
+      audio:nativeCopyStreamHash(source,'0:a:0'),
+    };
+    assert.equal(nativeCopyStreamHash(output,'0:v:0'),copySha.video);
+    assert.equal(nativeCopyStreamHash(output,'0:a:0'),copySha.audio);
+    const ssaText=execFileSync('ffmpeg',[
+      '-v','error','-i',output,'-map','0:s:0','-c:s','ass','-f','ass','pipe:1',
+    ],{encoding:'utf8'});
+    assert.match(ssaText,/SSA subtitle/);
+    const srtText=execFileSync('ffmpeg',[
+      '-v','error','-i',output,'-map','0:s:1','-c:s','srt','-f','srt','pipe:1',
+    ],{encoding:'utf8'});
+    assert.match(srtText,/SRT subtitle/);
+    await saveAcceptanceReceipt('s02-multiformat-native-evidence.json',{
+      schema:'softmux-s02-mp4-three-subtitle-formats-native-v1',
+      status:'PASS',source:'base.mp4',
+      sourceSha256:byteSha256(await fs.readFile(source)),
+      output:'additional-formats.mkv',
+      outputSha256:byteSha256(await fs.readFile(output)),
+      videoCodec:streams(outputProbe,'video').map(x=>x.codec_name),
+      audioCodec:streams(outputProbe,'audio').map(x=>x.codec_name),
+      originalVideoAudioStreamCopySha256:copySha,
+      importedFormats:['SSA','SRT','WebVTT'],
+      actualSubtitleCodecs:subtitles.map(x=>x.codec_name),
+      independentlyDemuxedText:['SSA subtitle','SRT subtitle','第一行','Overlapping cue'],
+      explicitSubtitleConversions:report.compatibility.mediaPolicy.subtitleConversions,
+      outputAuditOk:report.audit.ok,
+      subripCueAudit:report.audit.subripCueAudit.status,
+      presentationVerified:false,playerVerified:false,
+      limitation:'one MP4 source, three caption imports; ASS and bitmap formats have separate scenarios; not universal S02',
+    });
     // A valid WebVTT layout cue still muxes, but must never claim presentation
     // or plain-text equivalence from the successful ffprobe track audit.
     // This scenario uses the legacy hidden inputs. Their completed-task
