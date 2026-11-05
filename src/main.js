@@ -5404,8 +5404,13 @@ async function refreshSubtitlePreview() {
       throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderResult.code}）`);
     const noFontProvider = renderResult.logs.some(line =>
       /can't find selected font provider/i.test(line));
-    const selectedActualFont = renderResult.logs.some(line =>
-      /fontselect:.*->\s*\(/i.test(line));
+    // libass reports resolved faces as "fontselect: (...) -> DejaVuSans, ..."
+    // (not necessarily with parentheses after ->). Reject only a missing or
+    // null resolution, while keeping the active raster-content E2E oracle.
+    const selectedActualFont = renderResult.logs.some(line => {
+      const match = line.match(/fontselect:.*->\s*(.+)$/i);
+      return Boolean(match && !/^(?:0\b|\(0[,)]|none\b|null\b)/i.test(match[1].trim()));
+    });
     if (noFontProvider && !selectedActualFont) {
       // This diagnostic comes from libass itself. A source with no embedded
       // fonts cannot inherit the host/browser's installed fonts in WASM.
