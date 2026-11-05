@@ -126,6 +126,23 @@ try {
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   await page.screenshot({path:path.join(dir,'v3-native-ass-preview-'+width+'.png')});
  }
+ // This controlled fixture has a black source frame and a 0.10–1.40 s
+ // WHITE ASS cue at the 0.75 s preview timestamp. A blob: PNG and a green
+ // libass exit code do not prove any subtitle glyph actually appeared.
+ // The assertion is fixture-specific: do not apply it to arbitrary videos,
+ // deliberately empty cues, dark text or unknown source fonts.
+ const previewPixels=await page.locator('#previewImage').evaluate(img=>{
+   const canvas=document.createElement('canvas');
+   canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+   const ctx=canvas.getContext('2d',{willReadFrequently:true});
+   ctx.drawImage(img,0,0);
+   const rgba=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+   let brightPixels=0;
+   for(let i=0;i<rgba.length;i+=4)
+     if(Math.max(rgba[i],rgba[i+1],rgba[i+2])>=180)brightPixels++;
+   return {width:canvas.width,height:canvas.height,brightPixels};
+ });
+ evidence.previewContentPixels=previewPixels;
  await page.setViewportSize({width:820,height:1180});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
@@ -189,6 +206,8 @@ try {
  assert.equal(await page.locator('#sfv3SourceInspector #originalTrackExtractionPanel').count(),0);
  assert.equal(sha(await fs.readFile(mkv)),original);
  assert.deepEqual(errors,[]);
+ assert.ok(previewPixels.brightPixels>=100,
+   'V3 real ASS preview PNG is visually blank: a known white active dialogue on a black frame must render actual bright glyph pixels (check libass font availability, cue timing and frame composition)');
  evidence.passed=true;
 } catch(err){
  evidence.passed=false;evidence.error=String(err);
