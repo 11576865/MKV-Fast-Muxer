@@ -680,6 +680,9 @@ function publishV3ResourceRegistry() {
             type:stream.codec_type,
             title:String(stream.tags?.title||''),
             language:String(stream.tags?.language||'und'),
+            disposition:stream.disposition && typeof stream.disposition==='object' ? {
+              default:stream.disposition.default,forced:stream.disposition.forced,
+            } : null,
           })) : [],
       subtitleState:current?.state || 'not-inspected',
       subtitleReason:current?.reason || '',
@@ -690,6 +693,9 @@ function publishV3ResourceRegistry() {
         index:stream.index,codec:stream.codec_name,
         title:String(stream.tags?.title||''),
         language:String(stream.tags?.language||'und'),
+        disposition:stream.disposition && typeof stream.disposition==='object' ? {
+          default:stream.disposition.default,forced:stream.disposition.forced,
+        } : null,
         // 'allowed' means the source can request a font-closure attempt;
         // only prepareSecondaryAssFontBundle may actually grant inclusion.
         allowed:(['ass','ssa'].includes(stream.codec_name)
