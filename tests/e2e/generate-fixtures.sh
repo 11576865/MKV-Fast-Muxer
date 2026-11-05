@@ -12,6 +12,9 @@ test -f "$FONT_REGULAR"
 test -f "$FONT_BOLD"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans.ttf"
 cp "$FONT_REGULAR" "$ROOT/DejaVuSans-copy.ttf"
+# S01 actual native source uses a DIFFERENT original font binary from the
+# external regular font. Keep this real fixture independent of host paths.
+cp "$FONT_BOLD" "$ROOT/DejaVuSans-Bold.ttf"
 
 "$PYTHON" - "$FONT_REGULAR" "$FONT_BOLD" "$ROOT/DejaVuCollection.ttc" <<'PY'
 from fontTools.ttLib import TTCollection, TTFont
