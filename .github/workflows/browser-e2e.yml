@@ -48,6 +48,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # Fail immediately on ESM syntax errors before expensive real media fixtures.
+      - name: Check browser E2E syntax before real fixture execution
+        run: node --check tests/e2e/browser-mux.e2e.mjs
+
       - name: Unit tests
         run: npm test
 
@@ -361,6 +365,8 @@ jobs:
           name: s08-current-workbench-complex-mkv-safety
           path: |
             .e2e/output/softmux-s08-modern-source-safety-evidence.json
+            .e2e/output/s08-risk-source-chapters.xml
+            .e2e/output/s08-risk-source-tags.xml
             .e2e/output/s08-modern-source-switch-safe.mkv
           if-no-files-found: warn
           retention-days: 14
