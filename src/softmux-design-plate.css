@@ -50,3 +50,43 @@
   .sf14 .sf14-source-outline-row {min-height:48px;}
   .sf14 .sf14-composition-group-title {padding-top:13px;}
 }
+
+/* Plate 02 / desktop batch review: the actual job-plan matrix is primary.
+ * Existing source intake and recipe nodes are only disclosed by their
+ * established controls. In particular, nothing forges ready/verified status. */
+@media (min-width:1366px) {
+  .sf14-app .sf14-batch {position:relative;padding:16px 24px 22px;}
+  .sf14-app .sf14-batch-controls {display:flex;gap:8px;align-items:center;margin:8px 0 12px;}
+  .sf14-app .sf14-batch-controls button {
+    min-height:36px;border:1px solid var(--line);border-radius:7px;
+    background:var(--surface-2);padding:7px 12px;color:var(--text);font-size:.75rem;
+  }
+  .sf14-app .sf14-batch-controls button[aria-expanded="true"] {
+    border-color:var(--accent);background:var(--surface-3);
+  }
+  .sf14-app .sf14-batch .batch-layout {display:block;min-width:0;}
+  .sf14-app .sf14-batch .batch-detail {min-width:0;}
+  .sf14-app .sf14-batch .batch-queue {width:100%;min-width:0;}
+  .sf14-app .sf14-batch .batch-review-layout {
+    display:grid;grid-template-columns:minmax(0,1.9fr) minmax(310px,.9fr);
+    gap:12px;align-items:start;
+  }
+  .sf14-app .sf14-batch .batch-review-matrix {min-width:0;max-height:calc(100dvh - 340px);overflow:auto;}
+  .sf14-app .sf14-batch #batchJobInspector {min-width:0;max-height:calc(100dvh - 340px);overflow:auto;}
+  .sf14-app .sf14-batch .batch-inputs,
+  .sf14-app .sf14-batch .batch-settings {display:none;}
+  .sf14-app .sf14-batch[data-controls="sources"] .batch-inputs {
+    display:flex;position:absolute;z-index:30;top:110px;left:22px;
+    flex-direction:column;width:min(370px,calc(100% - 44px));
+    max-height:min(78dvh,750px);overflow:auto;
+    padding:13px;background:var(--surface-1);
+    border:1px solid var(--line-strong);border-radius:9px;box-shadow:var(--shadow);
+  }
+  .sf14-app .sf14-batch[data-controls="recipe"] .batch-settings {
+    display:grid;position:absolute;z-index:30;top:110px;right:22px;
+    grid-template-columns:minmax(0,1fr);width:min(420px,calc(100% - 44px));
+    max-height:min(78dvh,750px);overflow:auto;
+    padding:13px;background:var(--surface-1);
+    border:1px solid var(--line-strong);border-radius:9px;box-shadow:var(--shadow);
+  }
+}
