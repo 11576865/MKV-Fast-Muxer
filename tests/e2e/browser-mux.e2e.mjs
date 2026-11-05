@@ -4612,14 +4612,19 @@ async function scenarioRenamedMediaIdentity(browser) {
     assert.equal(await page.locator('#previewSubtitleSelect').isEnabled(), true);
     assert.match(await page.locator('#previewSubtitleSelect').textContent(), /captions\.mmmmm · ASS/);
 
+    // This input intentionally supplies no font. The isolated WASM libass
+    // cannot inherit OS/browser fonts; a blank but nominally successful PNG
+    // must now be refused. This test remains focused on content-sniffed
+    // identity for renamed MP4/AAC/ASS, not on a font rendering fixture.
     await page.locator('#previewRefreshBtn').click();
     await page.waitForFunction(() => {
-      const image = document.querySelector('#previewImage');
-      const status = document.querySelector('#previewStatus')?.textContent || '';
-      return Boolean(image?.getAttribute('src')) || /预览已生成|完成/.test(status);
-    }, null, { timeout: 180_000 });
-    assert.equal(await page.locator('#previewImage').isVisible(), true);
-    assert.match(await page.locator('#previewStatus').textContent(), /预览帧：captions\.mmmmm/);
+      const status=document.querySelector('#previewStatus')?.textContent||'';
+      return status.includes('WASM 字幕渲染器没有可用字体提供程序');
+    },null,{timeout:180_000});
+    assert.equal(await page.locator('#previewImage').isVisible(),false,
+      'missing WASM font provider must not publish a blank preview image');
+    assert.match(await page.locator('#previewStatus').textContent(),
+      /无法生成预览帧：.*WASM 字幕渲染器没有可用字体提供程序/);
 
     assert.equal(await page.locator('#muxBtn').isEnabled(), true);
     await page.locator('#muxBtn').click();
