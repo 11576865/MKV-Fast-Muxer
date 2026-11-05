@@ -6788,9 +6788,10 @@ async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
     path.join(root,'external.flac')],{timeout:60000});
   execFileSync('mkvpropedit',[input,'--tags',
     'all:'+path.join(root,'p0-independent-tags.xml')],{timeout:60000});
-  const tracks=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
-    encoding:'utf8',timeout:60000,
-  })).tracks;
+  const tracks=file=>parseMkvmergeJsonWithExactUids(
+    execFileSync('mkvmerge',['-J',file],{
+      encoding:'utf8',timeout:60000,
+    })).tracks;
   const probePackets=file=>JSON.parse(execFileSync('ffprobe',[
     '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
   ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
@@ -6898,9 +6899,10 @@ async function scenarioRoutedExistingMkvNativeOutput(browser) {
   await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),source);
   execFileSync('mkvpropedit',[source,'--chapters',
     path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
-  const inspect=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
-    encoding:'utf8',timeout:60000,
-  }));
+  const inspect=file=>parseMkvmergeJsonWithExactUids(
+    execFileSync('mkvmerge',['-J',file],{
+      encoding:'utf8',timeout:60000,
+    }));
   const sourceInfo=inspect(source);
   const tagged=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-evidence.bin');
   const target=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-decoy.txt');
