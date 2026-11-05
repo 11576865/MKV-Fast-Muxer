@@ -10,6 +10,8 @@ import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
+import './softmux-figma-v3.css';
+import { mountSoftmuxFigmaV3 } from './softmux-figma-v3.js';
 import {
   mountSoftmux1014Workbench,
   updateSoftmux1014SourceSections,
@@ -8864,5 +8866,8 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
     })));
+    if (new URLSearchParams(window.location.search).get('ui') === 'v3') {
+      mountSoftmuxFigmaV3(document);
+    }
   }
 }
