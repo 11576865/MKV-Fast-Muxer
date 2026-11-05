@@ -1340,7 +1340,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         '；不会覆盖这个来源 File';
       const currentCount=find(doc,'compositionCount')?.textContent?.trim() || '';
       planFacts.textContent=[
-        '基础来源：'+targetIntent.baseFile.name,
+        targetIntent.baseFile.name+' 为基础',
         currentCount,
       ].filter(Boolean).join('  ·  ');
     }else {
