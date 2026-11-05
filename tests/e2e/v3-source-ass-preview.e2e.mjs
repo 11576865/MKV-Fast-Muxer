@@ -143,6 +143,11 @@ try {
    return {width:canvas.width,height:canvas.height,brightPixels};
  });
  evidence.previewContentPixels=previewPixels;
+ // Preserve the actual FFmpeg.wasm/libass log, not a theory about missing fonts.
+ // Restrict to relevant lines to avoid injecting arbitrary source data in CI.
+ evidence.previewRuntimeDiagnostics=(await page.locator('#log').textContent())
+   .split('\\n').filter(line=>/ass|font|glyph|shaper|subtitl|error|warning/i.test(line))
+   .slice(-75).map(line=>line.slice(0,450));
  await page.setViewportSize({width:820,height:1180});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
