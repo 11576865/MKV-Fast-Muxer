@@ -178,9 +178,11 @@ export function preservationBlockMessage(name, inspection) {
 // target-to-output UID mapping, fail closed instead of assuming the deletion
 // concerns an unrelated decoy. This is a scoped writer admission rule, not a
 // certificate that all other EBML references survive.
-export function attachmentUidExclusionBlockMessage(name, inspection, sourceRows) {
-  if (!Array.isArray(sourceRows) ||
-      !sourceRows.some(row=>row?.include===false)) return '';
+export function attachmentUidExclusionBlockMessage(name, inspection, sourceRows,
+  dropAllOriginalAttachments = false) {
+  if (!dropAllOriginalAttachments &&
+      (!Array.isArray(sourceRows) ||
+       !sourceRows.some(row=>row?.include===false))) return '';
   if (inspection?.state!=='UNVERIFIED_REFERENCES' ||
       !Array.isArray(inspection.warnings) ||
       !inspection.warnings.some(w=>
