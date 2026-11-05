@@ -119,6 +119,41 @@ jobs:
           bash tests/e2e/generate-fixtures.sh
           bash tests/e2e/generate-independent-matroska-fixture.sh
 
+      # P2 / MKVToolNix differential: identical independently authored
+      # source & replacement, native mkvpropedit copy vs browser bounded writer.
+      # A native PASS + product BLOCKED is a recorded capability gap, not parity.
+      - name: P2 - same-input MKVToolNix attachment replace differential
+        run: node scripts/p2-mkvtoolnix-same-input-replace-comparison.mjs
+
+      - name: Upload P2 MKVToolNix differential evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-mkvtoolnix-same-input-replacement-comparison
+          path: |
+            .e2e/output/p2-mkvtoolnix-same-input-replace-comparison.json
+            .e2e/output/p2-mtx-*-reference.mkv
+            .e2e/output/p2-mtx-*-softmux.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
+      # P2 exact TagAttachmentUID reference preservation, same FileUID,
+      # same-length FileData only; explicit review required, no source write.
+      - name: P2 - referenced AttachmentUID replacement native comparison
+        run: node scripts/p2-mkvtoolnix-referenced-uid-differential.mjs
+
+      - name: Upload P2 referenced attachment UID differential evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-mkvtoolnix-referenced-attachment-uid-evidence
+          path: |
+            .e2e/output/p2-mtx-referenced-uid-differential.json
+            .e2e/output/p2-mtx-uid-native.mkv
+            .e2e/output/p2-mtx-uid-softmux.mkv
+          if-no-files-found: warn
+          retention-days: 14
+
       # P1: independently authored Matroska source and native mkvpropedit
       # mutation; ordinary non-P0 nested Tag loss must be detected by strict
       # extracted XML comparison even when the legacy P0-only oracle misses it.
