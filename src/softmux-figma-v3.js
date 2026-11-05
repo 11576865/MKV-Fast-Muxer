@@ -91,7 +91,7 @@ export function mountSoftmuxFigmaV3(doc = document) {
             '<div id="sfv3Counts" class="sfv3-counts" aria-label="当前文档对象统计"></div>',
           '</header>',
           '<div class="sfv3-toolbar"><strong>☷　容器内容</strong><div class="sfv3-toolbar-right">',
-            '<button id="sfv3ContextSearch" type="button" aria-label="搜索对象" title="搜索对象">⌕</button>',
+            '<button id="sfv3Scan" type="button" aria-label="扫描当前来源" title="扫描当前来源">▤ 扫描</button><button id="sfv3ContextSearch" type="button" aria-label="搜索对象" title="搜索对象">⌕</button>',
             '<button id="sfv3Structure" type="button" aria-label="查看结构" title="查看结构">◉</button>',
             '<button id="sfv3CreateOutput" class="sfv3-secondary" type="button">＋ 创建拟输出</button>',
             '<button id="sfv3AddResource" class="sfv3-secondary" type="button" hidden>＋ 添加更多资源</button>',
@@ -454,6 +454,12 @@ export function mountSoftmuxFigmaV3(doc = document) {
   q('sfv3More').addEventListener('click', () => setLegacy(true));
   q('sfv3Return').addEventListener('click', () => setLegacy(false));
   q('sfv3Structure').addEventListener('click', () => setLegacy(true));
+  q('sfv3Scan').addEventListener('click', () => {
+    const real = q('scanTracksBtn');
+    if (real && !real.disabled) real.click();
+    else notify('当前不可扫描来源；请检查来源选择及后端状态。');
+  });
+
   q('sfv3CreateOutput').addEventListener('click', () => {
     const key=sourceKey(inventory);
     if (!key) {notify('请先选定真实的来源容器。');return;}
