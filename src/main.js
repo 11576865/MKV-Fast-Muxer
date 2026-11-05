@@ -6,14 +6,18 @@ import {embeddedAttachmentEligibility,createEmbeddedAttachmentOutputEntry,pruneE
 import {secondarySubripEligibility,createSecondarySubripEntry,pruneSecondarySubtitlesForSource,MAX_EMBEDDED_SUBRIP_BYTES} from './embedded-subtitle-composition.js';
 import {secondaryAssEligibility,prepareSecondaryAssFontBundle,pruneSecondaryAssFontBundleForSource,MAX_CROSS_SOURCE_ASS_BYTES} from './secondary-ass-font-bundle.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
+import {previewAssDialogueActivity} from './ass-preview-dialogue-activity.js';
 import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
+import './softmux-v3.css';
 import {
   mountSoftmux1014Workbench,
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
+import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
+import { createV3TargetAuthority } from './softmux-v3-intent.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
 import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
@@ -648,6 +652,97 @@ const embeddedSourceInventories = new Map();
 const embeddedSourceBusy = new Set();
 const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
+const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
+const v3TargetAuthority = createV3TargetAuthority();
+const v3MayEditOutput = () => !v3Pilot || Boolean(
+  currentV3Target() &&
+  document.getElementById('sf14Root')?.dataset.sfv3Surface === 'plan'
+);
+const currentV3Target = () => v3TargetAuthority.current({
+  entries:importedAssetEntries,activeFile:videoInput.files?.[0] || null,
+});
+function publishV3ResourceRegistry() {
+  if (!v3Pilot) return;
+  const root=document.getElementById('sf14Root');
+  if (!root?.classList.contains('sfv3')) return;
+  const entries=importedAssetEntries.filter(e=>e.kind==='container').map(entry=>{
+    const snapshot=secondarySubtitleInventories.get(entry.key);
+    const current=snapshot?.sourceFile===entry.file ? snapshot : null;
+    const observed=current?.state==='inspected' ? (current.streams||[]) : [];
+    return {
+      key:entry.key,file:entry.file,kind:'container',
+      selected:videoInput.files?.[0]===entry.file,
+      scanned:scannedSourceFile===entry.file && trackState?.fileKey===fileKey(entry.file),
+      // Only an exact scanned primary File may expose all source tracks.
+      primaryStreams:scannedSourceFile===entry.file && trackState?.fileKey===fileKey(entry.file)
+        ? (trackState.streams||[]).map(stream=>({
+            index:stream.index,codec:stream.codec_name,
+            type:stream.codec_type,
+            title:String(stream.tags?.title||''),
+            language:String(stream.tags?.language||'und'),
+            disposition:stream.disposition && typeof stream.disposition==='object' ? {
+              default:stream.disposition.default,forced:stream.disposition.forced,
+            } : null,
+          })) : [],
+      subtitleState:current?.state || 'not-inspected',
+      subtitleReason:current?.reason || '',
+      canInspect:Boolean([...assetInventory.querySelectorAll(
+        'button[data-secondary-subtitle-inspect]')].find(x=>
+          x.dataset.secondarySubtitleInspect===entry.key && !x.disabled)),
+      subtitleTracks:observed.filter(stream=>stream.codec_type==='subtitle').map(stream=>({
+        index:stream.index,codec:stream.codec_name,
+        title:String(stream.tags?.title||''),
+        language:String(stream.tags?.language||'und'),
+        disposition:stream.disposition && typeof stream.disposition==='object' ? {
+          default:stream.disposition.default,forced:stream.disposition.forced,
+        } : null,
+        // 'allowed' means the source can request a font-closure attempt;
+        // only prepareSecondaryAssFontBundle may actually grant inclusion.
+        allowed:(['ass','ssa'].includes(stream.codec_name)
+          ? secondaryAssEligibility(stream,importedAssetEntries,entry.file)
+          : secondarySubripEligibility(stream,importedAssetEntries,entry.file)).allowed,
+        reason:(['ass','ssa'].includes(stream.codec_name)
+          ? secondaryAssEligibility(stream,importedAssetEntries,entry.file)
+          : secondarySubripEligibility(stream,importedAssetEntries,entry.file)).reason,
+        canAdd:Boolean([...assetInventory.querySelectorAll(
+          'button[data-secondary-subtitle-add]')].find(x=>
+            x.dataset.secondarySubtitleAdd===entry.key &&
+            Number(x.dataset.streamIndex)===stream.index && !x.disabled)),
+      })),
+    };
+  });
+  // Read-only projection of ACTUAL derived ASS + dependent font members.
+  // A V3 label may describe what the original editor owns; it never claims
+  // render/final-MKV verification or creates a second composition model.
+  const assFontBundles=importedAssetEntries
+    .filter(entry=>entry.kind==='subtitle' &&
+      entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+      entry.embeddedOrigin?.kind==='subtitle-ass')
+    .map(subtitle=>{
+      const origin=subtitle.embeddedOrigin;
+      const fonts=importedAssetEntries.filter(entry=>entry.kind==='font' &&
+        entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+        entry.embeddedOrigin?.sourceFile===origin.sourceFile &&
+        entry.embeddedOrigin?.streamIndex===origin.streamIndex);
+      const sourceStillPresent=importedAssetEntries.some(entry=>
+        entry.kind==='container' && entry.key===origin.sourceKey &&
+        entry.file===origin.sourceFile);
+      const subBound=[...(subInput.files||[])].some(file=>file===subtitle.file);
+      const fontsBound=fonts.length>0 && fonts.every(entry=>
+        [...(fontInput.files||[])].some(file=>file===entry.file));
+      return {
+        sourceKey:origin.sourceKey,sourceFile:origin.sourceFile,
+        sourceName:origin.sourceName,streamIndex:origin.streamIndex,
+        subtitleName:subtitle.file?.name||'',
+        fontNames:fonts.map(entry=>entry.file?.name||''),
+        bound:Boolean(sourceStillPresent && subBound && fontsBound),
+      };
+    });
+  root.dispatchEvent(new CustomEvent('softmux:v3-resource-registry',{
+    detail:{entries,assFontBundles,activeBase:videoInput.files?.[0]||null,
+      target:currentV3Target()},
+  }));
+}
 const liveMediaAdapterFiles = () => [videoInput,audioInput,subInput,fontInput].flatMap(input=>Array.from(input.files||[]));
 const attachmentOnlyMode = () => attachmentOnlyRouteEligible(importedAssetEntries,liveMediaAdapterFiles());
 const includedGenericAttachments = () => genericAttachmentEntries().filter(entry=>entry.include!==false);
@@ -1764,6 +1859,9 @@ function updateUI() {
     muxBtn.disabled=busy||importInProgress||!attachmentOnlyReadiness(genericAttachmentEntries()).ready;
   } else if(!mediaAttachmentReadiness(genericAttachmentEntries()).ready) muxBtn.disabled=true;
   if(sourceDraftRestoreBlocked===video && video)muxBtn.disabled=true;
+  // V3's visible source list is not authorization to execute. Even a hidden
+  // legacy button remains blocked until an exact File-bound target is chosen.
+  if(v3Pilot && !v3MayEditOutput())muxBtn.disabled=true;
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -2303,6 +2401,29 @@ function renderOutputComposition() {
   const source = videoInput.files?.[0] || null;
   const scanned = source && scannedSourceFile === source &&
     trackState?.fileKey === fileKey(source) ? trackState : null;
+  // Source observation is independent from output composition. In V3,
+  // opening an MKV NEVER constructs even an internal proposed output before
+  // the user has explicitly selected a base with an exact File-bound grant.
+  // Legacy UI keeps its established eager composition for compatibility.
+  updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
+    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
+    sourceFile: scanned ? source : null,
+  })));
+  if (v3Pilot && !currentV3Target()) {
+    currentProjectSourceProjection=null;
+    currentProjectSourceFile=null;
+    selectedCompositionId='';
+    lastCompositionSourceKey='';
+    compositionTracks.replaceChildren();
+    compositionCount.textContent='尚未创建拟输出';
+    compositionChanges.hidden=true;
+    compositionIssues.hidden=true;
+    outputCompositionPanel.hidden=true;
+    if (compositionMuxBtn) compositionMuxBtn.disabled=true;
+    if (editorMuxBtn) editorMuxBtn.disabled=true;
+    document.querySelector('.workspace')?.setAttribute('data-has-composition','false');
+    return null;
+  }
   const containerDocument = buildContainerDocument({
     video: source,
     trackState: scanned,
@@ -2315,12 +2436,6 @@ function renderOutputComposition() {
     unsupportedAssets: importedAssetEntries.filter(entry => entry.kind === 'unknown' ||
       entry.status === ASSET_STATUS.UNSUPPORTED),
   });
-  // Source attachment/chapter/format-tag objects are rendered from the
-  // same exact-File-bound scan; unscanned inputs yield no observed objects.
-  updateSoftmux1014SourceSections(document, withSourceAttachmentUndoIndicator(buildSourceObjectSections(scanned, {
-    appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
-    sourceFile: scanned ? source : null,
-  })));
   // Preserve the exact File reference, not just the name/size/mtime display
   // key. A replacement with identical metadata may NOT inherit the snapshot.
   currentProjectSourceProjection = containerDocument;
@@ -2547,6 +2662,154 @@ function renderOutputComposition() {
       data-status="${escapeHtml(item.status)}" aria-pressed="${active}"
       aria-label="编辑${escapeHtml(label)}：${escapeHtml(item.title)}">${info}</button>`;
   }).join('') || '<div class="track-empty">暂无可封装轨道</div>';
+  // V3 renders the REAL composition buttons as grouped Matroska objects.
+  // Do not clone controls, synthesize target rows or maintain a parallel
+  // editable model. The existing delegated composition click handler owns
+  // exactly the same DOM nodes after moving them into presentation groups.
+  if (v3Pilot && model.items.length) {
+    const labels = {
+      video:'视频',audio:'音频',subtitle:'字幕',
+      attachment:'附件',font:'字体',other:'其他对象',
+    };
+    const groups = new Map();
+    const originalRows=[...compositionTracks.children];
+    for(const [index,item] of model.items.entries()) {
+      const kind=Object.hasOwn(labels,item.kind)?item.kind:'other';
+      if(!groups.has(kind)) {
+        const section=document.createElement('section');
+        section.className='sfv3-target-group';
+        section.dataset.kind=kind;
+        const heading=document.createElement('header');
+        heading.className='sfv3-target-group-heading';
+        const title=document.createElement('h2');
+        title.textContent=labels[kind];
+        const count=document.createElement('span');
+        count.className='sfv3-target-group-count';
+        count.textContent=String(model.items.filter(candidate =>
+          (Object.hasOwn(labels,candidate.kind)?candidate.kind:'other')===kind
+        ).length).padStart(2,'0')+' 个对象';
+        heading.append(title,count);
+        const list=document.createElement('div');
+        list.className='sfv3-target-group-list';
+        section.append(heading,list);
+        groups.set(kind,{section,list});
+      }
+      const row=originalRows[index];
+      if(!row)continue;
+      row.dataset.sfv3ObjectKind=kind;
+      // Figma V3 uses ordered, inspectable MEDIA rows; the marker is
+      // presentation only and reuses the original native composition button.
+      if(['video','audio','subtitle'].includes(kind) && row.matches('button.composition-row')){
+        const number=String(model.items.slice(0,index+1).filter(
+          entry=>['video','audio','subtitle'].includes(entry.kind)
+        ).length).padStart(2,'0');
+        const order=document.createElement('span');
+        order.className='sfv3-track-order';
+        order.setAttribute('aria-hidden','true');
+        order.textContent=number;
+        const state=row.querySelector('.composition-state');
+        row.insertBefore(order,state||null);
+        const arrow=document.createElement('span');
+        arrow.className='sfv3-track-inspect';
+        arrow.setAttribute('aria-hidden','true');
+        arrow.textContent='›';
+        row.appendChild(arrow);
+      }
+      // V3-04 / V3-06: annotate the ONE real composition control using
+      // the exact derived external subtitle File and its actual font members.
+      // An original source object is not colored as transferred by name alone.
+      if(kind==='subtitle' && item.target?.type==='external' &&
+          item.target.kind==='subtitle' && Number.isSafeInteger(item.target.index)){
+        const subtitleFile=newSubtitleState[item.target.index]?.file;
+        const assMember=importedAssetEntries.find(entry=>
+          entry.kind==='subtitle' && entry.file===subtitleFile &&
+          entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+          entry.embeddedOrigin?.kind==='subtitle-ass');
+        if(assMember){
+          const origin=assMember.embeddedOrigin;
+          const activeSource=importedAssetEntries.some(entry=>
+            entry.kind==='container' && entry.key===origin.sourceKey &&
+            entry.file===origin.sourceFile);
+          const fonts=importedAssetEntries.filter(entry=>entry.kind==='font' &&
+            entry.embeddedOrigin?.bundleKind==='ass-font-closure' &&
+            entry.embeddedOrigin.sourceFile===origin.sourceFile &&
+            entry.embeddedOrigin.streamIndex===origin.streamIndex);
+          const bound=activeSource && fonts.length>0 && fonts.every(entry=>
+            [...(fontInput.files||[])].some(file=>file===entry.file));
+          if(bound){
+            row.dataset.sfv3AssFont='bound';
+            const trackMain=row.querySelector('.composition-track-main');
+            if(trackMain){
+              const note=document.createElement('small');
+              note.className='sfv3-target-ass-font-note';
+              note.textContent='来自 '+origin.sourceName+' · 字体依赖 '+
+                fonts.length+' 项 · 已登记到拟输出编辑器';
+              trackMain.appendChild(note);
+            }
+          }
+        }
+      }
+      groups.get(kind).list.append(row);
+    }
+    // Figma V3-08: media rows first; the real native font/attachment
+    // controls remain available via one compact disclosure. Chapter/Tag
+    // cards open the EXISTING read-only structural inspector, not a fake
+    // second media model or independently editable view.
+    const mediaKinds=['video','audio','subtitle'];
+    const mediaGroups=mediaKinds.filter(kind=>groups.has(kind))
+      .map(kind=>groups.get(kind).section);
+    const resources=document.createElement('section');
+    resources.className='sfv3-compact-resources';
+    const resourcesHead=document.createElement('header');
+    resourcesHead.className='sfv3-compact-resources-head';
+    resourcesHead.textContent='附件与结构';
+    const readOnlyLabel=document.createElement('small');
+    readOnlyLabel.textContent='结构只读';
+    resourcesHead.appendChild(readOnlyLabel);
+    resources.appendChild(resourcesHead);
+    const actualResourceGroups=[...groups.entries()].filter(([kind])=>
+      !mediaKinds.includes(kind)).map(([,group])=>group.section);
+    const actualResourceCount=model.items.filter(item=>
+      ['font','attachment','other'].includes(item.kind)).length;
+    const resourceDetails=document.createElement('details');
+    resourceDetails.id='sfv3ResourceDetails';
+    resourceDetails.className='sfv3-resource-details';
+    resourceDetails.open=window.innerWidth>719 ||
+      Boolean(compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
+    const summary=document.createElement('summary');
+    summary.className='sfv3-resource-summary';
+    const resourceTitle=document.createElement('strong');
+    resourceTitle.textContent='字体与附件';
+    const count=document.createElement('span');
+    count.textContent=String(actualResourceCount);
+    const disclosure=document.createElement('span');
+    disclosure.textContent='展开';
+    summary.append(resourceTitle,count,disclosure);
+    resourceDetails.append(summary,...actualResourceGroups);
+    resources.appendChild(resourceDetails);
+    const structureProof=projectSourceStructureEvidence({
+      source,trackState:scanned,
+    });
+    for(const [kind,label] of [['chapter','章节'],['metadata','标签']]){
+      const action=document.createElement('button');
+      action.type='button';
+      action.className='sfv3-compact-structure-open';
+      action.dataset.sfv3StructureOpen=kind;
+      const title=document.createElement('strong');
+      title.textContent=label;
+      const quantity=document.createElement('span');
+      quantity.textContent=structureProof.observed
+        ? String(structureProof.items.filter(item=>item.kind===kind).length)
+        : '未扫描';
+      const state=document.createElement('span');
+      state.textContent='只读';
+      action.append(title,quantity,state);
+      action.disabled=!structureProof.observed;
+      action.title='仅查看来源已观察到的'+label+'；不表示成品 Matroska 保真';
+      resources.appendChild(action);
+    }
+    compositionTracks.replaceChildren(...mediaGroups,resources);
+  }
   const meaningfulChanges = model.changes;
   compositionChanges.hidden = !meaningfulChanges.length;
   compositionChanges.textContent = meaningfulChanges.length
@@ -2706,6 +2969,16 @@ document.addEventListener(
   }
 );
 compositionTracks?.addEventListener('click', event => {
+  const structureAction=event.target.closest('[data-sfv3-structure-open]');
+  if(v3Pilot && structureAction){
+    const details=document.getElementById('sfv3ObservedStructure');
+    if(details && !details.hidden){
+      details.open=true;
+      details.scrollIntoView({block:'nearest'});
+      details.querySelector('summary')?.focus();
+    }
+    return;
+  }
   const button = event.target.closest('button[data-composition-id]');
   if (!button) return;
   const currentDocument = buildContainerDocument({
@@ -3530,6 +3803,7 @@ function renderImportedAssetInventory() {
       assetInspectorHost.hidden = true;
     }
     renderOutputComposition();
+    publishV3ResourceRegistry();
     return;
   }
   assetInventory.innerHTML = entries.map((entry) => {
@@ -3596,6 +3870,7 @@ function renderImportedAssetInventory() {
     assetInspectorHost.hidden = !sourceInspectorMarkup;
   }
   renderOutputComposition();
+  publishV3ResourceRegistry();
 }
 
 async function importUnifiedAssets(files) {
@@ -3667,7 +3942,7 @@ assetInspectorHost?.addEventListener('toggle', (event) => {
 }, true);
 
 function editSourceFromInventory(event) {
-  if (!trackState || isBusy() || batchRunning) return;
+  if (!v3MayEditOutput() || !trackState || isBusy() || batchRunning) return;
   const element = event.target;
   const trackIndex = element.dataset.treeTrackIndex ?? element.dataset.treeTrackInclude;
   const attachmentIndex = element.dataset.treeAttachmentIndex ?? element.dataset.treeAttachmentInclude;
@@ -3728,6 +4003,7 @@ for (const target of [assetInventory, assetInspectorHost]) {
   target?.addEventListener('change', (event) => {
     if (event.target.matches('[data-tree-track-field], [data-tree-attachment-field]')) return;
     if (event.target.matches('[data-tree-preserve-all]')) {
+      if (!v3MayEditOutput()) return;
       appendPreserveAll.checked = event.target.checked;
       appendPreserveAll.dispatchEvent(new Event('change', { bubbles: true }));
       return;
@@ -3742,7 +4018,8 @@ assetInventory?.addEventListener('click', async event => {
   const inspect=event.target.closest('button[data-embedded-inspect]');
   const add=event.target.closest('button[data-embedded-add]');
   const button=inspect||add;
-  if (!button || isBusy() || batchRunning || batchStartPending || importInProgress) return;
+  if (!button || isBusy() || batchRunning || batchStartPending || importInProgress ||
+      (add && !v3MayEditOutput())) return;
   const sourceKey=inspect?.dataset.embeddedInspect||add?.dataset.embeddedAdd;
   if (embeddedSourceBusy.has(sourceKey)) return;
   const source=importedAssetEntries.find(x=>x.kind==='container'&&x.key===sourceKey);
@@ -3792,13 +4069,17 @@ assetInventory?.addEventListener('click', async event => {
 assetInventory?.addEventListener('click', async event => {
   const inspect=event.target.closest('button[data-secondary-subtitle-inspect]');
   const add=event.target.closest('button[data-secondary-subtitle-add]');
-  if ((!inspect&&!add)||isBusy()||batchRunning||batchStartPending||importInProgress) return;
+  if ((!inspect&&!add)||isBusy()||batchRunning||batchStartPending||importInProgress ||
+      (add&&!v3MayEditOutput())) return;
   const key=inspect?.dataset.secondarySubtitleInspect||add?.dataset.secondarySubtitleAdd;
   if(secondarySubtitleBusy.has(key))return;
   const source=importedAssetEntries.find(e=>e.kind==='container'&&e.key===key);
   const mainSource=videoInput.files?.[0];
   if(!source||!mainSource||mainSource===source.file)return;
   const current=()=>!cancelRequested && videoInput.files?.[0]===mainSource &&
+    // A V3 source-only transition revokes an in-flight target Add-to. Simple
+    // observation/inspection remains available without any target plan.
+    (!add || v3MayEditOutput()) &&
     importedAssetEntries.some(e=>e.kind==='container'&&e.key===key&&e.file===source.file);
   secondarySubtitleBusy.add(key);
   extractingOriginalTrack=true;cancelRequested=false;
@@ -3918,17 +4199,148 @@ assetInventory?.addEventListener('click', async event => {
 
 assetInventory?.addEventListener('click',event=>{
   const button=event.target.closest('[data-asset-as-attachment]');
-  if(!button||isBusy()||batchRunning||batchStartPending||importInProgress)return;
+  if(!button||isBusy()||batchRunning||batchStartPending||importInProgress||!v3MayEditOutput())return;
   const index=importedAssetEntries.findIndex(entry=>entry.key===button.dataset.assetAsAttachment);
   if(index<0)return;
   try{importedAssetEntries[index]=assignOpaqueAttachmentRole(importedAssetEntries[index]);applyImportedAssetRoles();}
   catch(error){status.textContent=error.message;}
 });
 
+// The V3 presenter may *request* a target choice; only the real importer
+// and source adapter can validate/commit it. No synthetic File permission.
+// V3 document tabs open exact imported Files for observation only. It is
+// deliberately separate from confirming a target; the writer gate stays shut.
+document.addEventListener('softmux:v3-surface-changed', () => {
+  if(!v3Pilot)return;
+  updateUI();
+});
+document.addEventListener('softmux:v3-open-source', event => {
+  if(!v3Pilot || isBusy() || batchRunning || importInProgress ||
+      currentV3Target())return;
+  const {sourceKey,sourceFile}=event.detail||{};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry)return;
+  if(videoInput.files?.[0]!==sourceFile){
+    const radio=[...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(x=>x.dataset.assetSource===sourceKey && !x.disabled);
+    if(!radio)return;
+    radio.checked=true;
+    radio.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  if(videoInput.files?.[0]!==sourceFile)return;
+  event.preventDefault();
+  publishV3ResourceRegistry();
+});
+document.addEventListener('softmux:v3-confirm-target', event => {
+  if (!v3Pilot || isBusy() || batchRunning || importInProgress) return;
+  const {baseKey,baseFile}=event.detail || {};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===baseKey && e.file===baseFile);
+  if (!entry || !baseFile || typeof baseKey!=='string') return;
+  if (videoInput.files?.[0] !== baseFile) {
+    const radio=[...assetInventory.querySelectorAll('[data-asset-source]')]
+      .find(x=>x.dataset.assetSource===baseKey);
+    if (!radio || radio.disabled) return;
+    radio.checked=true;
+    radio.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  const result=v3TargetAuthority.confirm({
+    baseKey,baseFile,entries:importedAssetEntries,
+    activeFile:videoInput.files?.[0]||null,
+  });
+  if (!result.accepted) return;
+  event.preventDefault();
+  document.getElementById('sf14Root')?.dispatchEvent(
+    new CustomEvent('softmux:v3-target-confirmed',{detail:{baseKey,baseFile}}));
+  updateUI();
+  publishV3ResourceRegistry();
+});
+document.addEventListener('softmux:v3-inspect-secondary', event=>{
+  if (!v3Pilot || isBusy() || batchRunning || importInProgress) return;
+  const {sourceKey,sourceFile}=event.detail||{};
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if (!entry || videoInput.files?.[0]===sourceFile) return;
+  const button=[...assetInventory.querySelectorAll('button[data-secondary-subtitle-inspect]')]
+    .find(x=>x.dataset.secondarySubtitleInspect===sourceKey && !x.disabled);
+  if(!button)return;
+  event.preventDefault();
+  button.click();
+});
+// An observed ASS/SSA stream can be previewed without a target. The
+// original FFmpeg/libass renderer is the sole owner of frame and font state.
+document.addEventListener('softmux:v3-preview-source', event=>{
+  if(!v3Pilot || isBusy() || batchRunning || batchStartPending ||
+      importInProgress || document.getElementById('sf14Root')?.dataset.sfv3Surface!=='source')return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex)||streamIndex<0)return;
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry || !sourceFile || videoInput.files?.[0]!==sourceFile ||
+      scannedSourceFile!==sourceFile || trackState?.fileKey!==fileKey(sourceFile))return;
+  const candidate=embeddedPreviewTracks({
+    source:sourceFile,scannedSource:scannedSourceFile,state:trackState,
+  }).find(track=>track.streamIndex===streamIndex && track.sourceFile===sourceFile);
+  if(!candidate || !previewSubtitleSelect || !previewRefreshBtn)return;
+  syncPreviewControls();
+  if(![...previewSubtitleSelect.options].some(option=>option.value===candidate.key))return;
+  previewSubtitleSelect.value=candidate.key;
+  previewSubtitleSelect.dispatchEvent(new Event('change',{bubbles:true}));
+  if(previewTimeInput)previewTimeInput.value='';
+  syncPreviewControls();
+  if(previewRefreshBtn.disabled)return;
+  event.preventDefault();
+  previewRefreshBtn.click();
+});
+// V3 source inspection may request an independently verified native single-
+// stream extraction. This is NOT a target edit or a claim of bundled fonts.
+document.addEventListener('softmux:v3-extract-source',event=>{
+  if(!v3Pilot || isBusy() || batchRunning || batchStartPending ||
+      importInProgress ||
+      document.getElementById('sf14Root')?.dataset.sfv3Surface!=='source')return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex)||streamIndex<0)return;
+  const entry=importedAssetEntries.find(item=>item.kind==='container' &&
+    item.key===sourceKey && item.file===sourceFile);
+  if(!entry || !sourceFile || videoInput.files?.[0]!==sourceFile ||
+      scannedSourceFile!==sourceFile ||
+      trackState?.fileKey!==fileKey(sourceFile))return;
+  const stream=trackState.streams?.find(item=>item.index===streamIndex &&
+    item.codec_type==='subtitle' && ['ass','ssa'].includes(item.codec_name));
+  if(!stream || !embeddedPreviewTracks({
+      source:sourceFile,scannedSource:scannedSourceFile,state:trackState,
+    }).some(item=>item.sourceFile===sourceFile && item.streamIndex===streamIndex))return;
+  try{planOriginalTrackExtraction(sourceFile,stream,{format:'native'});}
+  catch{return;}
+  event.preventDefault();
+  void extractOriginalTrack(streamIndex,'native');
+});
+document.addEventListener('softmux:v3-add-secondary', event=>{
+  if (!v3Pilot || !v3MayEditOutput() || isBusy() || batchRunning || importInProgress) return;
+  const {sourceKey,sourceFile,streamIndex}=event.detail||{};
+  if(!Number.isSafeInteger(streamIndex))return;
+  const entry=importedAssetEntries.find(e=>e.kind==='container' &&
+    e.key===sourceKey && e.file===sourceFile);
+  if(!entry || entry.file===videoInput.files?.[0])return;
+  const snapshot=secondarySubtitleInventories.get(sourceKey);
+  const stream=snapshot?.sourceFile===sourceFile && snapshot.state==='inspected' &&
+    snapshot.streams.find(s=>s.index===streamIndex && s.codec_type==='subtitle');
+  const eligible=stream && (['ass','ssa'].includes(stream.codec_name)
+    ? secondaryAssEligibility(stream,importedAssetEntries,sourceFile)
+    : secondarySubripEligibility(stream,importedAssetEntries,sourceFile));
+  if(!eligible?.allowed)return;
+  const button=[...assetInventory.querySelectorAll('button[data-secondary-subtitle-add]')]
+    .find(x=>x.dataset.secondarySubtitleAdd===sourceKey &&
+      Number(x.dataset.streamIndex)===streamIndex && !x.disabled);
+  if(!button)return;
+  event.preventDefault();
+  button.click();
+});
 assetInventory?.addEventListener('change', (event) => {
   const generic=event.target.closest('[data-generic-include]');
   if(generic) {
-    if(isBusy()||batchRunning||importInProgress)return;
+    if(isBusy()||batchRunning||importInProgress||!v3MayEditOutput())return;
     const entry=importedAssetEntries.find(item=>item.key===generic.dataset.genericInclude&&item.kind==='attachment');
     if(!entry)return;
     entry.include=generic.checked;updateUI();
@@ -3938,7 +4350,7 @@ assetInventory?.addEventListener('change', (event) => {
   }
   const member = event.target.closest('[data-asset-include]');
   if(member) {
-    if(isBusy() || batchRunning || importInProgress)return;
+    if(isBusy() || batchRunning || importInProgress || !v3MayEditOutput())return;
     const entry=importedAssetEntries.find(item=>item.key===member.dataset.assetInclude);
     const rows=entry?.kind==='subtitle'?newSubtitleState:entry?.kind==='audio'?externalAudioState:[];
     const index=rows.findIndex(row=>row.file===entry?.file);
@@ -3967,7 +4379,7 @@ assetInventory?.addEventListener('change', (event) => {
 function handleInspectorTrackMove(event) {
   const moveButton = event.target.closest('button[data-tree-track-move]');
   if (!moveButton) return false;
-  if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked) return true;
+  if (!trackState || isBusy() || batchRunning || appendPreserveAll?.checked || !v3MayEditOutput()) return true;
   const track = trackState.tracks.find((item) => item.index === Number(moveButton.dataset.treeTrackIndex));
   if (!track || !track.include) return true;
   if (!moveTrack(track, Number(moveButton.dataset.treeTrackMove))) return true;
@@ -4323,7 +4735,7 @@ clearAllDefaults?.addEventListener('click', () => {
 });
 
 function setTrackInclusion(type, include) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes = trackState.tracks
     .filter(track => track.type === type)
     .map(track => ({ index: track.index, field: 'include', value: include }));
@@ -4333,7 +4745,7 @@ function setTrackInclusion(type, include) {
 }
 
 function restoreTrackMetadata(type) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const targets = trackState.tracks.filter(track => track.type === type);
   const changes = targets.flatMap(track => [
     { index: track.index, field: 'language', value: track.originalLanguage },
@@ -4357,7 +4769,7 @@ resetAudioMetadata?.addEventListener('click', () => restoreTrackMetadata('audio'
 resetSubtitleMetadata?.addEventListener('click', () => restoreTrackMetadata('subtitle'));
 
 function setAttachmentInclusion(include) {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes=trackState.attachments.map(item=>({
     index:item.index,field:'include',value:include,
   }));
@@ -4371,7 +4783,7 @@ function setAttachmentInclusion(include) {
 keepAllAttachments?.addEventListener('click', () => setAttachmentInclusion(true));
 dropAllAttachments?.addEventListener('click', () => setAttachmentInclusion(false));
 resetAttachmentMetadata?.addEventListener('click', () => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const changes=trackState.attachments.flatMap(item=>[
     {index:item.index,field:'filename',value:item.originalFilename},
     {index:item.index,field:'mimetype',value:item.originalMimetype},
@@ -4864,7 +5276,10 @@ async function refreshSubtitlePreview() {
 
   const video = videoInput.files[0];
   const track = selectedPreviewTrack();
+  // User-selected fonts are a supplementary preview resource, distinct
+  // from source-owned Matroska attachments and output membership.
   let fontFiles = selectedFonts();
+  let embeddedPreviewFontCount = 0;
 
   await destroySubtitlePreview();
   const generation = previewGeneration;
@@ -4912,10 +5327,19 @@ async function refreshSubtitlePreview() {
       const bytes=await ffmpeg.readFile(embeddedAssPath);
       if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>=MAX_EMBEDDED_ASS_BYTES)throw Error('来源 ASS 超过 8 MiB 预览读取范围或为空');
       sourceAss=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
-      fontFiles=await readEmbeddedPreviewFonts(video,{isCurrent:stillCurrent});
+      const sourceFonts=await readEmbeddedPreviewFonts(video,{isCurrent:stillCurrent});
       if(!stillCurrent())return;
+      // Do not erase explicitly imported font Files when the selected ASS
+      // happens to live inside a Matroska container. Source-owned fonts
+      // remain first, and the external selection only supplements preview.
+      embeddedPreviewFontCount=sourceFonts.length;
+      fontFiles=[...sourceFonts,...fontFiles];
+      if(fontFiles.length>32 || fontFiles.some(f=>f.size<=0||f.size>8*1024*1024) ||
+         fontFiles.reduce((total,f)=>total+f.size,0)>32*1024*1024)
+        throw Error('EMBEDDED_PREVIEW_FONT_BUDGET_EXCEEDED');
       embeddedPreviewCueCache={source:video,streamIndex:track.streamIndex,times:extractPreviewCueTimes(sourceAss)};
-      logEl.textContent+='PREVIEW: 来源 ASS #'+track.streamIndex+'；仅为预览读取 '+fontFiles.length+' 个内封字体，不修改输出选择。\n';
+      logEl.textContent+='PREVIEW: 来源 ASS #'+track.streamIndex+'；来源内封字体 '+embeddedPreviewFontCount+
+        ' 个，显式选择的外部字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个，仅供预览；不修改输出选择。\n';
     } else sourceAss=await buildPreviewAss(track,fontFiles);
     if(!stillCurrent())return;
     const previewFonts = await Promise.all(fontFiles.map(async (font) => {
@@ -5054,8 +5478,12 @@ async function refreshSubtitlePreview() {
 
     previewStatus.textContent = '正在用 libass 渲染字幕到预览帧……';
     const filter = `ass=${assPath}:fontsdir=${fontDir}`;
-    const renderCode = await ffmpeg.exec([
-      '-hide_banner', '-loglevel', track.embedded ? 'info' : 'error', '-y',
+    // A successful FFmpeg exit may still produce a blank frame when libass
+    // cannot find ANY font provider in the isolated WASM filesystem.
+    // Capture the real per-command diagnostics and reject that condition
+    // rather than presenting a black PNG as a successful subtitle preview.
+    const renderResult = await execWithCapturedLogs([
+      '-hide_banner', '-loglevel', 'info', '-y',
       '-loop', '1',
       '-framerate', '10',
       '-i', basePath,
@@ -5064,7 +5492,25 @@ async function refreshSubtitlePreview() {
       '-frames:v', '1',
       outputPath,
     ]);
-    if (renderCode !== 0) throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderCode}）`);
+    if (renderResult.code !== 0)
+      throw new Error(`libass 预览渲染失败（FFmpeg 返回 ${renderResult.code}）`);
+    const noFontProvider = renderResult.logs.some(line =>
+      /can't find selected font provider/i.test(line));
+    // libass reports resolved faces as "fontselect: (...) -> DejaVuSans, ..."
+    // (not necessarily with parentheses after ->). Reject only a missing or
+    // null resolution, while keeping the active raster-content E2E oracle.
+    const selectedActualFont = renderResult.logs.some(line => {
+      const match = line.match(/fontselect:.*->\s*(.+)$/i);
+      return Boolean(match && !/^(?:0\b|\(0[,)]|none\b|null\b)/i.test(match[1].trim()));
+    });
+    // A subtitle may have no Dialogue at this precise video frame even
+    // though its track is valid (e.g. ASS at 10–12s in a 2s source).
+    // Interpret fontselect absence only when the shifted ASS has an active
+    // Dialogue event; unknown/malformed timing still fails closed.
+    const cueActivity=previewAssDialogueActivity(shiftedAss,previewCenter);
+    if (noFontProvider && !selectedActualFont && cueActivity!=='inactive') {
+      throw new Error('LIBASS_PREVIEW_FONT_PROVIDER_UNAVAILABLE');
+    }
 
     const bytes = await ffmpeg.readFile(outputPath);
     if (!(bytes instanceof Uint8Array) || !bytes.byteLength) throw new Error('预览 PNG 没有生成。');
@@ -5075,7 +5521,7 @@ async function refreshSubtitlePreview() {
     previewImage.src = previewImageURL;
     previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 内封字体 '+fontFiles.length+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 来源内封字体 '+embeddedPreviewFontCount+' 个 · 显式字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass${cueActivity==='inactive'?' · 当前时间点没有活动字幕事件（不验证字形）':''}`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();
@@ -5085,6 +5531,7 @@ async function refreshSubtitlePreview() {
       EMBEDDED_PREVIEW_FONT_HEADER_INVALID:'来源中声明的字体内容无法识别，未生成替代预览。',
       EMBEDDED_PREVIEW_FONT_BUDGET_EXCEEDED:'内封字体超过预览范围：最多32项、单项8 MiB、合计32 MiB。',
       EMBEDDED_PREVIEW_STALE_SOURCE:'来源已更换，请重新选择字幕预览。',
+      LIBASS_PREVIEW_FONT_PROVIDER_UNAVAILABLE:'WASM 字幕渲染器没有可用字体提供程序，无法确认文字已显示。请通过载入容器导入真实 TTF/OTF 字体，或选择包含内封字体的 MKV 来源后重新生成预览；原文件与拟输出不受影响。',
     };
     previewStatus.textContent = `无法生成预览帧：${embeddedErrorText[error?.message] || error?.message || error}`;
     logEl.textContent += `PREVIEW ERROR: ${error?.stack || error}\n`;
@@ -5808,7 +6255,7 @@ function renderAttachmentList() {
 }
 
 attachmentList.addEventListener('input', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const input = event.target.closest('input[data-attachment-field]');
   if (!input) return;
   const item = trackState.attachments.find((entry) => entry.index === Number(input.dataset.attachmentIndex));
@@ -5819,7 +6266,7 @@ attachmentList.addEventListener('input', (event) => {
 });
 
 attachmentList.addEventListener('change', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const includeInput = event.target.closest('input[data-attachment-action="include"]');
   const fieldInput = event.target.closest('input[data-attachment-field]');
   const target = includeInput || fieldInput;
@@ -5850,7 +6297,7 @@ function escapeHtml(value) {
 }
 
 trackList.addEventListener('change', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const actionInput = event.target.closest('input[data-track-action]');
   const fieldInput = event.target.closest('input[data-track-field]');
   const target = actionInput || fieldInput;
@@ -5881,7 +6328,7 @@ trackList.addEventListener('change', (event) => {
 });
 
 trackList.addEventListener('input', (event) => {
-  if (!trackState) return;
+  if (!trackState || !v3MayEditOutput()) return;
   const input = event.target.closest('input[data-track-field]');
   if (!input) return;
   const track = trackState.tracks.find((item) => item.index === Number(input.dataset.trackIndex));
@@ -5892,6 +6339,7 @@ trackList.addEventListener('input', (event) => {
 });
 
 trackList.addEventListener('click', (event) => {
+  if(!v3MayEditOutput()) return;
   const button = event.target.closest('button[data-track-move]');
   if (!button || !trackState) return;
   const track = trackState.tracks.find((item) => item.index === Number(button.dataset.trackIndex));
@@ -6227,6 +6675,10 @@ async function executeCurrentMuxTask(explicit = null) {
   // The batch owns the shared FFmpeg instance across all prepare/mux/save
   // phases. A synthetic single-task click must not start between jobs.
   if (isBusy() || (batchRunning && !independent)) return;
+  if (v3Pilot && !independent && !v3MayEditOutput()) {
+    status.textContent='请先明确选择目标容器；来源观察不能授权封装。';
+    return;
+  }
   if(!independent && genericAttachmentEntries().length) {
     if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
     const readiness=mediaAttachmentReadiness(genericAttachmentEntries());
@@ -6387,9 +6839,8 @@ async function executeCurrentMuxTask(explicit = null) {
       }
       const refusal = preservationBlockMessage(video.name, protection);
       if (refusal) throw new Error(refusal);
-      // S05: prevent an unverified AttachmentUID-targeted Tag from outliving
-      // an excluded source attachment. The intent was frozen before awaiting
-      // this same-source structural preflight.
+      // S05: reject dangling attachment UID relationships under a frozen
+      // source attachment selection; keep the original File unchanged.
       const attachmentRefusal = attachmentUidExclusionBlockMessage(
         video.name, protection, deliverySourceRows,
         independent && !explicit.preserveAttachments);
@@ -8864,5 +9315,12 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
     })));
+    // V3 is an explicit, review-only presentation pilot until the full design
+    // and real-media gates pass. The existing product remains the default.
+    if (new URLSearchParams(window.location.search).get('ui') === 'v3') {
+      mountSoftmuxV3Surface(document);
+      publishV3ResourceRegistry();
+      updateUI();
+    }
   }
 }

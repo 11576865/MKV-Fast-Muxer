@@ -1148,6 +1148,7 @@ async function scenarioOriginalTracks(browser) {
     assert.equal(subtitles[1].tags?.language, 'eng');
     assert.equal(subtitles[1].tags?.title, 'Original Signs Edited');
     assert.equal(Boolean(subtitles[1].disposition?.forced), true);
+
     const source = path.join(root,'source-multitrack.mkv');
     const copySha = {
       video: nativeCopyStreamHash(source,'0:v:0'),
@@ -2859,6 +2860,10 @@ async function scenarioPreviewTimeClamp(browser) {
 
     const status = await page.locator('#previewStatus').textContent();
     assert.match(status, /1\.9\d s|2\.0\d s/);
+    assert.match(status, /当前时间点没有活动字幕事件（不验证字形）/,
+      'an out-of-duration ASS cue must not trigger a false missing-font rejection or fake glyph verification');
+    assert.equal(await page.locator('#previewImage').isVisible(),true,
+      'video frame is still available when there is no active ASS cue');
     console.log('Scenario 24 PASS');
   } finally {
     await context.close();
@@ -4738,14 +4743,19 @@ async function scenarioRenamedMediaIdentity(browser) {
     assert.equal(await page.locator('#previewSubtitleSelect').isEnabled(), true);
     assert.match(await page.locator('#previewSubtitleSelect').textContent(), /captions\.mmmmm · ASS/);
 
+    // This input intentionally supplies no font. The isolated WASM libass
+    // cannot inherit OS/browser fonts; a blank but nominally successful PNG
+    // must now be refused. This test remains focused on content-sniffed
+    // identity for renamed MP4/AAC/ASS, not on a font rendering fixture.
     await page.locator('#previewRefreshBtn').click();
     await page.waitForFunction(() => {
-      const image = document.querySelector('#previewImage');
-      const status = document.querySelector('#previewStatus')?.textContent || '';
-      return Boolean(image?.getAttribute('src')) || /预览已生成|完成/.test(status);
-    }, null, { timeout: 180_000 });
-    assert.equal(await page.locator('#previewImage').isVisible(), true);
-    assert.match(await page.locator('#previewStatus').textContent(), /预览帧：captions\.mmmmm/);
+      const status=document.querySelector('#previewStatus')?.textContent||'';
+      return status.includes('WASM 字幕渲染器没有可用字体提供程序');
+    },null,{timeout:180_000});
+    assert.equal(await page.locator('#previewImage').isVisible(),false,
+      'missing WASM font provider must not publish a blank preview image');
+    assert.match(await page.locator('#previewStatus').textContent(),
+      /无法生成预览帧：.*WASM 字幕渲染器没有可用字体提供程序/);
 
     assert.equal(await page.locator('#muxBtn').isEnabled(), true);
     await page.locator('#muxBtn').click();
@@ -5709,9 +5719,7 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
   const digest = async file => createHash('sha256').update(await fs.readFile(file)).digest('hex');
   const riskyBefore = await digest(risky);
   const safeBefore = await digest(safe);
-  // Independent native evidence: establish that the selected source really
-  // contains a nested ChapterUID and a Tag targeting that *nested* chapter.
-  // A UI warning by itself cannot prove that the fixture has those features.
+  // Independently establish real nested ChapterUID and ChapterUID-targeted Tag.
   const chapterXmlFile=path.join(outDir,'s08-risk-source-chapters.xml');
   const tagXmlFile=path.join(outDir,'s08-risk-source-tags.xml');
   execFileSync('mkvextract',[risky,'chapters',chapterXmlFile],{stdio:'pipe'});
@@ -5806,8 +5814,7 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
     await saveDownload(page, '#downloadLink', delivered);
     const result = probe(delivered);
     const safeProbe = probe(safe);
-    // The ordinary safe-file delivery after rejection must not silently
-    // transcode selected video/audio tracks as a recovery side effect.
+    // Recovery must preserve codec identities of video and audio streams.
     const avCodecs=inventory=>['video','audio'].map(kind=>
       streams(inventory,kind).map(row=>row.codec_name).sort());
     assert.deepEqual(avCodecs(result),avCodecs(safeProbe),
@@ -5842,7 +5849,6 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
     await context.close();
   }
 }
-
 
 /**
  * S05 frozen batch boundary: even if the first job is a normal MP4, a later
@@ -6101,7 +6107,6 @@ async function scenarioP0TrackTargetedTagSurvival(browser) {
 // P0: a flat MKV has two distinct attachments, and exactly one P0 marker
 // targets the binary attachment UID. Verify the browser output independently
 // by extracted payload SHA-256 and semantic target, not original UID number.
-
 /**
  * S05 actual Browser/Matroska refusal: a native MKVToolNix source has two
  * original attachments, and a Tag targets one attachment UID. The user

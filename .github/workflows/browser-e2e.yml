@@ -48,8 +48,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Fail immediately on ESM syntax errors instead of spending runner time
-      # on S03/S10 and then losing downstream browser evidence uploads.
+      # Fail immediately on ESM syntax errors before expensive real media fixtures.
       - name: Check browser E2E syntax before real fixture execution
         run: node --check tests/e2e/browser-mux.e2e.mjs
 
@@ -279,6 +278,12 @@ jobs:
             .e2e/output/cross-source-ass-font/B-with-original-media.mkv
             .e2e/output/cross-source-ass-font/A-with-ASS-no-font.mkv
             .e2e/output/cross-source-ass-font/B-with-A-ASS-font-browser.mkv
+            .e2e/output/cross-source-ass-font/B-with-A-ASS-font-v3-browser.mkv
+            .e2e/output/cross-source-ass-font/v3-ass-font-authorized-plan.png
+            .e2e/output/cross-source-ass-font/v3-source-ass-font-observation.png
+            .e2e/output/cross-source-ass-font/v3-no-font-fail-closed.png
+            .e2e/output/cross-source-ass-font/v3-cross-source-ass-font-evidence.json
+            .e2e/output/cross-source-ass-font/v3-independent-render/
             .e2e/output/cross-source-ass-font/cross-source-ass-font-evidence.json
             .e2e/output/cross-source-ass-font/independent-render/
           if-no-files-found: warn

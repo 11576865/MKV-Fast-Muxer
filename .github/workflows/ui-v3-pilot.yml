@@ -1,0 +1,98 @@
+name: Softmux V3 design pilot (not release gate)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/softmux-v3-*'
+      - 'src/main.js'
+      - 'tests/softmux-v3-surface.test.mjs'
+      - 'tests/softmux-v3-intent.test.mjs'
+      - 'tests/e2e/v3-source-first.e2e.mjs'
+      - 'tests/e2e/v3-source-ass-preview.e2e.mjs'
+      - 'tests/e2e/v3-cross-source-subrip.e2e.mjs'
+      - 'tests/e2e/v3-responsive-geometry.e2e.mjs'
+      - 'scripts/ui-v3-build-comparison.mjs'
+      - 'docs/ui-v3/**'
+      - '.github/workflows/ui-v3-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-first-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install project dependencies
+        run: npm install
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Browser and Chinese-capable font
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          packages=()
+          if ! command -v ffmpeg >/dev/null 2>&1; then packages+=(ffmpeg); fi
+          if ! command -v fc-list >/dev/null 2>&1; then
+            packages+=(fontconfig fonts-noto-cjk)
+          elif [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
+            packages+=(fonts-noto-cjk)
+          fi
+          if (("${#packages[@]}" > 0)); then
+            sudo apt-get update
+            sudo apt-get install -y "${packages[@]}"
+          fi
+          command -v ffmpeg
+          fc-cache -f
+          test -n "$(fc-list :lang=zh-cn family)"
+      - name: Start preview
+        run: |
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/softmux-v3-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/softmux-v3-preview.log
+          exit 1
+      - name: Real Chromium V3 source-first UI pilot
+        run: node tests/e2e/v3-source-first.e2e.mjs
+      - name: Real Chromium V3 exact-source SubRip transfer to explicit target
+        run: node tests/e2e/v3-cross-source-subrip.e2e.mjs
+      - name: Real Chromium V3 native source ASS preview
+        run: node tests/e2e/v3-source-ass-preview.e2e.mjs
+      - name: Chromium V3 responsive geometry and File continuity audit
+        run: node tests/e2e/v3-responsive-geometry.e2e.mjs
+      - name: Real native five-track compact target visual evidence (not design signoff)
+        run: node tests/e2e/v3-multitrack-visual.e2e.mjs
+      - name: Build Figma-vs-browser visual review pairs (not pixel acceptance)
+        run: node scripts/ui-v3-build-comparison.mjs
+      - name: Upload exact-HEAD V3 UI screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-v3-pilot-source-first-evidence
+          path: |
+            .e2e/ui-v3-evidence/
+            .e2e/ui-v3-cross-source/
+            .e2e/ui-v3-ass-source/
+            .e2e/ui-v3-responsive/
+            .e2e/ui-v3-multitrack/
+            .e2e/ui-v3-visual-comparison/
+
+          retention-days: 14
+          if-no-files-found: warn
