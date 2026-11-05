@@ -26,7 +26,7 @@
       "id": "S01",
       "title": "实际来源与身份绑定",
       "status": "UNASSESSED",
-      "openGap": "未完成针对复杂真实 MKV + 外部 ASS/字体的全对象 S01 验收",
+      "openGap": "现有 S01 完整复杂来源（1 视频、2 音轨、原 ASS、2 附件、章节、Tag）+ 外部 ASS/字体 + 来源切换的实际 Chromium→MKV 专项证据已验证并合并；仍缺经批准合同、冻结候选、候选精确 SHA 的正式全项目验收与设备/发布证据。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -38,20 +38,36 @@
           "tests/audio-only-mux.test.mjs",
           "tests/e2e/audio-only-mux-scenario.mjs",
           "tests/media-attachment-delivery.test.mjs",
-          "tests/e2e/media-attachments-scenario.mjs"
+          "tests/e2e/media-attachments-scenario.mjs",
+          "tests/e2e/s01-complex-source-workspace-scenario.mjs"
         ],
         "historicalArtifactIds": [
           13070077921
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "S01 joint real user-task code and native output have scoped verified receipts; formal candidate/contract acceptance is still UNASSESSED.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeCommit": "a38696a61822f67a55f2a0ebf7cce1cc77f6b9d7",
+          "mergedMainCommit": "c35a2f7c38e1e7d2c0e4236f0444b488a17257e9",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/244",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41973241938",
+          "artifactId": 13390344741,
+          "artifactName": "s01-complex-real-source-workbench-native-evidence",
+          "receipt": "s01-complex-source-workspace-evidence.json",
+          "finishedMkv": "s01-native-complete-output.mkv",
+          "outputSha256": "6ef9f739d2d259b905d71f3b6bcf678163bea54ff3453dbbe3ddd95377fef07b",
+          "verified": true,
+          "scope": "Native flat MKV 1 video+2 audio+original ASS+two source attachments+two chapters+global Tag, imported external ASS/font; source switch draft binding, actual browser output, independent local ffprobe/ffmpeg compressed bitstreams. Only scoped fixture.",
+          "limits": "Original source MKV is not included in uploaded ZIP for a second independent source rehash. No generic EBML/UID preservation or real tablet/1.0 pinned-candidate assertion."
+        }
       }
     },
     {
       "id": "S02",
       "title": "普通软封及码流证明",
       "status": "UNASSESSED",
-      "openGap": "缺 S02 指定字幕格式全集与不同容器源统一验收",
+      "openGap": "现有 S02 MP4→MKV 外部 SSA/SRT/WebVTT 三格式真实成品、声明的字幕转换、FFmpeg 原生视频/音频码流哈希专项证据已验证并合并；ASS、PGS/VobSub 等由既有独立场景验证，但尚未在冻结候选上按经批准的完整合同统一验收、设备与时间轴逐项对账。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -67,14 +83,41 @@
           "tests/audio-only-mux.test.mjs",
           "tests/e2e/audio-only-mux-scenario.mjs",
           "tests/media-attachment-delivery.test.mjs",
-          "tests/e2e/media-attachments-scenario.mjs"
+          "tests/e2e/media-attachments-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
         ],
         "historicalArtifactIds": [
           13069704090,
           13069704075
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Current native S02 MP4 and explicit caption conversions are bounded, real-output scoped evidence; no formal whole-matrix or device/contract PASS.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeCommit": "c4cc76cc1fea9cda12ae0d0e15d21d9326c407cc",
+          "mergedMainCommit": "c5259ec9dc66777aa8403f42795dabe7b4063d28",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/245",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41975705591",
+          "artifactId": 13392147260,
+          "artifactName": "s02-multiformat-source-codec-and-native-output",
+          "receipt": "s02-multiformat-native-evidence.json",
+          "finishedMkv": "additional-formats.mkv",
+          "outputSha256": "ae2e7dd230ea42cf7e15ba814c4d4eea7b58511d2a71ddc0331c3b50ea646e32",
+          "importedSubtitleFormats": [
+            "SSA",
+            "SRT",
+            "WebVTT"
+          ],
+          "actualSubtitleCodecs": [
+            "ass",
+            "subrip",
+            "subrip"
+          ],
+          "videoAudioStreamCopyHashVerified": true,
+          "sourceContainer": "mp4",
+          "outputContainer": "matroska",
+          "limits": "One actual MP4 source, three subtitle formats; separate ASS and PGS/VobSub scenarios not jointly accepted here. Output ZIP contains no original input media; neither subtitle visual equivalence nor arbitrary timebase/device acceptance implied."
+        }
       }
     },
     {
@@ -105,7 +148,7 @@
       "id": "S04",
       "title": "来源轨道属性、选择和排序",
       "status": "UNASSESSED",
-      "openGap": "缺合同全部轨道/属性与独立输出逐项验证对账",
+      "openGap": "现有 S04 真实 MKV 音轨排除、AAC/Opus 双向重排、批量语言/Default、字幕 Forced/标题修改的三份实际成品及逐源轨道压缩码流 SHA 专项证据已验证并合并；仍缺经批准合同、冻结候选上完整轨道属性/外部音轨及全部时间轴的正式统一验收。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -113,13 +156,36 @@
         "testPaths": [
           "tests/live-source-track-authority.test.mjs",
           "tests/e2e/multi-source-drafts-scenario.mjs",
-          "tests/e2e/original-subtitle-timeline-scenario.mjs"
+          "tests/e2e/original-subtitle-timeline-scenario.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
         ],
         "historicalArtifactIds": [
           13070077921
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "S04 actual selected/reordered/bulk source output evidence verified at scoped code head; not full source/target property universe or frozen release-candidate acceptance.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeCommit": "c4cc76cc1fea9cda12ae0d0e15d21d9326c407cc",
+          "mergedMainCommit": "c5259ec9dc66777aa8403f42795dabe7b4063d28",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/245",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41975705591",
+          "artifactId": 13392326640,
+          "artifactName": "s04-source-track-attributes-order-native-output",
+          "receipts": [
+            "s04-selected-source-track-native-evidence.json",
+            "s04-audio-reorder-native-evidence.json",
+            "s04-bulk-track-metadata-native-evidence.json"
+          ],
+          "finishedMkvSha256": {
+            "original-track-selection.mkv": "ac9a0828c64f109764ec9bbf15e3b5a3374a622143cf85ccca16c766009e8e60",
+            "reordered-audio.mkv": "8bf035e424a24334099bf83bd120dd9755e5d8b3f0cc75e4515195d485e2173d",
+            "bulk-track-metadata.mkv": "ca08f84361d8431922796d755508e160ae0d0e7052ffca2191d93111c2eba974"
+          },
+          "sourceCodecMappingIndependentHashVerified": true,
+          "trackMetadataNativeOutputVerified": true,
+          "limits": "Specific two-audio AAC/Opus and original ASS MKV only; aggregated per-stream compressed hash does not prove packet PTS/DTS and ZIP contains output media but not original source media."
+        }
       }
     },
     {
