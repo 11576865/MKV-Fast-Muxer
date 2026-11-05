@@ -405,6 +405,40 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # S02: one actual MP4 -> MKV with SSA/SRT/WebVTT and preserved
+      # compressed source video/audio. Explicit subtitle conversions are
+      # independently demuxed; native FFmpeg stream-copy hash is the oracle.
+      - name: Upload S02 multi-format real MKV and native stream-copy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s02-multiformat-source-codec-and-native-output
+          path: |
+            .e2e/output/s02-multiformat-native-evidence.json
+            .e2e/output/additional-formats.mkv
+            .e2e/output/additional-formats.mux-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      # S04: three actual source track operations share a native compressed
+      # stream hash oracle: exclusion, reorder and bulk attributes.
+      - name: Upload S04 selection reorder and bulk metadata native MKV evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s04-source-track-attributes-order-native-output
+          path: |
+            .e2e/output/s04-selected-source-track-native-evidence.json
+            .e2e/output/s04-audio-reorder-native-evidence.json
+            .e2e/output/s04-bulk-track-metadata-native-evidence.json
+            .e2e/output/original-track-selection.mkv
+            .e2e/output/original-track-selection.mux-report.json
+            .e2e/output/reordered-audio.mkv
+            .e2e/output/bulk-track-metadata.mkv
+            .e2e/output/bulk-track-metadata.mux-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # S01: one actual MKVToolNix source, two source audios, one original ASS,
       # two source attachments, flat chapters/global Tag, external ASS/font,
       # source switch/File identity, actual mux, ffprobe and packet SHA.
