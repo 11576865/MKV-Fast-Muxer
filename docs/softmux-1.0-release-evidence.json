@@ -583,17 +583,69 @@
       "id": "S12",
       "title": "引擎边界与大于 1 GB 非阻断提示",
       "status": "BLOCKED",
-      "openGap": "缺明确目标桌面/平板设备上各尺寸的完整封装、保存和资源证据",
+      "openGap": "已有 128MiB 原附件、545MB 与超过十进制 1GB（1,012,768,569 B）真实 PCM MKV 的 Chromium/Wasm 生成与下载专项 PASS；1GB 仅非阻断三角提示，Linux Chromium 最高采样进程 RSS 约 4.05GiB。另有 256MiB 总原附件负载 OOM 红灯；存在来源/成品仅 runner 内保留、独立归档仅收据、SeekHead 索引仍 UNVERIFIED 的边界。完整 S12 仍需 1.2–1.5GB/接近引擎上限、真实桌面与平板、实际物理保存、资源峰值和发布候选级证据。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
-          "tests/ffmpeg-browser-source-staging.test.mjs"
+          "tests/ffmpeg-browser-source-staging.test.mjs",
+          "tests/e2e/s12-real-large-mkv.e2e.mjs"
         ],
         "historicalArtifactIds": [],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Existing exact-head scoped actual byte-volume PCM and attachment PASS and separate attachment OOM research recorded; S12 formal BLOCKED due device/full-size/input-type/real-save/frozen-candidate gaps. Receipt-only archives are not independent external rehash of 1GB output.",
+        "scopedAcceptanceEvidence": {
+          "state": "PARTIAL_REAL_LARGE_MEDIA_PASS_NOT_S12_ACCEPTANCE",
+          "codeHead": "3258deec52ce55ac9aea2dfeed8cf0bf7625d2f8",
+          "workflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41949280007",
+          "allThreeActualChromiumJobs": "SUCCESS",
+          "cases": [
+            {
+              "name": "128m original attachments",
+              "artifactId": 13379598130,
+              "sourceBytes": 134266528,
+              "outputBytes": 134262622,
+              "outputSha256": "3f9ab13417bd78c91f93b069f28c49ac5a99db87b6121213df22d6dc116f572f",
+              "originalAttachmentCount": 2,
+              "warningShown": false,
+              "runReceipt": "PASS_THIS_TIER"
+            },
+            {
+              "name": "512m timed 7.1 PCM",
+              "artifactId": 13380530829,
+              "sourceBytes": 545099065,
+              "outputBytes": 545099751,
+              "outputSha256": "ffbd45e8af787d690416f9532e5cba5f4ecd5fc938acab076b402691ceffe068",
+              "warningShown": false,
+              "runReceipt": "PASS_THIS_TIER"
+            },
+            {
+              "name": "1000m timed 7.1 PCM",
+              "artifactId": 13380047898,
+              "sourceBytes": 1012768569,
+              "outputBytes": 1012769255,
+              "outputSha256": "0a6949feb34e5e2a3bfad8c6da3230f356dbd80bc5cd81043fea06cb5f1a04a2",
+              "warningShown": true,
+              "warningNotBlockingMux": true,
+              "runReceipt": "PASS_THIS_TIER",
+              "chromiumVersion": "156.0.8078.79",
+              "runnerOs": "Linux x86_64",
+              "maxSampledChromiumProcessGroupRssKiB": 4243384
+            }
+          ],
+          "directDownloadedArchiveReview": {
+            "actualSourceAndOutputBytesIncluded": false,
+            "actualRunReceiptsAndMuxReportsIncluded": true,
+            "reportAndReceiptOutputSizeShaAgree": true,
+            "sourceAndFinishedIndexProof": "FINISHED_INDEX_UNVERIFIED",
+            "testedLongMediaCodec": "pcm_s32le",
+            "confirmedPhysicalDiskSave": false,
+            "deviceHardwareAcceptance": false
+          },
+          "separateObservedRed": "Research 256MiB total original FileData attachment variants failed in Chromium/Wasm OOM; PCM 1GB success cannot overturn this failure or support a universal attachment limit.",
+          "limits": "Genuine 128MiB attachments and 545MB/1.012GB PCM media; no 1.2–1.5GB actual run here, real hardware tablet, typical long compressed film, near executor ceiling, independent outside-run full-size MKV SHA, complete SeekHead or physical storage durability evidence."
+        }
       }
     },
     {
