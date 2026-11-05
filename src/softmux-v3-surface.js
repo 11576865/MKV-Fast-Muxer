@@ -548,8 +548,10 @@ export function mountSoftmuxV3Surface(doc = document) {
   picker.id = 'sfv3TargetPicker';
   picker.className = 'sfv3-target-picker';
   picker.setAttribute('aria-label', '选择拟输出基础容器');
+  picker.setAttribute('aria-describedby','sfv3PickerExplanation');
   const pickerTitle = appendText(doc, picker, 'h2', 'sfv3-picker-title', '加入到哪里？');
   const pickerExplanation = appendText(doc, picker, 'p', 'sfv3-picker-explanation', '请选择一个真实 MKV 作为拟输出基础。');
+  pickerExplanation.id='sfv3PickerExplanation';
   const pickerOptions = doc.createElement('div');
   pickerOptions.className = 'sfv3-picker-options';
   pickerOptions.id = 'sfv3PickerOptions';
@@ -557,11 +559,15 @@ export function mountSoftmuxV3Surface(doc = document) {
   pickerStatus.setAttribute('role','status');
   const pickerActions = doc.createElement('div');
   pickerActions.className = 'sfv3-picker-actions';
-  const cancelChoice = appendText(doc, pickerActions, 'button', 'sfv3-picker-cancel', '取消');
+  const cancelChoice = appendText(doc, pickerActions, 'button', 'sfv3-picker-cancel', '×');
   cancelChoice.type = 'button';
+  cancelChoice.setAttribute('aria-label','取消目标选择');
+  cancelChoice.title='取消目标选择';
   const confirmChoice = appendText(doc, pickerActions, 'button', 'sfv3-picker-confirm', '创建拟输出');
   confirmChoice.type = 'button';
   confirmChoice.id = 'sfv3ConfirmTarget';
+  confirmChoice.replaceChildren(svgIcon(doc,'create-output'));
+  const confirmChoiceLabel=appendText(doc,confirmChoice,'span','sfv3-picker-confirm-label','创建拟输出');
   picker.append(pickerOptions,pickerStatus,pickerActions);
   picker.insertBefore(pickerTitle,pickerOptions);
   picker.insertBefore(pickerExplanation,pickerOptions);
@@ -1005,19 +1011,30 @@ export function mountSoftmuxV3Surface(doc = document) {
       radio.checked=Boolean(targetIntent?.baseFile===entry.file) ||
         (!targetIntent && entry.file===latestResources.activeBase);
       label.appendChild(radio);
-      appendText(doc,label,'span','sfv3-picker-file-name',entry.file.name);
+      const copy=doc.createElement('span');
+      copy.className='sfv3-picker-choice-copy';
+      appendText(doc,copy,'strong','sfv3-picker-file-name','以 '+entry.file.name+' 为基础');
+      appendText(doc,copy,'small','sfv3-picker-file-detail','保留此容器已选择的对象 · 原文件只读');
+      label.appendChild(copy);
       pickerOptions.appendChild(label);
     }
-    const emptyOption=appendText(doc,pickerOptions,'div','sfv3-picker-unavailable',
-      '新建空 MKV · 当前版本尚无受验收的空容器执行路径');
+    // Approved Figma V3-03 depicts a blank-target choice. The mux engine
+    // cannot yet safely execute it, so display the exact choice as disabled,
+    // not as an enabled radio that would grant an impossible writer target.
+    const emptyOption=doc.createElement('div');
+    emptyOption.className='sfv3-picker-unavailable';
     emptyOption.setAttribute('aria-disabled','true');
+    emptyOption.setAttribute('role','note');
+    appendText(doc,emptyOption,'strong','sfv3-picker-empty-name','新建空 MKV');
+    appendText(doc,emptyOption,'small','sfv3-picker-empty-reason','暂不可用 · 未完成空容器封装验收');
+    pickerOptions.appendChild(emptyOption);
     confirmChoice.disabled=!possible.length;
     if(!possible.length)pickerStatus.textContent='请先导入另一份 MKV 作为目标。';
     else if(!pickerOptions.querySelector('input:checked'))
       pickerOptions.querySelector('input').checked=true;
-    confirmChoice.textContent=pendingTrack
+    confirmChoiceLabel.textContent=pendingTrack
       ? (['ass','ssa'].includes(pendingTrack.codec)
-          ? '确认目标并验证字幕与字体' : '确认目标并加入字幕')
+          ? '确认目标并验证字幕与字体' : '创建拟输出并加入字幕')
       : '创建拟输出';
     if(typeof picker.showModal==='function')picker.showModal();else picker.open=true;
   };
