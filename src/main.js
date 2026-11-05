@@ -5184,7 +5184,10 @@ async function refreshSubtitlePreview() {
 
   const video = videoInput.files[0];
   const track = selectedPreviewTrack();
+  // User-selected fonts are a supplementary preview resource, distinct
+  // from source-owned Matroska attachments and output membership.
   let fontFiles = selectedFonts();
+  let embeddedPreviewFontCount = 0;
 
   await destroySubtitlePreview();
   const generation = previewGeneration;
@@ -5232,10 +5235,19 @@ async function refreshSubtitlePreview() {
       const bytes=await ffmpeg.readFile(embeddedAssPath);
       if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>=MAX_EMBEDDED_ASS_BYTES)throw Error('来源 ASS 超过 8 MiB 预览读取范围或为空');
       sourceAss=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
-      fontFiles=await readEmbeddedPreviewFonts(video,{isCurrent:stillCurrent});
+      const sourceFonts=await readEmbeddedPreviewFonts(video,{isCurrent:stillCurrent});
       if(!stillCurrent())return;
+      // Do not erase explicitly imported font Files when the selected ASS
+      // happens to live inside a Matroska container. Source-owned fonts
+      // remain first, and the external selection only supplements preview.
+      embeddedPreviewFontCount=sourceFonts.length;
+      fontFiles=[...sourceFonts,...fontFiles];
+      if(fontFiles.length>32 || fontFiles.some(f=>f.size<=0||f.size>8*1024*1024) ||
+         fontFiles.reduce((total,f)=>total+f.size,0)>32*1024*1024)
+        throw Error('EMBEDDED_PREVIEW_FONT_BUDGET_EXCEEDED');
       embeddedPreviewCueCache={source:video,streamIndex:track.streamIndex,times:extractPreviewCueTimes(sourceAss)};
-      logEl.textContent+='PREVIEW: 来源 ASS #'+track.streamIndex+'；仅为预览读取 '+fontFiles.length+' 个内封字体，不修改输出选择。\n';
+      logEl.textContent+='PREVIEW: 来源 ASS #'+track.streamIndex+'；来源内封字体 '+embeddedPreviewFontCount+
+        ' 个，显式选择的外部字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个，仅供预览；不修改输出选择。\n';
     } else sourceAss=await buildPreviewAss(track,fontFiles);
     if(!stillCurrent())return;
     const previewFonts = await Promise.all(fontFiles.map(async (font) => {
@@ -5409,7 +5421,7 @@ async function refreshSubtitlePreview() {
     previewImage.src = previewImageURL;
     previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 内封字体 '+fontFiles.length+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 来源内封字体 '+embeddedPreviewFontCount+' 个 · 显式字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();
