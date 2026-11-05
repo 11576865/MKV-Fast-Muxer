@@ -126,14 +126,16 @@
       "id": "S05",
       "title": "已有及新增附件保真交付",
       "status": "UNASSESSED",
-      "openGap": "缺合同完整双原附件、一外部附件、UID/Tag 风险组合验收",
+      "openGap": "已有真实 Chromium/原生 MKV 证据证明 AttachmentUID 定向 Tag + 排除原附件会被执行前拒绝（PR #242）；仍需冻结发布候选、核定合同，并汇总双原附件 + 外部附件的正例、UID/Tag 风险矩阵及独立输出证据。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
           "tests/matroska-attachment-reader.test.mjs",
-          "tests/e2e/attachment-only-workbench-scenario.mjs"
+          "tests/e2e/attachment-only-workbench-scenario.mjs",
+          "tests/preservation-preflight.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
         ],
         "historicalArtifactIds": [
           13069978320,
@@ -141,7 +143,26 @@
           13070177339
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Exact-head CI verified only the bounded S05 negative: native-authoritative AttachmentUID-targeted Tag + exclusion of an original decoy attachment is refused before ordinary remux, source unchanged. Existing browser positive source-attachment, external-font, byte-preservation tests continue green. No formal release PASS: unapproved full contract, unpinned 1.0 candidate, physical-device and broader UID/Tag matrix still open.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "branchHead": "ebcc43f2cd57da6eb1eb9073e2755d2961f399de",
+          "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/242",
+          "browserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41886710775",
+          "s12Workflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41886710773",
+          "artifactId": 13352452027,
+          "artifactName": "wu03-fa-modern-workspace-actual-mkv-native-evidence",
+          "fixture": "p0-independent-attachmenttag.mkv",
+          "nativeTagXmlSha256": "1000701f2ccfc0d6248721af6ee86bab7ad0d3cc6b35f061e4de0a6a71833145",
+          "nativeTagXmlContainsAttachmentUidTarget": true,
+          "browserExclusionRefusalReceipt": "s05-tagged-attachment-refusal.json",
+          "originalSourceSha256": "db5749d8601246982b9fdae8bd9b2829bb4a1ec21543e4d68d6d11f347f56dba",
+          "originalSourceUnchanged": true,
+          "blockedBeforeWriter": true,
+          "sourceWithTwoOriginalAttachments": true,
+          "tagTargetInOriginalSource": true,
+          "limitedScenarioOnly": true
+        }
       }
     },
     {

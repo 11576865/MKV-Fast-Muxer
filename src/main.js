@@ -49,7 +49,7 @@ import {
   summarizeCompatibility,
 } from './compatibility.js';
 import { buildMuxCommand, dispositionValue, normalizeTrackLanguage } from './mux-command.js';
-import { inspectMatroskaPreservation, preservationBlockMessage } from './preservation-preflight.js';
+import { inspectMatroskaPreservation, preservationBlockMessage, attachmentUidExclusionBlockMessage } from './preservation-preflight.js';
 import { preservationReadiness } from './preservation-readiness.js';
 import { resolveContainerCapabilities, summarizeContainerCapability } from './container-capabilities.js';
 import { buildBatchRecipe, stringifyBatchRecipe, parseBatchRecipe, recipeApplyPreview, BATCH_RECIPE_MAX_BYTES } from './batch-recipe.js';
@@ -6387,6 +6387,12 @@ async function executeCurrentMuxTask(explicit = null) {
       }
       const refusal = preservationBlockMessage(video.name, protection);
       if (refusal) throw new Error(refusal);
+      // S05: prevent an unverified AttachmentUID-targeted Tag from outliving
+      // an excluded source attachment. The intent was frozen before awaiting
+      // this same-source structural preflight.
+      const attachmentRefusal = attachmentUidExclusionBlockMessage(
+        video.name, protection, deliverySourceRows);
+      if (attachmentRefusal) throw new Error(attachmentRefusal);
       if (protection.state === 'UNVERIFIED_REFERENCES') {
         preservationInfo = 'WARNING: ' + protection.warnings.join('；') +
           '。封装仍可继续，但这些关联的保留未经独立验证；请复核输出。' + String.fromCharCode(10);
