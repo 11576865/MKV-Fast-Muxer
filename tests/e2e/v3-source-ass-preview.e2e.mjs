@@ -39,6 +39,14 @@ try {
   !!document.querySelector('#sfv3SourceContents .sfv3-row-select'),stream.index,{timeout:120000});
  const row=page.locator('#sfv3SourceContents .sfv3-row-select').filter({hasText:'V3 Source ASS'}).first();
  await row.click();
+ // V3-02: capture real desktop ASS-selection before destination authority.
+ await page.locator('#sfv3SourceInspector').waitFor({state:'visible'});
+ await page.setViewportSize({width:1440,height:900});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ assert.equal(await page.locator('#muxBtn').isDisabled(),true);
+ await page.screenshot({path:path.join(dir,'v3-ass-selected-1440x900.png')});
+ await page.setViewportSize({width:820,height:1180});
  // V3-05/09: use real ffprobe disposition; unknown must stay unknown.
  const observedFlags=page.locator('#sfv3SourceInspector #sfv3SourceFlagStates');
  assert.equal(await observedFlags.isVisible(),true);
