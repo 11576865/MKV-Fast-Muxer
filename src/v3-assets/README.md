@@ -21,3 +21,13 @@ These icons were exported without edits from approved Figma file `5iZSy48FV1sJnG
 - `open.svg` → Figma node `28:135`
 - `create-output.svg` → Figma node `28:117`
 - `ready.svg` → Figma node `28:223`
+
+## V3-03 explicit destination chooser (Figma `31:2`, 2026-11-06)
+
+The following are exact, unchanged SVG exports from the approved target picker, not substitute glyphs. Original root intrinsic dimensions and stroke values are retained.
+
+- `picker-selected.svg` → Figma node `31:249`, 17×17, selected base indicator
+- `picker-empty-target.svg` → Figma node `31:255`, 17×17, blank-target indicator (UI disabled until a real execution path is approved)
+- `picker-confirm.svg` → Figma node `31:260`, 18×18, confirmation icon
+
+`src/softmux-v3-surface.js` references these as build-local assets. A stable `data-sfv3-icon` attribute identifies their actual design role regardless of whether Vite retains the filename in a URL or inlines a small SVG as a `data:` URI. Real Chromium assertions require successful image loading; visual fidelity remains subject to whole-frame review.
