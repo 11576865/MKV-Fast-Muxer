@@ -6391,7 +6391,8 @@ async function executeCurrentMuxTask(explicit = null) {
       // an excluded source attachment. The intent was frozen before awaiting
       // this same-source structural preflight.
       const attachmentRefusal = attachmentUidExclusionBlockMessage(
-        video.name, protection, deliverySourceRows);
+        video.name, protection, deliverySourceRows,
+        independent && !explicit.preserveAttachments);
       if (attachmentRefusal) throw new Error(attachmentRefusal);
       if (protection.state === 'UNVERIFIED_REFERENCES') {
         preservationInfo = 'WARNING: ' + protection.warnings.join('；') +
@@ -8544,7 +8545,9 @@ async function prepareBatchStart() {
         if (!['matroska', 'matroska-webm'].includes(inspected.container)) continue;
         const protection = await inspectMatroskaPreservation(job.video);
         if (refuseStale()) return null;
-        const refusal = preservationBlockMessage(job.video.name, protection);
+        const refusal = preservationBlockMessage(job.video.name, protection) ||
+          attachmentUidExclusionBlockMessage(job.video.name, protection, [],
+            !snapshot.preserveAttachments);
         if (refusal) {
           batchStatus.textContent = '批量未开始：' + refusal;
           return null;
@@ -8666,7 +8669,9 @@ batchResults?.addEventListener('click', async (event) => {
     if (identity.container === 'unknown') throw Error('原来源容器身份无法核验');
     if (['matroska', 'matroska-webm'].includes(identity.container)) {
       const protection = await inspectMatroskaPreservation(job.video);
-      const refusal = preservationBlockMessage(job.video.name, protection);
+      const refusal = preservationBlockMessage(job.video.name, protection) ||
+        attachmentUidExclusionBlockMessage(job.video.name, protection, [],
+          !execution.frozenPlan.policy.preserveAttachments);
       if (refusal) throw Error(refusal);
     }
     if (batchStartCancelled) throw Error('失败任务重试预检已取消');
