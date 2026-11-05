@@ -1,0 +1,107 @@
+// Bounded five-track Figma V3-08 compact evidence, not a pixel sign-off.
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {chromium} from 'playwright';
+const dir=path.resolve('.e2e/ui-v3-multitrack');
+await fs.mkdir(dir,{recursive:true});
+const source=path.join(dir,'V3 Five Track Source.mkv');
+const ass=path.join(dir,'original.ass'),extra=path.join(dir,'extra.ass');
+const font=execFileSync('fc-match',['-f','%{file}','DejaVu Sans'],{encoding:'utf8'}).trim();
+assert.match(font,/\.(ttf|otf)$/i);await fs.access(font);
+const header=['[Script Info]','ScriptType: v4.00+','PlayResX: 640','PlayResY: 360',
+ '[V4+ Styles]','Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+ 'Style: Default,DejaVu Sans,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,10,10,10,1',
+ '[Events]','Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text'];
+await fs.writeFile(ass,[...header,'Dialogue: 0,0:00:00.10,0:00:01.70,Default,,0,0,0,,Original ASS'].join('\n')+'\n');
+await fs.writeFile(extra,[...header,'Dialogue: 0,0:00:00.20,0:00:01.60,Default,,0,0,0,,External ASS'].join('\n')+'\n');
+execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y',
+ '-f','lavfi','-i','color=c=black:s=640x360:r=24:d=2',
+ '-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=2',
+ '-f','lavfi','-i','sine=frequency=660:sample_rate=48000:duration=2',
+ '-i',ass,'-map','0:v:0','-map','1:a:0','-map','2:a:0','-map','3:s:0',
+ '-c:v','mpeg4','-q:v','5','-c:a:0','aac','-b:a:0','96k','-c:a:1','flac','-c:s','ass',
+ '-metadata:s:a:0','language=jpn','-metadata:s:a:1','language=eng',
+ '-metadata:s:s:0','language=jpn','-attach',font,
+ '-metadata:s:t:0','mimetype=application/x-truetype-font',
+ '-metadata:s:t:0','filename=SourceFont.ttf',source],{timeout:90000});
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const sourceSHA=sha(await fs.readFile(source));
+const streams=JSON.parse(execFileSync('ffprobe',
+ ['-v','error','-show_streams','-of','json',source],{encoding:'utf8'})).streams;
+for(const [kind,n] of [['video',1],['audio',2],['subtitle',1],['attachment',1]])
+ assert.equal(streams.filter(s=>s.codec_type===kind).length,n);
+const browser=await chromium.launch({headless:true,
+ ...(process.env.E2E_BROWSER_EXECUTABLE?{executablePath:process.env.E2E_BROWSER_EXECUTABLE}:{}),
+ args:['--no-sandbox','--disable-dev-shm-usage']});
+const page=await browser.newPage({viewport:{width:1440,height:900},
+ acceptDownloads:true,hasTouch:true,reducedMotion:'reduce'});
+page.setDefaultTimeout(45000);
+const evidence={schema:'v3-native-five-track-compact-v1',sourceSha256:sourceSHA,
+ figma:['36:2','37:223'],viewports:[],screenshots:[],
+ limits:'Real 1 video / 2 audio / 2 subtitle target with one source font and one external font. Figma mock has two source MKVs and six fonts; compare track density and geometry only, NOT pixel identity or full design sign-off.'};
+try{
+ await page.goto(new URL('?ui=v3',process.env.E2E_BASE_URL||'http://127.0.0.1:4173/').href,{waitUntil:'networkidle'});
+ await page.setInputFiles('#unifiedAssetInput',[source,extra,font]);
+ await page.waitForFunction(name=>
+   document.querySelector('#videoInput')?.files?.[0]?.name===name &&
+   document.querySelectorAll('#sfv3SourceContents .sfv3-observed-row').length>=4 &&
+   (document.querySelector('#newSubtitleList')?.textContent||'').includes('extra.ass') &&
+   !document.querySelector('#unifiedAssetInput')?.disabled,
+   path.basename(source),{timeout:180000});
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ await page.locator('#sfv3EnterOutput').click();
+ await page.locator('#sfv3ConfirmTarget').click();
+ await page.waitForFunction(()=>{
+   const root=document.getElementById('sf14Root'), rows=[...document.querySelectorAll('#compositionTracks button[data-composition-id]')];
+   const count=k=>rows.filter(x=>x.dataset.sfv3ObjectKind===k).length;
+   return root?.dataset.sfv3TargetConfirmed==='true' &&
+     count('video')===1&&count('audio')===2&&count('subtitle')===2;
+ },null,{timeout:180000});
+ await page.locator('#sfv3TargetTab').click();
+ for(const [width,height] of [[1440,900],[1180,820],[820,1180],[620,900]]){
+   await page.setViewportSize({width,height});
+   await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+   const data=await page.evaluate(()=>{
+     const rect=x=>{const r=x?.getBoundingClientRect();return r?
+       {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null;};
+     const rows=[...document.querySelectorAll('#compositionTracks button[data-composition-id]')];
+     const dock=document.querySelector('.sf14-output');
+     return {scrollWidth:document.documentElement.scrollWidth,
+       selectedFile:document.querySelector('#videoInput')?.files?.[0]?.name,
+       target:document.getElementById('sf14Root')?.dataset.sfv3Surface,
+       groups:[...document.querySelectorAll('#compositionTracks .sfv3-target-group')].map(x=>x.dataset.kind),
+       dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
+       rows:rows.map(x=>({kind:x.dataset.sfv3ObjectKind,
+         title:x.querySelector('strong')?.textContent,box:rect(x)})),
+       nativeEditorCount:document.querySelectorAll('#newSubtitleList').length};
+   });
+   assert.ok(data.scrollWidth<=width+2,'no horizontal overflow '+width);
+   assert.equal(data.selectedFile,path.basename(source));
+   assert.equal(data.target,'plan');
+   assert.equal(data.nativeEditorCount,1);
+   for(const [kind,n] of [['video',1],['audio',2],['subtitle',2]])
+     assert.equal(data.rows.filter(x=>x.kind===kind).length,n);
+   const picture='five-track-'+width+'x'+height+'.png';
+   await page.screenshot({path:path.join(dir,picture)});
+   evidence.viewports.push({width,height,...data});evidence.screenshots.push(picture);
+ }
+ await page.locator('#compositionTracks button[data-sfv3-object-kind="subtitle"]').last().tap();
+ assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true);
+ assert.equal(await page.locator('#newSubtitleList').count(),1);
+ await page.screenshot({path:path.join(dir,'selected-subtitle-620x900.png')});
+ evidence.screenshots.push('selected-subtitle-620x900.png');
+ assert.equal(sha(await fs.readFile(source)),sourceSHA);
+ evidence.passed=true;
+ console.log('V3 real five-track visual structure: PASS (not Figma sign-off)');
+}catch(e){
+ evidence.passed=false;evidence.error=String(e);
+ evidence.status=await page.locator('#status').textContent().catch(()=>null);
+ await page.screenshot({path:path.join(dir,'failure.png')}).catch(()=>{});
+ throw e;
+}finally{
+ await fs.writeFile(path.join(dir,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');
+ await browser.close();
+}
