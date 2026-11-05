@@ -5717,6 +5717,77 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
   }
 }
 
+
+/**
+ * S05 frozen batch boundary: even if the first job is a normal MP4, a later
+ * real Matroska with AttachmentUID-targeted Tag and 'drop original attachments'
+ * cannot start *any* batch delivery. This checks the public batch policy and
+ * native source without trusting FFmpeg output or the same EBML guard.
+ */
+async function scenarioS05TaggedAttachmentBatchStartRefusal(browser) {
+  console.log('S05 batch: AttachmentUID-targeted MKV with attachments off rejects whole batch');
+  const source=path.join(root,'p0-independent-attachmenttag.mkv');
+  const sourceSha=createHash('sha256')
+    .update(await fs.readFile(source)).digest('hex');
+  const native=JSON.parse(execFileSync('mkvmerge',['-J',source],
+    {encoding:'utf8',timeout:30000}));
+  assert.equal(native.attachments?.length,2);
+  const tagXml=path.join(outDir,'s05-batch-tagged-original-tags.xml');
+  execFileSync('mkvextract',[source,'tags',tagXml],{timeout:30000});
+  const xml=await fs.readFile(tagXml,'utf8');
+  assert.match(xml,/<AttachmentUID>/);
+  assert.match(xml,/P0_ATTACHMENT_RELATION/);
+  const matchingSubtitle=path.join(outDir,'p0-independent-attachmenttag.zh.ass');
+  await fs.copyFile(path.join(root,'p0-independent-mkvtoolnix.zh.ass'),matchingSubtitle);
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput',[
+      path.join(root,'Batch S01E01.mp4'),source,
+    ]);
+    await page.setInputFiles('#batchSubtitleInput',[
+      path.join(root,'Batch S01E01.zh-Hans.ass'),matchingSubtitle,
+    ]);
+    await page.locator('#batchPreserveAttachments').uncheck();
+    await page.waitForFunction(()=>{
+      const plan=document.querySelector('#batchPlan')?.textContent||'';
+      return plan.includes('Batch S01E01.mp4') &&
+        plan.includes('p0-independent-attachmenttag.mkv') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    },null,{timeout:90000});
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(()=>{
+      const text=document.querySelector('#batchStatus')?.textContent||'';
+      return text.includes('批量未开始') &&
+        text.includes('AttachmentUID') &&
+        text.includes('结构保留预检阻断');
+    },null,{timeout:90000});
+    assert.match(await page.locator('#batchStatus').textContent(),/排除原附件/);
+    assert.equal(await page.locator('#batchResults a.download').count(),0);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(),0);
+    assert.equal(createHash('sha256').update(await fs.readFile(source))
+      .digest('hex'),sourceSha,
+      'the rejected batch must not change source Matroska bytes');
+    const receipt={
+      schema:'softmux-s05-batch-attachmentuid-refusal-v1',result:'PASS',
+      candidateSource:path.basename(source),sourceSha256:sourceSha,
+      independentNativeAttachments:native.attachments.length,
+      nativeTagXmlSha256:createHash('sha256').update(xml).digest('hex'),
+      hasRealAttachmentUidTarget:true,
+      jobCount:2,safeJobWouldPrecedeTaggedSource:true,
+      frozenPolicyPreserveAttachments:false,
+      wholeBatchRejectedBeforeFirstOutput:true,
+      publishedOutputs:0,sourceUnchanged:true,
+      limitation:'two real CI source files and frozen batch context; not a universal MKV relation mapping guarantee',
+    };
+    await fs.writeFile(path.join(outDir,'s05-batch-tagged-refusal.json'),
+      JSON.stringify(receipt,null,2)+'\n');
+    console.log('S05 AttachmentUID whole-batch admission refusal PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksWholeBatch(browser) {
   console.log('P0 preservation gate: reject batch before any output is started');
   const { context, page } = await openApp(browser);
@@ -7961,6 +8032,7 @@ try {
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
+  await scenarioS05TaggedAttachmentBatchStartRefusal(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
