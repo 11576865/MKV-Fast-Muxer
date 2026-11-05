@@ -2777,7 +2777,7 @@ function renderOutputComposition() {
     const count=document.createElement('span');
     count.textContent=String(actualResourceCount);
     const disclosure=document.createElement('span');
-    disclosure.textContent='查看 / 编辑';
+    disclosure.textContent='展开';
     summary.append(resourceTitle,count,disclosure);
     resourceDetails.append(summary,...actualResourceGroups);
     resources.appendChild(resourceDetails);

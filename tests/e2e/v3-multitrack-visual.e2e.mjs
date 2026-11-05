@@ -74,6 +74,8 @@ try{
        target:document.getElementById('sf14Root')?.dataset.sfv3Surface,
        groups:[...document.querySelectorAll('#compositionTracks .sfv3-target-group')].map(x=>x.dataset.kind),
        dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
+       lastMediaRow:rect(rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind)).at(-1)),
+       lastStructureRow:rect([...document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open')].at(-1)),
        titleRect:rect(document.getElementById('sfv3PlanName')),
        statsRect:rect(document.getElementById('sfv3PlanStats')),
        desktopToolbarVisible:!!document.getElementById('sfv3CompositionToolbar')?.getClientRects().length,
@@ -129,7 +131,15 @@ try{
      const orders=await page.locator('#compositionTracks .sfv3-track-order').allTextContents();
      assert.deepEqual(orders,['01','02','03','04','05']);
    }
+   if(width===1180 || width===620){
+     assert.ok(data.dock && data.dock.bottom>=height-3 &&
+       data.dock.height<=65,
+       'approved Figma output dock must reach bottom, not leave a blank strip: '+
+         JSON.stringify(data.dock));
+   }
    if(width===1180){
+     assert.ok(data.lastMediaRow?.bottom<=data.dock.y,
+       'all five real target tracks must be visible above the 1180 dock');
      assert.ok(data.titleRect && data.statsRect &&
        data.statsRect.x>=data.titleRect.right,
        'approved V3-07: counts must be to the right of actual target title');
@@ -137,6 +147,8 @@ try{
        'approved V3-07 requires the working container-content/add-resources toolbar');
    }
    if(width===620){
+     assert.ok(data.lastStructureRow?.bottom<=data.dock.y,
+       'compact font/chapter/tag summary must fit above the 620 output dock');
      assert.ok(data.statsRect.y>=data.titleRect.bottom,
        'approved V3-08: compact target counters must be below the document title');
      assert.equal(data.desktopToolbarVisible,false);
