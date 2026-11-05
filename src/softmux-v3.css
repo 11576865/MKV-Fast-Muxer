@@ -1864,3 +1864,26 @@
     padding:0 0 7px;border-bottom:1px solid var(--sfv3-line);
   }
 }
+
+/* Approved Figma V3-06 (35:2): portrait output dock lives DIRECTLY below
+ * the header, before the target object-list workspace. V3-08 compact
+ * (620px) deliberately keeps the dock at the bottom. The one original
+ * #muxBtn, live cancel, execution status and output evidence move as ONE
+ * existing DOM sibling through CSS flex order only, never duplicated. */
+@media(min-width:720px) and (max-width:959px) and (orientation:portrait){
+  .sf14.sfv3[data-sfv3-surface="plan"]{
+    display:flex!important;flex-direction:column;
+    height:100dvh;min-height:0;overflow:hidden;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-header{
+    order:0;flex:0 0 58px;min-height:58px;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-output{
+    order:1;flex:0 0 auto;align-self:stretch;
+    min-width:0;z-index:3;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-single{
+    order:2;flex:1 1 auto;height:auto!important;min-height:0;
+    min-width:0;overflow:hidden;
+  }
+}
