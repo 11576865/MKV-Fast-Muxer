@@ -109,7 +109,7 @@ try {
  // as a repository or CI artifact.
  const fontPath=execFileSync('fc-match',['-f','%{file}','DejaVu Sans'],
    {encoding:'utf8'}).trim();
- assert.ok(fontPath && /\\.(?:ttf|otf)$/i.test(fontPath));
+ assert.ok(fontPath && /\.(?:ttf|otf)$/i.test(fontPath));
  await fs.access(fontPath);
  await page.setInputFiles('#fontInput',fontPath);
  await page.waitForFunction(()=>
