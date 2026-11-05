@@ -350,6 +350,10 @@ jobs:
           name: wu03-fa-modern-workspace-actual-mkv-native-evidence
           path: |
             .e2e/output/wu03-fa-single-workspace-independent-evidence.json
+            .e2e/output/s05-tagged-attachment-refusal.json
+            .e2e/output/s05-tagged-attachment-original-tags.xml
+            .e2e/output/s05-batch-tagged-refusal.json
+            .e2e/output/s05-batch-tagged-original-tags.xml
             .e2e/output/selective-attachments-current-ui.mkv
             .e2e/output/selective-attachments-current-ui.mux-report.json
           if-no-files-found: warn
