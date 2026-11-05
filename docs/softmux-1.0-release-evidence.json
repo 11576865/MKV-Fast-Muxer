@@ -124,7 +124,7 @@
       "id": "S03",
       "title": "ASS 字体预览与成品独立渲染",
       "status": "UNASSESSED",
-      "openGap": "0.1039 具名字体保留/子集/强制及缺字体/缺字反例已有本地成品回读与渲染；完整 CI、复杂 shaping、OTC/多 face 和最终候选证据仍待核验，不自动 PASS。",
+      "openGap": "已在实际 Chromium + 原生 FFprobe/字体字节 + 独立 libass 证据中验证字体保留/子集/强制、缺依赖警告、TTC/OTC 双面字库、OTF CFF 单工程与批量子集、组合字符/阿拉伯文 shaping、内部及跨来源 ASS/字体和动态字幕有界渲染。仍未独立证明浏览器预览逐字体面的身份选择（矩阵 previewFaceIdentityVerified=false），缺真实目标设备/任意字体播放器范围及冻结候选合同级统一验收。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -134,14 +134,84 @@
           "tests/embedded-preview.test.mjs",
           "tests/e2e/embedded-ass-preview-scenario.mjs",
           "tests/ass-subset-characters.test.mjs",
-          "tests/e2e/font-strategy-scenario.mjs"
+          "tests/e2e/font-strategy-scenario.mjs",
+          "tests/e2e/font-collections-shaping.e2e.mjs",
+          "tests/e2e/cross-source-ass-font-bundle-scenario.mjs",
+          "scripts/p3-final-ass-render-proof.mjs",
+          "scripts/p3-dynamic-ass-render-proof.mjs"
         ],
         "historicalArtifactIds": [
           13069988223,
           13069808867
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Real Chromium native S03 collection/shaping/font strategies/ASS and isolated libass artifacts reviewed at exact head; formal contract approval, frozen candidate/device and browser preview face provenance are not established.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "verifiedSourceHead": "a38696a61822f67a55f2a0ebf7cce1cc77f6b9d7",
+          "sourceHeadWasMergedBy": "c35a2f7c38e1e7d2c0e4236f0444b488a17257e9",
+          "fullBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/41973241938",
+          "fullBrowserResult": "SUCCESS",
+          "nativeS03StepResult": "SUCCESS",
+          "actualArtifacts": [
+            {
+              "id": 13391185006,
+              "name": "s03-collection-face-and-shaping-native-evidence",
+              "scope": "TTC and OTC two-face originals retained, OTF CFF subset single/batch; 4 delivered MKVs, face/shaping and positive/negative isolated render checks"
+            },
+            {
+              "id": 13390504606,
+              "name": "font-strategies",
+              "scope": "preserve/subset/force/negative; actual MKVs with extracted font payload, isolated-render positives and warnings"
+            },
+            {
+              "id": 13390459389,
+              "name": "p3-final-mkv-libass-render-proof",
+              "scope": "independent one-frame libass positive and altered/blank negative controls"
+            },
+            {
+              "id": 13390952838,
+              "name": "p3-dynamic-mkv-ass-temporal-evidence",
+              "scope": "four source/extracted exact libass frames, direct MKV SSIM thresholds, effect controls"
+            },
+            {
+              "id": 13391310491,
+              "name": "embedded-ass-font-preview",
+              "scope": "original embedded ASS/font MKV preview and actual delivered MKV render"
+            },
+            {
+              "id": 13391365035,
+              "name": "p3-cross-mkv-ass-font-real-browser-native-render",
+              "scope": "source A embedded ASS/font included in B output with isolated native render"
+            }
+          ],
+          "independentReread": {
+            "archivedMkvSha256MatchReceipt": true,
+            "archivedFontSha256MatchReceipt": true,
+            "archivedPositiveRenderPixelsMatchReference": true,
+            "archivedNegativeRenderPixelsDiffer": true,
+            "probedActualOutputMkvs": true,
+            "previewFaceIdentityVerified": false,
+            "fontCollectionModes": [
+              "ttc",
+              "otc",
+              "otf-subset",
+              "batch-otf-subset"
+            ],
+            "fontStrategyModes": [
+              "preserve",
+              "subset",
+              "force",
+              "negative"
+            ],
+            "nativeCollectionSubsetStrategy": {
+              "collection": "retain original bytes; no unverified collection subset",
+              "otfSingleAndBatch": "subset applied"
+            },
+            "independentAuditSha256": "3dac8e39130502fdae74d85e70ec3ec1c33fcf1227a44b5b3ae282037b4d3368"
+          },
+          "limitations": "Only named real CI fixtures; original font/source inputs are not uniformly packaged for independent second source rehash, although output/font/archive pixels were independently reread. In-container libass pixel success and negative controls do not imply all fonts, exact browser preview face selection, arbitrary player rendering, packet timestamp identity, physical tablet or formal 1.0 release PASS."
+        }
       }
     },
     {

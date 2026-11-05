@@ -82,6 +82,9 @@ try{
    assert.equal(data.selectedFile,path.basename(source));
    assert.equal(data.target,'plan');
    assert.equal(data.nativeEditorCount,1);
+   assert.ok(data.heading && data.heading.y>=55 && data.heading.y<160,
+     'new target document title must be visible under the V3 header at '+width+
+       ': '+JSON.stringify(data.heading));
    for(const [kind,n] of [['video',1],['audio',2],['subtitle',2]])
      assert.equal(data.rows.filter(x=>x.kind===kind).length,n);
    const picture='five-track-'+width+'x'+height+'.png';

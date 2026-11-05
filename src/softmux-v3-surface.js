@@ -760,10 +760,18 @@ export function mountSoftmuxV3Surface(doc = document) {
     event.preventDefault();
     event.stopImmediatePropagation();
   },true);
+  // Source and target share ONE native scroll container. The source CTA can
+  // scroll that container below its first screen before target confirmation.
+  // Do not inherit that scroll offset into the newly authorized document.
+  const compositionScroller=compositionHost.querySelector('.sf14-pane-body');
+  const surfaceScroll={source:0,plan:0};
   const setSurface = mode => {
     if (mode === 'plan' && (!targetIntent ||
       targetIntent.baseFile !== sourceInput.files?.[0])) return false;
     if (!['source','plan'].includes(mode)) return false;
+    const oldMode=root.dataset.sfv3Surface;
+    if(compositionScroller && oldMode!==mode && Object.hasOwn(surfaceScroll,oldMode))
+      surfaceScroll[oldMode]=compositionScroller.scrollTop;
     root.dataset.sfv3Surface = mode;
     root.dataset.sfv3TargetConfirmed = String(Boolean(targetIntent));
     targetTab.hidden = !targetIntent;
@@ -772,6 +780,17 @@ export function mountSoftmuxV3Surface(doc = document) {
     if(mode!=='plan')closeInspector();
     if(mode!=='source')closeSourceSheet();
     setReadOnlyAffordances();
+    if(compositionScroller && oldMode!==mode) {
+      const targetScroll=surfaceScroll[mode]||0;
+      compositionScroller.scrollTop=targetScroll;
+      // The source/plan rehost is rendered synchronously and the UI
+      // model may repaint in the next frame. Restore only this same active
+      // document, not every refresh or responsive resize.
+      doc.defaultView?.requestAnimationFrame(()=>{
+        if(root.dataset.sfv3Surface===mode)
+          compositionScroller.scrollTop=targetScroll;
+      });
+    }
     const EventCtor=doc.defaultView?.CustomEvent;
     if(EventCtor)root.dispatchEvent(new EventCtor('softmux:v3-surface-changed',{
       bubbles:true,detail:{surface:mode},
@@ -995,6 +1014,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     const track=pendingTrack;
     pendingTrack=null;
+    surfaceScroll.plan=0; // a newly confirmed target always starts at its title
     picker.close();
     if(track) {
       pendingAddition={
