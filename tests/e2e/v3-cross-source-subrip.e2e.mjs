@@ -101,7 +101,7 @@ try {
   const picker=page.locator('#sfv3TargetPicker');
   assert.equal(await picker.locator('.sfv3-picker-option').count(),1);
   assert.equal(await picker.locator('.sfv3-picker-option input:checked').count(),1);
-  assert.match(await picker.locator('.sfv3-picker-file-name').textContent(),/以 B-base\\.mkv 为基础/);
+  assert.match(await picker.locator('.sfv3-picker-file-name').textContent(),/以 B-base\.mkv 为基础/);
   assert.match(await picker.locator('.sfv3-picker-file-detail').textContent(),/原文件只读/);
   assert.equal(await picker.locator('.sfv3-picker-unavailable[aria-disabled="true"]').count(),1);
   assert.equal(await picker.locator('.sfv3-picker-unavailable input').count(),0);
