@@ -1226,6 +1226,7 @@
     "source-actions"
     "source-fonts"
     "source-detail"
+    "source-flags"
     "source-help"
     "source-notice"
     "source-extraction";
@@ -1238,6 +1239,7 @@
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-actions{grid-area:source-actions;}
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-font-evidence{grid-area:source-fonts;}
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-detail{grid-area:source-detail;}
+.sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-flag-states{grid-area:source-flags;}
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-flag-help-host{grid-area:source-help;}
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-notice{grid-area:source-notice;}
 .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewHost:not([hidden])) .sfv3-source-sheet-extraction-host{grid-area:source-extraction;}
@@ -1737,4 +1739,36 @@
   .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-resource-summary span:last-child{
     white-space:nowrap;
   }
+}
+
+/* Figma V3-05/V3-09: real FFprobe subtitle disposition, never an editable
+ * duplicate of the authorized target flag controls. Unobserved is not Off. */
+.sf14.sfv3 .sfv3-source-flag-states[hidden]{display:none!important}
+.sf14.sfv3 .sfv3-source-flag-states{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px 12px;
+  min-width:0;padding:8px 12px;border-radius:9px;
+  border:1px solid var(--sfv3-line);background:var(--sfv3-row);
+}
+.sf14.sfv3 .sfv3-source-flag-state{
+  display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+  color:var(--sfv3-soft);font-size:12px;line-height:1.5;
+}
+.sf14.sfv3 .sfv3-source-flag-state strong{
+  font-weight:650;color:var(--sfv3-text);font-size:12px;
+}
+.sf14.sfv3 .sfv3-source-flag-state span{
+  min-width:44px;padding:3px 7px;border-radius:5px;
+  background:var(--sfv3-row-raised);text-align:center;
+  color:var(--sfv3-accent);
+}
+.sf14.sfv3 .sfv3-source-flag-state[data-observation=unknown] span{
+  color:var(--sfv3-muted);
+}
+.sf14.sfv3 .sfv3-source-flag-provenance{
+  color:var(--sfv3-muted);font-size:10px;line-height:1.5;
+  flex:1 1 155px;text-align:end;
+}
+@media(max-width:719px){
+  .sf14.sfv3 .sfv3-source-flag-states{padding:7px;gap:5px 8px}
+  .sf14.sfv3 .sfv3-source-flag-provenance{flex-basis:100%;text-align:start}
 }
