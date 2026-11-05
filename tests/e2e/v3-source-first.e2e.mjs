@@ -39,8 +39,18 @@ try {
  // Actual user click on the APPROVED EMPTY CANVAS, not test-side input
  // injection. The original unified file input must own the file chooser.
  const blank=await page.locator('#sfv3Empty').boundingBox();
- assert.ok(blank && blank.width>230 && blank.height>=300);
- const blankPoint={x:blank.x+blank.width*.26,y:blank.y+blank.height*.31};
+ const drop=await page.locator('#assetDropzone').boundingBox();
+ const readoutContentWidth=await page.locator('#sfv3SourceReadout').evaluate(el=>{
+   const style=getComputedStyle(el);
+   return el.getBoundingClientRect().width-
+     parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+ });
+ assert.ok(blank && blank.width>=readoutContentWidth-2 && blank.height>=300,
+   'the empty import canvas must use the available WORKSPACE width, not text width');
+ assert.ok(drop && Math.abs(drop.width-blank.width)<=2 &&
+   Math.abs(drop.height-blank.height)<=2,
+   'the sole existing dropzone must cover the FULL empty canvas');
+ const blankPoint={x:blank.x+blank.width*.76,y:blank.y+blank.height*.31};
  assert.equal(await page.evaluate(({x,y})=>
    document.elementFromPoint(x,y)?.closest('#assetDropzone')?.id||'',blankPoint),
    'assetDropzone','the exact native dropzone must cover the clickable empty canvas');
