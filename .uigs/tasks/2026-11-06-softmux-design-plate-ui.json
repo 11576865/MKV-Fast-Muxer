@@ -26,12 +26,15 @@
     "平板触摸和窄屏设备验收"
   ],
   "evidence": {
-    "code": "branch commits; PR to follow",
+    "code": "PR #255 open; code committed and reviewable",
     "static_regression": "tests/softmux-design-plate.test.mjs committed; CI pending",
     "browser_e2e": "Pending CI",
     "production_visual": "Pending production-backed capture",
     "device": "Pending FIELD"
   },
   "blockers": [],
-  "updated_date": "2026-11-06"
+  "updated_date": "2026-11-06",
+  "pr": "https://github.com/11576865/MKV-Fast-Muxer/pull/255",
+  "latest_durable_code_commit": "995f8cb4e2aa933354c63fd794346be3dbe61bc8",
+  "latest_checkpoint_commit": "7e9ae2f675fc18d43fdd96f398f594a32126aa7a"
 }
