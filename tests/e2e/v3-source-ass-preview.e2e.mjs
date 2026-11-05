@@ -45,7 +45,7 @@ try {
  const expectedFlag=value=>value===1||value===true?'开':
    value===0||value===false?'关':'未观察';
  const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').allTextContents();
- assert.deepEqual(sourceFlagLabels.map(s=>s.replace(/\\s+/g,'')),
+ assert.deepEqual(sourceFlagLabels.map(s=>s.replace(/\s+/g,'')),
    ['Default'+expectedFlag(stream.disposition?.default),'Forced'+expectedFlag(stream.disposition?.forced)]);
  assert.equal(await observedFlags.locator('input,select,button').count(),0,
    'source disposition is observation only and cannot write target track state');
