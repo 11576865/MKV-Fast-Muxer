@@ -5714,6 +5714,76 @@ async function scenarioS08ModernUnsafeSourceSwitch(browser) {
   }
 }
 
+/**
+ * S05 frozen batch boundary: even if the first job is a normal MP4, a later
+ * real Matroska with AttachmentUID-targeted Tag and 'drop original attachments'
+ * cannot start *any* batch delivery. This checks the public batch policy and
+ * native source without trusting FFmpeg output or the same EBML guard.
+ */
+async function scenarioS05TaggedAttachmentBatchStartRefusal(browser) {
+  console.log('S05 batch: AttachmentUID-targeted MKV with attachments off rejects whole batch');
+  const source=path.join(root,'p0-independent-attachmenttag.mkv');
+  const sourceSha=createHash('sha256')
+    .update(await fs.readFile(source)).digest('hex');
+  const native=JSON.parse(execFileSync('mkvmerge',['-J',source],
+    {encoding:'utf8',timeout:30000}));
+  assert.equal(native.attachments?.length,2);
+  const tagXml=path.join(outDir,'s05-batch-tagged-original-tags.xml');
+  execFileSync('mkvextract',[source,'tags',tagXml],{timeout:30000});
+  const xml=await fs.readFile(tagXml,'utf8');
+  assert.match(xml,/<AttachmentUID>/);
+  assert.match(xml,/P0_ATTACHMENT_RELATION/);
+  const matchingSubtitle=path.join(outDir,'p0-independent-attachmenttag.zh.ass');
+  await fs.copyFile(path.join(root,'p0-independent-mkvtoolnix.zh.ass'),matchingSubtitle);
+  const {context,page}=await openApp(browser);
+  try {
+    await page.locator('.batch-drawer > summary').click();
+    await page.setInputFiles('#batchVideoInput',[
+      path.join(root,'Batch S01E01.mp4'),source,
+    ]);
+    await page.setInputFiles('#batchSubtitleInput',[
+      path.join(root,'Batch S01E01.zh-Hans.ass'),matchingSubtitle,
+    ]);
+    await page.locator('#batchPreserveAttachments').uncheck();
+    await page.waitForFunction(()=>{
+      const plan=document.querySelector('#batchPlan')?.textContent||'';
+      return plan.includes('Batch S01E01.mp4') &&
+        plan.includes('p0-independent-attachmenttag.mkv') &&
+        !document.querySelector('#batchStartBtn')?.disabled;
+    },null,{timeout:90000});
+    await page.locator('#batchStartBtn').click();
+    await page.waitForFunction(()=>{
+      const text=document.querySelector('#batchStatus')?.textContent||'';
+      return text.includes('批量未开始') &&
+        text.includes('AttachmentUID') &&
+        text.includes('结构保留预检阻断');
+    },null,{timeout:90000});
+    assert.match(await page.locator('#batchStatus').textContent(),/排除原附件/);
+    assert.equal(await page.locator('#batchResults a.download').count(),0);
+    assert.equal(await page.locator('#batchResults .new-track-row').count(),0);
+    assert.equal(createHash('sha256').update(await fs.readFile(source))
+      .digest('hex'),sourceSha,
+      'the rejected batch must not change source Matroska bytes');
+    const receipt={
+      schema:'softmux-s05-batch-attachmentuid-refusal-v1',result:'PASS',
+      candidateSource:path.basename(source),sourceSha256:sourceSha,
+      independentNativeAttachments:native.attachments.length,
+      nativeTagXmlSha256:createHash('sha256').update(xml).digest('hex'),
+      hasRealAttachmentUidTarget:true,
+      jobCount:2,safeJobWouldPrecedeTaggedSource:true,
+      frozenPolicyPreserveAttachments:false,
+      wholeBatchRejectedBeforeFirstOutput:true,
+      publishedOutputs:0,sourceUnchanged:true,
+      limitation:'two real CI source files and frozen batch context; not a universal MKV relation mapping guarantee',
+    };
+    await fs.writeFile(path.join(outDir,'s05-batch-tagged-refusal.json'),
+      JSON.stringify(receipt,null,2)+'\n');
+    console.log('S05 AttachmentUID whole-batch admission refusal PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0PreservationBlocksWholeBatch(browser) {
   console.log('P0 preservation gate: reject batch before any output is started');
   const { context, page } = await openApp(browser);
@@ -5901,6 +5971,78 @@ async function scenarioP0TrackTargetedTagSurvival(browser) {
 // P0: a flat MKV has two distinct attachments, and exactly one P0 marker
 // targets the binary attachment UID. Verify the browser output independently
 // by extracted payload SHA-256 and semantic target, not original UID number.
+/**
+ * S05 actual Browser/Matroska refusal: a native MKVToolNix source has two
+ * original attachments, and a Tag targets one attachment UID. The user
+ * excludes the *other* attachment in the public source Inspector. Without
+ * a proven target-to-output UID mapping, this edit is not admitted to the
+ * ordinary FFmpeg remux writer. The original MKV must remain unchanged.
+ */
+async function scenarioS05TaggedAttachmentExclusionRefusal(browser) {
+  console.log('S05: tagged AttachmentUID plus source attachment exclusion must fail closed');
+  const source=path.join(root,'p0-independent-attachmenttag.mkv');
+  const digest=async file=>createHash('sha256')
+    .update(await fs.readFile(file)).digest('hex');
+  const sourceHash=await digest(source);
+  const native=JSON.parse(execFileSync('mkvmerge',['-J',source],
+    {encoding:'utf8',timeout:30000}));
+  assert.equal(native.attachments.length,2);
+  assert.ok(native.attachments.some(a=>a.file_name==='p0-attachment-evidence.bin'));
+  assert.ok(native.attachments.some(a=>a.file_name==='p0-attachment-decoy.txt'));
+  const nativeXmlPath=path.join(outDir,'s05-tagged-attachment-original-tags.xml');
+  execFileSync('mkvextract',[source,'tags',nativeXmlPath],{timeout:30000});
+  const nativeXml=await fs.readFile(nativeXmlPath,'utf8');
+  assert.match(nativeXml,/<AttachmentUID>/);
+  assert.match(nativeXml,/P0_ATTACHMENT_RELATION/);
+  const {context,page}=await openApp(browser,{modern:true});
+  try {
+    await page.setViewportSize({width:1440,height:900});
+    await page.setInputFiles('#unifiedAssetInput',source);
+    await waitForStatus(page,'轨道扫描完成：');
+    const sourceDetails=page.locator('#sourceFilesDetails');
+    if(!await sourceDetails.evaluate(el=>el.open))
+      await sourceDetails.locator('summary').first().click();
+    const tree=page.locator('.asset-container-tree');
+    if(!await tree.evaluate(el=>el.open))
+      await tree.locator('summary').first().click();
+    await tree.locator('[data-tree-preserve-all]').uncheck();
+    const rows=tree.locator('[data-tree-group="attachment"] .asset-tree-index-row');
+    assert.equal(await rows.count(),2);
+    await rows.filter({hasText:'p0-attachment-decoy.txt'})
+      .locator('[data-tree-select]').click();
+    const inspector=page.locator('#assetInspectorHost .asset-tree-inspector');
+    await inspector.locator('[data-tree-attachment-include]').uncheck();
+    assert.equal(await page.locator('#muxBtn').isDisabled(),false,
+      'a source-UID warning is not an ordinary UI hard block');
+    await page.locator('#muxBtn').click();
+    await page.waitForFunction(()=>{
+      const status=document.querySelector('#status')?.textContent||'';
+      return status.includes('AttachmentUID') &&
+        status.includes('结构保留预检阻断');
+    },null,{timeout:90000});
+    assert.match(await page.locator('#status').textContent(),/排除原附件/);
+    assert.equal(await page.locator('#downloadLink').isVisible(),false);
+    assert.equal(await page.locator('#reportLink').isVisible(),false);
+    assert.equal(await digest(source),sourceHash,
+      'denied source edit must not change the original Matroska bytes');
+    const receipt={
+      schema:'softmux-s05-tagged-exclusion-refusal-v1',
+      status:'PASS',source:path.basename(source),sourceSha256:sourceHash,
+      originalSourceUnchanged:true,nativeAttachmentCount:2,
+      nativeTagXmlSha256:createHash('sha256').update(nativeXml).digest('hex'),
+      attachmentUidTargetObserved:true,
+      excludedOriginalAttachment:'p0-attachment-decoy.txt',
+      blockedBeforeWriter:true,publishedOutput:false,
+      limitation:'One native-authored flat MKV and hosted Chromium; conservative for any exclusion when an AttachmentUID-targeted Tag is present.',
+    };
+    await fs.writeFile(path.join(outDir,'s05-tagged-attachment-refusal.json'),
+      JSON.stringify(receipt,null,2)+'\n');
+    console.log('S05 targeted Tag and excluded source attachment: execution-time refusal PASS');
+  } finally {
+    await context.close();
+  }
+}
+
 async function scenarioP0AttachmentTargetedTagSurvival(browser) {
   console.log('P0 experiment: flat MKV AttachmentUID-targeted custom tag');
   const source = path.join(root, 'p0-independent-attachmenttag.mkv');
@@ -7795,6 +7937,7 @@ try {
   await scenarioEmbeddedAssPreview(browser,{root,outDir:path.join(outDir,'embedded-ass-preview'),baseUrl});
   await scenarioBitmapSubtitles(browser,{root,outDir:path.join(outDir,'bitmap-subtitles'),baseUrl});
   await scenarioS09CrossReloadTwoDraftRecovery(browser); // early real reload/consent/native canary
+  await scenarioS05TaggedAttachmentExclusionRefusal(browser);
   await scenarioS08ModernUnsafeSourceSwitch(browser);
   await scenarioBatchFailedJobRetry(browser); // early real MKV/SRT timeline canary
   // Recipe v2 already verified above in same complete suite. // early native recipe audit diagnostic
@@ -7884,6 +8027,7 @@ try {
   await scenarioP2AttachmentInspectionStaleFile(browser);
   await scenarioP0PreservationBlocksSingle(browser);
   await scenarioP0UnknownHeaderFailsClosed(browser);
+  await scenarioS05TaggedAttachmentBatchStartRefusal(browser);
   await scenarioP0PreservationBlocksWholeBatch(browser);
   await scenarioP0BatchStartPlanInvalidation(browser);
   await scenarioP0BatchStartCancellation(browser);
