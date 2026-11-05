@@ -47,6 +47,8 @@ try {
  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
  await page.screenshot({path:path.join(dir,'v3-ass-selected-1440x900.png')});
  await page.setViewportSize({width:820,height:1180});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+ await page.screenshot({path:path.join(dir,'v3-ass-selected-820x1180.png')});
  // V3-05/09: use real ffprobe disposition; unknown must stay unknown.
  const observedFlags=page.locator('#sfv3SourceInspector #sfv3SourceFlagStates');
  assert.equal(await observedFlags.isVisible(),true);
