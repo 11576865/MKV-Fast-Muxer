@@ -405,6 +405,25 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # S01: one actual MKVToolNix source, two source audios, one original ASS,
+      # two source attachments, flat chapters/global Tag, external ASS/font,
+      # source switch/File identity, actual mux, ffprobe and packet SHA.
+      - name: Upload S01 complete native source and actual browser MKV evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s01-complex-real-source-workbench-native-evidence
+          path: |
+            .e2e/output/s01-complex-source-workspace-evidence.json
+            .e2e/output/s01-source-chapters-input.xml
+            .e2e/output/s01-source-tags-input.xml
+            .e2e/output/s01-native-extracted-chapters.xml
+            .e2e/output/s01-native-extracted-tags.xml
+            .e2e/output/s01-native-complete-output.mkv
+            .e2e/output/s01-native-complete-output.report.json
+          if-no-files-found: warn
+          retention-days: 14
+
       # S09 adversarial recovery: mismatch, conflicting old-value and
       # failed mixed undo must never partially change the current source.
       - name: Upload multi-source draft switching and real MKV evidence
