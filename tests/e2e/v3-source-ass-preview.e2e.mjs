@@ -94,11 +94,35 @@ try {
  assert.equal(deniedExtraction,false,'forged File cannot gain original-track extraction permission');
  await page.locator('#sfv3SourceInspectorPreview').click();
  assert.equal(await page.locator('#sfv3SourceInspector #sf14PreviewDrawer').count(),1);
+ // No font attachment is present, and the isolated ffmpeg.wasm libass runtime
+ // has NO host/browser font provider. This must fail visibly, not claim a
+ // successful black preview merely because FFmpeg returned code 0.
+ await page.waitForFunction(()=>
+   (document.querySelector('#previewStatus')?.textContent||'')
+    .includes('WASM 字幕渲染器没有可用字体提供程序'),
+   null,{timeout:180000});
+ assert.equal(await page.locator('#previewImage').isVisible(),false);
+ evidence.noFontProviderRefusal=true;
+ // Controlled positive: give the exact same source an available font through
+ // the existing native font input. Keep the source File, subtitle selection
+ // and explicit target authorization unchanged. Never ship this system font
+ // as a repository or CI artifact.
+ const fontPath=execFileSync('fc-match',['-f','%{file}','DejaVu Sans'],
+   {encoding:'utf8'}).trim();
+ assert.ok(fontPath && /\\.(?:ttf|otf)$/i.test(fontPath));
+ await fs.access(fontPath);
+ await page.setInputFiles('#fontInput',fontPath);
+ await page.waitForFunction(()=>
+   document.querySelector('#fontInput')?.files?.length===1 &&
+   !document.querySelector('#previewRefreshBtn')?.disabled,
+   null,{timeout:90000});
+ await page.locator('#previewRefreshBtn').click();
  await page.waitForFunction(()=>{
   const image=document.getElementById('previewImage');
   return image?.src?.startsWith('blob:') && image.complete && image.naturalWidth>0 &&
     /预览帧：/.test(document.getElementById('previewStatus')?.textContent||'');
  },null,{timeout:180000});
+ evidence.explicitFontSupplied={name:path.basename(fontPath),sourceHasEmbeddedFont:false};
  assert.match(await page.locator('#previewStatus').textContent(),/FFmpeg\/libass/);
  // The approved 820px ASS context shows the real rendered frame next to
  // preview controls. Earlier CI showed the image stacked below the visible
