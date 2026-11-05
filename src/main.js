@@ -10,6 +10,7 @@ import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
+import './softmux-design-plate.css';
 import {
   mountSoftmux1014Workbench,
   updateSoftmux1014SourceSections,
@@ -2532,7 +2533,7 @@ function renderOutputComposition() {
   compositionCount.textContent = kinds
     .filter(kind => model.counts[kind])
     .map(kind => `${compositionKindNames[kind]} ${model.counts[kind]}`).join(' · ') || '待导入';
-  compositionTracks.innerHTML = model.items.map(item => {
+  const renderCompositionRow = item => {
     const active = item.id === selectedCompositionId;
     const label = compositionKindNames[item.kind] || item.kind;
     const status = item.status === 'remove' ? '移除' :
@@ -2546,7 +2547,22 @@ function renderOutputComposition() {
     return `<button type="button" class="composition-row composition-select" data-composition-id="${escapeHtml(item.id)}"
       data-status="${escapeHtml(item.status)}" aria-pressed="${active}"
       aria-label="编辑${escapeHtml(label)}：${escapeHtml(item.title)}">${info}</button>`;
-  }).join('') || '<div class="track-empty">暂无可封装轨道</div>';
+  };
+  const outputTracks = model.items.filter(item => item.kind !== 'attachment' && item.kind !== 'font');
+  const outputAttachments = model.items.filter(item => item.kind === 'attachment' || item.kind === 'font');
+  // The composition is a single destination projection, not a second state
+  // store. Group the exact live model items without changing their IDs or
+  // their existing data-composition-id -> editor routing.
+  const renderCompositionGroup = (group, heading, items, emptyLabel) =>
+    '<section class="sf14-composition-group" data-object-group="' + group + '">' +
+      '<h3 class="sf14-composition-group-title">' + heading +
+      ' <span>' + items.length + '</span></h3>' +
+      (items.length ? items.map(renderCompositionRow).join('') :
+        '<p class="sf14-composition-group-empty">' + emptyLabel + '</p>') +
+    '</section>';
+  compositionTracks.innerHTML =
+    renderCompositionGroup('tracks','轨道 / TRACKS',outputTracks,'暂无拟输出轨道') +
+    renderCompositionGroup('attachments','附件 / ATTACHMENTS',outputAttachments,'暂无拟输出附件');
   const meaningfulChanges = model.changes;
   compositionChanges.hidden = !meaningfulChanges.length;
   compositionChanges.textContent = meaningfulChanges.length
