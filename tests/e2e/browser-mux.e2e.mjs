@@ -6793,9 +6793,10 @@ async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
     path.join(root,'external.flac')],{timeout:60000});
   execFileSync('mkvpropedit',[input,'--tags',
     'all:'+path.join(root,'p0-independent-tags.xml')],{timeout:60000});
-  const tracks=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
-    encoding:'utf8',timeout:60000,
-  })).tracks;
+  const tracks=file=>parseMkvmergeJsonWithExactUids(
+    execFileSync('mkvmerge',['-J',file],{
+      encoding:'utf8',timeout:60000,
+    })).tracks;
   const probePackets=file=>JSON.parse(execFileSync('ffprobe',[
     '-v','error','-show_packets','-show_data_hash','sha256','-of','json',file,
   ],{encoding:'utf8',timeout:60000,maxBuffer:24*1024*1024})).packets
@@ -6842,6 +6843,17 @@ async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
       await download.saveAs(pathTo);
     };
     await load(input,'linked-chapter-metadata');
+    // S07 negative from the ACTUAL public editor on the independent native
+    // MKA: a non-equal UTF-8 byte count cannot publish a stale candidate.
+    await page.locator('#p2MetadataNewText').fill('A much longer replacement than linked-chapter-metadata');
+    await page.locator('#p2MetadataReview').check();
+    await page.locator('#p2MetadataPrepare').click();
+    await page.waitForFunction(()=>document.querySelector('#p2MetadataStatus')
+      ?.dataset.state==='blocked',null,{timeout:60000});
+    assert.match(await page.locator('#p2MetadataStatus').textContent(),
+      /BYTE_LENGTH_MISMATCH/);
+    assert.equal(await page.locator('#p2MetadataSave').isDisabled(),true);
+    const unequalBytesRefused=true;
     const changedTag='R'.repeat('linked-chapter-metadata'.length);
     const intermediate=path.join(outDir,'p2-r5-tag-changed.mkv');
     await save(changedTag,intermediate);
@@ -6857,8 +6869,31 @@ async function scenarioTracklessMkaRealChapterTagTextEdit(browser) {
     assert.equal(finalChap,origChap.replace('P0 nested chapter','R5 nested chapter'));
     assert.equal(finalTag,origTag.replace('linked-chapter-metadata',changedTag));
     assert.match(finalTag,/<ChapterUID>510011<\/ChapterUID>/);
+    const finalHash=createHash('sha256').update(await fs.readFile(final)).digest('hex');
     assert.equal(createHash('sha256').update(await fs.readFile(input))
       .digest('hex'),originalHash);
+    await fs.writeFile(path.join(outDir,'s07-real-workbench-text-edit-evidence.json'),
+      JSON.stringify({
+        schema:'softmux-s07-real-workbench-native-metadata-v1',
+        status:'PASS',
+        source:path.basename(input),sourceSha256:originalHash,
+        tagStep:path.basename(intermediate),
+        chapterTagOutput:path.basename(final),outputSha256:finalHash,
+        originalSourceUnchanged:true,sourceHasVideo:false,
+        sourceAudioTracks:tracks(input).filter(x=>x.type==='audio').length,
+        sourceUidAndTrackListPreserved:true,
+        originalPacketDataPtsDtsDurationEqual:true,
+        editedTag:{old:'linked-chapter-metadata',newText:changedTag},
+        editedChapter:{old:'P0 nested chapter',newText:'R5 nested chapter'},
+        nativeChaptersXmlExactExpectedReplacement:true,
+        nativeTagsXmlExactExpectedReplacement:true,
+        nestedChapterUidTargetPreserved:'510011',
+        unequalUtf8ByteLengthRejectedViaActualUi:unequalBytesRefused,
+        rejectedEditPublishedOutput:false,
+        chapterXmlSha256:byteSha256(Buffer.from(finalChap)),
+        tagXmlSha256:byteSha256(Buffer.from(finalTag)),
+        proofLimit:'Native MKVToolNix-authored audio-only MKA, real Chromium public opt-in editor, two sequential equal UTF-8 byte replacements; no arbitrary EBML writer or tablet claim.',
+      },null,2)+'\n');
     console.log('P2 R5 native audio-only chapters/tag output and UID/packet oracle PASS');
   }finally{await context.close();}
 }
@@ -6869,9 +6904,10 @@ async function scenarioRoutedExistingMkvNativeOutput(browser) {
   await fs.copyFile(path.join(root,'p0-independent-attachmenttag.mkv'),source);
   execFileSync('mkvpropedit',[source,'--chapters',
     path.join(root,'p0-independent-chapters.xml')],{timeout:60000});
-  const inspect=file=>JSON.parse(execFileSync('mkvmerge',['-J',file],{
-    encoding:'utf8',timeout:60000,
-  }));
+  const inspect=file=>parseMkvmergeJsonWithExactUids(
+    execFileSync('mkvmerge',['-J',file],{
+      encoding:'utf8',timeout:60000,
+    }));
   const sourceInfo=inspect(source);
   const tagged=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-evidence.bin');
   const target=sourceInfo.attachments.find(x=>x.file_name==='p0-attachment-decoy.txt');
@@ -6931,6 +6967,37 @@ async function scenarioRoutedExistingMkvNativeOutput(browser) {
     execFileSync('mkvextract',[output,'attachments',
       String(newTarget.id)+':'+extracted],{timeout:60000});
     assert.deepEqual(await fs.readFile(extracted),replacement);
+    const untouchedBefore=path.join(outDir,'p2-r4-untouched-original.bin');
+    const untouchedAfter=path.join(outDir,'p2-r4-untouched-output.bin');
+    execFileSync('mkvextract',[source,'attachments',
+      String(tagged.id)+':'+untouchedBefore],{timeout:60000});
+    execFileSync('mkvextract',[output,'attachments',
+      String(newTagged.id)+':'+untouchedAfter],{timeout:60000});
+    const otherBefore=await fs.readFile(untouchedBefore);
+    assert.deepEqual(await fs.readFile(untouchedAfter),otherBefore,
+      'the AttachmentUID-targeted original FileData must remain bit-for-bit identical');
+    const report={
+      schema:'softmux-s06-real-workbench-native-attachment-replacement-v1',
+      status:'PASS',
+      source:path.basename(source),sourceSha256:originalDigest,
+      output:path.basename(output),outputSha256:byteSha256(await fs.readFile(output)),
+      originalSourceUnchanged:true,
+      sourceAttachmentCount:sourceInfo.attachments.length,
+      outputAttachmentCount:final.attachments.length,
+      editedUnreferencedFileUid:String(target.properties.uid),
+      preservedReferencedFileUid:String(tagged.properties.uid),
+      editedFileDataSha256:byteSha256(replacement),
+      independentNativeExtractedEditedPayloadSha256:
+        byteSha256(await fs.readFile(extracted)),
+      independentNativeExtractedUntouchedPayloadSha256:byteSha256(otherBefore),
+      nativeChapterAndTagXmlUnchanged:true,
+      originalTrackTypeCodecUidListUnchanged:true,
+      sourceReplacementNoOverwrite:true,
+      nativeReader:'mkvmerge -J and mkvextract',
+      proofLimit:'One MKVToolNix-authored source and reviewed Chromium existing-MKV UI. Includes unreferenced attachment replacement; does not grant generalized external writing.',
+    };
+    await fs.writeFile(path.join(outDir,'s06-real-workbench-attachment-evidence.json'),
+      JSON.stringify(report,null,2)+'\n');
     console.log('P2 Round4 routed operator actual native MKV/UID/Chapter/Tag SHA PASS');
   }finally{await context.close();}
 }

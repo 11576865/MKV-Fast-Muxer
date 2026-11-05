@@ -305,37 +305,90 @@
       "id": "S06",
       "title": "有界原位附件编辑",
       "status": "UNASSESSED",
-      "openGap": "缺在统一 1.0 场景中将结构、安全拒绝与原生证据对账",
+      "openGap": "现有 S06 受限 FileData Writer 已通过真实 Chromium 的人工审核操作、原生 MKV 独立成品回读：未引用附件的等长替换，原来源、其他附件 FileData、精确 64 位 FileUID、章节/Tag、音视频压缩包/时间轴不变。原生 MKVToolNix 对照还覆盖增长替换与特定引用关系的显式例外；仍需经批准的完整 1.0 合同、冻结候选上的拒绝边界/未知结构汇总、目标设备及发布保存证据。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
-          "tests/matroska-raw-preservation-contract.test.mjs"
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
         ],
         "historicalArtifactIds": [
           13069838670,
           13069729140
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "S06 experimental scoped Writer and public-UI native source/finished-output audit verified; formal candidate and full 1.0 test matrix UNASSESSED.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "c421a9bb8f16261b7131c6380f38eadea5aefbad",
+          "mergedMainCommit": "d1edba6cbb66f211bf27e0eb3b3795a7934e495c",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/248",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42016372295",
+          "artifactId": 13410535909,
+          "artifactName": "s06-existing-mkv-routed-writer-browser-native",
+          "receipt": "s06-real-workbench-attachment-evidence.json",
+          "independentReread": {
+            "inputName": "p2-r4-router-native-source.mkv",
+            "inputSha256": "4a64079f64a746257b0c9b98210d0ae49d6a3e0f0b9aa461bc9bf3f3b489fd33",
+            "outputName": "p2-r4-router-native-output.mkv",
+            "outputSha256": "97eb6d560e9e8aef4416fdae442bb8b8cf1b2acc0121a9adb9e16aa6fc44d13d",
+            "inputAndOutputBytes": 190620,
+            "changedAttachmentSha256": "747ea3cd4acc3fb141d85877000abfbbcea68e55340de8a274906fa9b9672a04",
+            "untouchedReferencedAttachmentSha256": "fa7b57ddeea09e347209cca4c51ebb77b9eca97117e1d4fea3126802dee7cc30",
+            "unchangedOtherAttachmentBytes": true,
+            "chapterAndTagXmlByteEqual": true,
+            "mkvmerge64BitUidDecimalStringsPreserved": true,
+            "nativeFfprobePacketsAndPtsDtsDurationExact": true,
+            "originalInputBytesArchivedForIndependentRehash": true
+          },
+          "limits": "One reviewed existing-MKV source with unreferenced decoy FileData replacement. No claim of an unrestricted Writer, generalized referenced UID mutation, unsupported CRC/unknown structure editing, device interoperability or final 1.0 release PASS."
+        }
       }
     },
     {
       "id": "S07",
       "title": "章节与标签扫描及等字节写入",
       "status": "UNASSESSED",
-      "openGap": "缺统一正负样本与实际工作台任务闭环",
+      "openGap": "已有 S07 真实音频-only MKA 的工作台等 UTF-8 字节长度 TagString+嵌套 ChapString 两次审核/下载；不等长编辑经 UI 明确拒绝，来源与最终成品只有这两处文本原始字节变化，ChapterUID/Tag 目标、FLAC 压缩包/PTS/DTS 不变。仍需经批准合同、冻结候选的等长/无能力/设备联合验收；任意章节树重建、变长修改和未知 EBML 写入不在此证据内。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
-          "tests/p2-matroska-inline-metadata-writer.test.mjs"
+          "tests/p2-matroska-inline-metadata-writer.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs"
         ],
         "historicalArtifactIds": [],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Real reviewed editor with byte-identical non-target source metadata and packets verified; formal candidate and full 1.0 contract UNASSESSED.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "c421a9bb8f16261b7131c6380f38eadea5aefbad",
+          "mergedMainCommit": "d1edba6cbb66f211bf27e0eb3b3795a7934e495c",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/248",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42016372295",
+          "artifactId": 13410605705,
+          "artifactName": "s07-chapter-tag-existing-mka-browser-native",
+          "receipt": "s07-real-workbench-text-edit-evidence.json",
+          "independentReread": {
+            "inputName": "p2-r5-audio-only-source.mka",
+            "inputSha256": "d3a733190548ff4e42ab4c0e72354983af91e7c108a85bf69c781561bc7a3742",
+            "intermediateName": "p2-r5-tag-changed.mkv",
+            "intermediateSha256": "681b681b82370f71ebc83a42978456df2d50402cb2079f066b71710d8a5facc7",
+            "outputName": "p2-r5-audio-only-chapter-tag-final.mkv",
+            "outputSha256": "d2a511092bc68cf28ed60b0c896b15f8785ad0d6bcdc39e00869807cda5fe36b",
+            "inputIntermediateOutputBytes": 40404,
+            "exactWholeFileEqualsOnlyTwoReviewedEqualLengthStringReplacements": true,
+            "extractedChaptersAndTagsXmlEqualsOnlyExpectedTextDiff": true,
+            "originalTargetChapterUid": "510011",
+            "nativeFfprobeFlacPacketsAndPtsDtsDurationExact": true,
+            "unequalByteLengthRejectedInActualBrowserBeforeSave": true,
+            "originalInputBytesArchivedForIndependentRehash": true
+          },
+          "limits": "Only one native audio-only MKA with two sequential user-reviewed equal UTF-8 byte modifications. No claim of generic EBML text mutation, arbitrary metadata semantics, playback equivalence on all devices, or formal 1.0 release PASS."
+        }
       }
     },
     {

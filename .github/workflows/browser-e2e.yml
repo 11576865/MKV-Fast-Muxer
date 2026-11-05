@@ -410,6 +410,48 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # S06 actual existing-MKV reviewed replacement; retain the original
+      # source, delivered new MKV, untouched FileData extraction and native
+      # chapters/tags XML so evidence can be independently rehashed.
+      - name: Upload S06 real routed existing-MKV edit and native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s06-existing-mkv-routed-writer-browser-native
+          path: |
+            .e2e/output/s06-real-workbench-attachment-evidence.json
+            .e2e/output/p2-r4-router-native-source.mkv
+            .e2e/output/p2-r4-router-native-output.mkv
+            .e2e/output/p2-r4-replaced-content.bin
+            .e2e/output/p2-r4-untouched-original.bin
+            .e2e/output/p2-r4-untouched-output.bin
+            .e2e/output/p2-r4-before-chapters.xml
+            .e2e/output/p2-r4-after-chapters.xml
+            .e2e/output/p2-r4-before-tags.xml
+            .e2e/output/p2-r4-after-tags.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+      # S07 actual audio-only Matroska via existing public text editor,
+      # equal UTF-8 byte ChapterString + TagString mutations and a real
+      # unequal-byte negative; source/intermediate/final and extracted XML.
+      - name: Upload S07 real chapter and tag editor browser native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s07-chapter-tag-existing-mka-browser-native
+          path: |
+            .e2e/output/s07-real-workbench-text-edit-evidence.json
+            .e2e/output/p2-r5-audio-only-source.mka
+            .e2e/output/p2-r5-tag-changed.mkv
+            .e2e/output/p2-r5-audio-only-chapter-tag-final.mkv
+            .e2e/output/p2-r5-before-chapters.xml
+            .e2e/output/p2-r5-before-tags.xml
+            .e2e/output/p2-r5-after-chapters.xml
+            .e2e/output/p2-r5-after-tags.xml
+          if-no-files-found: warn
+          retention-days: 14
+
       # S02: one actual MP4 -> MKV with SSA/SRT/WebVTT and preserved
       # compressed source video/audio. Explicit subtitle conversions are
       # independently demuxed; native FFmpeg stream-copy hash is the oracle.
