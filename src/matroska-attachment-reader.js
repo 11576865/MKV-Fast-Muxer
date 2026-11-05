@@ -1,4 +1,7 @@
 import { createSourceAssetSession } from './source-asset-session.js';
+import { createFoundationStructureObserver } from './foundation-structure-observation.js';
+import { buildFoundationAttachmentInventory } from './foundation-attachment-inventory.js';
+import { verifyFoundationAttachmentCrc32 } from './foundation-attachment-crc32.js';
 import { inspectMatroskaPreservation } from './preservation-preflight.js';
 import { inspectMatroskaAttachmentRelations } from './matroska-attachment-relation-graph.js';
 
@@ -140,10 +143,66 @@ async function inspectOneAttachment(file, el, ordinal, budget) {
  */
 export function createMatroskaAttachmentReader(file, {
   sourceSession = createSourceAssetSession(),
+  foundationWorkerFactory = null,
+  inspectionBackend = 'legacy',
 } = {}) {
+  if(!['legacy','foundation-primary'].includes(inspectionBackend))
+    throw Error('ATTACHMENT_INSPECTION_BACKEND_INVALID');
   const asset = sourceSession.register(file, { kind: 'container' });
-  let latest = null;
+  let latest = null, activeFoundation = null;
   async function inspect() {
+    // Re-reading even the same File invalidates the earlier authority and
+    // cancels any pending WASM observation bound to that inventory instance.
+    activeFoundation?.cancel('FOUNDATION_SOURCE_REINSPECTED');
+    latest = null;
+    if(inspectionBackend==='foundation-primary'){
+      let observer=null;
+      try{
+        // This is an *authoritative read-only inspection backend*, not an
+        // extra shadow oracle. It does not execute the legacy EBML walker.
+        // Missing runtime/malformed data means unverified, not silent fallback.
+        observer=createFoundationStructureObserver({
+          file,source:asset,workerFactory:foundationWorkerFactory,
+          isCurrent:()=>sourceSession.isCurrent(asset,file) &&
+            activeFoundation===observer,
+        });
+        activeFoundation=observer;
+        const tree=await observer.inspect();
+        if(activeFoundation!==observer ||
+           !sourceSession.isCurrent(asset,file))
+          throw Error('FOUNDATION_INVENTORY_SOURCE_STALE');
+        // An observed CRC on Attachments/AttachedFile is not optional:
+        // fail closed on incorrect protected bytes or over-budget coverage.
+        // Other CRC-bearing Matroska masters are outside this narrow read
+        // guarantee and remain explicitly uncertified for writer admission.
+        const attachmentCrc=await verifyFoundationAttachmentCrc32({
+          file,observation:tree,
+        });
+        const base=await buildFoundationAttachmentInventory({
+          file,source:asset,observation:tree,
+        });
+        const inventory=freezePlain({
+          ...base,
+          scanning:{...base.scanning,attachmentCrc},
+        });
+        if(activeFoundation!==observer ||
+           !sourceSession.isCurrent(asset,file))
+          throw Error('FOUNDATION_INVENTORY_SOURCE_CHANGED_DURING_READ');
+        latest=inventory;
+        return inventory;
+      }catch(error){
+        if(activeFoundation===observer)latest=null;
+        return freezePlain({
+          schema:ATTACHMENT_INVENTORY_SCHEMA,
+          state:'unverified',source:asset,attachments:[],
+          diagnostic:{code:error?.message||'FOUNDATION_INVENTORY_FAILED'},
+          claims:{wholeEbmlPreservation:'unverified'},
+        });
+      }finally{
+        observer?.dispose();
+        if(activeFoundation===observer)activeFoundation=null;
+      }
+    }
     const budget = { headers: 0 };
     const attachments = [];
     let hasTracks = false;
@@ -256,9 +315,43 @@ export function createMatroskaAttachmentReader(file, {
     }
     return graph;
   };
+  // Optional mature-library cross-check on the SAME live asset/inventory.
+  // An inspected C/WASM tree never authorizes any output writer. Without a
+  // shipped runtime this fails explicitly, preserving normal inspection.
+  async function inspectFoundationStructure(inventory, {
+    signal, workerFactory = foundationWorkerFactory, timeoutMs = 30000,
+    isCurrent = () => true,
+  } = {}) {
+    if (!isCurrentInspection(inventory))
+      throw Error('FOUNDATION_CURRENT_INSPECTION_REQUIRED');
+    if (activeFoundation)
+      throw Error('FOUNDATION_INSPECTION_ALREADY_RUNNING');
+    const observer = createFoundationStructureObserver({
+      file, source: asset, workerFactory, timeoutMs,
+      isCurrent: () => isCurrentInspection(inventory) && isCurrent(),
+    });
+    activeFoundation = observer;
+    try {
+      const result = await observer.inspect({signal});
+      if (!isCurrentInspection(inventory))
+        throw Error('FOUNDATION_SOURCE_CHANGED_DURING_INSPECTION');
+      const left = inventory.attachments.map(row => row.fileUid).sort();
+      const right = (result.uids.FileUID || []).slice().sort();
+      if (JSON.stringify(left) !== JSON.stringify(right))
+        throw Error('FOUNDATION_ATTACHMENT_UID_DIFFERENTIAL_MISMATCH');
+      return result;
+    } finally {
+      observer.dispose();
+      if (activeFoundation === observer) activeFoundation = null;
+    }
+  }
+  function cancelFoundationInspection() {
+    activeFoundation?.cancel();
+  }
   return Object.freeze({
     source: asset, inspect, openAttachment,
     isCurrentInspection, isCurrentSourceFile,
     inspectPreservation, inspectRelations,
+    inspectFoundationStructure, cancelFoundationInspection,
   });
 }

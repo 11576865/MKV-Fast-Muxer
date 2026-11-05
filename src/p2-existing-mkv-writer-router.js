@@ -26,9 +26,10 @@ export const ROUTED_ATTACHMENT_PLAN_SCHEMA='bounded-existing-mkv-attachment-rout
 const permits=new WeakMap();
 const ROUTES=Object.freeze({
   'same-size':{
-    prepare:(source,replacement,targetFileUid)=>
+    prepare:(source,replacement,targetFileUid,acknowledgeReferencedTags=false)=>
       prepareSameSizeAttachmentReplacement({
         source,replacement,targetFileUid,acknowledgeContentReplacement:true,
+        acknowledgeReferencedTagTargets:acknowledgeReferencedTags,
       }),
     execute:executeSameSizeAttachmentReplacement,
   },
@@ -66,6 +67,51 @@ const hash=async blob=>{
 const safeCode=message=>/^[A-Z][A-Z0-9_]{4,120}$/.test(message||'')?
   message:'P2_ROUTE_UNCLASSIFIED_PREPARATION_ERROR';
 
+// Only an explicitly recognized geometry/capability refusal permits trying
+// another bounded writer. Unexpected parser errors, inconsistent source facts,
+// stale SeekHead entries, validation bugs & unknown future error codes must
+// never be silently treated as "try the next writer".
+//
+// The list comes from the existing writers' concrete preparation errors, not
+// from a generic keyword regex. Changes to a writer's refusal contract must
+// update this list and its tests together.
+const EXPECTED_BACKEND_REFUSALS=Object.freeze({
+  'same-size':new Set([
+    'SAME_SIZE_REPLACE_ATTACHMENTS_CRC_UNSUPPORTED',
+    'SAME_SIZE_REPLACE_ATTACHEDFILE_CRC_UNSUPPORTED',
+    'SAME_SIZE_REPLACE_NO_CONTENT_CHANGE',
+    'SAME_SIZE_REPLACE_MEDIA_AND_ATTACHMENT_LAYOUT_REQUIRED',
+  ]),
+  'adjacent-void':new Set([
+    'RESERVED_VOID_ADJACENT_SLOT_REQUIRED',
+    'RESERVED_VOID_SIZE_VINT_CAPACITY',
+    'RESERVED_VOID_REMAINDER_TOO_SMALL',
+    'RESERVED_VOID_ATTACHMENTS_CRC_REFUSED',
+    'RESERVED_VOID_ATTACHED_CRC_REFUSED',
+  ]),
+  'tail-resize':new Set([
+    'TAIL_RESIZE_ATTACHMENTS_MUST_BE_FINAL_SEGMENT_CHILD',
+    'TAIL_RESIZE_FINAL_ATTACHEDFILE_REQUIRED',
+    'TAIL_RESIZE_TARGET_IS_NOT_FINAL_ATTACHEDFILE',
+    'TAIL_RESIZE_FIXED_SIZE_FIELD_CAPACITY_EXCEEDED',
+    'TAIL_RESIZE_ATTACHMENTS_CRC_DENIED',
+    'TAIL_RESIZE_ATTACHEDFILE_CRC_DENIED',
+  ]),
+  'seekhead-relay':new Set([
+    'RELAY_UNIQUE_NONTERMINAL_ATTACHMENTS_REQUIRED',
+    'RELAY_ATTACHMENTS_SEEK_ENTRY_REQUIRED',
+    'RELAY_ORIGINAL_ATTACHMENTS_SLOT_TOO_SMALL',
+    'RELAY_CANNOT_PAD_ORIGINAL_SLOT',
+    'RELAY_SIZE_VINT_CAPACITY',
+    'RELAY_SOURCE_SEEKHEAD_CRC_UNSUPPORTED',
+    'RELAY_SEEK_ENTRY_CRC_BLOCKED',
+    'RELAY_SEEKID_WIDTH_UNSUPPORTED',
+    'RELAY_SEEKPOSITION_UNSUPPORTED',
+  ]),
+});
+export const isExpectedBackendRefusal=(route,code)=>
+  EXPECTED_BACKEND_REFUSALS[route]?.has(code)===true;
+
 async function originalFacts(source,targetFileUid){
   const raw=await inspectRawSegmentPreservation(source);
   if(raw.state!=='inspected'||raw.segmentUnknownLength||
@@ -82,14 +128,16 @@ async function originalFacts(source,targetFileUid){
   if(!reader.isCurrentInspection(inventory)||graph.state!=='inspected'||
       graph.coverage.tagTargets!=='known-targets-enumerated')
     throw Error('P2_ROUTE_GRAPH_UNVERIFIED');
-  if(graph.edges.some(e=>e.targetKind==='attachment'&&e.targetUid===targetFileUid))
-    throw Error('P2_ROUTE_TAG_REFERENCED_UID');
+  // Recognizing a referenced FileUID is not the same as proving it will be
+  // orphaned: an exact-length FileData-only replacement retains the UID.
+  // Caller must separately approve such a semantic content replacement.
   return {raw,reader,inventory,target:target[0],graph};
 }
 
 /** A successful plan is opaque: only this module may execute its backend. */
 export async function prepareRoutedAttachmentReplacement({
   source,replacement,targetFileUid,approveSourceModification=false,
+  approveReferencedTagTargetReplacement=false,
 }={}){
   if(!approveSourceModification)throw Error('P2_ROUTE_EXPLICIT_REVIEW_REQUIRED');
   if(!source?.slice||!replacement?.slice||
@@ -101,6 +149,18 @@ export async function prepareRoutedAttachmentReplacement({
   if(typeof targetFileUid!=='string'||!/^[1-9][0-9]{0,19}$/.test(targetFileUid))
     throw Error('P2_ROUTE_UID_REQUIRED');
   const facts=await originalFacts(source,targetFileUid);
+  const targetRefs=facts.graph.edges.filter(e=>
+    e.targetKind==='attachment'&&e.targetUid===targetFileUid);
+  if(targetRefs.length){
+    // No broader authorization: only equal-length in-place FileData bytes,
+    // keeping the original UID, may be edited with explicit review.
+    if(!approveReferencedTagTargetReplacement||
+       facts.target.byteLength!==replacement.size)
+      throw Error('P2_ROUTE_TAG_REFERENCED_UID');
+    if(targetRefs.some(e=>e.resolution!=='matched'||
+       e.targetAttachmentId!==facts.target.id))
+      throw Error('P2_ROUTE_TAG_REFERENCE_NOT_EXACT');
+  }
   const sourceSha256=await hash(source),payloadSha256=await hash(replacement);
   const preferred=facts.target.byteLength===replacement.size?
     ['same-size']:
@@ -109,16 +169,19 @@ export async function prepareRoutedAttachmentReplacement({
   let selected=null,backendPlan=null;
   for(const route of preferred){
     try{
-      backendPlan=await ROUTES[route].prepare(source,replacement,targetFileUid);
+      backendPlan=await ROUTES[route].prepare(
+        source,replacement,targetFileUid,
+        targetRefs.length>0&&approveReferencedTagTargetReplacement,
+      );
       selected=route;
       break;
     }catch(error){
       const code=safeCode(error?.message);
-      // A non-capability failure cannot be used as permission to fall back.
-      // CRC-invalid, source-changed, malformed source and missing crypto are
-      // hard failures regardless of whether some later writer could accept.
-      if(/CRC.*INVALID|SOURCE_CHANGED|INPUT_CHANGED|WEBCRYPTO_REQUIRED|MALFORMED|TRUNCATED|OUT_OF_BOUNDS|FORGED/.test(code))
-        throw Error('P2_ROUTE_FATAL_'+code);
+      // Conservative alternative-writer selection: only a known geometry or
+      // documented capability refusal may fall through. Never hide a new error
+      // (including stale indexes or inconsistent EBML) behind a later success.
+      if(!isExpectedBackendRefusal(route,code))
+        throw Error('P2_ROUTE_FATAL_'+code,{cause:error});
       refusals.push({route,code});
     }
   }
@@ -138,7 +201,9 @@ export async function prepareRoutedAttachmentReplacement({
     target:{fileUid:targetFileUid,name:facts.target.filename,
       oldLength:facts.target.byteLength,newLength:replacement.size},
     evidence:{sourceSha256,payloadSha256,independentNativeAudit:'pending',
-      selectedBackendPlanSchema:backendPlan.schema},
+      selectedBackendPlanSchema:backendPlan.schema,
+      referencedTagCount:targetRefs.length,
+      referencedUidEditExplicitlyReviewed:targetRefs.length>0},
     refusals,
     grants:{sourceOverwrite:false,filePermission:false,generalMatroskaWriter:false},
   });

@@ -1,4 +1,5 @@
 import { createMatroskaAttachmentReader } from './matroska-attachment-reader.js';
+import { readBoundedEbmlHeader, rethrowBoundedHeaderError } from './matroska-bounded-ebml-header.js';
 import { inspectRawSegmentPreservation } from './matroska-raw-preservation-contract.js';
 import { calculateEbmlMasterCrc32,assertEbmlMasterCrc32,ebmlCrc32LE } from './ebml-crc32-bounded.js';
 
@@ -71,24 +72,21 @@ function relayMaster(span,targetOffset){
  throw Error('RELAY_ORIGINAL_ATTACHMENTS_SLOT_TOO_SMALL');
 }
 async function header(file,at,limit){
- if(!Number.isSafeInteger(at)||!Number.isSafeInteger(limit)||at<0||at>=limit||limit>file.size)
-   throw Error('RELAY_RANGE');
- const b=new Uint8Array(await file.slice(at,Math.min(at+12,limit)).arrayBuffer());
- if(!b[0])throw Error('RELAY_INVALID_ID');
- let idW=1;while(idW<=4&&!(b[0]&(0x80>>(idW-1))))idW++;
- if(idW>4||idW>=b.length)throw Error('RELAY_TRUNCATED_ID');
- let id=0;for(let i=0;i<idW;i++)id=id*256+b[i];
- let w=1;const lead=b[idW];
- if(!lead)throw Error('RELAY_INVALID_SIZE');
- while(w<=8&&!(lead&(0x80>>(w-1))))w++;
- if(w>8||idW+w>b.length)throw Error('RELAY_TRUNCATED_SIZE');
- let n=BigInt(lead&((1<<(8-w))-1));
- for(let i=1;i<w;i++)n=(n<<8n)|BigInt(b[idW+i]);
- if(n===(1n<<BigInt(w*7))-1n||n>BigInt(Number.MAX_SAFE_INTEGER))
-   throw Error('RELAY_UNKNOWN_OR_UNADDRESSABLE_SIZE');
- const dataStart=at+idW+w,end=dataStart+Number(n);
- if(!Number.isSafeInteger(end)||end>limit)throw Error('RELAY_ELEMENT_OVERRUN');
- return {id,start:at,idW,w,sizeStart:at+idW,dataStart,size:Number(n),end};
+  try {
+    const e=await readBoundedEbmlHeader(file,at,limit);
+    return {id:e.id,start:e.offset,idW:e.idWidth,w:e.sizeWidth,
+      sizeStart:e.sizeStart,dataStart:e.dataStart,size:e.size,end:e.end};
+  } catch(error) {
+    rethrowBoundedHeaderError(error,'RELAY_',{
+      RANGE:'RANGE',
+      ID_INVALID:'INVALID_ID',
+      ID_TRUNCATED:'TRUNCATED_ID',
+      SIZE_INVALID:'INVALID_SIZE',
+      SIZE_TRUNCATED:'TRUNCATED_SIZE',
+      UNKNOWN_OR_UNADDRESSABLE_SIZE:'UNKNOWN_OR_UNADDRESSABLE_SIZE',
+      ELEMENT_OUT_OF_BOUNDS:'ELEMENT_OVERRUN',
+    });
+  }
 }
 async function children(file,from,to){
  const rows=[];for(let at=from;at<to;){

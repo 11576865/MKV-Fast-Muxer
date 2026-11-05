@@ -1,0 +1,313 @@
+/*
+ * Exploratory BSD-3-Clause adapter over the Matroska Foundation C API.
+ * Upstream dependency: Matroska-Org/foundation-source @
+ * d69761114b79c1dfcb2226ceca84452835e745c3 (BSD-3-Clause).
+ *
+ * This is NOT a second EBML parser: element identity, size, parent scope,
+ * and traversal are provided by libEBML2/libMatroska2. A small deterministic
+ * C ABI exposes machine-readable structural evidence to Emscripten.
+ *
+ * Derived traversal pattern from upstream libmatroska2/test/mkvtree.c
+ * (Copyright 2008-2010 Matroska, non-profit organisation; BSD-3-Clause).
+ * No MKVToolNix GPL implementation is included.
+ *
+ * No writing, UID edit, or production safety decision is authorized here.
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include "matroska2/matroska.h"
+#include <corec/helpers/file/streams.h>
+#include <corec/helpers/parser/parser.h>
+#include <corec/str/str.h>
+
+#define INITIAL_JSON_BYTES 4096u
+#define MAX_JSON_BYTES (16u * 1024u * 1024u)
+#define FOUNDATION_ABI_VERSION 1u
+#define NODE_LIMIT 8192
+#define DEPTH_LIMIT 32
+/* One buffer per *isolated Wasm module instance*, explicitly released by
+ * the JS consumer. No fixed 1 MiB BSS buffer or dangling result on errors. */
+static char *output = NULL;
+static size_t used = 0, capacity = 0;
+static unsigned count = 0;
+static int parse_failed = 0;
+static struct {
+  filepos_t start, end;
+  uint32_t id;
+  int unknown_cluster;
+} parents[DEPTH_LIMIT];
+static unsigned parent_count = 0;
+
+/* Only a *terminal* unknown-size Cluster is currently admitted. The
+ * upstream traversal can otherwise treat following Segment siblings as
+ * descendants of an unbounded Cluster. Constrain the immediate children
+ * to actual Matroska Cluster members, never Tags/Chapters/Attachments or
+ * unknown extension elements. This is schema checking, not an EBML parser.
+ */
+static int supported_cluster_child_id(uint32_t id) {
+  switch(id) {
+    case 0xe7u:    /* Timestamp */
+    case 0xa7u:    /* Position */
+    case 0xabu:    /* PrevSize */
+    case 0xa3u:    /* SimpleBlock */
+    case 0xa0u:    /* BlockGroup */
+    case 0xafu:    /* deprecated EncryptedBlock */
+    case 0x5854u:  /* deprecated SilentTracks */
+    case 0xbfu:    /* CRC-32 */
+      // Deliberately reject Void 0xEC here. Although legal inside Cluster,
+      // it can also be a following top-level Segment child and is therefore
+      // ambiguous when an unknown-sized Cluster is bounded by parent EOF.
+      return 1;
+    default: return 0;
+  }
+}
+static filepos_t input_end = -1;
+
+void DebugMessage(const tchar_t *msg, ...) { (void)msg; }
+
+/* The ABI is intentionally single-operation-per-Worker. JS must copy the
+ * result string before calling release. Successive calls never reuse stale
+ * output or retain a result on a malformed-input failure. */
+void foundation_release(void) {
+  free(output);
+  output = NULL;
+  used = capacity = 0;
+  count = parent_count = 0;
+  parse_failed = 0;
+  input_end = -1;
+}
+unsigned foundation_abi_version(void) { return FOUNDATION_ABI_VERSION; }
+size_t foundation_json_length(void) { return output ? used : 0; }
+
+static void append(const char *value) {
+  if (parse_failed) return;
+  const size_t size = strlen(value);
+  if (size > MAX_JSON_BYTES - 1u - used) {
+    parse_failed = 1;
+    return;
+  }
+  const size_t needed = used + size + 1u;
+  if (needed > capacity) {
+    size_t grown = capacity ? capacity : INITIAL_JSON_BYTES;
+    while (grown < needed) {
+      if (grown > MAX_JSON_BYTES / 2u) { grown = MAX_JSON_BYTES; break; }
+      grown *= 2u;
+    }
+    if (grown < needed || grown > MAX_JSON_BYTES) {
+      parse_failed = 1;
+      return;
+    }
+    char *next = (char*)realloc(output,grown);
+    if (!next) { parse_failed = 1; return; }
+    output = next;
+    capacity = grown;
+  }
+  memcpy(output + used,value,size);
+  used += size;
+  output[used] = 0;
+}
+static void json_string(const char *s) {
+  append("\"");
+  for (; !parse_failed && s && *s; s++) {
+    char temp[8];
+    unsigned char c = (unsigned char)*s;
+    if (c == '\"' || c == '\\') {
+      temp[0]='\\';temp[1]=(char)c;temp[2]=0;
+      append(temp);
+    } else if (c < 0x20) {
+      snprintf(temp,sizeof(temp),"\\u%04x",(unsigned)c);
+      append(temp);
+    } else {
+      temp[0]=(char)c;temp[1]=0;
+      append(temp);
+    }
+  }
+  append("\"");
+}
+/* Only expose exact Matroska UID scalar values via the upstream
+ * EBML integer API. No JS Number/floating-point conversion is permitted. */
+static int is_uid_class(const char *name) {
+  return name && (
+    strcmp(name,"TrackUID")==0 ||
+    strcmp(name,"FileUID")==0 ||
+    strcmp(name,"ChapterUID")==0 ||
+    strcmp(name,"EditionUID")==0 ||
+    strcmp(name,"TagTrackUID")==0 ||
+    strcmp(name,"TagAttachmentUID")==0 ||
+    strcmp(name,"TagChapterUID")==0 ||
+    strcmp(name,"TagEditionUID")==0);
+}
+
+/* The sample mkvtree's mutable level counter is for pretty printing, not
+ * a reliable machine-readable parent relationship. Reconstruct depth from
+ * the actual element file positions and the upstream-reported master ends.
+ * This never decodes raw EBML IDs/lengths ourselves. */
+static void emit(ebml_element *e,int has_uid,uint64_t uid) {
+  char part[208];
+  const char *label=EBML_ElementGetClassName(e);
+  const filepos_t pos=EBML_ElementPosition(e);
+  const int master=Node_IsPartOf(e,EBML_MASTER_CLASS);
+  const int finite=EBML_ElementIsFiniteSize(e);
+  const uint32_t element_id=(uint32_t)EBML_ElementClassID(e);
+
+  // Synthetic upstream traversal root, not a file-resident EBML element.
+  if(count==0 && label && strcmp(label,"Matroska Stream")==0)return;
+  while(parent_count && (pos<parents[parent_count-1].start ||
+                         pos>=parents[parent_count-1].end))
+    parent_count--;
+  if(parent_count && parents[parent_count-1].unknown_cluster &&
+     !supported_cluster_child_id(element_id)){
+    // A top-level Tags/Attachments/etc. after an unknown-size Cluster
+    // must not be misclassified as a Cluster child bounded by EOF.
+    parse_failed=1;
+    return;
+  }
+  // Matroska RFC 9559 explicitly permits unknown-sized Segment/Cluster.
+  // A terminal unknown-sized Cluster is bounded by its direct Segment parent,
+  // but must fail if libEBML2 subsequently finds a following sibling.
+  // Do not fabricate boundaries for other infinite-sized Masters.
+  const int unknown_segment=master && !finite && label &&
+    strcmp(label,"Segment")==0;
+  const int unknown_cluster=master && !finite && label &&
+    strcmp(label,"Cluster")==0 && parent_count>0 &&
+    parents[parent_count-1].id==0x18538067u;
+  if(!finite && !unknown_segment && !unknown_cluster){
+    parse_failed=1;return;
+  }
+  const filepos_t end=unknown_segment?input_end:
+    unknown_cluster?parents[parent_count-1].end:
+    EBML_ElementPositionEnd(e);
+  const filepos_t data=(unknown_segment||unknown_cluster)?
+    end-EBML_ElementPositionData(e):EBML_ElementDataSize(e,1);
+  if(parse_failed || pos<0 || data<0 || end<pos ||
+     end>input_end || ++count>NODE_LIMIT){
+    parse_failed=1;return;
+  }
+  if(parent_count && end>parents[parent_count-1].end){
+    parse_failed=1;return;
+  }
+  const unsigned depth=parent_count;
+  if(depth>DEPTH_LIMIT || (master && parent_count>=DEPTH_LIMIT)){
+    parse_failed=1;return;
+  }
+  if(count>1)append(",");
+  snprintf(part,sizeof(part),
+    "{\"depth\":%u,\"id\":\"0x%08x\",\"name\":",
+    depth,(unsigned)element_id);
+  append(part);
+  json_string(label);
+  snprintf(part,sizeof(part),
+    ",\"offset\":\"%lld\",\"endOffset\":\"%lld\",\"dataBytes\":\"%lld\",\"master\":%s,\"finite\":%s",
+    (long long)pos,(long long)end,(long long)data,
+    master?"true":"false",finite?"true":"false");
+  append(part);
+  if(has_uid){
+    snprintf(part,sizeof(part),",\"uintValue\":\"%llu\"",
+      (unsigned long long)uid);
+    append(part);
+  }
+  append("}");
+  if(master){
+    parents[parent_count].start=pos;
+    parents[parent_count].end=end;
+    parents[parent_count].id=element_id;
+    parents[parent_count].unknown_cluster=unknown_cluster;
+    parent_count++;
+  }
+}
+
+/* Returns an element that the caller must continue handling at a higher
+ * nesting level, mirroring libmatroska2's own mkvtree sample traversal. */
+static ebml_element *visit(ebml_element *element,
+  const ebml_parser_context *context,struct stream *input,int *level) {
+  if (parse_failed)return NULL;
+  const int is_uid = !Node_IsPartOf(element,EBML_MASTER_CLASS) &&
+    is_uid_class(EBML_ElementGetClassName(element));
+  if(is_uid && EBML_ElementReadData(element,input,NULL,0,
+      SCOPE_ALL_DATA,0)!=ERR_NONE){
+    parse_failed=1;
+    return NULL;
+  }
+  const uint64_t uid=is_uid?
+    (uint64_t)EBML_IntegerValue((ebml_integer*)element):0;
+  emit(element,is_uid,uid);
+  if (parse_failed)return NULL;
+  if (Node_IsPartOf(element,EBML_MASTER_CLASS)) {
+    int upper=0;
+    ebml_element *child,*next;
+    ebml_parser_context sub;
+    sub.UpContext=context;
+    sub.Context=EBML_ElementContext(element);
+    sub.EndPosition=EBML_ElementPositionEnd(element);
+    sub.Profile=context?context->Profile:PROFILE_MATROSKA_ANY;
+    child=EBML_FindNextElement(input,&sub,&upper,1);
+    while(child!=NULL && upper<=0 &&
+      (!EBML_ElementIsFiniteSize(element) ||
+        EBML_ElementPosition(child)<=EBML_ElementPositionEnd(element)) &&
+      !parse_failed) {
+      ++*level;
+      next=visit(child,&sub,input,level);
+      NodeDelete((node*)child);
+      child=next?next:EBML_FindNextElement(input,&sub,&upper,1);
+      --*level;
+      if (upper<0)*level+=upper;
+      else if (upper!=0 && *level>0)*level-=upper-1;
+    }
+    // Only accept a terminal unknown-sized Cluster. A later sibling's
+    // boundary cannot be inferred as EOF; do not silently attach it under
+    // the preceding Cluster or inflate that Cluster's byte range.
+    if(!EBML_ElementIsFiniteSize(element) &&
+       EBML_ElementClassID(element)==0x1F43B675u && child!=NULL){
+      NodeDelete((node*)child);
+      parse_failed=1;
+      return NULL;
+    }
+    return child;
+  }
+  // Native parser handles the binary/unknown element boundaries.
+  if(!is_uid)EBML_ElementSkipData(element,input,context,NULL,0);
+  return NULL;
+}
+
+/* Emscripten stable C ABI for a prototype read-only machine-readable tree.
+ * Return 0 on success; caller must reject all nonzero codes. */
+int foundation_probe(const char *path) {
+  parsercontext ctx;
+  struct stream *input=NULL;
+  ebml_element *root=NULL;
+  tchar_t name[MAXPATHFULL];
+  int depth=-1,rc=0;
+  foundation_release();
+  if(!path||!path[0]||strlen(path)>=1024)return 11;
+  append("{\"schema\":\"foundation-matroska-structured-tree-v0\",\"nodes\":[");
+  if(parse_failed){foundation_release();return 16;}
+  ParserContext_Init(&ctx,NULL,NULL,NULL);
+  if(MATROSKA_Init(&ctx)!=ERR_NONE){rc=12;goto cleanup;}
+  Node_FromStr(&ctx,name,TSIZEOF(name),path);
+  input=StreamOpen(&ctx,name,SFLAG_RDONLY);
+  if(!input){rc=13;goto cleanup;}
+  input_end=Stream_Seek(input,0,SEEK_END);
+  if(input_end<0||Stream_Seek(input,0,SEEK_SET)!=0){
+    rc=17;goto cleanup;
+  }
+  root=EBML_ElementCreate(input,MATROSKA_getContextStream(),0,PROFILE_MATROSKA_ANY);
+  if(!root){rc=14;goto cleanup;}
+  EBML_ElementSetInfiniteSize(root,1);
+  visit(root,NULL,input,&depth);
+  if(parse_failed || count<3){rc=15;goto cleanup;}
+  append("],\"nodeCount\":");
+  char num[32];snprintf(num,sizeof(num),"%u",count);append(num);
+  append("}");
+  if(parse_failed)rc=16;
+cleanup:
+  if(root)NodeDelete((node*)root);
+  if(input)StreamClose(input);
+  ParserContext_Done(&ctx);
+  if(rc) foundation_release(); // Never expose incomplete JSON.
+  return rc;
+}
+const char *foundation_json(void) { return output ? output : ""; }
+int main(void){return 0;}
