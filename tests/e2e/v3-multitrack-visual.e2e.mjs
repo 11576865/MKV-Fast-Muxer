@@ -82,9 +82,23 @@ try{
    assert.equal(data.selectedFile,path.basename(source));
    assert.equal(data.target,'plan');
    assert.equal(data.nativeEditorCount,1);
+   const scrollDiagnostic=await page.evaluate(()=>{
+     const el=document.getElementById('sfv3PlanHeading');
+     const chain=[];let n=el;
+     while(n&&chain.length<10) {
+       const cs=getComputedStyle(n),rect=n.getBoundingClientRect();
+       chain.push({tag:n.tagName,id:n.id,cls:String(n.className).slice(0,75),
+         top:Math.round(rect.top),scrollTop:n.scrollTop,
+         scrollHeight:n.scrollHeight,clientHeight:n.clientHeight,
+         overflowY:cs.overflowY,position:cs.position});
+       n=n.parentElement;
+     }
+     return {scrollY:window.scrollY,chain};
+   });
    assert.ok(data.heading && data.heading.y>=55 && data.heading.y<160,
      'new target document title must be visible under the V3 header at '+width+
-       ': '+JSON.stringify(data.heading));
+       ': '+JSON.stringify(data.heading)+' ancestors: '+
+       JSON.stringify(scrollDiagnostic));
    for(const [kind,n] of [['video',1],['audio',2],['subtitle',2]])
      assert.equal(data.rows.filter(x=>x.kind===kind).length,n);
    const picture='five-track-'+width+'x'+height+'.png';
