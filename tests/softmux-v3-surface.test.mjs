@@ -253,3 +253,21 @@ test('V3-05/V3-09 shows exact observed source subtitle flags read-only and never
   assert.match(css,/\.sfv3-source-flag-states\[hidden\]/);
   assert.match(css,/grid-area:source-flags/);
 });
+
+test('Figma V3-03 renders native explicit-target choice cards with accessible dismissal and no fake blank writer',async()=>{
+  const ui=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(ui,/picker\.setAttribute\('aria-describedby','sfv3PickerExplanation'\)/);
+  assert.match(ui,/cancelChoice\.setAttribute\('aria-label','取消目标选择'\)/);
+  assert.match(ui,/pickerOptions\.appendChild\(label\)/);
+  assert.match(ui,/className='sfv3-picker-choice-copy'/);
+  assert.match(ui,/以 '\+entry\.file\.name\+' 为基础/);
+  assert.match(ui,/className='sfv3-picker-unavailable'/);
+  assert.match(ui,/emptyOption\.setAttribute\('aria-disabled','true'\)/);
+  assert.match(ui,/const accepted=signal\('softmux:v3-confirm-target'/);
+  assert.doesNotMatch(ui,/radio\.value='blank'/);
+  assert.match(css,/right:clamp\(24px,12\.85vw,240px\)/);
+  assert.match(css,/\.sfv3-picker-option:focus-within/);
+  assert.match(css,/@media\(max-width:959px\)/);
+  assert.match(css,/\.sfv3-picker-confirm:focus-visible/);
+});
