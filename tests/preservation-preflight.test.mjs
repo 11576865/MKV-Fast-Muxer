@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectMatroskaPreservation, preservationBlockMessage } from '../src/preservation-preflight.js';
+import { inspectMatroskaPreservation, preservationBlockMessage, attachmentUidExclusionBlockMessage } from '../src/preservation-preflight.js';
 
 function id(number) {
   const digits = number <= 0xff ? 1 : number <= 0xffff ? 2 : number <= 0xffffff ? 3 : 4;
@@ -163,4 +163,41 @@ test('S08: unrelated flat chapter metadata and presentation do not trigger linke
   const check = await inspectMatroskaPreservation(source(ordinary));
   assert.equal(check.state, 'NO_KNOWN_HAZARD');
   assert.equal(check.reasons.length, 0);
+});
+
+test('S05: AttachmentUID-targeted source with excluded original attachment blocks ordinary remux', async () => {
+  const tagged=await inspectMatroskaPreservation(source(linkedTag(0x63c6,7)));
+  assert.equal(tagged.state,'UNVERIFIED_REFERENCES');
+  assert.equal(preservationBlockMessage('source.mkv',tagged),'');
+  const refusal=attachmentUidExclusionBlockMessage('source.mkv',tagged,[
+    {filename:'targeted.bin',include:true},
+    {filename:'decoy.txt',include:false},
+  ]);
+  assert.match(refusal,/结构保留预检阻断/);
+  assert.match(refusal,/AttachmentUID/);
+  assert.match(refusal,/排除原附件/);
+  assert.equal(attachmentUidExclusionBlockMessage('source.mkv',tagged,[
+    {include:true},{include:true},
+  ]),'','unchanged attachment membership keeps the existing warning-only path');
+  assert.equal(attachmentUidExclusionBlockMessage('source.mkv',
+    await inspectMatroskaPreservation(source(chapters(chapter()))),
+    [{include:false}]),'','untagged source remains in the existing selective-edit path');
+  const trackTag=await inspectMatroskaPreservation(source(linkedTag(0x63c5,7)));
+  assert.equal(attachmentUidExclusionBlockMessage('source.mkv',trackTag,
+    [{include:false}]),'','TrackUID warning is not evidence of an AttachmentUID target');
+  assert.equal(attachmentUidExclusionBlockMessage('source.mkv',null,
+    [{include:false}]),'','unknown inspection is already refused by the general preflight');
+});
+
+test('S05: frozen batch no-preserve policy refuses AttachmentUID-targeted original sources', async () => {
+  const tagged=await inspectMatroskaPreservation(source(linkedTag(0x63c6,7)));
+  assert.equal(tagged.state,'UNVERIFIED_REFERENCES');
+  assert.match(attachmentUidExclusionBlockMessage('batch.mkv',tagged,[],true),
+    /AttachmentUID.*排除原附件/);
+  assert.equal(attachmentUidExclusionBlockMessage('batch.mkv',tagged,[],false),'',
+    'batch preserve-all policy retains ordinary warning-only behavior');
+  const trackTag=await inspectMatroskaPreservation(source(linkedTag(0x63c5,7)));
+  assert.equal(attachmentUidExclusionBlockMessage('batch.mkv',trackTag,[],true),'');
+  const clean=await inspectMatroskaPreservation(source(chapters(chapter())));
+  assert.equal(attachmentUidExclusionBlockMessage('batch.mkv',clean,[],true),'');
 });
