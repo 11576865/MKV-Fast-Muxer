@@ -405,7 +405,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   planStats.className='sfv3-plan-stats';
   planStats.setAttribute('aria-label','当前拟输出轨道与附件对象数量');
   planStats.hidden=true;
-  planHeading.after(planStats);
+  planHeading.appendChild(planStats);
   compositionHost.prepend(readout);
   // V3-04 read-only provenance of the ONE real editor's ASS+font members.
   // Source/target intent and source File identity remain owned by main.js.
@@ -433,6 +433,19 @@ export function mountSoftmuxV3Surface(doc = document) {
       actualComposition?.parentNode===compositionHost)
     actualComposition.after(recovery);
   compositionHost.appendChild(structure);
+  // The design's desktop media-section toolbar is presentation over the
+  // original importer. No alternate import owner or simulated search button.
+  const planToolbar=doc.createElement('div');
+  planToolbar.id='sfv3CompositionToolbar';
+  planToolbar.className='sfv3-composition-toolbar';
+  planToolbar.hidden=true;
+  const toolbarTitle=appendText(doc,planToolbar,'strong','','容器内容');
+  toolbarTitle.prepend(svgIcon(doc,'object-list'));
+  const toolbarAdd=appendText(doc,planToolbar,'button','sfv3-toolbar-add','添加更多资源');
+  toolbarAdd.type='button';
+  toolbarAdd.prepend(svgIcon(doc,'add-file'));
+  toolbarAdd.addEventListener('click',()=>find(doc,'sf14Add')?.click());
+  actualComposition.before(planToolbar);
 
   const bottom = doc.createElement('footer');
   bottom.id = 'sfv3SourceStatus';
@@ -867,7 +880,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       button.className='sfv3-compact-source-choice';
       button.textContent=entry.file.name;
       button.title=entry.file.name;
-      button.dataset.sfv3SourceKey=entry.key;
+      button.dataset.sfv3CompactSourceKey=entry.key;
       button.setAttribute('aria-current',
         root.dataset.sfv3Surface==='source'&&viewedSourceKey===entry.key?'page':'false');
       button.addEventListener('click',()=>{
@@ -1239,6 +1252,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     planHeading.hidden=root.dataset.sfv3Surface!=='plan' || !targetIntent;
     planStats.hidden=planHeading.hidden;
+    planToolbar.hidden=planHeading.hidden;
     if(!planStats.hidden){
       const rows=[...currentTracks.querySelectorAll('.composition-row[data-sfv3-object-kind]')];
       const counts={video:0,audio:0,subtitle:0,attachment:0,font:0};

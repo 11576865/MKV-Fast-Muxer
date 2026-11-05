@@ -1580,3 +1580,64 @@
     min-height:40px;max-width:78px;padding:6px 8px;font-size:11px;
   }
 }
+
+
+/* V3-07 (1180px) aligns observed target counts BESIDE the document title.
+ * V3-08 and V3-05 keep the same real strip BELOW the title. */
+.sf14.sfv3 .sfv3-composition-toolbar[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-composition-toolbar{display:none;}
+@media(min-width:960px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-heading{
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(390px,46%);
+    grid-template-areas:"title counts" "facts counts";
+    column-gap:18px;row-gap:5px;align-items:center;
+    padding:25px clamp(18px,2.3vw,32px) 12px;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-title-row{grid-area:title;}
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-facts{grid-area:facts;}
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-stats{
+    grid-area:counts;min-height:78px;height:78px;
+    padding:14px 15px;margin:0;align-self:center;
+    gap:10px;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-stats .sfv3-plan-stat{
+    display:flex;flex-wrap:wrap;justify-content:flex-start;
+    gap:5px 8px;min-width:0;flex:1;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-stats .sfv3-plan-stat span{
+    flex-basis:100%;font-size:11px;padding-left:0;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-composition-toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    min-height:54px;padding:8px 0;
+    margin:0 clamp(18px,2.3vw,32px) 4px;
+    border-top:1px solid var(--sfv3-line);
+    color:var(--sfv3-text);font-size:13px;
+  }
+  .sf14.sfv3 .sfv3-composition-toolbar strong{
+    display:flex;align-items:center;gap:10px;
+  }
+  .sf14.sfv3 .sfv3-composition-toolbar strong img{
+    width:17px;height:17px;
+  }
+  .sf14.sfv3 .sfv3-toolbar-add{
+    display:flex;align-items:center;gap:8px;min-height:42px;
+    padding:10px 14px;color:var(--sfv3-text);
+    background:var(--sfv3-row-raised);border:1px solid var(--sfv3-line);
+    border-radius:9px;font-size:12px;font-weight:650;
+  }
+  .sf14.sfv3 .sfv3-toolbar-add img{width:16px;height:16px;}
+}
+@media(max-width:959px){
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-heading{
+    display:flex;flex-direction:column;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-stats {
+    align-self:stretch;margin:8px 0 8px;
+  }
+}
+@media(max-width:719px){
+  .sf14.sfv3[data-sfv3-surface="plan"] .sfv3-plan-stats{
+    margin:8px 0 7px;
+  }
+}

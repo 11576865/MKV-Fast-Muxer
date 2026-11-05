@@ -74,6 +74,9 @@ try{
        target:document.getElementById('sf14Root')?.dataset.sfv3Surface,
        groups:[...document.querySelectorAll('#compositionTracks .sfv3-target-group')].map(x=>x.dataset.kind),
        dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
+       titleRect:rect(document.getElementById('sfv3PlanName')),
+       statsRect:rect(document.getElementById('sfv3PlanStats')),
+       desktopToolbarVisible:!!document.getElementById('sfv3CompositionToolbar')?.getClientRects().length,
        rows:rows.map(x=>({kind:x.dataset.sfv3ObjectKind,
          title:x.querySelector('strong')?.textContent,box:rect(x)})),
        nativeEditorCount:document.querySelectorAll('#newSubtitleList').length,
@@ -125,6 +128,18 @@ try{
        'resource details collapsed by default on compact, not silently removed');
      const orders=await page.locator('#compositionTracks .sfv3-track-order').allTextContents();
      assert.deepEqual(orders,['01','02','03','04','05']);
+   }
+   if(width===1180){
+     assert.ok(data.titleRect && data.statsRect &&
+       data.statsRect.x>=data.titleRect.right,
+       'approved V3-07: counts must be to the right of actual target title');
+     assert.equal(data.desktopToolbarVisible,true,
+       'approved V3-07 requires the working container-content/add-resources toolbar');
+   }
+   if(width===620){
+     assert.ok(data.statsRect.y>=data.titleRect.bottom,
+       'approved V3-08: compact target counters must be below the document title');
+     assert.equal(data.desktopToolbarVisible,false);
    }
    const picture='five-track-'+width+'x'+height+'.png';
    await page.screenshot({path:path.join(dir,picture)});
