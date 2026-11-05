@@ -415,7 +415,7 @@
       "id": "S09",
       "title": "工程恢复与撤销",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "0.1041 已提供当前绑定下统一50步编辑历史、撤销/重做、分支与快捷键；6步跨领域历史对应3份真实成品已本地原生核验。完整 CI、最终候选与设备验收待完成；文件增删/绑定、子集/保留全部开关及实验性写入明确不属于历史，不自动 PASS。",
+      "openGap": "当前已拥有真实 Chromium 工程历史三成品、错误来源及旧值冲突原子拒绝、跨刷新两份独立草稿重新审核后成品，相关 MKV 已在准确 CI 上传并独立 ffprobe/SHA-256 复核。仍非全类型/全权限的统一工程恢复：File 授权不可自动恢复，来源切换及批量等部分操作不进入会话历史；需要冻结候选、经批准的合同及真实设备验证。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -431,14 +431,44 @@
           13070008275
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Current real browser E2E/history, adversarial conflict and cross reload tasks pass in bounded scopes; retains IMPLEMENTED_NOT_ACCEPTED formal status and unapproved candidate.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "89ffa2333074fd2812b8e3b6a2cac7d6e293efb2",
+          "mergedMainCommit": "4bfa2de37da03f05ebc23d69e76fb02b9d5876cc",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42025031130",
+          "artifactGroups": [
+            {
+              "artifactId": 13413178546,
+              "name": "workspace-history",
+              "scope": "six cross-domain session edit steps, edited/undone/redone real MKVs plus original source, independent native output metadata/size/SHA"
+            },
+            {
+              "artifactId": 13413158554,
+              "name": "s09-conflict-source-attachment-atomic-undo",
+              "scope": "wrong source SHA and stale old-value, mixed inverse refusal without partial mutation, actual reapplied MKV"
+            },
+            {
+              "artifactId": 13413467909,
+              "name": "s09-cross-reload-two-draft-real-mkv",
+              "scope": "source and external checkpoint separately reviewed after reload, no automatic File permission, real recovered MKV"
+            }
+          ],
+          "independentReread": {
+            "allArchivedMkvReadableByFfprobe": true,
+            "archivedMkvSha256MatchesNamedReceipts": true,
+            "historyOriginalSourceProvided": true,
+            "sourceAndExternalFilePermissionsRestoredAutomatically": false
+          },
+          "limits": "Two independent reload recovery paths rather than one all-object atomic persisted project; source files absent in some ZIPs so a second external source hash cannot be proven there; session history is not browser permission history; no full-device reload/power-loss proof."
+        }
       }
     },
     {
       "id": "S10",
       "title": "20 个实际封装批量任务",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "0.1043 批量执行范围选择已提供逐项/全选/全不选/反选；真实浏览器先执行1+3再补做保留编辑的2，选中目标冲突仍阻断，未选目标不写入。完整CI、最终20任务/fault/实体设备统一验收仍待完成，不自动 PASS。",
+      "openGap": "准确提交的 S10 正常20项和故障恢复20项均经 Chromium 真实生成及原生审计；此前归档仅含每组3份样本的交付缺口已修复，当前两包各提供20份真实 MKV+20份报告+清单。下载后逐份 FFprobe、文件长度、SHA-256、Job ID及审计记录全部通过；暂停/恢复/停止、选择性执行等独立测试亦已通过。仍限两套短真实媒体模板重复生成的40项任务、模拟目录/Worker 故障，不证明20个异质长片、真实设备资源或永久磁盘持久化；完整合同和冻结候选未验收。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -455,14 +485,60 @@
           13070201773
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "S10 exact-head 20+20 real-output artifact archives and post-download native checks now complete; formal contract and device acceptance outstanding.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "89ffa2333074fd2812b8e3b6a2cac7d6e293efb2",
+          "mergedMainCommit": "4bfa2de37da03f05ebc23d69e76fb02b9d5876cc",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/250",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42025031130",
+          "artifactGroups": [
+            {
+              "artifactId": 13412609360,
+              "name": "s10-twenty-real-matroska-batch-evidence",
+              "nativeOutputCount": 20,
+              "actualReportCount": 20,
+              "totalOutputBytes": 18913740,
+              "postDownloadShaAudit": "PASS"
+            },
+            {
+              "artifactId": 13413576581,
+              "name": "s10-combined-fault-recovery-native-evidence",
+              "nativeOutputCount": 20,
+              "actualReportCount": 20,
+              "totalOutputBytes": 18913740,
+              "postDownloadShaAudit": "PASS",
+              "failureInjection": "two worker faults, one report-only directory fault"
+            },
+            {
+              "artifactId": 13414530546,
+              "name": "batch-run-console",
+              "scope": "pause/resume/cancel current-session native outputs"
+            },
+            {
+              "artifactId": 13414425702,
+              "name": "batch-execution-selection",
+              "scope": "selected first and third then deferred second real outputs"
+            }
+          ],
+          "independentReread": {
+            "totalActualMkvFiles": 40,
+            "totalActualMuxReports": 40,
+            "nativeFfprobeReadable": 40,
+            "sourceManifestOutputSha256ReportMatch": 40,
+            "uniqueJobIdAndOutputPerGroup": true,
+            "preArchiveCompletenessGuard": "scripts/verify-s10-native-artifact-set.py",
+            "artifactsCompleteRatherThanSampled": true
+          },
+          "limitations": "Two 2-second test media templates with varied ASS/SRT pairings, not 20 heterogeneous long-form films. Faults are deterministically simulated; no actual Android/tablet/physical disk durability or arbitrary-file stress claim."
+        }
       }
     },
     {
       "id": "S11",
       "title": "成品核验与持久化收据",
       "status": "IMPLEMENTED_NOT_ACCEPTED",
-      "openGap": "0.1040 单工程真实成品/API 故障注入覆盖跨目录冲突后重试、报告权限失效、损坏回读与下载回退；待完整 CI、最终候选和目标系统磁盘/设备验收，不自动 PASS。",
+      "openGap": "真实 Chromium 单工程生成成品/报告、目录切换与名称冲突拒绝、报告权限失效仅保存重试、损坏回读失败闭合、下载回退均有实际 MKV 和收据；三组模拟目录完整写出/回读，一组损坏目录保留未完成，绝不将失败写出视为 saved。最新精确 CI 的实际输出已重新 FFprobe/SHA-256 验证；仍缺真实 OS File System Access/物理磁盘及目标设备/断电持久化、冻结候选全场景验收。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
@@ -474,7 +550,33 @@
         ],
         "historicalArtifactIds": [],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Single-output directory receipts show scoped fail-closed state and save-only recovery with real generated media and simulated filesystem API; formal release/user-device state not accepted.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "89ffa2333074fd2812b8e3b6a2cac7d6e293efb2",
+          "mergedMainCommit": "4bfa2de37da03f05ebc23d69e76fb02b9d5876cc",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42025031130",
+          "artifactId": 13413437981,
+          "artifactName": "single-save-receipt",
+          "receipt": "single-save-receipt-evidence.json",
+          "independentReread": {
+            "generatedMkv": "generated.mkv",
+            "fallbackMkv": "fallback-after-failures.mkv",
+            "exactGeneratedEqualsFallbackBytes": true,
+            "nativeFfprobeReadable": true,
+            "outputSha256": "66f2a232c962ba54c11254d77060cb6ccb8d13e636435e208378f31c387743ed",
+            "simulatedFullySavedDirectories": [
+              "directory-A",
+              "directory-B",
+              "directory-C"
+            ],
+            "simulatedIncompleteDirectory": "directory-D",
+            "incompleteReportCannotBeReportedSaved": true,
+            "retryWithoutMux": true,
+            "physicalDiskPersistenceVerified": false
+          },
+          "limitations": "Directory picks, permissions, conflicting names, report failure and corrupt readback are simulated browser File System Access objects; output bytes truly generated by Chromium/FFmpeg.wasm and re-downloaded, but real OS disk power-loss persistence and physical device unverified."
+        }
       }
     },
     {
