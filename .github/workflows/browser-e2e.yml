@@ -394,18 +394,25 @@ jobs:
 
       # S08: a real nested ChapterUID / targeted Tag source must be
       # rejected even via a forced runtime click. Source re-selection must
-      # recover and deliver a real MKV under independent native ffprobe.
+      # recover and deliver a real MKV. Archive both ORIGINAL input files
+      # so the actual source evidence can be independently rehashed.
+      - name: S08 - verify native risky/safe sources and independently recovered output
+        run: node scripts/verify-s08-native-source-archive.mjs
+
       - name: Upload S08 current workbench fail-closed and recovery evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: s08-current-workbench-complex-mkv-safety
           path: |
+            .e2e/fixtures/p0-independent-mkvtoolnix.mkv
+            .e2e/fixtures/source-with-attachments.mkv
             .e2e/output/softmux-s08-modern-source-safety-evidence.json
+            .e2e/output/s08-independent-archive-completeness.json
             .e2e/output/s08-risk-source-chapters.xml
             .e2e/output/s08-risk-source-tags.xml
             .e2e/output/s08-modern-source-switch-safe.mkv
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
 
       # S06 actual existing-MKV reviewed replacement; retain the original
