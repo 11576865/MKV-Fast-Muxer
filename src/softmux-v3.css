@@ -1826,3 +1826,64 @@
   .sf14.sfv3 .sfv3-source-flag-states{padding:7px;gap:5px 8px}
   .sf14.sfv3 .sfv3-source-flag-provenance{flex-basis:100%;text-align:start}
 }
+
+/* V3-05/02 selected source ASS: Figma puts Preview/Extract/Add-to directly
+ * within the opened object context, not beneath secondary font/flag prose.
+ * Reorder presentation only. Native preview still requires explicit action
+ * (and actual font availability); never show a fabricated rendered subtitle.
+ * When the real preview is active, WU-08 owns its separate media/tools grid. */
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))){
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-areas:
+    "source-head"
+    "source-actions"
+    "source-detail"
+    "source-flags"
+    "source-fonts"
+    "source-help"
+    "source-notice";
+  align-content:start;
+  align-items:start;
+  gap:9px;
+}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-header{grid-area:source-head;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+  grid-area:source-actions;
+  display:flex;align-items:center;justify-content:flex-start;
+  flex-wrap:wrap;gap:8px;
+}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-detail{grid-area:source-detail;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-states{grid-area:source-flags;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-font-evidence{grid-area:source-fonts;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-help-host{grid-area:source-help;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-notice{grid-area:source-notice;}
+@media(max-width:959px){
+  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+    position:relative;
+    padding:0 0 7px;border-bottom:1px solid var(--sfv3-line);
+  }
+}
+
+/* Approved Figma V3-06 (35:2): portrait output dock lives DIRECTLY below
+ * the header, before the target object-list workspace. V3-08 compact
+ * (620px) deliberately keeps the dock at the bottom. The one original
+ * #muxBtn, live cancel, execution status and output evidence move as ONE
+ * existing DOM sibling through CSS flex order only, never duplicated. */
+@media(min-width:720px) and (max-width:959px) and (orientation:portrait){
+  .sf14.sfv3[data-sfv3-surface="plan"]{
+    display:flex!important;flex-direction:column;
+    height:100dvh;min-height:0;overflow:hidden;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-header{
+    order:0;flex:0 0 58px;min-height:58px;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-output{
+    order:1;flex:0 0 auto;align-self:stretch;
+    min-width:0;z-index:3;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] > .sf14-single{
+    order:2;flex:1 1 auto;height:auto!important;min-height:0;
+    min-width:0;overflow:hidden;
+  }
+}

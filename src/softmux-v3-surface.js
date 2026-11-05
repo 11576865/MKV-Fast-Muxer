@@ -707,6 +707,9 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     const previewable=Boolean(selectedSource.preview &&
       from.scanned && from.file===sourceInput.files?.[0] && nativePreviewDrawer);
+    // V3-05 action priority: source-preview controls are contextual, but
+    // their native activation remains explicit and file-identity guarded.
+    sourceSheet.dataset.sfv3Previewable=String(previewable);
     sourceSheetNotice.textContent=selectedSource.reason ||
       (selectedSource.transfer
         ? '可明确选择另一份 MKV 后，使用现有受验证的字幕提取与封装流程。'
