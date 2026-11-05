@@ -126,11 +126,14 @@ try {
   const image=document.getElementById('previewImage');
   const status=document.getElementById('previewStatus')?.textContent||'';
   return image?.src?.startsWith('blob:') && image.complete && image.naturalWidth>0 &&
-    /预览帧：/.test(status) || (status!==previous && /无法生成预览帧：/.test(status));
+    /^预览帧：/.test(status) || (status!==previous && /^无法生成预览帧：/.test(status));
  },firstStatus,{timeout:45000});
  const currentStatus=await page.locator('#previewStatus').textContent();
- assert.match(currentStatus,/预览帧：/,
+ assert.match(currentStatus,/^预览帧：/,
    'explicit valid font must yield a visible preview, not a second font-provider refusal: '+currentStatus);
+ assert.match(currentStatus,/显式字体 1 个/);
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+   'an explicitly selected preview font must not grant a target document');
  evidence.explicitFontSupplied={name:path.basename(fontPath),sourceHasEmbeddedFont:false};
  assert.match(await page.locator('#previewStatus').textContent(),/FFmpeg\/libass/);
  // The approved 820px ASS context shows the real rendered frame next to
