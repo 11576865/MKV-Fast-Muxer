@@ -763,7 +763,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   // Source and target share ONE native scroll container. The source CTA can
   // scroll that container below its first screen before target confirmation.
   // Do not inherit that scroll offset into the newly authorized document.
-  const compositionScroller=compositionHost.querySelector('.sf14-pane-body');
+  // #sf14Composition IS the overflow:auto pane body; querying inside it
+  // returned null and silently skipped the source->target scroll reset.
+  const compositionScroller=compositionHost;
   const surfaceScroll={source:0,plan:0};
   const setSurface = mode => {
     if (mode === 'plan' && (!targetIntent ||
