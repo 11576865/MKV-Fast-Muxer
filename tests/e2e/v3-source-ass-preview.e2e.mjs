@@ -39,6 +39,17 @@ try {
   !!document.querySelector('#sfv3SourceContents .sfv3-row-select'),stream.index,{timeout:120000});
  const row=page.locator('#sfv3SourceContents .sfv3-row-select').filter({hasText:'V3 Source ASS'}).first();
  await row.click();
+ // V3-05/09: use real ffprobe disposition; unknown must stay unknown.
+ const observedFlags=page.locator('#sfv3SourceInspector #sfv3SourceFlagStates');
+ assert.equal(await observedFlags.isVisible(),true);
+ const expectedFlag=value=>value===1||value===true?'开':
+   value===0||value===false?'关':'未观察';
+ const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').allTextContents();
+ assert.deepEqual(sourceFlagLabels.map(s=>s.replace(/\\s+/g,'')),
+   ['Default'+expectedFlag(stream.disposition?.default),'Forced'+expectedFlag(stream.disposition?.forced)]);
+ assert.equal(await observedFlags.locator('input,select,button').count(),0,
+   'source disposition is observation only and cannot write target track state');
+ assert.match(await observedFlags.textContent(),/来源 ffprobe · 只读/);
  const sourceHelp=page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp');
  assert.equal(await sourceHelp.count(),1,
    'V3-09 source ASS has the same single Default/Forced glossary as the target editor');
