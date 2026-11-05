@@ -110,12 +110,15 @@ try {
   await page.waitForFunction(()=>{
     const images=[...document.querySelectorAll('#sfv3TargetPicker img.sfv3-svg-icon')];
     return ['picker-selected','picker-empty-target','picker-confirm'].every(asset=>
-      images.some(image=>image.src.includes(asset)&&image.complete&&image.naturalWidth>0));
+      images.some(image=>image.dataset.sfv3Icon===asset&&
+        image.complete&&image.naturalWidth>0));
   },null,{timeout:15000});
   const pickerIconProof=await picker.locator('img.sfv3-svg-icon').evaluateAll(images=>
-    images.map(img=>({src:img.getAttribute('src'),loaded:img.complete&&img.naturalWidth>0})));
+    images.map(img=>({name:img.dataset.sfv3Icon,src:img.getAttribute('src'),
+      loaded:img.complete&&img.naturalWidth>0})));
   for(const asset of ['picker-selected','picker-empty-target','picker-confirm']) {
-    assert.ok(pickerIconProof.some(entry=>entry.src.includes(asset)&&entry.loaded),
+    assert.ok(pickerIconProof.some(entry=>entry.name===asset&&entry.loaded&&
+      !entry.src.includes('figma.com/api/mcp/asset')),
       'exact Figma V3-03 SVG must load: '+asset);
   }
   const desktopPicker=await picker.boundingBox();
