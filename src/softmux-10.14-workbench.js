@@ -1,4 +1,5 @@
 import { PRODUCT_LABEL } from './product-version.js';
+import { mountSoftmuxDesignPlate } from './softmux-design-plate.js';
 // 软封现行产品版本: object-centred presentation over existing production DOM.
 // Historical sf14 DOM ids and module names are retained for compatibility.
 // Rehosting (appendChild), never cloning: all File inputs, data owners and handlers
@@ -26,7 +27,7 @@ export function mountSoftmux1014Workbench(doc = document) {
   root.innerHTML = [
     '<header class="sf14-header">',
       '<div class="sf14-identity"><span class="sf14-mark" aria-hidden="true">SF</span>',
-      '<div><strong></strong><span>本地 Matroska 工作台</span></div></div>',
+      '<div><strong></strong><span id="sf14ProjectName" aria-live="polite">未选择已扫描来源</span></div></div>',
       '<nav class="sf14-nav" aria-label="工作台导航">',
         '<button type="button" data-sf-view="single" aria-current="page">单工程</button>',
         '<button type="button" data-sf-view="batch">批量任务</button>',
@@ -708,6 +709,7 @@ export function mountSoftmux1014Workbench(doc = document) {
   observer.observe(composition, { attributes:true, attributeFilter:['hidden'] });
   empty.hidden = !composition.hidden;
   changeView('single');
+  mountSoftmuxDesignPlate(doc, root);
   return true;
 }
 
