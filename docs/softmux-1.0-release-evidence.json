@@ -395,20 +395,58 @@
       "id": "S08",
       "title": "复杂章节/Tag 保真失败封闭",
       "status": "UNASSESSED",
-      "openGap": "Issue #77 风险场景需明确的完整 1.0 验收收据",
+      "openGap": "已通过真实 Chromium 同一工作台的复杂 MKV 阻断与安全来源恢复：来源有嵌套 ChapterUID=510011 和指向该章的 Tag，界面阻断且强制绕过执行门禁仍拒绝，不能发布危险输出；切换另一安全 MKV 后实际生成附带外部字幕的成品。两份原来源、成品、原生 XML 和执行拒绝收据现已完整归档并经 CI 外独立 SHA、ffprobe、音视频压缩码流复核。仍需冻结候选、合同批准、更多嵌套/未知 EBML/CRC 结构及目标设备的正式 S08 矩阵验收，不意味着任意结构重写获准。",
       "evidence": [],
       "verifiedCommit": null,
       "deviceEvidence": null,
       "implementationEvidence": {
         "testPaths": [
-          "tests/matroska-raw-preservation-contract.test.mjs"
+          "tests/matroska-raw-preservation-contract.test.mjs",
+          "tests/e2e/browser-mux.e2e.mjs",
+          "scripts/verify-s08-native-source-archive.mjs"
         ],
         "historicalArtifactIds": [
           13069818711,
           13069998397
         ],
         "observationIndex": "docs/softmux-1.0-observed-ci-20261101.json",
-        "limits": "Discovery links only; not a formal PASS, not exact-candidate acceptance. Empty artifact list means no matching uploaded archive indexed here."
+        "limits": "Existing real S08 fail-closed/safe-source recovery code remains unchanged; exact-head complete input/output archive and independently rehashed native proof verified. Formal contract/device/full structure matrix still UNASSESSED.",
+        "scopedAcceptanceEvidence": {
+          "state": "SCOPED_PASS_NOT_1_0_ACCEPTANCE",
+          "codeHead": "7af1672c142eba67334ace82507acc92c264da3b",
+          "mergedMainCommit": "04a6372485f3395322a779f3034731cd6b53bab3",
+          "pullRequest": "https://github.com/11576865/MKV-Fast-Muxer/pull/252",
+          "actualBrowserWorkflow": "https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42062873131",
+          "artifactId": 13434110009,
+          "artifactName": "s08-current-workbench-complex-mkv-safety",
+          "browserReceipt": "softmux-s08-modern-source-safety-evidence.json",
+          "nativeArchiveValidationReceipt": "s08-independent-archive-completeness.json",
+          "externalRereadReceipt": "pr252-s08-independent-reread.json",
+          "sourceAndOutputPackaged": true,
+          "nativeReread": {
+            "riskFile": "p0-independent-mkvtoolnix.mkv",
+            "riskBytes": 190158,
+            "safeFile": "source-with-attachments.mkv",
+            "safeBytes": 945381,
+            "outputFile": "s08-modern-source-switch-safe.mkv",
+            "outputBytes": 946073,
+            "outputSha256": "17e20e0c295da6c8b2dfe808d375c0e1bcc041554808d1771e2ad73f64f348ec",
+            "nestedChapterUids": [
+              "510010",
+              "510011"
+            ],
+            "targetedTagChapterUid": "510011",
+            "realUIAndForcedExecutionRefused": true,
+            "riskyOriginalUnchanged": true,
+            "safeSourceAVCompressedStreamSha256": {
+              "video": "d6272b7be5c77cbc7ebeba62fd05881796787d307474d2671d7bd95ed2f74bc0",
+              "audio": "9bdca3a93fd00afa530cd614e04cdf84086d2bb07913516b0d4c2b170109be36"
+            },
+            "actualBrowserOutputNativeFfprobeReadable": true,
+            "allOriginalInputsAndOutputByteRehashedAfterDownload": true
+          },
+          "limits": "Specific nested ChapterUID-targeted Tag fixture and one safe MKV in hosted Linux Chromium; no arbitrary Matroska preservation/writer authorization, physical tablet, actual OS save or formal 1.0 candidate release certification."
+        }
       }
     },
     {
