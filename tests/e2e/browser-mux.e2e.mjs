@@ -18,6 +18,7 @@ import {scenarioContainerBatchReview} from './container-batch-review-scenario.mj
 import {scenarioEmbeddedAssPreview} from './embedded-ass-preview-scenario.mjs';
 import {scenarioBitmapSubtitles} from './bitmap-subtitle-scenario.mjs';
 import {scenarioMultiSourceDrafts} from './multi-source-drafts-scenario.mjs';
+import {scenarioS01ComplexSourceWorkspace} from './s01-complex-source-workspace-scenario.mjs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -7917,6 +7918,7 @@ const browser = await chromium.launch({
   ...(process.env.E2E_BROWSER_EXECUTABLE ? { executablePath: process.env.E2E_BROWSER_EXECUTABLE } : {}),
 });
 try {
+  await scenarioS01ComplexSourceWorkspace(browser,{root,outDir,baseUrl});
   await scenarioMultiSourceDrafts(browser,{root,outDir,baseUrl});
   await scenarioCrossSourceAttachmentReuse(browser,{root,outDir:path.join(outDir,'cross-source-attachments'),baseUrl});
   await scenarioCrossSourceSubrip(browser,{root,outDir:path.join(outDir,'cross-source-subrip'),baseUrl});
