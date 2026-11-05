@@ -93,6 +93,15 @@ export function sourceRowsFromObservation(streams = []) {
     });
 }
 
+export function sourceSubtitleDispositionLabels(disposition) {
+  const classify = value => value === 1 || value === true ? '开' :
+    value === 0 || value === false ? '关' : '未观察';
+  return {
+    default:classify(disposition?.default),
+    forced:classify(disposition?.forced),
+  };
+}
+
 export function mountSoftmuxV3Surface(doc = document) {
   const root = find(doc, 'sf14Root');
   const single = find(doc, 'sf14Single');
@@ -475,6 +484,12 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetClose.setAttribute('aria-label','关闭来源对象详情');
   sourceSheetHeader.prepend(sourceSheetIdentity);
   const sourceSheetDetail=appendText(doc,sourceSheet,'p','sfv3-source-sheet-detail','');
+  // Exact ffprobe source disposition, read-only. Unknown must never be shown as Off.
+  const sourceSheetFlags=doc.createElement('div');
+  sourceSheetFlags.id='sfv3SourceFlagStates';
+  sourceSheetFlags.className='sfv3-source-flag-states';
+  sourceSheetFlags.setAttribute('aria-label','来源字幕轨道实际 Default 和 Forced 状态');
+  sourceSheetFlags.hidden=true;
   const sourceSheetNotice=appendText(doc,sourceSheet,'p','sfv3-source-sheet-notice','');
   // Native FFprobe attachment observations are NOT proof that an ASS's
   // referenced face/style/glyph requirements can be satisfied.
@@ -523,7 +538,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
-  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceFontEvidence,
+  sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetFlags,sourceFontEvidence,
     sourceSheetNotice,sourceSheetActions,sourceSheetHelpHost,
     sourceSheetPreviewHost,sourceSheetExtractionHost);
   single.appendChild(sourceSheet);
@@ -627,6 +642,21 @@ export function mountSoftmuxV3Surface(doc = document) {
       ' · '+selectedSource.group;
     sourceSheetDetail.textContent=selectedSource.detail||'当前来源已识别此对象';
     const subtitleObserved=selectedSource.group==='字幕';
+    sourceSheetFlags.hidden=!subtitleObserved;
+    sourceSheetFlags.replaceChildren();
+    if(subtitleObserved){
+      const disposition=sourceSubtitleDispositionLabels(selectedSource.disposition);
+      for(const [label,value] of [['Default',disposition.default],['Forced',disposition.forced]]){
+        const entry=doc.createElement('span');
+        entry.className='sfv3-source-flag-state';
+        entry.dataset.observation=value==='未观察'?'unknown':'observed';
+        appendText(doc,entry,'strong','',label);
+        appendText(doc,entry,'span','',value);
+        sourceSheetFlags.appendChild(entry);
+      }
+      appendText(doc,sourceSheetFlags,'small','sfv3-source-flag-provenance',
+        '来源 ffprobe · 只读；与拟输出的可编辑标记分离');
+    }
     if(subtitleObserved){
       sourceSheetHelpHost.appendChild(subtitleFlagHelp);
       subtitleFlagHelp.hidden=false;
@@ -1172,6 +1202,7 @@ export function mountSoftmuxV3Surface(doc = document) {
           id:'source:subtitle:'+track.index,
           name:(track.title||'字幕轨 #'+track.index),
           detail:track.codec+' · '+track.language+' · 轨道 #'+track.index,
+          disposition:track.disposition,
           reason:track.allowed ? '' : track.reason,
           transfer:track.allowed && ['subrip','ass','ssa'].includes(track.codec)?{
             sourceKey:from.key,sourceFile:from.file,streamIndex:track.index,
@@ -1215,6 +1246,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         const isSubtitle=kind==='字幕' && Number.isSafeInteger(streamIndex);
         groups.get(kind).push({
           id:row.id,name:row.name,detail:row.detail,
+          disposition:stream?.disposition,
           transfer:isSubtitle && ['subrip','ass','ssa'].includes(stream?.codec) && from ? {
             sourceKey:from.key,sourceFile:from.file,streamIndex,
             codec:stream.codec,
