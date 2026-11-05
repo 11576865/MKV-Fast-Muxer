@@ -84,7 +84,9 @@ export function mountSoftmuxDesignPlate(doc, root) {
       lastSource && next.sourceFile === lastSource);
     snapshot = next;
     lastSource = next.scanned ? next.sourceFile : null;
-    if (!sameFile) {
+    const selectedStillExists = selectedSection && selectedKey &&
+      (next[selectedSection] || []).some(row => row.id === selectedKey);
+    if (!sameFile || (selectedKey && !selectedStillExists)) {
       selectedKey = '';
       selectedSection = '';
       root.dataset.plateContext = 'tracks';
@@ -141,6 +143,16 @@ export function mountSoftmuxDesignPlate(doc, root) {
     root.querySelector('[data-sf-section="tracks"]')?.click();
     if (doc.defaultView?.matchMedia?.('(max-width:680px)').matches)
       root.querySelector('[data-sf-focus="inspector"]')?.click();
+  });
+  // Internal, previously supported navigation routes can also exit source
+  // observation. Keep the live editor visible after a tool consumes a route.
+  root.addEventListener('click', event => {
+    if (!event.target.closest('#sf14SectionTracks, #sf14SectionEvidence, ' +
+      '[data-open-observed-attachment], [data-open-observed-metadata]')) return;
+    selectedKey = '';
+    selectedSection = '';
+    root.dataset.plateContext = 'tracks';
+    draw();
   });
   root.dataset.plateContext = 'tracks';
   draw();
