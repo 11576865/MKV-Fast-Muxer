@@ -116,12 +116,21 @@ try {
    document.querySelector('#fontInput')?.files?.length===1 &&
    !document.querySelector('#previewRefreshBtn')?.disabled,
    null,{timeout:90000});
+ const originalFontSelection=await page.locator('#fontInput').evaluate(el=>({
+   name:el.files?.[0]?.name||'',bytes:el.files?.[0]?.size||0,
+ }));
+ evidence.explicitFontInput=originalFontSelection;
+ const firstStatus=await page.locator('#previewStatus').textContent();
  await page.locator('#previewRefreshBtn').click();
- await page.waitForFunction(()=>{
+ await page.waitForFunction(previous=>{
   const image=document.getElementById('previewImage');
+  const status=document.getElementById('previewStatus')?.textContent||'';
   return image?.src?.startsWith('blob:') && image.complete && image.naturalWidth>0 &&
-    /预览帧：/.test(document.getElementById('previewStatus')?.textContent||'');
- },null,{timeout:180000});
+    /预览帧：/.test(status) || (status!==previous && /无法生成预览帧：/.test(status));
+ },firstStatus,{timeout:45000});
+ const currentStatus=await page.locator('#previewStatus').textContent();
+ assert.match(currentStatus,/预览帧：/,
+   'explicit valid font must yield a visible preview, not a second font-provider refusal: '+currentStatus);
  evidence.explicitFontSupplied={name:path.basename(fontPath),sourceHasEmbeddedFont:false};
  assert.match(await page.locator('#previewStatus').textContent(),/FFmpeg\/libass/);
  // The approved 820px ASS context shows the real rendered frame next to
@@ -240,6 +249,12 @@ try {
  evidence.passed=true;
 } catch(err){
  evidence.passed=false;evidence.error=String(err);
+ evidence.lastPreviewStatus=await page.locator('#previewStatus').textContent().catch(()=>null);
+ evidence.lastFontFiles=await page.locator('#fontInput').evaluate(el=>
+   [...(el.files||[])].map(f=>({name:f.name,size:f.size}))).catch(()=>[]);
+ evidence.lastFFmpegFontLogs=(await page.locator('#log').textContent().catch(()=>''))
+   .split(/\r?\n/).filter(line=>/ass|font|glyph|shaper|error|warning/i.test(line))
+   .slice(-45).map(line=>line.slice(0,450));
  await page.screenshot({path:path.join(dir,'failure.png')}).catch(()=>{});
  throw err;
 } finally {
