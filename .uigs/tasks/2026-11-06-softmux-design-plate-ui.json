@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "2026-11-06-softmux-design-plate-ui",
+  "goal": "将 2026-10-13 软封 UI 设计图 Plate 01（单工程）与 Plate 02（批量）的已确定视觉与交互结构落到实际 MKV-Fast-Muxer 工作台，不复制业务状态或削弱原有任务。",
+  "status": "implementation_submitted_pending_external_validation",
+  "branch": "feat/softmux-design-plate-20261106",
+  "base": "main@202c4ed7cc972215e805361d39e3508f147fb0d9",
+  "current_bounded_work_unit": "复用 sf14 生产 DOM，实现永久拟输出轨道/附件分组、精确来源扫描的附件/章节/标签常驻大纲、右侧共享检查器及桌面批量任务矩阵。",
+  "completed_units": [
+    "单工程中央容器组成按真实 model.items 分组；data-composition-id 编辑身份和事件处理不变",
+    "来源附件、章节、标签按已扫描且绑定精确 File 的结果常驻中央，无数据时明确未扫描",
+    "现有 sf14SectionNotice 移至右侧原检查器，不克隆任何输入、媒体许可或写入器",
+    "观察对象选择可进入原来源附件检查和受限章节/标签工具；来源变更使选择失效",
+    "桌面批量计划矩阵与任务检查器成为主区域，来源与配方原控件通过披露操作调用",
+    "新增源码合同单元测试"
+  ],
+  "excluded_or_unchanged": [
+    "不修改 FFmpeg/Wasm、Mux、取消、成品审计、文件保存、草稿对象模型",
+    "不宣称来源扁平章节或格式标签可任意写入 Matroska",
+    "不增加第二套编辑器或自动猜测配对/写出能力"
+  ],
+  "next_units": [
+    "浏览器真实运行截图与设计 Plate 01/02 几何对照",
+    "真实混合字幕/字体/附件、复杂 MKV 单工程流程回归",
+    "20 集配对歧义、仅就绪任务执行、批量保存/取消端到端回归",
+    "平板触摸和窄屏设备验收"
+  ],
+  "evidence": {
+    "code": "branch commits; PR to follow",
+    "static_regression": "tests/softmux-design-plate.test.mjs committed; CI pending",
+    "browser_e2e": "Pending CI",
+    "production_visual": "Pending production-backed capture",
+    "device": "Pending FIELD"
+  },
+  "blockers": [],
+  "updated_date": "2026-11-06"
+}
