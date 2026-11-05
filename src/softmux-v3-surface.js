@@ -40,6 +40,7 @@ function svgIcon(doc,name) {
   element.src=ICON_URLS[name];
   element.alt='';
   element.className='sfv3-svg-icon';
+  element.dataset.sfv3Icon=name;
   element.setAttribute('aria-hidden','true');
   return element;
 }
