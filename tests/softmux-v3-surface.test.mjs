@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {sourceRowsFromComposition,sourceRowsFromObservation} from '../src/softmux-v3-surface.js';
+import {sourceRowsFromComposition,sourceRowsFromObservation,sourceSubtitleDispositionLabels} from '../src/softmux-v3-surface.js';
 
 function row(id,kind,name,detail) {
   const fields = new Map([
@@ -231,4 +231,25 @@ test('P0 delivery gate: empty canvas keeps the single native click/drop importer
   assert.match(main,/assetDropzone\?\.addEventListener\('click'/);
   assert.match(main,/assetDropzone\?\.addEventListener\('drop'/);
   assert.doesNotMatch(view,/empty\.addEventListener\('drop'/);
+});
+
+test('V3-05/V3-09 shows exact observed source subtitle flags read-only and never treats unknown as Off',async()=>{
+  assert.deepEqual(sourceSubtitleDispositionLabels({default:1,forced:0}),
+    {default:'开',forced:'关'});
+  assert.deepEqual(sourceSubtitleDispositionLabels({default:0,forced:1}),
+    {default:'关',forced:'开'});
+  assert.deepEqual(sourceSubtitleDispositionLabels({default:null,forced:2}),
+    {default:'未观察',forced:'未观察'});
+  assert.deepEqual(sourceSubtitleDispositionLabels(undefined),
+    {default:'未观察',forced:'未观察'});
+  const main=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  assert.match(main,/disposition:stream\.disposition && typeof stream\.disposition==='object'/);
+  assert.match(surface,/sourceSheetFlags\.id='sfv3SourceFlagStates'/);
+  assert.match(surface,/sourceSheetFlags\.hidden=!subtitleObserved/);
+  assert.match(surface,/selectedSource\.disposition/);
+  assert.match(surface,/来源 ffprobe · 只读/);
+  assert.match(css,/\.sfv3-source-flag-states\[hidden\]/);
+  assert.match(css,/grid-area:source-flags/);
 });
