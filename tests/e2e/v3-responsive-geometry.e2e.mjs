@@ -139,6 +139,19 @@ async function audit(state){
     assert.deepEqual(m.criticalOffscreen,[],
       'important navigation/content is offscreen at '+width+' '+state);
     assert.equal(m.nativeEditorNodes,1,'responsive views must not clone live editor DOM');
+    // V3-06 has an upper action dock at portrait tablet width; V3-08 keeps
+    // the lower action dock. Verify geometry, not merely absence of overflow.
+    if(state==='plan' && (width===820 || width===720)) {
+      assert.ok(m.boxes.outputDock?.shown && m.boxes.main?.shown &&
+        Math.abs(m.boxes.outputDock.y-m.boxes.header.bottom)<=2 &&
+        Math.abs(m.boxes.main.y-m.boxes.outputDock.bottom)<=2,
+        'portrait target dock must sit between header and workbench at '+width);
+    }
+    if(state==='plan' && width===620){
+      assert.ok(m.boxes.outputDock?.shown &&
+        m.boxes.outputDock.y>=m.boxes.main.bottom-2,
+        'compact target must retain footer dock below workbench');
+    }
     if(state==='source'){
       assert.equal(m.targetConfirmed==='true',false,
         'source observations must not produce output authorization');
