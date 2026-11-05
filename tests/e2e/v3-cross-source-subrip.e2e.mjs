@@ -105,6 +105,14 @@ try {
   assert.match(await picker.locator('.sfv3-picker-file-detail').textContent(),/原文件只读/);
   assert.equal(await picker.locator('.sfv3-picker-unavailable[aria-disabled="true"]').count(),1);
   assert.equal(await picker.locator('.sfv3-picker-unavailable input').count(),0);
+  // The three required icons are exported from approved Figma nodes, loaded
+  // through local Vite assets rather than temporary MCP URLs or text glyphs.
+  const pickerIconProof=await picker.locator('img.sfv3-svg-icon').evaluateAll(images=>
+    images.map(img=>({src:img.getAttribute('src'),loaded:img.complete&&img.naturalWidth>0})));
+  for(const asset of ['picker-selected','picker-empty-target','picker-confirm']) {
+    assert.ok(pickerIconProof.some(entry=>entry.src.includes(asset)&&entry.loaded),
+      'exact Figma V3-03 SVG must load: '+asset);
+  }
   const desktopPicker=await picker.boundingBox();
   assert.ok(desktopPicker && desktopPicker.width>=310 && desktopPicker.width<=342 &&
     desktopPicker.x>1440/2 && desktopPicker.x+desktopPicker.width<=1440 &&
