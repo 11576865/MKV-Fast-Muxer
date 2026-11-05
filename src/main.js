@@ -6,6 +6,7 @@ import {embeddedAttachmentEligibility,createEmbeddedAttachmentOutputEntry,pruneE
 import {secondarySubripEligibility,createSecondarySubripEntry,pruneSecondarySubtitlesForSource,MAX_EMBEDDED_SUBRIP_BYTES} from './embedded-subtitle-composition.js';
 import {secondaryAssEligibility,prepareSecondaryAssFontBundle,pruneSecondaryAssFontBundleForSource,MAX_CROSS_SOURCE_ASS_BYTES} from './secondary-ass-font-bundle.js';
 import {embeddedPreviewTracks,readEmbeddedPreviewFonts,MAX_EMBEDDED_ASS_BYTES} from './embedded-preview.js';
+import {previewAssDialogueActivity} from './ass-preview-dialogue-activity.js';
 import './style.css';
 import './workbench.css';
 import './softmux-10.14.css';
@@ -5411,9 +5412,12 @@ async function refreshSubtitlePreview() {
       const match = line.match(/fontselect:.*->\s*(.+)$/i);
       return Boolean(match && !/^(?:0\b|\(0[,)]|none\b|null\b)/i.test(match[1].trim()));
     });
-    if (noFontProvider && !selectedActualFont) {
-      // This diagnostic comes from libass itself. A source with no embedded
-      // fonts cannot inherit the host/browser's installed fonts in WASM.
+    // A subtitle may have no Dialogue at this precise video frame even
+    // though its track is valid (e.g. ASS at 10–12s in a 2s source).
+    // Interpret fontselect absence only when the shifted ASS has an active
+    // Dialogue event; unknown/malformed timing still fails closed.
+    const cueActivity=previewAssDialogueActivity(shiftedAss,previewCenter);
+    if (noFontProvider && !selectedActualFont && cueActivity!=='inactive') {
       throw new Error('LIBASS_PREVIEW_FONT_PROVIDER_UNAVAILABLE');
     }
 
@@ -5426,7 +5430,7 @@ async function refreshSubtitlePreview() {
     previewImage.src = previewImageURL;
     previewImage.classList.remove('hidden');
     previewEmpty?.classList.add('hidden');
-    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 来源内封字体 '+embeddedPreviewFontCount+' 个 · 显式字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass`;
+    previewStatus.textContent = `预览帧：${track.file.name}${track.embedded?' · 来源内封字体 '+embeddedPreviewFontCount+' 个 · 显式字体 '+(fontFiles.length-embeddedPreviewFontCount)+' 个':''} · ${previewTime.toFixed(2)} s · ${extractionMethod === 'browser' ? '浏览器抽帧 + ' : ''}FFmpeg/libass${cueActivity==='inactive'?' · 当前时间点没有活动字幕事件（不验证字形）':''}`;
   } catch (error) {
     if (generation !== previewGeneration) return;
     clearPreviewImage();

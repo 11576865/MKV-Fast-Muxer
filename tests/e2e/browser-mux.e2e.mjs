@@ -2860,6 +2860,10 @@ async function scenarioPreviewTimeClamp(browser) {
 
     const status = await page.locator('#previewStatus').textContent();
     assert.match(status, /1\.9\d s|2\.0\d s/);
+    assert.match(status, /当前时间点没有活动字幕事件（不验证字形）/,
+      'an out-of-duration ASS cue must not trigger a false missing-font rejection or fake glyph verification');
+    assert.equal(await page.locator('#previewImage').isVisible(),true,
+      'video frame is still available when there is no active ASS cue');
     console.log('Scenario 24 PASS');
   } finally {
     await context.close();
