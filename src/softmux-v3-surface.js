@@ -520,6 +520,64 @@ export function mountSoftmuxV3Surface(doc = document) {
       actualComposition?.parentNode===compositionHost)
     actualComposition.after(recovery);
   compositionHost.appendChild(structure);
+  // V3-04/06/08: keep actual preservation, capability and UID findings
+  // reachable but no longer allow six independent legacy diagnostics to crowd
+  // the five primary media tracks. Rehost the EXACT existing nodes, preserving
+  // every live updater, status role and inspection link. The summary is always
+  // visible and never claims that a saved/output audit has passed.
+  const verification=doc.createElement('details');
+  verification.id='sfv3Verification';
+  verification.className='sfv3-verification';
+  verification.dataset.level='pending';
+  verification.setAttribute('aria-label','拟输出封装核验及完整风险说明');
+  const verificationSummary=doc.createElement('summary');
+  verificationSummary.className='sfv3-verification-summary';
+  const verificationHeading=appendText(doc,verificationSummary,'strong','sfv3-verification-heading','封装核验');
+  const verificationLevel=appendText(doc,verificationSummary,'span','sfv3-verification-level','尚未验收');
+  const verificationBrief=appendText(doc,verificationSummary,'span','sfv3-verification-brief','核验状态待更新');
+  const verificationMore=appendText(doc,verificationSummary,'span','sfv3-verification-more','查看详情');
+  const verificationBody=doc.createElement('div');
+  verificationBody.className='sfv3-verification-body';
+  const verificationIds=[
+    'compositionChanges','compositionIssues','containerCapabilitySummary',
+    'containerCapabilityDetails','preservationReadiness','compositionSourceEvidence',
+  ];
+  const verificationOriginals=verificationIds.map(id=>find(doc,id)).filter(Boolean);
+  for(const element of verificationOriginals)verificationBody.appendChild(element);
+  verification.append(verificationSummary,verificationBody);
+  currentTracks.after(verification);
+  const updateVerificationSummary=()=>{
+    const issue=find(doc,'compositionIssues');
+    const preservation=find(doc,'preservationReadiness');
+    const headline=find(doc,'preservationReadinessTitle')?.textContent?.trim()||'';
+    const explanation=find(doc,'preservationReadinessDescription')?.textContent?.trim()||'';
+    const capability=find(doc,'containerCapabilitySummary')?.textContent?.trim()||'';
+    const issueText=issue && !issue.hidden ? issue.textContent.trim() : '';
+    const status=preservation?.dataset.status||'idle';
+    const hasBlocking=issueText.length>0 || /^(?:blocked|error|unsafe|failed)$/.test(status);
+    const hasConcern=!hasBlocking && /^(?:warning|attention|limited|degraded|unverified|pending)$/.test(status);
+    const level=hasBlocking?'blocked':hasConcern?'review':'pending';
+    verification.dataset.level=level;
+    verificationLevel.textContent=hasBlocking?'存在风险 · 需核对':
+      hasConcern?'有限能力 · 需核对':'未完成成品审计';
+    // Preserve real findings in the always-visible summary. Never fabricate
+    // a pass status from a green-looking card or an idle native executor.
+    const message=issueText || headline || explanation || capability ||
+      '尚无实际输出审计，请检查来源结构与封装能力';
+    verificationBrief.textContent=message;
+    verificationBrief.title=message;
+  };
+  for(const element of verificationOriginals){
+    const monitor=new MutationObserver(updateVerificationSummary);
+    monitor.observe(element,{
+      attributes:true,attributeFilter:['hidden','data-status','class'],
+      childList:true,characterData:true,subtree:true,
+    });
+  }
+  verification.addEventListener('toggle',()=>{
+    verificationMore.textContent=verification.open?'收起详情':'查看详情';
+  });
+  updateVerificationSummary();
   // The design's desktop media-section toolbar is presentation over the
   // original importer. No alternate import owner or simulated search button.
   const planToolbar=doc.createElement('div');
