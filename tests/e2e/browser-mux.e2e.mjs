@@ -110,10 +110,10 @@ async function openApp(browser, {modern=false} = {}) {
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   const url = new URL(baseUrl);
-  // Preserve the tested legacy diagnostic flow. A separate explicit
-  // modern invocation exercises the real object workspace on the same
-  // independently produced artifacts, not a simulated inspection panel.
-  if (modern) url.searchParams.delete('ui');
+  // Preserve the tested legacy diagnostic flow and the previous 10.14
+  // workbench via explicit routes. Root now belongs to the V3 workbench;
+  // output/mux regression evidence for the retained editors is unchanged.
+  if (modern) url.searchParams.set('ui','workbench');
   else url.searchParams.set('ui','legacy');
   await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
@@ -7445,7 +7445,7 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
   const page = await context.newPage();
   try {
     const url = new URL(baseUrl);
-    url.searchParams.delete('ui');
+    url.searchParams.set('ui','workbench');
     await page.goto(url.toString(), {waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-with-attachments.mkv'));
@@ -7500,7 +7500,7 @@ async function scenarioObservedMetadataSafeToolNavigation(browser) {
   page.on('pageerror',error => { throw error; });
   try {
     const url = new URL(baseUrl);
-    url.searchParams.delete('ui');
+    url.searchParams.set('ui','workbench');
     await page.goto(url.toString(),{waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     const unscannedChapter=page.locator('#sf14SectionSelection [data-open-observed-metadata]');
@@ -7584,8 +7584,8 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
   page.on('pageerror', error => { throw error; });
   try {
     const target = new URL(baseUrl);
-    // Public root URL must mount the new 10.14 workbench by default.
-    target.searchParams.delete('ui');
+    // Previous 10.14 workbench is retained behind an explicit rollback route.
+    target.searchParams.set('ui','workbench');
     await page.goto(target.toString(), {waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'single');
