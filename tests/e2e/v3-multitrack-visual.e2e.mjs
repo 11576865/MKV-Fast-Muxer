@@ -111,6 +111,7 @@ try{
        resourceSummaryVisible:!!document.querySelector('#sfv3ResourceDetails > summary')?.getClientRects().length,
        resourceOpen:document.getElementById('sfv3ResourceDetails')?.open,
        verificationOpen:document.getElementById('sfv3Verification')?.open,
+       verificationBox:rect(document.getElementById('sfv3Verification')),
        verificationLevel:document.getElementById('sfv3Verification')?.dataset.level,
        verificationBrief:document.querySelector('#sfv3Verification .sfv3-verification-brief')?.textContent,
        nativeVerificationNodes:[
@@ -158,6 +159,10 @@ try{
      'real target attachments/fonts start collapsed at every V3 viewport');
    assert.equal(data.verificationOpen,false,
      'native verification starts compact, not full-height legacy cards');
+   assert.ok(data.verificationBox && data.lastStructureRow &&
+     data.verificationBox.y>=data.lastStructureRow.bottom-2,
+     'verification must follow all primary track and resource rows: '+
+       JSON.stringify({verification:data.verificationBox,resources:data.lastStructureRow}));
    assert.ok(data.nativeVerificationNodes.every(n=>n===1),
      'verification rehosting preserves exactly one of each native DOM control');
    assert.ok(data.verificationBrief && data.verificationBrief.length>2 &&
