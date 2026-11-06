@@ -48,6 +48,9 @@ jobs:
           VITE_GIT_SHA: ${{ github.sha }}
         run: npm run build
 
+      - name: Verify exact commit marker inside the actual built HTML
+        run: node scripts/verify-pages-build-stamp.mjs
+
       - name: Setup Pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
