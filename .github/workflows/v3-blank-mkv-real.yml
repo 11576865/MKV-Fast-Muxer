@@ -1,0 +1,68 @@
+name: V3 blank Matroska real independent mux (not release signoff)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/v3-blank-mkv.js'
+      - 'src/main.js'
+      - 'src/softmux-v3-surface.js'
+      - 'src/softmux-v3-intent.js'
+      - 'tests/v3-blank-mkv.test.mjs'
+      - 'tests/e2e/v3-blank-target.e2e.mjs'
+      - '.github/workflows/v3-blank-mkv-real.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  actual-new-matroska:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencies
+        run: npm install
+      - name: New-target contract tests
+        run: node --test tests/v3-blank-mkv.test.mjs
+      - name: Production build
+        run: npm run build
+      - name: Native ffmpeg and Chromium (no unrelated visual-font download)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+      - name: Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/v3-blank-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v3-blank-preview.log
+          exit 1
+      - name: Real browser A MKV to blank subtitle-only and video-plus-subtitle Matroska
+        run: node tests/e2e/v3-blank-target.e2e.mjs
+      - name: Preserve actual output and source integrity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-blank-real-new-matroska-evidence
+          path: .e2e/ui-v3-blank-target/
+          retention-days: 14
+          if-no-files-found: warn
