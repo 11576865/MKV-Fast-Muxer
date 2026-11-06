@@ -164,10 +164,27 @@ try{
       box.bottom<=completedDock.dock.bottom+3,
       'completed V3-08 must retain visible native '+name+': '+JSON.stringify(completedDock));
   }
-  assert.ok(completedDock.status.right<=completedDock.mux.x+4 &&
-    completedDock.mux.right<=completedDock.plan.x+4 &&
-    completedDock.plan.right<=completedDock.inspector.x+4,
-    'completed dock must remain a single ordered row');
+  assert.ok(completedDock.status.x<completedDock.mux.x &&
+    completedDock.mux.x<completedDock.plan.x &&
+    completedDock.plan.x<completedDock.inspector.x,
+    'completed 620px dock must remain left-to-right ordered: '+
+      JSON.stringify(completedDock));
+  // Text and nested status boxes may extend their measured width while
+  // clipping long live-status prose; a strict right<=left comparison rejects
+  // a visually correct dock. Test actual clickable button hit-target centers
+  // so no invisible overlay can steal the native actions.
+  const buttonHits=await page.evaluate(()=>{
+    const names=['muxBtn','sf14PlanToggle','sfv3InspectorOpen'];
+    return names.map(id=>{
+      const el=document.getElementById(id),r=el?.getBoundingClientRect();
+      const hit=r&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+      return {id,hitId:hit?.closest('button')?.id||'',enabled:!el?.disabled};
+    });
+  });
+  for(const result of buttonHits)
+    assert.equal(result.hitId,result.id,
+      'completed 620px dock must preserve native pointer hit-target: '+
+        JSON.stringify({result,buttonHits,completedDock}));
   assert.match(completedDock.background,/^(?:transparent|rgba\(0, 0, 0, 0\))$/,
     'old tinted execution panel must not return after a successful mux');
   await snap('blank-complete-dock-620.png');
