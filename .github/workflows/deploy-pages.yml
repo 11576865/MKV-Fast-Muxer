@@ -44,6 +44,8 @@ jobs:
         run: npm run release:audit -- --deployment
 
       - name: Build
+        env:
+          VITE_GIT_SHA: ${{ github.sha }}
         run: npm run build
 
       - name: Setup Pages
@@ -67,3 +69,42 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+  live-v3-acceptance:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    needs: deploy
+    steps:
+      - name: Checkout the exact merged main commit
+        uses: actions/checkout@v4
+      - name: Node for real browser verification
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dependencies
+        run: npm install
+      - name: Ensure an actual Chromium browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Real deployed homepage SHA, target permission and two rollback routes
+        env:
+          SOFTMUX_PAGES_URL: https://11576865.github.io/MKV-Fast-Muxer/
+          SOFTMUX_EXPECTED_SHA: ${{ github.sha }}
+        run: node tests/e2e/v3-live-pages.e2e.mjs
+      - name: Upload live deployment browser evidence and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: softmux-v3-live-main-deployment-evidence
+          path: .e2e/v3-live-pages/
+          retention-days: 21
+          if-no-files-found: warn
