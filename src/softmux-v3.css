@@ -2079,6 +2079,10 @@
  * capability, UID, preservation and completed-audit nodes are rehosted once,
  * not removed. No green "passed" state is inferred from presentation. */
 .sf14.sfv3[data-sfv3-surface="plan"] #sfv3Verification {
+  /* The legacy composition flex container orders #compositionTracks at 1.
+   * This new sibling must be 2; default order:0 put risk ABOVE all tracks
+   * and hid the last resource row behind the compact output dock. */
+  order:2;
   display:block;min-width:0;margin:12px 0 6px;
   border:1px solid var(--sfv3-line);border-radius:10px;
   background:var(--sfv3-chrome);color:var(--sfv3-text);
