@@ -35,7 +35,13 @@ import { parseMkvmergeJsonWithExactUids, exactPositiveUid } from '../../src/mkvm
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
-const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173/';
+// This entire historical suite audits the previous 0.1014 workbench and
+// original legacy executor, not the new default V3 source-only route.
+// Pin the SHARED scenario baseUrl so direct child scenarios cannot silently
+// switch permission contracts when the public product UI is promoted.
+// Actual '/' + '?ui=v3' default-route proof has its own V3 pilot E2E.
+const baseUrl = new URL('?ui=workbench',
+  process.env.E2E_BASE_URL || 'http://127.0.0.1:4173/').href;
 await fs.rm(outDir, { recursive: true, force: true });
 await fs.mkdir(outDir, { recursive: true });
 
