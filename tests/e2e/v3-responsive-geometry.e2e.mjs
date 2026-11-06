@@ -233,6 +233,16 @@ try{
   await chapterCard.locator('summary').click();
   assert.equal(await chapterCard.getAttribute('open'),null);
   await audit('source');
+  await page.setViewportSize({width:620,height:900});
+  await page.locator('#sfv3SourceSearchToggle').click();
+  const compactSearch=await page.locator('#sfv3SourceSearch').boundingBox();
+  const compactToolbar=await page.locator('#sfv3SourceToolbar').boundingBox();
+  assert.ok(compactSearch && compactToolbar &&
+    compactSearch.x>=-2 && compactSearch.x+compactSearch.width<=622 &&
+    compactSearch.y>=compactToolbar.y+compactToolbar.height-2 &&
+    compactSearch.y+compactSearch.height<=900,
+    '620px source search must be anchored directly below toolbar, within viewport');
+  await page.locator('#sfv3SourceSearch').press('Escape');
   await page.setViewportSize({width:820,height:1180});
   const sourceSelection=page.locator('#sfv3SourceContents .sfv3-row-select').first();
   await sourceSelection.tap();
