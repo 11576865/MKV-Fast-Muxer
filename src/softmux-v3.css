@@ -2256,36 +2256,39 @@
  * Reuse the live #status / #muxBtn / #sf14PlanToggle / inspector nodes.
  * The active-cancel and downloadable-output states explicitly retain the
  * full native dock; CSS does not manufacture an audit/pass result.
+ * Note: finished output links are REHOSTED into the original inspector, not
+ * descendants of .sf14-output; the readiness predicate must be on the V3
+ * root while the Cancel predicate stays on the native dock itself.
  * 600–719px only: 820px portrait is a different approved frame. */
 @media (min-width:600px) and (max-width:719px) {
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) {
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) {
     align-items:center!important;
     flex-wrap:nowrap!important;
     gap:9px!important;
     overflow:visible!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output-head{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .sf14-output-head{
     display:none!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14Output{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #sf14Output{
     flex:1 1 auto!important;min-width:0!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .output-hub{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .output-hub{
     display:flex!important;flex-wrap:nowrap!important;
     align-items:center!important;gap:8px!important;min-width:0;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-panel{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-panel{
     order:0;flex:1 1 auto!important;width:auto!important;
     display:flex!important;flex-wrap:nowrap!important;
     align-items:center!important;gap:8px!important;min-width:0;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-status{
     min-width:0!important;flex:1 1 0!important;max-width:none!important;
     min-height:0!important;margin:0!important;padding:0!important;
     background:transparent!important;border:0!important;
     box-shadow:none!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status #status{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-status #status{
     display:block!important;max-height:19px!important;
     overflow:hidden!important;text-overflow:ellipsis!important;
     white-space:nowrap!important;font-size:11px!important;
@@ -2293,32 +2296,32 @@
     padding:0!important;background:transparent!important;
     border:0!important;box-shadow:none!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status .progress{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-status .progress{
     display:none!important; /* no in-flight operation with disabled Cancel */
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-panel .actions{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-panel .actions{
     order:1;flex:0 0 170px!important;margin:0!important;
     display:flex!important;justify-content:center;gap:0!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #muxBtn{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #muxBtn{
     min-width:170px!important;max-width:170px!important;
     width:170px!important;min-height:43px!important;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle{
     order:2;display:grid!important;place-items:center;
     min-width:40px!important;max-width:40px!important;width:40px!important;
     min-height:40px!important;height:40px!important;
     padding:0!important;margin:0!important;font-size:0!important;
     background:var(--sfv3-row-raised);
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle::before{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle::before{
     content:"";display:block;width:18px;height:18px;
     background:url('./v3-assets/object-list.svg') center/contain no-repeat;
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle[aria-expanded="true"]{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle[aria-expanded="true"]{
     border-color:var(--sfv3-accent);color:var(--sfv3-accent);
   }
-  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sfv3InspectorOpen{
+  .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen{
     flex:0 0 78px!important;max-width:78px!important;
     min-width:0!important;min-height:40px!important;
   }
