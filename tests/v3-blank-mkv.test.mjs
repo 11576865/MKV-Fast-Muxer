@@ -107,3 +107,36 @@ test('reject duplicate, unobserved and malicious source/resource intent',()=>{
   assert.throws(()=>createV3BlankTargetPlan({outputName:'../escape.mkv'}),
     /BLANK_TARGET_OUTPUT_NAME_INVALID/);
 });
+
+test('new-MKV output authority revokes on external track metadata or attachment membership drift',()=>{
+  const plan=createV3BlankTargetPlan({
+    externalTracks:[{kind:'subtitle',file:sub,language:'eng',title:'English',default:true}],
+    attachments:[{file:font,mimeType:'font/ttf',filename:'font.ttf'}],
+  });
+  const entries=[
+    {kind:'subtitle',file:sub,include:true},
+    {kind:'attachment',file:font,include:true},
+  ];
+  const members={entries,activeSource:null,
+    externalTracks:[{kind:'subtitle',file:sub,language:'eng',title:'English',default:true}],
+    attachments:[{file:font,mimeType:'font/ttf',filename:'font.ttf'}],
+  };
+  assert.equal(v3BlankTargetStillCurrent(plan,members),true);
+  assert.equal(v3BlankTargetStillCurrent(plan,{
+    ...members,externalTracks:[{...members.externalTracks[0],language:'jpn'}],
+  }),false);
+  assert.equal(v3BlankTargetStillCurrent(plan,{
+    ...members,externalTracks:[{...members.externalTracks[0],title:'Changed'}],
+  }),false);
+  assert.equal(v3BlankTargetStillCurrent(plan,{
+    ...members,attachments:[{...members.attachments[0],filename:'renamed.ttf'}],
+  }),false);
+  assert.equal(v3BlankTargetStillCurrent(plan,{
+    ...members,entries:[{kind:'subtitle',file:sub,include:true},
+      {kind:'attachment',file:font,include:false}],
+  }),false);
+  assert.equal(v3BlankTargetStillCurrent(plan,{
+    ...members,externalTracks:[{...members.externalTracks[0],
+      file:new File(['same bytes'],'test.srt')}],
+  }),false);
+});
