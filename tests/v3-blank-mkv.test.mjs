@@ -12,7 +12,8 @@ const font=new File([1,2,3,4],'font.ttf');
 const observed=[
   {index:0,kind:'video',codec:'h264',title:'main'},
   {index:1,kind:'audio',codec:'aac',title:'ja',language:'jpn'},
-  {index:2,kind:'subtitle',codec:'ass',title:'words',language:'eng'},
+  {index:2,kind:'subtitle',codec:'ass',title:'words',language:'eng',
+    default:true,forced:true},
   {index:3,kind:'attachment',codec:'ttf',title:'font'},
 ];
 test('blank target never inherits video, audio or metadata without explicit inclusion',()=>{
@@ -30,6 +31,10 @@ test('blank target never inherits video, audio or metadata without explicit incl
     ['-map_metadata','-1','-map_chapters','-1']);
   assert.equal(args.includes('0:v?'),false);
   assert.equal(plan.sourceStreams.length,1);
+  const dispositionIndex=args.indexOf('-disposition:s:0');
+  assert.ok(dispositionIndex>=0,'selected subtitle emits a real output flag');
+  assert.equal(args[dispositionIndex+1],'default+forced',
+    'new Matroska retains the selected source subtitle Default and Forced values');
   assert.deepEqual(auditV3BlankOutput(plan,[{codec_type:'subtitle'}]).state,
     'STREAM_COUNTS_VERIFIED');
   assert.throws(()=>auditV3BlankOutput(plan,[
