@@ -391,7 +391,81 @@ export function mountSoftmuxV3Surface(doc = document) {
   counters.hidden=true;
   overview.append(heading,counters);
   readout.prepend(overview);
-  readout.append(empty, contents, primary);
+  // Approved V3-01 toolbar: relocate the SAME explicit target action from
+  // below the long source list to the container-content header. Search is
+  // presentation-only; it must not change source File, streams or intent.
+  const sourceToolbar=doc.createElement('div');
+  sourceToolbar.id='sfv3SourceToolbar';
+  sourceToolbar.className='sfv3-source-toolbar';
+  sourceToolbar.hidden=true;
+  const sourceToolbarTitle=appendText(doc,sourceToolbar,'strong','sfv3-source-toolbar-title','容器内容');
+  sourceToolbarTitle.prepend(svgIcon(doc,'object-list'));
+  const sourceToolbarActions=doc.createElement('div');
+  sourceToolbarActions.className='sfv3-source-toolbar-actions';
+  const sourceSearchToggle=doc.createElement('button');
+  sourceSearchToggle.id='sfv3SourceSearchToggle';
+  sourceSearchToggle.className='sfv3-source-tool-action';
+  sourceSearchToggle.type='button';
+  sourceSearchToggle.title='搜索已扫描的来源轨道';
+  sourceSearchToggle.setAttribute('aria-label','搜索已扫描的来源轨道');
+  sourceSearchToggle.setAttribute('aria-expanded','false');
+  sourceSearchToggle.setAttribute('aria-controls','sfv3SourceSearch');
+  sourceSearchToggle.appendChild(svgIcon(doc,'search'));
+  const sourceSearch=doc.createElement('input');
+  sourceSearch.id='sfv3SourceSearch';
+  sourceSearch.className='sfv3-source-search';
+  sourceSearch.type='search';
+  sourceSearch.autocomplete='off';
+  sourceSearch.placeholder='搜索轨道';
+  sourceSearch.setAttribute('aria-label','按名称或编码搜索当前来源轨道');
+  sourceSearch.hidden=true;
+  let sourceQuery='';
+  const filterSourceRows=()=>{
+    const query=sourceQuery.trim().toLocaleLowerCase();
+    // Only primary media rows participate. Expanded read-only chapter and
+    // tag evidence remains intact and is never mistaken for a media stream.
+    for(const section of contents.querySelectorAll(':scope > .sfv3-object-group')){
+      let visible=0;
+      for(const row of section.querySelectorAll('.sfv3-observed-row')){
+        row.hidden=Boolean(query && !row.textContent.toLocaleLowerCase().includes(query));
+        if(!row.hidden)visible++;
+      }
+      section.hidden=Boolean(query && visible===0);
+    }
+  };
+  sourceSearch.addEventListener('input',()=>{
+    sourceQuery=sourceSearch.value;
+    filterSourceRows();
+  });
+  sourceSearchToggle.addEventListener('click',()=>{
+    const expanding=sourceSearch.hidden;
+    sourceSearch.hidden=!expanding;
+    sourceSearchToggle.setAttribute('aria-expanded',String(expanding));
+    if(expanding)sourceSearch.focus();
+    else {sourceSearch.value='';sourceQuery='';filterSourceRows();sourceSearchToggle.focus();}
+  });
+  sourceSearch.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){
+      event.stopPropagation();sourceSearchToggle.click();
+    }
+  });
+  const sourceStructureToggle=doc.createElement('button');
+  sourceStructureToggle.id='sfv3SourceStructureToggle';
+  sourceStructureToggle.className='sfv3-source-tool-action';
+  sourceStructureToggle.type='button';
+  sourceStructureToggle.title='展开或收起来源附加结构（只读）';
+  sourceStructureToggle.setAttribute('aria-label','展开或收起来源附加结构（只读）');
+  sourceStructureToggle.setAttribute('aria-expanded','false');
+  sourceStructureToggle.appendChild(svgIcon(doc,'documents'));
+  sourceStructureToggle.addEventListener('click',()=>{
+    const cards=[...contents.querySelectorAll('.sfv3-source-resource-card')];
+    const next=!cards.every(card=>card.open);
+    for(const card of cards)card.open=next;
+    sourceStructureToggle.setAttribute('aria-expanded',String(next));
+  });
+  sourceToolbarActions.append(sourceSearchToggle,sourceSearch,sourceStructureToggle,primary);
+  sourceToolbar.appendChild(sourceToolbarActions);
+  readout.append(empty,sourceToolbar,contents);
   // The output heading is a VIEW of the one committed target authority.
   // It neither stores a second plan nor duplicates a mutating mux button.
   const planHeading=doc.createElement('header');
@@ -1229,6 +1303,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     heading.hidden=!file;
     meta.hidden=!file;
     primary.hidden=!file || !getEntries().length;
+    sourceToolbar.hidden=!file;
     if(file && !mainSource) {
       meta.textContent='独立来源 · 查看不改变当前目标基础容器';
       const snapshot=from;
@@ -1345,6 +1420,9 @@ export function mountSoftmuxV3Surface(doc = document) {
         appendText(doc,contents,'p','sfv3-observation-note',
           '当前来源尚没有足够的轨道或结构证据。');
     }
+    filterSourceRows();
+    sourceStructureToggle.setAttribute('aria-expanded',String(Boolean(
+      contents.querySelector('.sfv3-source-resource-card[open]'))));
     if(selectedSource)updateSourceSheet();
     const targetValid=Boolean(targetIntent &&
       exactEntry(targetIntent.baseKey,targetIntent.baseFile) &&
