@@ -2356,3 +2356,12 @@
     display:none!important;
   }
 }
+
+
+/* V3 output status: do not show a stale/idle progress stripe underneath the
+ * actual one-line status after scanning or completion. The original progress
+ * and Cancel remain visible as soon as the real executor enables Cancel.
+ * Unlike a hidden audit this is decoration, not evidence of a completed mux. */
+.sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status .progress{
+  display:none!important;
+}
