@@ -2073,3 +2073,77 @@
     box-shadow:0 10px 28px rgba(0,0,0,.4);
   }
 }
+
+/* Figma V3 object-first verification tier: one compact ALWAYS-VISIBLE
+ * risk summary directly after the original media/resource list. The native
+ * capability, UID, preservation and completed-audit nodes are rehosted once,
+ * not removed. No green "passed" state is inferred from presentation. */
+.sf14.sfv3[data-sfv3-surface="plan"] #sfv3Verification {
+  display:block;min-width:0;margin:12px 0 6px;
+  border:1px solid var(--sfv3-line);border-radius:10px;
+  background:var(--sfv3-chrome);color:var(--sfv3-text);
+}
+.sf14.sfv3 #sfv3Verification[hidden]{display:none!important;}
+.sf14.sfv3 #sfv3Verification > .sfv3-verification-summary {
+  display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;
+  align-items:center;gap:8px 13px;
+  min-height:46px;padding:9px 13px;
+  cursor:pointer;list-style:none;
+}
+.sf14.sfv3 #sfv3Verification > .sfv3-verification-summary::-webkit-details-marker{display:none;}
+.sf14.sfv3 .sfv3-verification-heading{
+  font-size:12px;font-weight:720;white-space:nowrap;
+}
+.sf14.sfv3 .sfv3-verification-level{
+  font-size:11px;font-weight:650;
+  white-space:nowrap;color:var(--sfv3-muted);
+}
+.sf14.sfv3 #sfv3Verification[data-level="blocked"] .sfv3-verification-level {
+  color:#eed09e;
+}
+.sf14.sfv3 #sfv3Verification[data-level="review"] .sfv3-verification-level {
+  color:#d7cba7;
+}
+.sf14.sfv3 .sfv3-verification-brief{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:11px;color:var(--sfv3-muted);
+}
+.sf14.sfv3 .sfv3-verification-more{
+  min-width:0;white-space:nowrap;color:var(--sfv3-accent);
+  font-size:11px;font-weight:650;
+}
+.sf14.sfv3 #sfv3Verification[open] > .sfv3-verification-summary{
+  border-bottom:1px solid var(--sfv3-line);
+}
+.sf14.sfv3 #sfv3Verification > .sfv3-verification-body{
+  display:grid;gap:10px;min-width:0;
+  padding:14px 15px 17px;max-width:100%;
+}
+.sf14.sfv3 #sfv3Verification:not([open]) > .sfv3-verification-body{
+  display:none!important;
+}
+.sf14.sfv3 .sfv3-verification-body > [hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-verification-body :is(
+  #compositionChanges,#compositionIssues,#containerCapabilitySummary,
+  #containerCapabilityDetails,#preservationReadiness,#compositionSourceEvidence
+){min-width:0;max-width:100%;overflow-wrap:anywhere;}
+@media(max-width:959px){
+  .sf14.sfv3 #sfv3Verification > .sfv3-verification-summary{
+    grid-template-columns:auto 1fr auto;gap:3px 9px;
+    padding:8px 11px;min-height:49px;
+  }
+  .sf14.sfv3 .sfv3-verification-brief{
+    grid-column:1/-1;grid-row:2;font-size:10px;
+  }
+  .sf14.sfv3 .sfv3-verification-level{
+    justify-self:start;
+  }
+  .sf14.sfv3 .sfv3-verification-more{justify-self:end;}
+  .sf14.sfv3 #sfv3Verification > .sfv3-verification-body{
+    padding:11px 12px 14px;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .sf14.sfv3 #sfv3Verification,
+  .sf14.sfv3 #sfv3Verification *{transition:none!important;animation:none!important;}
+}
