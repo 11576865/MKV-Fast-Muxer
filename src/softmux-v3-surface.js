@@ -933,7 +933,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       return button;
     }));
   };
-  const createGroup = (group,rows,readonly=false) => {
+  const createGroup = (group,rows,readonly=false,host=contents) => {
     if (!rows.length)return;
     const section=doc.createElement('section');
     section.className='sfv3-object-group';
@@ -998,7 +998,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       list.appendChild(row);
     }
     section.appendChild(list);
-    contents.appendChild(section);
+    host.appendChild(section);
   };
   const openTargetPicker = track => {
     pendingTrack=track || null;
@@ -1220,6 +1220,10 @@ export function mountSoftmuxV3Surface(doc = document) {
       counters.appendChild(card);
     }
     name.textContent=file?.name || '未加载文件';
+    // Preserve expanded source structure cards across FFprobe and UI refresh.
+    // A rerender may not silently collapse a user's real Chapter/Tag selection.
+    const expandedSourceResources=new Set([...contents.querySelectorAll(
+      '.sfv3-source-resource-card[open]')].map(node=>node.dataset.kind));
     contents.replaceChildren();
     empty.hidden=Boolean(file);
     heading.hidden=!file;
@@ -1294,10 +1298,49 @@ export function mountSoftmuxV3Surface(doc = document) {
       }
       for(const kind of ['视频','音频','字幕','其他轨道'])
         createGroup(kind,groups.get(kind)||[]);
-      for(const [kind,title] of [['attachments','附件'],['chapters','章节'],['tags','标签']])
-        createGroup(title,(obs?.[kind]||[]).map(item=>({
-          id:item.id,name:item.title,detail:item.detail,
-        })),true);
+      // Figma V3-01/05: keep the primary video/audio/subtitle rows ahead of
+      // secondary source structures, represented by three compact cards.
+      // Each expanded card contains the exact SAME read-only observed rows
+      // and selectable source inspector; this does not create an output plan.
+      if(obs) {
+        const strip=doc.createElement('section');
+        strip.className='sfv3-source-resource-strip';
+        strip.setAttribute('aria-label','来源容器的附件和结构（来源扫描，只读）');
+        const stripHeading=doc.createElement('p');
+        stripHeading.className='sfv3-source-resource-eyebrow';
+        stripHeading.textContent='附加结构 · 只读来源';
+        strip.appendChild(stripHeading);
+        for(const [kind,label,icon] of [
+          ['attachments','附件','attachment'],
+          ['chapters','章节','chapter'],
+          ['tags','标签','tag'],
+        ]) {
+          const rows=(obs[kind]||[]).map(item=>({
+            id:item.id,name:item.title,detail:item.detail,
+          }));
+          const disclosure=doc.createElement('details');
+          disclosure.className='sfv3-source-resource-card';
+          disclosure.dataset.kind=kind;
+          disclosure.open=expandedSourceResources.has(kind);
+          const summary=doc.createElement('summary');
+          summary.className='sfv3-source-resource-summary';
+          summary.appendChild(svgIcon(doc,icon));
+          appendText(doc,summary,'strong','',label);
+          appendText(doc,summary,'span','sfv3-source-resource-count',
+            String(rows.length).padStart(2,'0'));
+          appendText(doc,summary,'span','sfv3-source-resource-chevron','›');
+          summary.setAttribute('aria-label',label+' '+rows.length+' 项来源观察，展开查看');
+          disclosure.appendChild(summary);
+          const panel=doc.createElement('div');
+          panel.className='sfv3-source-resource-content';
+          if(rows.length)createGroup(label,rows,true,panel);
+          else appendText(doc,panel,'p','sfv3-observation-note',
+            '本次来源扫描未报告'+label+'对象。');
+          disclosure.appendChild(panel);
+          strip.appendChild(disclosure);
+        }
+        contents.appendChild(strip);
+      }
       if(!sourceRows.length && !(obs?.attachments?.length||obs?.chapters?.length||obs?.tags?.length))
         appendText(doc,contents,'p','sfv3-observation-note',
           '当前来源尚没有足够的轨道或结构证据。');
@@ -1469,12 +1512,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   const observer=new MutationObserver(schedule);
   observer.observe(currentTracks,{childList:true,subtree:true,characterData:true});
   observer.observe(actualComposition,{attributes:true,attributeFilter:['hidden']});
-  // Collapse secondary resource editors on compact widths; changing
-  // orientation never creates a parallel editor or revokes source identity.
-  doc.defaultView?.addEventListener('resize',()=>{
-    const details=currentTracks.querySelector('#sfv3ResourceDetails');
-    if(details)details.open=doc.defaultView.innerWidth>719;
-  });
+  // Source and output resource disclosures retain explicit user-open state on
+  // resize/rotation. Never auto-expand based on width: the approved layouts
+  // keep primary media tracks dominant at desktop, portrait and compact sizes.
   sourceInput.addEventListener('change',schedule);
   find(doc,'unifiedAssetInput')?.addEventListener('change',schedule);
   root.addEventListener('softmux:source-sections-updated',event=>{
