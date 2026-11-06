@@ -2328,3 +2328,31 @@
     min-width:0!important;min-height:40px!important;
   }
 }
+
+
+/* V3-04 / approved 1440×900: desktop idle output remains a single chrome
+ * action strip. The 1180/620 variants already remove legacy tinted execution
+ * cards, but desktop >=1320 inherited the old blue panel and a disabled Cancel.
+ * Preserve the SINGLE live status/mux/inspector/plan, output audit and save
+ * links; while Cancel is enabled, retain the full native operational controls.
+ * Scope to ?ui=v3 so the legacy/default workbench is not modified. */
+@media (min-width:1320px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .sf14-output-head{
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-panel{
+    padding:0!important;background:transparent!important;
+    border:0!important;border-radius:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status{
+    padding:0!important;background:transparent!important;
+    border:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #status{
+    background:transparent!important;border:0!important;
+    box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] #cancelBtn:disabled{
+    display:none!important;
+  }
+}
