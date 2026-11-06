@@ -74,6 +74,17 @@
 .sf14.sfv3 .sfv3-legacy-menu .sf14-nav button {
   min-height:36px;text-align:left;font-size:12px;padding:8px 10px;
 }
+.sf14.sfv3 .sfv3-legacy-menu .sfv3-previous-workbench {
+  display:block;min-height:40px;text-decoration:none;
+  color:var(--sfv3-text);font-size:12px;line-height:1.5;
+  padding:9px 10px;border-top:1px solid var(--sfv3-line);
+  border-radius:6px;
+}
+.sf14.sfv3 .sfv3-legacy-menu .sfv3-previous-workbench:hover,
+.sf14.sfv3 .sfv3-legacy-menu .sfv3-previous-workbench:focus-visible{
+  background:var(--sfv3-row-raised);outline:2px solid var(--sfv3-accent);
+  outline-offset:1px;
+}
 .sf14.sfv3 .sf14-header-actions {
   order:2;flex:0 0 auto;margin-left:auto;gap:4px;flex-wrap:nowrap;
 }
@@ -2235,4 +2246,133 @@
 @media(prefers-reduced-motion:reduce){
   .sf14.sfv3 :is(.sfv3-blank-stream-choice,.sfv3-blank-modify,
     .sfv3-empty-blank-target){transition:none!important;animation:none!important;}
+}
+
+/* V3-08 (Figma 37:223, 620×900): align the real five-track section rhythm.
+ * Screenshot geometry showed the first real row ~2px high, then ~4px of
+ * cumulative compression at each group transition. Expand the group spacing
+ * without changing row size, object ownership, bottom dock or safety text.
+ * Below 600px retain the denser fallback because 620px is the approved frame. */
+@media (min-width:600px) and (max-width:719px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] #outputCompositionPanel {
+    padding-top:2px!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .composition-tracks {
+    gap:8px!important;
+  }
+}
+
+
+/* V3-08 / Figma 37:223: 620px dock retains a single action strip
+ * before AND after a real output. These are the SAME live #status, #muxBtn,
+ * #sf14PlanToggle and #sfv3InspectorOpen controls, not a second executor.
+ * The generated MKV, JSON report and output audit remain rehosted inside the
+ * original inspector and are not removed or represented by a synthetic pass.
+ * Only the disabled-Cancel state compacts. A live Cancel keeps the native
+ * operational dock and progress affordances for interruption safety.
+ * 600–719px only; 820px portrait uses its separately approved layout. */
+@media (min-width:600px) and (max-width:719px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) {
+    align-items:center!important;
+    flex-wrap:nowrap!important;
+    gap:9px!important;
+    overflow:visible!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .sf14-output-head{
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14Output{
+    flex:1 1 auto!important;min-width:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .output-hub{
+    display:flex!important;flex-wrap:nowrap!important;
+    align-items:center!important;gap:8px!important;min-width:0;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-panel{
+    order:0;flex:1 1 auto!important;width:auto!important;
+    display:flex!important;flex-wrap:nowrap!important;
+    align-items:center!important;gap:8px!important;min-width:0;
+    padding:0!important;background:transparent!important;
+    border:0!important;border-radius:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status{
+    min-width:0!important;flex:1 1 0!important;max-width:none!important;
+    min-height:0!important;margin:0!important;padding:0!important;
+    background:transparent!important;border:0!important;
+    box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status #status{
+    display:block!important;max-height:19px!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;
+    white-space:nowrap!important;font-size:11px!important;
+    line-height:19px!important;margin:0!important;
+    padding:0!important;background:transparent!important;
+    border:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status .progress{
+    display:none!important; /* no in-flight operation with disabled Cancel */
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-panel .actions{
+    order:1;flex:0 0 170px!important;margin:0!important;
+    display:flex!important;justify-content:center;gap:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #muxBtn{
+    min-width:170px!important;max-width:170px!important;
+    width:170px!important;min-height:43px!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle{
+    order:2;display:grid!important;place-items:center;
+    min-width:40px!important;max-width:40px!important;width:40px!important;
+    min-height:40px!important;height:40px!important;
+    padding:0!important;margin:0!important;font-size:0!important;
+    background:var(--sfv3-row-raised);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle::before{
+    content:"";display:block;width:18px;height:18px;
+    background:url('./v3-assets/object-list.svg') center/contain no-repeat;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle[aria-expanded="true"]{
+    border-color:var(--sfv3-accent);color:var(--sfv3-accent);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen{
+    flex:0 0 78px!important;max-width:78px!important;
+    min-width:0!important;min-height:40px!important;
+  }
+}
+
+
+/* V3-04 / approved 1440×900: desktop idle output remains a single chrome
+ * action strip. The 1180/620 variants already remove legacy tinted execution
+ * cards, but desktop >=1320 inherited the old blue panel and a disabled Cancel.
+ * Preserve the SINGLE live status/mux/inspector/plan, output audit and save
+ * links; while Cancel is enabled, retain the full native operational controls.
+ * Scope to ?ui=v3 so the legacy/default workbench is not modified. */
+@media (min-width:1320px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .sf14-output-head{
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-panel{
+    padding:0!important;background:transparent!important;
+    border:0!important;border-radius:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status{
+    padding:0!important;background:transparent!important;
+    border:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #status{
+    background:transparent!important;border:0!important;
+    box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] #cancelBtn:disabled{
+    display:none!important;
+  }
+}
+
+
+/* V3 output status: do not show a stale/idle progress stripe underneath the
+ * actual one-line status after scanning or completion. The original progress
+ * and Cancel remain visible as soon as the real executor enables Cancel.
+ * Unlike a hidden audit this is decoration, not evidence of a completed mux. */
+.sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status .progress{
+  display:none!important;
 }

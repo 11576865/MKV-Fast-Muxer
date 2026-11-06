@@ -97,6 +97,15 @@ try{
        target:document.getElementById('sf14Root')?.dataset.sfv3Surface,
        groups:[...document.querySelectorAll('#compositionTracks .sfv3-target-group')].map(x=>x.dataset.kind),
        dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
+       dockStatus:rect(document.getElementById('status')),
+       dockStatusText:document.getElementById('status')?.textContent?.trim()||'',
+       dockExecutionPanelBackground:getComputedStyle(
+         document.querySelector('.sf14-output .execution-panel')).backgroundColor,
+       dockMux:rect(document.getElementById('muxBtn')),
+       dockPlanToggle:rect(document.getElementById('sf14PlanToggle')),
+       dockInspectorOpen:rect(document.getElementById('sfv3InspectorOpen')),
+       idleCancelDisabled:document.getElementById('cancelBtn')?.disabled===true,
+       idleProgressVisible:!!document.querySelector('.sf14-output .execution-status .progress')?.getClientRects().length,
        lastMediaRow:rect(rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind)).at(-1)),
        lastStructureRow:rect([...document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open')].at(-1)),
        titleRect:rect(document.getElementById('sfv3PlanName')),
@@ -131,6 +140,9 @@ try{
    assert.ok(data.scrollWidth<=width+2,'no horizontal overflow '+width);
    assert.equal(data.selectedFile,path.basename(source));
    assert.equal(data.target,'plan');
+   if(data.idleCancelDisabled)
+     assert.equal(data.idleProgressVisible,false,
+       'V3 idle/completed output should not show a stale blue progress stripe; live Cancel retains native progress');
    assert.equal(data.nativeEditorCount,1);
    const scrollDiagnostic=await page.evaluate(()=>{
      const el=document.getElementById('sfv3PlanHeading');
@@ -191,6 +203,27 @@ try{
      const orders=await page.locator('#compositionTracks .sfv3-track-order').allTextContents();
      assert.deepEqual(orders,['01','02','03','04','05']);
    }
+   if(width===1440){
+     // Reviewed V3-04 Figma 32:2 desktop dock is an understated one-row
+     // chrome surface. The original legacy blue execution card and a
+     // disabled Cancel were still visible on desktop (not at 1180/620).
+     assert.equal(data.idleCancelDisabled,true);
+     assert.match(data.dockExecutionPanelBackground,
+       /^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'V3-04 idle desktop dock must not inherit the legacy tinted card');
+     assert.equal(await page.locator('.sf14-output-head').isVisible(),false,
+       'V3-04 does not reserve a second legacy header in the action strip');
+     assert.equal(await page.locator('#cancelBtn').isVisible(),false,
+       'disabled Cancel should not compete with the mux command; active Cancel remains');
+     const nativeStatusColor=await page.locator('.sf14-output .execution-status')
+       .evaluate(el=>getComputedStyle(el).backgroundColor);
+     assert.match(nativeStatusColor,/^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'V3-04 live execution status must stay readable without its old blue panel');
+     assert.ok(data.dock && data.dockMux && data.dockStatus &&
+       data.dockStatus.y>=data.dock.y-3 &&
+       data.dockMux.bottom<=data.dock.bottom+3,
+       'native status/mux must remain on the existing 1440 dock');
+   }
    if(width===1180 || width===620){
      assert.ok(data.dock && data.dock.bottom>=height-3 &&
        data.dock.height<=65,
@@ -207,10 +240,62 @@ try{
        'approved V3-07 requires the working container-content/add-resources toolbar');
    }
    if(width===620){
+     // Approved V3-08 node 37:223 uses the same 620×900 CSS viewport.
+     // Compare actual object BOX positions (not mock text or fake track
+     // names): video 266px, audio 355px, subtitle 502px, final structure
+     // card 759px. Allow font/browser rounding; do not claim pixel signoff.
+     const topOf=kind=>data.rows.find(row=>row.kind===kind)?.box?.y;
+     for(const [label,actual,reference] of [
+       ['video',topOf('video'),266],
+       ['audio',topOf('audio'),355],
+       ['subtitle',topOf('subtitle'),502],
+       ['last structure',data.lastStructureRow?.y,759],
+     ]) {
+       assert.ok(Number.isFinite(actual)&&Math.abs(actual-reference)<=8,
+         'V3-08 compact vertical geometry must stay near the Figma frame: '+
+         JSON.stringify({label,actual,reference}));
+     }
      assert.ok(data.lastStructureRow?.bottom<=data.dock.y,
        'compact font/chapter/tag summary must fit above the 620 output dock');
      assert.ok(data.statsRect.y>=data.titleRect.bottom,
        'approved V3-08: compact target counters must be below the document title');
+     assert.equal(data.idleCancelDisabled,true,
+       'compact single-row dock is allowed only when no cancellation is live');
+     assert.match(data.dockExecutionPanelBackground,
+       /^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'approved compact dock must not inherit the large tinted legacy execution card');
+     assert.ok(data.dockStatusText.length>2,
+       'the compact single-row strip still displays real native execution status');
+     assert.equal(await page.locator('#downloadLink').evaluate(
+       el=>el.classList.contains('hidden') && !el.closest('.sf14-output')),true,
+       'native output link is rehosted in inspector; CSS must gate at V3 root');
+     assert.equal(await page.locator('#reportLink').evaluate(
+       el=>el.classList.contains('hidden') && !el.closest('.sf14-output')),true,
+       'native report link shares the inspector rehost and cannot gate from dock descendants');
+     for(const [label,rect] of [
+       ['live status',data.dockStatus],['native mux',data.dockMux],
+       ['native plan',data.dockPlanToggle],['real inspector',data.dockInspectorOpen],
+     ]) {
+       assert.ok(rect && rect.y>=data.dock.y-3 && rect.bottom<=data.dock.bottom+3,
+         'V3-08 compact idle dock must fit '+label+': '+JSON.stringify({rect,dock:data.dock}));
+     }
+     assert.ok(data.dockStatus.right<=data.dockMux.x+4 &&
+       data.dockMux.right<=data.dockPlanToggle.x+4 &&
+       data.dockPlanToggle.right<=data.dockInspectorOpen.x+4,
+       'compact dock must read status → primary mux → native plan → inspector, not stacked: '+
+         JSON.stringify({status:data.dockStatus,mux:data.dockMux,
+           plan:data.dockPlanToggle,inspector:data.dockInspectorOpen}));
+     assert.ok(Math.abs(data.dockMux.x-310)<=42 && data.dockMux.width>=165,
+       'native mux should remain prominent near approved compact action position');
+     assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-label'),
+       '检查封装计划、风险及执行边界',
+       'native icon-only plan action must retain its accessible name');
+     await page.locator('#sf14PlanToggle').click();
+     assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'true',
+       'compact plan button must open the SAME native detailed plan');
+     await page.keyboard.press('Escape');
+     assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'false',
+       'native plan disclosure must close via Escape without losing target state');
      assert.equal(data.desktopToolbarVisible,false);
    }
    const picture='five-track-'+width+'x'+height+'.png';

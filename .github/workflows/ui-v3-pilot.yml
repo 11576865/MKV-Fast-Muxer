@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/softmux-v3-*'
       - 'src/main.js'
+      - 'src/ui-mode.js'
       - 'src/v3-blank-mkv.js'
       - 'src/softmux-v3-intent.js'
       - 'tests/v3-blank-mkv.test.mjs'
@@ -13,6 +14,8 @@ on:
       - 'tests/softmux-v3-surface.test.mjs'
       - 'tests/softmux-v3-intent.test.mjs'
       - 'tests/e2e/v3-source-first.e2e.mjs'
+      - 'tests/e2e/v3-default-route.e2e.mjs'
+      - 'tests/ui-mode.test.mjs'
       - 'tests/e2e/v3-source-ass-preview.e2e.mjs'
       - 'tests/e2e/v3-cross-source-subrip.e2e.mjs'
       - 'tests/e2e/v3-responsive-geometry.e2e.mjs'
@@ -94,6 +97,7 @@ jobs:
           name: ui-v3-pilot-source-first-evidence
           path: |
             .e2e/ui-v3-evidence/
+            .e2e/ui-v3-default-route/
             .e2e/ui-v3-cross-source/
             .e2e/ui-v3-ass-source/
             .e2e/ui-v3-responsive/
@@ -146,6 +150,8 @@ jobs:
           done
           cat /tmp/v3-blank-preview.log
           exit 1
+      - name: Chromium default V3 and explicit rollback routing
+        run: node tests/e2e/v3-default-route.e2e.mjs
       - name: Actual browser new MKV output, native ffprobe and SHA
         run: node tests/e2e/v3-blank-target.e2e.mjs
       - name: Upload real new-MKV output/evidence even on failure
@@ -153,6 +159,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-blank-new-segment-evidence
-          path: .e2e/ui-v3-blank-target/
+          path: |
+            .e2e/ui-v3-blank-target/
+            .e2e/ui-v3-default-route/
           retention-days: 14
           if-no-files-found: warn

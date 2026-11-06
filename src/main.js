@@ -17,6 +17,7 @@ import {
   updateSoftmux1014SourceSections,
 } from './softmux-10.14-workbench.js';
 import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
+import { resolveSoftmuxUiMode } from './ui-mode.js';
 import { createV3TargetAuthority } from './softmux-v3-intent.js';
 import {createV3BlankTargetPlan,v3BlankPlanReadiness,v3BlankTargetStillCurrent,
   buildV3BlankMuxCommand,auditV3BlankOutput} from './v3-blank-mkv.js';
@@ -654,7 +655,10 @@ const embeddedSourceInventories = new Map();
 const embeddedSourceBusy = new Set();
 const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
-const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
+const uiMode = resolveSoftmuxUiMode(window.location.search);
+// `v3Pilot` remains the legacy internal name for V3's exact-File authority
+// safeguards; the approved UI is now the normal route, not an opt-in pilot.
+const v3Pilot = uiMode === 'v3';
 const v3TargetAuthority = createV3TargetAuthority();
 let v3BlankPlan=null;
 const liveV3BlankMembers=()=>({
@@ -9712,10 +9716,11 @@ async function executeFrozenBatch(preparation, retryIds = null) {
 resetTrackState();
 updateUI();
 
-// Product label is dynamically tied to package version; legacy sf14 internal ids remain compatible.
-// Keep the original UI explicitly addressable for diagnosis/regression only.
-// This changes presentation identity, never media permission or executor.
-if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
+// V3 is the normal workbench. Its source-only/read-only authority and real
+// mux executor stay unchanged. Previous presentation remains accessible as
+// ?ui=workbench; ?ui=legacy still loads the original diagnostic page.
+// Neither fallback is promoted by a media operation or persisted implicitly.
+if (uiMode !== 'legacy') {
   if (mountSoftmux1014Workbench(document)) {
     const source = videoInput.files?.[0] || null;
     const scanned = source && scannedSourceFile === source &&
@@ -9724,9 +9729,7 @@ if (new URLSearchParams(window.location.search).get('ui') !== 'legacy') {
       appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
       sourceFile: scanned ? source : null,
     })));
-    // V3 is an explicit, review-only presentation pilot until the full design
-    // and real-media gates pass. The existing product remains the default.
-    if (new URLSearchParams(window.location.search).get('ui') === 'v3') {
+    if (v3Pilot) {
       mountSoftmuxV3Surface(document);
       publishV3ResourceRegistry();
       updateUI();

@@ -239,6 +239,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     contextDismiss.focus();
   };
   const realOutputDock=root.querySelector('.sf14-output');
+  // In V3 the native plan toggle becomes a compact icon at 620px only.
+  // Keep its original listener, DOM identity and a complete accessible name.
+  const nativePlanToggle=find(doc,'sf14PlanToggle');
+  nativePlanToggle?.setAttribute('aria-label','检查封装计划、风险及执行边界');
+  nativePlanToggle?.setAttribute('title','检查封装计划、风险及执行边界');
   const inspectorOpenButton=doc.createElement('button');
   inspectorOpenButton.id='sfv3InspectorOpen';
   inspectorOpenButton.type='button';
@@ -282,6 +287,16 @@ export function mountSoftmuxV3Surface(doc = document) {
     legacy.append(summary, nav);
     nav.querySelectorAll('[data-sf-view]').forEach(button =>
       button.addEventListener('click', () => { legacy.open = false; }));
+    // Explicit recovery from the default V3 surface to the previous native
+    // workbench. A link (not a cloned editor) keeps rollback independently
+    // discoverable, without silently retaining unsaved browser File objects.
+    const previousWorkbench=doc.createElement('a');
+    previousWorkbench.id='sfv3PreviousWorkbench';
+    previousWorkbench.href='?ui=workbench';
+    previousWorkbench.className='sfv3-previous-workbench';
+    previousWorkbench.textContent='切换至上一版工作台';
+    previousWorkbench.title='页面将重新加载；请先保存当前输出文件';
+    nav.appendChild(previousWorkbench);
   }
   const headerActions = header?.querySelector('.sf14-header-actions');
   if (headerActions) {

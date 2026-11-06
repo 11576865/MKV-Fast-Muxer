@@ -54,7 +54,10 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.E2E_BROWSER_EXECUTABLE?{executablePath:process.env.E2E_BROWSER_EXECUTABLE}:{})});
  const context=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:1000}});
  page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(String(e)));
- await page.goto(baseUrl,{waitUntil:'networkidle'});
+ // This scenario is a regression of the pre-V3 production workbench.
+   // Default / now uses V3's explicit-target permission gate; do not
+   // silently authorize a target merely to satisfy a legacy fixture.
+   await page.goto(new URL('?ui=workbench',baseUrl).href,{waitUntil:'networkidle'});
  await page.setInputFiles('#unifiedAssetInput',[path.join(root,'base.mp4'),path.join(root,'zh.ass')]);
  await page.waitForFunction(()=>!document.querySelector('#muxBtn').disabled,null,{timeout:60000});
  await page.evaluate(()=>{

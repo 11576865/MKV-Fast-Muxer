@@ -126,6 +126,94 @@ try{
   await page.setViewportSize({width:620,height:900});
   await snap('blank-plan-video-subtitle-620.png');
   await verifiedResult('zero-base-selected-video-subrip',['video','subtitle']);
+  // V3-08 post-output state: a successful real mux may make the native
+  // inspector-rehosted download links visible, but it must not collapse the
+  // original plan/mux/status/inspector into the old oversized legacy dock.
+  // This checks REAL completed output, not a synthetic result banner.
+  const completedDock=await page.evaluate(()=>{
+    const bounds=id=>{
+      const r=document.getElementById(id)?.getBoundingClientRect();
+      return r?{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null;
+    };
+    const dock=document.querySelector('.sf14-output')?.getBoundingClientRect();
+    return {dock:dock?{x:dock.x,y:dock.y,right:dock.right,bottom:dock.bottom,
+        width:dock.width,height:dock.height}:null,
+      status:bounds('status'),mux:bounds('muxBtn'),
+      plan:bounds('sf14PlanToggle'),inspector:bounds('sfv3InspectorOpen'),
+      cancelDisabled:document.getElementById('cancelBtn')?.disabled,
+      statusText:document.getElementById('status')?.textContent?.trim()||'',
+      downloadsRehosted:['downloadLink','reportLink'].every(id=>{
+        const link=document.getElementById(id);
+        return link && !link.classList.contains('hidden') &&
+          link.closest('#outputEvidencePanel') && !link.closest('.sf14-output');
+      }),
+      background:getComputedStyle(document.querySelector('.sf14-output .execution-panel'))
+        .backgroundColor,
+      scrollWidth:document.documentElement.scrollWidth};
+  });
+  assert.equal(completedDock.cancelDisabled,true);
+  assert.match(completedDock.statusText,/已生成新 MKV/);
+  assert.equal(completedDock.downloadsRehosted,true,
+    'real downloaded MKV and JSON report must still live in native inspector');
+  assert.ok(completedDock.scrollWidth<=620+2,'no completed-output horizontal overflow');
+  assert.ok(completedDock.dock && completedDock.dock.height<=65 &&
+    completedDock.dock.bottom>=897,'completed compact dock should stay 60px');
+  for(const [name,box] of [['status',completedDock.status],['mux',completedDock.mux],
+    ['plan',completedDock.plan],['inspector',completedDock.inspector]]){
+    assert.ok(box && box.width>0 && box.y>=completedDock.dock.y-3 &&
+      box.bottom<=completedDock.dock.bottom+3,
+      'completed V3-08 must retain visible native '+name+': '+JSON.stringify(completedDock));
+  }
+  assert.ok(completedDock.status.x<completedDock.mux.x &&
+    completedDock.mux.x<completedDock.plan.x &&
+    completedDock.plan.x<completedDock.inspector.x,
+    'completed 620px dock must remain left-to-right ordered: '+
+      JSON.stringify(completedDock));
+  // Text and nested status boxes may extend their measured width while
+  // clipping long live-status prose; a strict right<=left comparison rejects
+  // a visually correct dock. Test actual clickable button hit-target centers
+  // so no invisible overlay can steal the native actions.
+  const buttonHits=await page.evaluate(()=>{
+    const names=['muxBtn','sf14PlanToggle','sfv3InspectorOpen'];
+    return names.map(id=>{
+      const el=document.getElementById(id),r=el?.getBoundingClientRect();
+      const hit=r&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+      return {id,hitId:hit?.closest('button')?.id||'',enabled:!el?.disabled};
+    });
+  });
+  for(const result of buttonHits)
+    assert.equal(result.hitId,result.id,
+      'completed 620px dock must preserve native pointer hit-target: '+
+        JSON.stringify({result,buttonHits,completedDock}));
+  assert.match(completedDock.background,/^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+    'old tinted execution panel must not return after a successful mux');
+  await snap('blank-complete-dock-620.png');
+  assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-label'),
+    '检查封装计划、风险及执行边界');
+  await page.locator('#sf14PlanToggle').click();
+  assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'true',
+    'existing plan detail must remain available after mux');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'false');
+  await page.locator('#sfv3InspectorOpen').click();
+  await page.locator('#outputEvidencePanel').waitFor({state:'visible'});
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'true');
+  assert.equal(await page.locator('#downloadLink').isVisible(),true);
+  assert.equal(await page.locator('#reportLink').isVisible(),true);
+  assert.equal(await page.locator('#downloadLink').count(),1);
+  assert.equal(await page.locator('#reportLink').count(),1);
+  // Evidence screenshots must represent the fully visible *settled* context
+  // sheet. The 150ms native transition intentionally starts at opacity .78;
+  // capturing before it finishes makes the underlying tracks appear as false
+  // visual overlap. This is screenshot stabilization, not a CSS or media fix.
+  const inspector=page.locator('.sf14-pane.sf14-inspector');
+  await inspector.evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)));
+  const opacity=await inspector.evaluate(el=>Number(getComputedStyle(el).opacity));
+  assert.ok(opacity>=0.995,
+    'completed-output evidence screenshot must wait for inspector entrance animation');
+  await snap('blank-complete-evidence-620.png');
+  await page.locator('#sfv3InspectorClose').click();
+  evidence.steps.push('V3-08 completed 620px: native compact dock, plan/Escape, accessible real MKV/report and current audit');
   assert.equal(checksum(await fs.readFile(a)),sourceBefore,
     'original input A file must not be overwritten or transformed');
   assert.deepEqual(faults,[],'no browser unhandled errors');

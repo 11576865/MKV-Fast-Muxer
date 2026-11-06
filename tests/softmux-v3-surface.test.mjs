@@ -38,19 +38,22 @@ test('V3 source projection tolerates absent track DOM or empty identities',()=>{
   assert.deepEqual(sourceRowsFromComposition({getElementById:()=>null}),[]);
   assert.deepEqual(sourceRowsFromComposition(docWithRows([row('target:1','音频','FLAC','')])),[]);
 });
-test('V3 pilot is isolated from existing default workbench',async()=>{
+test('V3 is default; explicit previous workbench and original legacy remain isolated',async()=>{
   const code=await readFile(new URL('../src/main.js',import.meta.url),'utf8');
   const ui=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
   const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
-  assert.match(code,/get\('ui'\) === 'v3'/);
-  assert.match(code,/get\('ui'\) !== 'legacy'/);
+  assert.match(code,/const uiMode = resolveSoftmuxUiMode\(window\.location\.search\)/);
+  assert.match(code,/const v3Pilot = uiMode === 'v3'/);
+  assert.match(code,/if \(uiMode !== 'legacy'\)/);
+  assert.match(code,/if \(v3Pilot\) \{\s*mountSoftmuxV3Surface/);
   assert.match(ui,/root\.dataset\.sfv3Surface = 'source'/);
   assert.match(ui,/appendChild\(dropzone\)/);
   assert.match(ui,/sourceRowsFromComposition/);
-  assert.match(ui,/latestSections\.sourceFile\s*===\s*file/); // exact File identity, no name-only claim
+  assert.match(ui,/latestSections\.sourceFile\s*===\s*file/);
+  assert.match(ui,/previousWorkbench\.href='\?ui=workbench'/);
   assert.match(css,/\.sf14\.sfv3\[data-sfv3-surface="source"\]/);
   assert.match(css,/@media \(max-width:959px\)/);
-  assert.match(css, /prefers-reduced-motion/);
+  assert.match(css,/prefers-reduced-motion/);
 });
 
 test('V3 source observation is derived from exact scanned stream facts, not candidate output rows',()=>{

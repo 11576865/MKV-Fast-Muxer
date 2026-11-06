@@ -35,7 +35,13 @@ import { parseMkvmergeJsonWithExactUids, exactPositiveUid } from '../../src/mkvm
 
 const root = path.resolve(process.env.E2E_FIXTURE_DIR || '.e2e/fixtures');
 const outDir = path.resolve(process.env.E2E_OUTPUT_DIR || '.e2e/output');
-const baseUrl = process.env.E2E_BASE_URL || 'http://127.0.0.1:4173/';
+// This entire historical suite audits the previous 0.1014 workbench and
+// original legacy executor, not the new default V3 source-only route.
+// Pin the SHARED scenario baseUrl so direct child scenarios cannot silently
+// switch permission contracts when the public product UI is promoted.
+// Actual '/' + '?ui=v3' default-route proof has its own V3 pilot E2E.
+const baseUrl = new URL('?ui=workbench',
+  process.env.E2E_BASE_URL || 'http://127.0.0.1:4173/').href;
 await fs.rm(outDir, { recursive: true, force: true });
 await fs.mkdir(outDir, { recursive: true });
 
@@ -110,10 +116,10 @@ async function openApp(browser, {modern=false} = {}) {
   page.on('console', (message) => console.log(`[browser:${message.type()}] ${message.text()}`));
   page.on('pageerror', (error) => console.error('[browser:pageerror]', error));
   const url = new URL(baseUrl);
-  // Preserve the tested legacy diagnostic flow. A separate explicit
-  // modern invocation exercises the real object workspace on the same
-  // independently produced artifacts, not a simulated inspection panel.
-  if (modern) url.searchParams.delete('ui');
+  // Preserve the tested legacy diagnostic flow and the previous 10.14
+  // workbench via explicit routes. Root now belongs to the V3 workbench;
+  // output/mux regression evidence for the retained editors is unchanged.
+  if (modern) url.searchParams.set('ui','workbench');
   else url.searchParams.set('ui','legacy');
   await page.goto(url.toString(), { waitUntil: 'networkidle' });
   await page.locator('#muxBtn').waitFor();
@@ -7445,7 +7451,7 @@ async function scenarioR1ObservedAttachmentNavigation(browser) {
   const page = await context.newPage();
   try {
     const url = new URL(baseUrl);
-    url.searchParams.delete('ui');
+    url.searchParams.set('ui','workbench');
     await page.goto(url.toString(), {waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     await page.setInputFiles('#unifiedAssetInput',path.join(root,'source-with-attachments.mkv'));
@@ -7500,7 +7506,7 @@ async function scenarioObservedMetadataSafeToolNavigation(browser) {
   page.on('pageerror',error => { throw error; });
   try {
     const url = new URL(baseUrl);
-    url.searchParams.delete('ui');
+    url.searchParams.set('ui','workbench');
     await page.goto(url.toString(),{waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     const unscannedChapter=page.locator('#sf14SectionSelection [data-open-observed-metadata]');
@@ -7584,8 +7590,8 @@ async function scenarioSoftmux1014WholeWorkbench(browser) {
   page.on('pageerror', error => { throw error; });
   try {
     const target = new URL(baseUrl);
-    // Public root URL must mount the new 10.14 workbench by default.
-    target.searchParams.delete('ui');
+    // Previous 10.14 workbench is retained behind an explicit rollback route.
+    target.searchParams.set('ui','workbench');
     await page.goto(target.toString(), {waitUntil:'networkidle'});
     await page.locator('#sf14Root').waitFor();
     assert.equal(await page.locator('#sf14Root').getAttribute('data-view'),'single');
