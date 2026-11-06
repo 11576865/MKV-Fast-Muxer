@@ -233,6 +233,12 @@ try{
        'approved V3-08: compact target counters must be below the document title');
      assert.equal(data.idleCancelDisabled,true,
        'compact single-row dock is allowed only when no cancellation is live');
+     assert.equal(await page.locator('#downloadLink').evaluate(
+       el=>el.classList.contains('hidden') && !el.closest('.sf14-output')),true,
+       'native output link is rehosted in inspector; CSS must gate at V3 root');
+     assert.equal(await page.locator('#reportLink').evaluate(
+       el=>el.classList.contains('hidden') && !el.closest('.sf14-output')),true,
+       'native report link shares the inspector rehost and cannot gate from dock descendants');
      for(const [label,rect] of [
        ['live status',data.dockStatus],['native mux',data.dockMux],
        ['native plan',data.dockPlanToggle],['real inspector',data.dockInspectorOpen],
