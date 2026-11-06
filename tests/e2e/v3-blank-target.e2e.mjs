@@ -126,6 +126,68 @@ try{
   await page.setViewportSize({width:620,height:900});
   await snap('blank-plan-video-subtitle-620.png');
   await verifiedResult('zero-base-selected-video-subrip',['video','subtitle']);
+  // V3-08 post-output state: a successful real mux may make the native
+  // inspector-rehosted download links visible, but it must not collapse the
+  // original plan/mux/status/inspector into the old oversized legacy dock.
+  // This checks REAL completed output, not a synthetic result banner.
+  const completedDock=await page.evaluate(()=>{
+    const bounds=id=>{
+      const r=document.getElementById(id)?.getBoundingClientRect();
+      return r?{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null;
+    };
+    const dock=document.querySelector('.sf14-output')?.getBoundingClientRect();
+    return {dock:dock?{x:dock.x,y:dock.y,right:dock.right,bottom:dock.bottom,
+        width:dock.width,height:dock.height}:null,
+      status:bounds('status'),mux:bounds('muxBtn'),
+      plan:bounds('sf14PlanToggle'),inspector:bounds('sfv3InspectorOpen'),
+      cancelDisabled:document.getElementById('cancelBtn')?.disabled,
+      statusText:document.getElementById('status')?.textContent?.trim()||'',
+      downloadsRehosted:['downloadLink','reportLink'].every(id=>{
+        const link=document.getElementById(id);
+        return link && !link.classList.contains('hidden') &&
+          link.closest('#outputEvidencePanel') && !link.closest('.sf14-output');
+      }),
+      background:getComputedStyle(document.querySelector('.sf14-output .execution-panel'))
+        .backgroundColor,
+      scrollWidth:document.documentElement.scrollWidth};
+  });
+  assert.equal(completedDock.cancelDisabled,true);
+  assert.match(completedDock.statusText,/已生成新 MKV/);
+  assert.equal(completedDock.downloadsRehosted,true,
+    'real downloaded MKV and JSON report must still live in native inspector');
+  assert.ok(completedDock.scrollWidth<=620+2,'no completed-output horizontal overflow');
+  assert.ok(completedDock.dock && completedDock.dock.height<=65 &&
+    completedDock.dock.bottom>=897,'completed compact dock should stay 60px');
+  for(const [name,box] of [['status',completedDock.status],['mux',completedDock.mux],
+    ['plan',completedDock.plan],['inspector',completedDock.inspector]]){
+    assert.ok(box && box.width>0 && box.y>=completedDock.dock.y-3 &&
+      box.bottom<=completedDock.dock.bottom+3,
+      'completed V3-08 must retain visible native '+name+': '+JSON.stringify(completedDock));
+  }
+  assert.ok(completedDock.status.right<=completedDock.mux.x+4 &&
+    completedDock.mux.right<=completedDock.plan.x+4 &&
+    completedDock.plan.right<=completedDock.inspector.x+4,
+    'completed dock must remain a single ordered row');
+  assert.match(completedDock.background,/^(?:transparent|rgba\\(0, 0, 0, 0\\))$/,
+    'old tinted execution panel must not return after a successful mux');
+  await snap('blank-complete-dock-620.png');
+  assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-label'),
+    '检查封装计划、风险及执行边界');
+  await page.locator('#sf14PlanToggle').click();
+  assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'true',
+    'existing plan detail must remain available after mux');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'false');
+  await page.locator('#sfv3InspectorOpen').click();
+  await page.locator('#outputEvidencePanel').waitFor({state:'visible'});
+  assert.equal(await page.locator('#outputEvidencePanel').getAttribute('data-current'),'true');
+  assert.equal(await page.locator('#downloadLink').isVisible(),true);
+  assert.equal(await page.locator('#reportLink').isVisible(),true);
+  assert.equal(await page.locator('#downloadLink').count(),1);
+  assert.equal(await page.locator('#reportLink').count(),1);
+  await snap('blank-complete-evidence-620.png');
+  await page.locator('#sfv3InspectorClose').click();
+  evidence.steps.push('V3-08 completed 620px: native compact dock, plan/Escape, accessible real MKV/report and current audit');
   assert.equal(checksum(await fs.readFile(a)),sourceBefore,
     'original input A file must not be overwritten or transformed');
   assert.deepEqual(faults,[],'no browser unhandled errors');
