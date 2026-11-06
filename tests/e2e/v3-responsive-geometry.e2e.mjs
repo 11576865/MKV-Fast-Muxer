@@ -193,6 +193,32 @@ try{
   },null,{timeout:60000});
   const sourceCards=await page.locator('.sfv3-source-resource-card').count();
   assert.equal(sourceCards,3,'exact-source secondary resources use three expandable summary cards');
+  // The original single target action now lives in Figma V3-01's visible
+  // content toolbar above source rows, without changing File/target authority.
+  assert.equal(await page.locator('#sfv3EnterOutput').count(),1);
+  const toolbarBox=await page.locator('#sfv3SourceToolbar').boundingBox();
+  const firstMediaBox=await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().boundingBox();
+  assert.ok(toolbarBox && firstMediaBox && toolbarBox.y+toolbarBox.height<=firstMediaBox.y+3,
+    'source content toolbar should precede real source rows');
+  await page.locator('#sfv3SourceSearchToggle').click();
+  const search=page.locator('#sfv3SourceSearch');
+  assert.equal(await search.isVisible(),true);
+  await search.fill('no-such-codec-123');
+  assert.equal(await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().isVisible(),false,
+    'visual source search must hide unmatched rows, not remove data');
+  assert.equal(await page.locator('#videoInput').evaluate(node=>node.files?.[0]?.name),
+    'V3 Responsive Fixture.mkv','search cannot change canonical File');
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+    'search does not create or authorize an output');
+  await search.fill('mpeg4');
+  assert.equal(await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().isVisible(),true);
+  await search.press('Escape');
+  assert.equal(await search.isVisible(),false);
+  await page.locator('#sfv3SourceStructureToggle').click();
+  assert.equal(await page.locator('.sfv3-source-resource-card[open]').count(),3,
+    'toolbar toggles only genuine read-only source disclosures');
+  await page.locator('#sfv3SourceStructureToggle').click();
+  assert.equal(await page.locator('.sfv3-source-resource-card[open]').count(),0);
   const chapterCard=page.locator('.sfv3-source-resource-card[data-kind="chapters"]');
   assert.equal(await chapterCard.getAttribute('open'),null);
   assert.equal(await chapterCard.locator('.sfv3-observed-row').first().isVisible(),false,
