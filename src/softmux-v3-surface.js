@@ -1224,7 +1224,9 @@ export function mountSoftmuxV3Surface(doc = document) {
         ? '目标尚不包含任何来源轨道；只有勾选的真实流和已导入资源会参与新 MKV 写入。':
         '';
     };
-    pickerOptions.addEventListener('change',updateBlankVisibility);
+    // The modal contents are rebuilt per opening. Replace, rather than
+    // accumulate, closures that could act on detached old radio controls.
+    pickerOptions.onchange=updateBlankVisibility;
     if(!pickerOptions.querySelector('input[name="sfv3TargetBase"]:checked'))
       pickerOptions.querySelector('input[name="sfv3TargetBase"]').checked=true;
     updateBlankVisibility();
@@ -1405,6 +1407,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   primary.addEventListener('click',()=>openTargetPicker(null));
   emptyTargetAction.addEventListener('click',event=>{
     event.stopPropagation();openTargetPicker(null);
+  });
+  root.addEventListener('softmux:v3-edit-blank',()=>{
+    if(targetIntent?.kind==='blank')openTargetPicker(null);
   });
 
   const render = () => {
