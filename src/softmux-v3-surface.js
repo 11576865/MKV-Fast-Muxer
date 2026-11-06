@@ -1048,7 +1048,12 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     targetTab.hidden = !targetIntent;
     targetTab.toggleAttribute('aria-current',root.dataset.sfv3Surface==='plan');
-    if(targetIntent) {
+    if(targetIntent?.kind==='blank') {
+      // A new destination does not have a base File. Navigation must use
+      // the real target kind rather than dereference a nonexistent MKV.
+      iconTab(doc,targetTab,'create-output','目标 · 新建空 MKV');
+      targetTab.title='已确认的新建 Matroska · 未覆盖任何来源文件';
+    }else if(targetIntent) {
       iconTab(doc,targetTab,'create-output','目标 · '+targetIntent.baseFile.name);
       targetTab.title='已确认的拟输出文档 · 基础来源：'+targetIntent.baseFile.name;
     }
