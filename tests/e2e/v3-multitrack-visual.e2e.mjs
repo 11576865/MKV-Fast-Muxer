@@ -199,6 +199,27 @@ try{
      const orders=await page.locator('#compositionTracks .sfv3-track-order').allTextContents();
      assert.deepEqual(orders,['01','02','03','04','05']);
    }
+   if(width===1440){
+     // Reviewed V3-04 Figma 32:2 desktop dock is an understated one-row
+     // chrome surface. The original legacy blue execution card and a
+     // disabled Cancel were still visible on desktop (not at 1180/620).
+     assert.equal(data.idleCancelDisabled,true);
+     assert.match(data.dockExecutionPanelBackground,
+       /^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'V3-04 idle desktop dock must not inherit the legacy tinted card');
+     assert.equal(await page.locator('.sf14-output-head').isVisible(),false,
+       'V3-04 does not reserve a second legacy header in the action strip');
+     assert.equal(await page.locator('#cancelBtn').isVisible(),false,
+       'disabled Cancel should not compete with the mux command; active Cancel remains');
+     const nativeStatusColor=await page.locator('.sf14-output .execution-status')
+       .evaluate(el=>getComputedStyle(el).backgroundColor);
+     assert.match(nativeStatusColor,/^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'V3-04 live execution status must stay readable without its old blue panel');
+     assert.ok(data.dock && data.dockMux && data.dockStatus &&
+       data.dockStatus.y>=data.dock.y-3 &&
+       data.dockMux.bottom<=data.dock.bottom+3,
+       'native status/mux must remain on the existing 1440 dock');
+   }
    if(width===1180 || width===620){
      assert.ok(data.dock && data.dock.bottom>=height-3 &&
        data.dock.height<=65,
