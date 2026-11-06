@@ -43,6 +43,11 @@ export function createV3BlankTargetPlan({
     codec:String(streamMap.get(id).codec||''),
     title:String(streamMap.get(id).title||''),
     language:String(streamMap.get(id).language||'und'),
+    default:Boolean(streamMap.get(id).default),
+    forced:Boolean(streamMap.get(id).forced),
+    original:Boolean(streamMap.get(id).original),
+    commentary:Boolean(streamMap.get(id).commentary),
+    hearingImpaired:Boolean(streamMap.get(id).hearingImpaired),
   }));
   if(externalTracks.some(t=>!allowedExternal.has(t?.kind)||!(t.file instanceof Blob)||
     !t.file.name || (t.kind==='subtitle' && !/\.(srt|ass|ssa|vtt|webvtt)$/i.test(t.file.name))))
