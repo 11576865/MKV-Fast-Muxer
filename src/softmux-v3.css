@@ -2250,3 +2250,76 @@
     gap:8px!important;
   }
 }
+
+
+/* V3-08 / Figma 37:223: idle 620px dock is a single action strip.
+ * Reuse the live #status / #muxBtn / #sf14PlanToggle / inspector nodes.
+ * The active-cancel and downloadable-output states explicitly retain the
+ * full native dock; CSS does not manufacture an audit/pass result.
+ * 600–719px only: 820px portrait is a different approved frame. */
+@media (min-width:600px) and (max-width:719px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) {
+    align-items:center!important;
+    flex-wrap:nowrap!important;
+    gap:9px!important;
+    overflow:visible!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output-head{
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14Output{
+    flex:1 1 auto!important;min-width:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .output-hub{
+    display:flex!important;flex-wrap:nowrap!important;
+    align-items:center!important;gap:8px!important;min-width:0;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-panel{
+    order:0;flex:1 1 auto!important;width:auto!important;
+    display:flex!important;flex-wrap:nowrap!important;
+    align-items:center!important;gap:8px!important;min-width:0;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status{
+    min-width:0!important;flex:1 1 0!important;max-width:none!important;
+    min-height:0!important;margin:0!important;padding:0!important;
+    background:transparent!important;border:0!important;
+    box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status #status{
+    display:block!important;max-height:19px!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;
+    white-space:nowrap!important;font-size:11px!important;
+    line-height:19px!important;margin:0!important;
+    padding:0!important;background:transparent!important;
+    border:0!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-status .progress{
+    display:none!important; /* no in-flight operation with disabled Cancel */
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) .execution-panel .actions{
+    order:1;flex:0 0 170px!important;margin:0!important;
+    display:flex!important;justify-content:center;gap:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #muxBtn{
+    min-width:170px!important;max-width:170px!important;
+    width:170px!important;min-height:43px!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle{
+    order:2;display:grid!important;place-items:center;
+    min-width:40px!important;max-width:40px!important;width:40px!important;
+    min-height:40px!important;height:40px!important;
+    padding:0!important;margin:0!important;font-size:0!important;
+    background:var(--sfv3-row-raised);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle::before{
+    content:"";display:block;width:18px;height:18px;
+    background:url('./v3-assets/object-list.svg') center/contain no-repeat;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sf14PlanToggle[aria-expanded="true"]{
+    border-color:var(--sfv3-accent);color:var(--sfv3-accent);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled):has(#downloadLink.hidden):has(#reportLink.hidden) #sfv3InspectorOpen{
+    flex:0 0 78px!important;max-width:78px!important;
+    min-width:0!important;min-height:40px!important;
+  }
+}
