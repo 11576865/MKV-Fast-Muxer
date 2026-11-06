@@ -16,7 +16,7 @@ const multitrack=path.resolve('.e2e/ui-v3-multitrack');
 // screen (40:2) specifies state/adaptive RULES, not a browser bitmap, and
 // therefore has a structural evidence record below instead of a fake pair.
 const cases=[
-  {id:'V3-01-desktop-source',figma:'v3-desktop-source-1440x900.png',live:'source-1440x900.png',liveRoot:actual,frame:'28:2'},
+  {id:'V3-01-desktop-source',figma:'v3-desktop-source-1440x900.png',live:'five-track-source-1440x900.png',liveRoot:multitrack,frame:'28:2'},
   {id:'V3-02-desktop-ass-selected',figma:'v3-desktop-source-ass-selected-1440x900.png',live:'v3-ass-selected-1440x900.png',liveRoot:assSource,frame:'30:2'},
   {id:'V3-03-explicit-target-picker',figma:'v3-desktop-target-picker-1440x900.png',live:'wu02-target-dialog.png',liveRoot:crossSource,frame:'31:2'},
   {id:'V3-04-desktop-target',figma:'v3-desktop-target-1440x900.png',live:'five-track-1440x900.png',liveRoot:multitrack,frame:'32:2'},
