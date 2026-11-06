@@ -43,8 +43,31 @@ const verifiedResult=async(label,expectedKinds)=>{
     !document.querySelector('#downloadLink')?.classList.contains('hidden') &&
     /已生成新 MKV/.test(document.querySelector('#status')?.textContent||''),
     null,{timeout:180000});
-  const downloadPromise=page.waitForEvent('download',{timeout:40000});
+  const beforeDownload=await page.locator('#downloadLink').evaluate(link=>({
+    outerHTML:link.outerHTML.slice(0,550), href:link.href,
+    download:link.download, visible:!!link.getClientRects().length,
+    connected:link.isConnected, ancestorHidden:[...function*(node){
+      for(let p=node.parentElement;p;p=p.parentElement)
+        if(p.hidden || getComputedStyle(p).display==='none')yield p.id||p.className;
+    }(link)],
+    mediaType:'video/x-matroska',
+  }));
+  console.log('V3_BLANK_PRE_DOWNLOAD '+JSON.stringify(beforeDownload));
+  await page.evaluate(()=>{
+    window.__v3BlankLastClick=[];
+    const record=(phase)=>(e)=>{
+      if(e.target.closest('#downloadLink'))
+        window.__v3BlankLastClick.push({phase,defaultPrevented:e.defaultPrevented,
+          target:e.target.id,href:e.target.closest('a')?.href});
+    };
+    document.addEventListener('click',record('capture'),true);
+    document.addEventListener('click',record('bubble'),false);
+  });
+  const downloadPromise=page.waitForEvent('download',{timeout:15000});
   await page.locator('#downloadLink').click();
+  const clickTrace=await page.evaluate(()=>({events:window.__v3BlankLastClick,
+    location:location.href,link:document.querySelector('#downloadLink')?.outerHTML}));
+  console.log('V3_BLANK_POST_DOWNLOAD_CLICK '+JSON.stringify(clickTrace));
   const download=await downloadPromise;
   const saved=path.join(dir,label+'.mkv');
   await download.saveAs(saved);
