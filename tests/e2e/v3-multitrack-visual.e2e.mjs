@@ -52,6 +52,19 @@ try{
    !document.querySelector('#unifiedAssetInput')?.disabled,
    path.basename(source),{timeout:180000});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ // Approved V3-01: use this *real* 1 video + 2 audio + ASS + attached font
+ // source as the visual audit fixture, rather than the geometry suite's
+ // intentional one-video/zero-audio minimal file (not a matched mock).
+ await page.waitForFunction(()=>{
+   const root=document.getElementById('sf14Root');
+   const rows=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row')];
+   const groups=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group .sfv3-object-group-title')]
+     .map(node=>node.textContent);
+   return root?.dataset.sfv3Surface==='source' && rows.length>=4 &&
+     groups.includes('视频') && groups.includes('音频') && groups.includes('字幕');
+ },null,{timeout:60000});
+ await page.screenshot({path:path.join(dir,'five-track-source-1440x900.png')});
+ evidence.screenshots.push('five-track-source-1440x900.png');
  await page.locator('#sfv3EnterOutput').click();
  await page.locator('#sfv3ConfirmTarget').click();
  await page.waitForFunction(()=>{
