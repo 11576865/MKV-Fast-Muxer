@@ -42,8 +42,14 @@ export function createV3BlankTargetPlan({
     !t.file.name || (t.kind==='subtitle' && !/\.(srt|ass|ssa|vtt|webvtt)$/i.test(t.file.name))))
     throw Error('BLANK_EXTERNAL_TRACK_INVALID');
   if(attachments.some(a=>!(a.file instanceof Blob)||!a.file.size||
-    typeof a.mimeType!=='string'||!a.mimeType||!a.file.name))
+    a.file.size>16*1024*1024 || typeof a.mimeType!=='string' ||
+    !/^[a-z0-9.+-]+\\/[a-z0-9.+-]+$/i.test(a.mimeType)||
+    !a.file.name || !/^[^\\/\\\\\\u0000-\\u001f]+$/.test(a.filename||a.file.name)))
     throw Error('BLANK_ATTACHMENT_INVALID');
+  if(attachments.reduce((n,a)=>n+a.file.size,0)>32*1024*1024||
+      new Set(attachments.map(a=>String(a.filename||a.file.name).toLowerCase())).size
+        !==attachments.length)
+    throw Error('BLANK_ATTACHMENT_BUDGET_OR_NAME_COLLISION');
   if(!/^[^\\/\u0000-\u001f]+\.mkv$/i.test(outputName))
     throw Error('BLANK_TARGET_OUTPUT_NAME_INVALID');
   return Object.freeze({
@@ -125,11 +131,13 @@ export function buildV3BlankMuxCommand(plan,{
       subtitleIndex++;
     }
   }
+  const retainedSourceAttachments=plan.sourceStreams.filter(t=>t.kind==='attachment').length;
   for(let i=0;i<plan.attachments.length;i++){
     const att=plan.attachments[i];
+    const outputAttachmentIndex=retainedSourceAttachments+i;
     args.push('-attach',attachmentPaths[i],
-      `-metadata:s:t:${i}`,`mimetype=${att.mimeType}`,
-      `-metadata:s:t:${i}`,`filename=${att.filename}`);
+      `-metadata:s:t:${outputAttachmentIndex}`,`mimetype=${att.mimeType}`,
+      `-metadata:s:t:${outputAttachmentIndex}`,`filename=${att.filename}`);
   }
   if([...plan.sourceStreams,...plan.externalTracks].some(t=>t.kind==='subtitle'))
     args.push('-avoid_negative_ts','disabled');
