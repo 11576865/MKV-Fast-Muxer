@@ -4413,6 +4413,9 @@ document.addEventListener('softmux:v3-confirm-blank',event=>{
       index:stream.index,kind:stream.codec_type,codec:stream.codec_name||'',
       title:String(stream.tags?.title||''),language:String(stream.tags?.language||'und'),
       default:Boolean(stream.disposition?.default),forced:Boolean(stream.disposition?.forced),
+      original:Boolean(stream.disposition?.original),
+      commentary:Boolean(stream.disposition?.comment),
+      hearingImpaired:Boolean(stream.disposition?.hearing_impaired),
     })) : [];
   let plan;
   try{
