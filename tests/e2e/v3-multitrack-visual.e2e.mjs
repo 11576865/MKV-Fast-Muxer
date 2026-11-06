@@ -98,6 +98,9 @@ try{
        groups:[...document.querySelectorAll('#compositionTracks .sfv3-target-group')].map(x=>x.dataset.kind),
        dock:rect(dock),heading:rect(document.getElementById('sfv3PlanHeading')),
        dockStatus:rect(document.getElementById('status')),
+       dockStatusText:document.getElementById('status')?.textContent?.trim()||'',
+       dockExecutionPanelBackground:getComputedStyle(
+         document.querySelector('.sf14-output .execution-panel')).backgroundColor,
        dockMux:rect(document.getElementById('muxBtn')),
        dockPlanToggle:rect(document.getElementById('sf14PlanToggle')),
        dockInspectorOpen:rect(document.getElementById('sfv3InspectorOpen')),
@@ -233,6 +236,11 @@ try{
        'approved V3-08: compact target counters must be below the document title');
      assert.equal(data.idleCancelDisabled,true,
        'compact single-row dock is allowed only when no cancellation is live');
+     assert.match(data.dockExecutionPanelBackground,
+       /^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'approved compact dock must not inherit the large tinted legacy execution card');
+     assert.ok(data.dockStatusText.length>2,
+       'the compact single-row strip still displays real native execution status');
      assert.equal(await page.locator('#downloadLink').evaluate(
        el=>el.classList.contains('hidden') && !el.closest('.sf14-output')),true,
        'native output link is rehosted in inspector; CSS must gate at V3 root');
