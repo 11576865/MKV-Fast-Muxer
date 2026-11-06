@@ -18,6 +18,8 @@ import {
 } from './softmux-10.14-workbench.js';
 import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
 import { createV3TargetAuthority } from './softmux-v3-intent.js';
+import {createV3BlankTargetPlan,v3BlankPlanReadiness,v3BlankTargetStillCurrent,
+  buildV3BlankMuxCommand,auditV3BlankOutput} from './v3-blank-mkv.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
 import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
@@ -654,6 +656,11 @@ const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
 const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
 const v3TargetAuthority = createV3TargetAuthority();
+let v3BlankPlan=null;
+const v3BlankPlanCurrent=()=>Boolean(v3BlankPlan &&
+  v3BlankTargetStillCurrent(v3BlankPlan,{
+    entries:importedAssetEntries,activeSource:videoInput.files?.[0]||null,
+  }));
 const v3MayEditOutput = () => !v3Pilot || Boolean(
   currentV3Target() &&
   document.getElementById('sf14Root')?.dataset.sfv3Surface === 'plan'
@@ -1862,6 +1869,10 @@ function updateUI() {
   // V3's visible source list is not authorization to execute. Even a hidden
   // legacy button remains blocked until an exact File-bound target is chosen.
   if(v3Pilot && !v3MayEditOutput())muxBtn.disabled=true;
+  if(v3Pilot && currentV3Target()?.kind==='blank'){
+    muxBtn.disabled=busy||importInProgress||!v3BlankPlanCurrent()||
+      !v3BlankPlanReadiness(v3BlankPlan).ready;
+  }
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -4262,6 +4273,58 @@ document.addEventListener('softmux:v3-confirm-target', event => {
   event.preventDefault();
   document.getElementById('sf14Root')?.dispatchEvent(
     new CustomEvent('softmux:v3-target-confirmed',{detail:{baseKey,baseFile}}));
+  updateUI();
+  publishV3ResourceRegistry();
+});
+// V3-03: an actual new Segment is authored from EXPLICITLY chosen source
+// streams and current external assets. No source file becomes the destination,
+// and nothing is inherited from Matroska chapters/tags by default.
+document.addEventListener('softmux:v3-confirm-blank',event=>{
+  if(!v3Pilot || isBusy() || batchRunning || importInProgress)return;
+  const {sourceKey='',sourceFile=null,selectedIndices=[]}=event.detail||{};
+  const active=videoInput.files?.[0]||null;
+  if(sourceFile!==active)return;
+  if(sourceFile && !importedAssetEntries.some(e=>e.kind==='container' &&
+    e.file===sourceFile && e.key===sourceKey))return;
+  const verified=sourceFile && scannedSourceFile===sourceFile &&
+    trackState?.fileKey===fileKey(sourceFile);
+  if(selectedIndices.length && !verified)return;
+  const streams=verified ? (trackState.streams||[]).filter(t=>
+    ['video','audio','subtitle','attachment'].includes(t.codec_type)).map(stream=>({
+      index:stream.index,kind:stream.codec_type,codec:stream.codec_name||'',
+      title:String(stream.tags?.title||''),language:String(stream.tags?.language||'und'),
+      default:Boolean(stream.disposition?.default),forced:Boolean(stream.disposition?.forced),
+    })) : [];
+  let plan;
+  try{
+    const assets=[
+      ...includedGenericAttachments().map(e=>({
+        file:e.file,mimeType:e.mimeType,filename:e.file.name,
+      })),
+      ...selectedFontRecognition().recognized.map(e=>({
+        file:e.file,mimeType:fontMimeType(e.identity),
+        filename:normalizedFontAttachmentName(e.file.name,e.identity),
+      })),
+    ];
+    const tracks=[
+      ...outputAudioTracks().map(t=>({...t,kind:'audio'})),
+      ...outputSubtitleTracks().map(t=>({...t,kind:'subtitle'})),
+    ];
+    plan=createV3BlankTargetPlan({
+      sourceFile,sourceKey,sourceStreams:streams,selectedIndices,
+      externalTracks:tracks,attachments:assets,outputName:'new.mkv',
+    });
+  }catch(error){
+    status.textContent='无法建立空白容器计划：'+(error?.message||String(error));return;
+  }
+  const result=v3TargetAuthority.confirmBlank({
+    sourceKey,sourceFile,entries:importedAssetEntries,activeFile:active,
+  });
+  if(!result.accepted)return;
+  v3BlankPlan=plan;
+  event.preventDefault();
+  document.getElementById('sf14Root')?.dispatchEvent(
+    new CustomEvent('softmux:v3-target-confirmed',{detail:result.intent}));
   updateUI();
   publishV3ResourceRegistry();
 });
