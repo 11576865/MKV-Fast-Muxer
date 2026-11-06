@@ -86,15 +86,43 @@ export function v3BlankPlanReadiness(plan){
   return Object.freeze({ready:true,reason:'',count});
 }
 
-export function v3BlankTargetStillCurrent(plan,{entries=[],activeSource=null}={}) {
+export function v3BlankTargetStillCurrent(plan,{
+  entries=[],activeSource=null,externalTracks=null,attachments=null,
+}={}) {
   if(plan?.schema!=='v3-blank-target-plan-v1')return false;
   if(plan.sourceFile){
     if(activeSource!==plan.sourceFile ||
       !entries.some(e=>e.key===plan.sourceKey && e.file===plan.sourceFile && e.kind==='container'))
       return false;
+  }else if(activeSource!==null)return false;
+  if(![...plan.externalTracks,...plan.attachments].every(asset=>
+    entries.some(e=>e.file===asset.file && e.include!==false)))return false;
+  // Any authored external title/language/disposition or attachment inventory
+  // change after target confirmation must revoke its *current output* status.
+  // A filename alone is never a sufficient File grant or equality witness.
+  if(externalTracks!==null){
+    if(!Array.isArray(externalTracks) ||
+        externalTracks.length!==plan.externalTracks.length)return false;
+    if(!plan.externalTracks.every((expected,i)=>{
+      const actual=externalTracks[i];
+      return actual?.file===expected.file && actual?.kind===expected.kind &&
+        String(actual?.language||'und')===expected.language &&
+        String(actual?.title||'')===expected.title &&
+        Boolean(actual?.default)===expected.default &&
+        Boolean(actual?.forced)===expected.forced;
+    }))return false;
   }
-  return [...plan.externalTracks,...plan.attachments].every(asset=>
-    entries.some(e=>e.file===asset.file && e.include!==false));
+  if(attachments!==null){
+    if(!Array.isArray(attachments)||attachments.length!==plan.attachments.length)
+      return false;
+    if(!plan.attachments.every((expected,i)=>{
+      const actual=attachments[i];
+      return actual?.file===expected.file &&
+        actual?.mimeType===expected.mimeType &&
+        (actual?.filename||actual?.file?.name)===expected.filename;
+    }))return false;
+  }
+  return true;
 }
 
 /**
