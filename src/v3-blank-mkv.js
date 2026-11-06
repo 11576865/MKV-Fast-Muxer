@@ -9,7 +9,13 @@ import {normalizeTrackLanguage,dispositionValue} from './mux-command.js';
 
 const allowedKinds=new Set(['video','audio','subtitle','attachment']);
 const allowedExternal=new Set(['audio','subtitle']);
-const validPath=x=>typeof x==='string' && /^[/\w.-]+$/.test(x) && !x.includes('..');
+const validPath=x=>typeof x==='string' && x.length>0 &&
+  !x.includes('..') && new RegExp('^[A-Za-z0-9_./-]+$').test(x);
+const safeFilename=x=>typeof x==='string' && x.length>0 &&
+  !x.includes('/') && !x.includes(String.fromCharCode(92)) &&
+  !Array.from(x).some(c=>c.charCodeAt(0)<32);
+const safeMime=x=>typeof x==='string' &&
+  new RegExp('^[A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+$').test(x);
 const index=x=>Number.isSafeInteger(x)&&x>=0;
 
 export function createV3BlankTargetPlan({
@@ -42,15 +48,14 @@ export function createV3BlankTargetPlan({
     !t.file.name || (t.kind==='subtitle' && !/\.(srt|ass|ssa|vtt|webvtt)$/i.test(t.file.name))))
     throw Error('BLANK_EXTERNAL_TRACK_INVALID');
   if(attachments.some(a=>!(a.file instanceof Blob)||!a.file.size||
-    a.file.size>16*1024*1024 || typeof a.mimeType!=='string' ||
-    !/^[a-z0-9.+-]+\\/[a-z0-9.+-]+$/i.test(a.mimeType)||
-    !a.file.name || !/^[^\\/\\\\\\u0000-\\u001f]+$/.test(a.filename||a.file.name)))
+    a.file.size>16*1024*1024 || !safeMime(a.mimeType) ||
+    !safeFilename(a.filename||a.file.name)))
     throw Error('BLANK_ATTACHMENT_INVALID');
   if(attachments.reduce((n,a)=>n+a.file.size,0)>32*1024*1024||
       new Set(attachments.map(a=>String(a.filename||a.file.name).toLowerCase())).size
         !==attachments.length)
     throw Error('BLANK_ATTACHMENT_BUDGET_OR_NAME_COLLISION');
-  if(!/^[^\\/\u0000-\u001f]+\.mkv$/i.test(outputName))
+  if(!safeFilename(outputName)||!outputName.toLowerCase().endsWith('.mkv'))
     throw Error('BLANK_TARGET_OUTPUT_NAME_INVALID');
   return Object.freeze({
     schema:'v3-blank-target-plan-v1',kind:'blank',
