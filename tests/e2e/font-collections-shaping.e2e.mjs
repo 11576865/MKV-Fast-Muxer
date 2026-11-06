@@ -47,7 +47,10 @@ try{
   const context=await browser.newContext({acceptDownloads:true,viewport:{width:1440,height:1000}}),page=await context.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   try{
-   await page.goto(baseUrl,{waitUntil:'networkidle'});
+   // This scenario is a regression of the pre-V3 production workbench.
+   // Default / now uses V3's explicit-target permission gate; do not
+   // silently authorize a target merely to satisfy a legacy fixture.
+   await page.goto(new URL('?ui=workbench',baseUrl).href,{waitUntil:'networkidle'});
    await page.setInputFiles('#unifiedAssetInput',[path.join(root,'base.mp4'),ass,sourceFont]);
    await page.waitForFunction(()=>document.querySelectorAll('#newSubtitleList .track-meta').length===1&&!document.querySelector('#muxBtn').disabled,null,{timeout:120000});
    await page.locator('#assetInventory .asset-entry[data-kind="font"] [data-asset-focus-key]').click();
