@@ -207,6 +207,21 @@ try{
        'approved V3-07 requires the working container-content/add-resources toolbar');
    }
    if(width===620){
+     // Approved V3-08 node 37:223 uses the same 620×900 CSS viewport.
+     // Compare actual object BOX positions (not mock text or fake track
+     // names): video 266px, audio 355px, subtitle 502px, final structure
+     // card 759px. Allow font/browser rounding; do not claim pixel signoff.
+     const topOf=kind=>data.rows.find(row=>row.kind===kind)?.box?.y;
+     for(const [label,actual,reference] of [
+       ['video',topOf('video'),266],
+       ['audio',topOf('audio'),355],
+       ['subtitle',topOf('subtitle'),502],
+       ['last structure',data.lastStructureRow?.y,759],
+     ]) {
+       assert.ok(Number.isFinite(actual)&&Math.abs(actual-reference)<=8,
+         'V3-08 compact vertical geometry must stay near the Figma frame: '+
+         JSON.stringify({label,actual,reference}));
+     }
      assert.ok(data.lastStructureRow?.bottom<=data.dock.y,
        'compact font/chapter/tag summary must fit above the 620 output dock');
      assert.ok(data.statsRect.y>=data.titleRect.bottom,
