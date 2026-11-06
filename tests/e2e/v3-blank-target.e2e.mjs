@@ -202,6 +202,15 @@ try{
   assert.equal(await page.locator('#reportLink').isVisible(),true);
   assert.equal(await page.locator('#downloadLink').count(),1);
   assert.equal(await page.locator('#reportLink').count(),1);
+  // Evidence screenshots must represent the fully visible *settled* context
+  // sheet. The 150ms native transition intentionally starts at opacity .78;
+  // capturing before it finishes makes the underlying tracks appear as false
+  // visual overlap. This is screenshot stabilization, not a CSS or media fix.
+  const inspector=page.locator('.sf14-pane.sf14-inspector');
+  await inspector.evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)));
+  const opacity=await inspector.evaluate(el=>Number(getComputedStyle(el).opacity));
+  assert.ok(opacity>=0.995,
+    'completed-output evidence screenshot must wait for inspector entrance animation');
   await snap('blank-complete-evidence-620.png');
   await page.locator('#sfv3InspectorClose').click();
   evidence.steps.push('V3-08 completed 620px: native compact dock, plan/Escape, accessible real MKV/report and current audit');
