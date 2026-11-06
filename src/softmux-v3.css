@@ -2281,6 +2281,8 @@
     order:0;flex:1 1 auto!important;width:auto!important;
     display:flex!important;flex-wrap:nowrap!important;
     align-items:center!important;gap:8px!important;min-width:0;
+    padding:0!important;background:transparent!important;
+    border:0!important;border-radius:0!important;box-shadow:none!important;
   }
   .sf14.sfv3[data-sfv3-surface="plan"]:has(#downloadLink.hidden):has(#reportLink.hidden) .sf14-output:has(#cancelBtn:disabled) .execution-status{
     min-width:0!important;flex:1 1 0!important;max-width:none!important;
