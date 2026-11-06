@@ -2774,8 +2774,10 @@ function renderOutputComposition() {
     const resourceDetails=document.createElement('details');
     resourceDetails.id='sfv3ResourceDetails';
     resourceDetails.className='sfv3-resource-details';
-    resourceDetails.open=window.innerWidth>719 ||
-      Boolean(compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
+    // Approved V3-04/06/08 keeps font and attachment rows secondary to
+    // primary media; preserve the user's disclosure state across re-renders.
+    // Do not automatically expand resources simply because the window is wide.
+    resourceDetails.open=Boolean(compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
     const summary=document.createElement('summary');
     summary.className='sfv3-resource-summary';
     const resourceTitle=document.createElement('strong');
