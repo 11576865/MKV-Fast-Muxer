@@ -2647,6 +2647,13 @@ function renderOutputComposition() {
   compositionCount.textContent = kinds
     .filter(kind => model.counts[kind])
     .map(kind => `${compositionKindNames[kind]} ${model.counts[kind]}`).join(' · ') || '待导入';
+  // Preserve a user-opened V3 attachment/font disclosure BEFORE the native
+  // composition renderer replaces its DOM. The old query after innerHTML
+  // replacement always saw null and silently collapsed the card on edit.
+  const v3ResourceWasOpen=Boolean(v3Pilot &&
+    compositionTracks.dataset.sfv3ResourceSourceKey===String(containerDocument.sourceKey||'') &&
+    compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
+  compositionTracks.dataset.sfv3ResourceSourceKey=String(containerDocument.sourceKey||'');
   compositionTracks.innerHTML = model.items.map(item => {
     const active = item.id === selectedCompositionId;
     const label = compositionKindNames[item.kind] || item.kind;
@@ -2774,8 +2781,10 @@ function renderOutputComposition() {
     const resourceDetails=document.createElement('details');
     resourceDetails.id='sfv3ResourceDetails';
     resourceDetails.className='sfv3-resource-details';
-    resourceDetails.open=window.innerWidth>719 ||
-      Boolean(compositionTracks.querySelector('#sfv3ResourceDetails')?.open);
+    // Approved V3-04/06/08 keeps font and attachment rows secondary to
+    // primary media; preserve the user's disclosure state across re-renders.
+    // Do not automatically expand resources simply because the window is wide.
+    resourceDetails.open=v3ResourceWasOpen;
     const summary=document.createElement('summary');
     summary.className='sfv3-resource-summary';
     const resourceTitle=document.createElement('strong');

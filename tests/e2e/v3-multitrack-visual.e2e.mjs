@@ -52,6 +52,29 @@ try{
    !document.querySelector('#unifiedAssetInput')?.disabled,
    path.basename(source),{timeout:180000});
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+ // Approved V3-01: use this *real* 1 video + 2 audio + ASS + attached font
+ // source as the visual audit fixture, rather than the geometry suite's
+ // intentional one-video/zero-audio minimal file (not a matched mock).
+ await page.waitForFunction(()=>{
+   const root=document.getElementById('sf14Root');
+   const rows=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row')];
+   const groups=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group .sfv3-object-group-title')]
+     .map(node=>node.textContent);
+   return root?.dataset.sfv3Surface==='source' && rows.length>=4 &&
+     groups.includes('视频') && groups.includes('音频') && groups.includes('字幕');
+ },null,{timeout:60000});
+ await page.waitForFunction(()=>
+   document.querySelector('.sfv3-source-resource-card[data-kind="attachments"] .sfv3-source-resource-count')?.textContent==='01',
+   null,{timeout:60000});
+ const duplicatedSourceAttachment=await page.evaluate(()=>{
+   const sections=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group')];
+   return sections.some(section=>section.querySelector('.sfv3-object-group-title')?.textContent==='其他轨道' &&
+     /SourceFont|\.ttf/i.test(section.textContent));
+ });
+ assert.equal(duplicatedSourceAttachment,false,
+   'same verified font attachment must be represented by source resource card, not a duplicate main track');
+ await page.screenshot({path:path.join(dir,'five-track-source-1440x900.png')});
+ evidence.screenshots.push('five-track-source-1440x900.png');
  await page.locator('#sfv3EnterOutput').click();
  await page.locator('#sfv3ConfirmTarget').click();
  await page.waitForFunction(()=>{
@@ -86,6 +109,12 @@ try{
          .map(x=>({kind:x.dataset.kind,count:x.querySelector('strong')?.textContent})),
        compactSourceMenuVisible:!!document.querySelector('#sfv3CompactSources summary')?.getClientRects().length,
        resourceSummaryVisible:!!document.querySelector('#sfv3ResourceDetails > summary')?.getClientRects().length,
+       resourceOpen:document.getElementById('sfv3ResourceDetails')?.open,
+       resourceCards:[
+         '#sfv3ResourceDetails > summary',
+         '#compositionTracks .sfv3-compact-structure-open[data-sfv3-structure-open="chapter"]',
+         '#compositionTracks .sfv3-compact-structure-open[data-sfv3-structure-open="metadata"]',
+       ].map(query=>rect(document.querySelector(query))),
        nativeResourceEditors:document.querySelectorAll('#sfv3ResourceDetails button[data-composition-id]').length,
        compactStructureLinks:document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open').length,
        mediaRowHeights:rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind))
@@ -118,6 +147,18 @@ try{
    assert.equal(stat('video'),'01','real video count should be visible');
    assert.equal(stat('audio'),'02','real audio count should be visible');
    assert.equal(stat('subtitle'),'02','real subtitle count should be visible');
+   assert.equal(data.resourceOpen,false,
+     'real target attachments/fonts start collapsed at every V3 viewport');
+   assert.equal(data.resourceSummaryVisible,true,
+     'real font and attachment disclosure remains reachable');
+   if(width>=720){
+     const [files,chapters,tags]=data.resourceCards;
+     assert.ok(files&&chapters&&tags && files.width>80 && chapters.width>80 && tags.width>80 &&
+       Math.abs(files.y-chapters.y)<=3 && Math.abs(chapters.y-tags.y)<=3 &&
+       files.right<=chapters.x+3 && chapters.right<=tags.x+3,
+       'approved V3-04/06/07 resource cards must share one compact horizontal row: '+
+         JSON.stringify(data.resourceCards));
+   }
    if(width<=719){
      assert.equal(data.compactSourceMenuVisible,true,'Figma compact source selector');
      assert.equal(data.resourceSummaryVisible,true,'compact attachment/structure cards');
@@ -167,7 +208,12 @@ try{
  await page.locator('#sfv3ResourceDetails > summary').click();
  assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),'',
    'real font/attachment editors must remain accessible');
- assert.ok(await page.locator('#sfv3ResourceDetails button[data-composition-id]').first().isVisible());
+ const nativeResourceRow=page.locator('#sfv3ResourceDetails button[data-composition-id]').first();
+ assert.equal(await nativeResourceRow.isVisible(),true);
+ await nativeResourceRow.click();
+ assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),'',
+   'selecting a real resource may re-render composition but cannot close the user-opened disclosure');
+ await page.locator('#sfv3InspectorClose').click();
  await page.locator('#sfv3ResourceDetails > summary').click();
  await page.locator('#compositionTracks button[data-sfv3-object-kind="subtitle"]').last().tap();
  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true);

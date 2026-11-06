@@ -184,7 +184,65 @@ try{
   assert.deepEqual(counters.filter(x=>x.kind==='video'),[{kind:'video',value:'01'}]);
   assert.deepEqual(counters.filter(x=>x.kind==='audio'),[{kind:'audio',value:'00'}]);
   assert.deepEqual(counters.filter(x=>x.kind==='subtitle'),[{kind:'subtitle',value:'00'}]);
+  // Figma V3-01/05: source media stays primary; actual FFprobe chapter/tag
+  // observations appear as compact cards, not extra fake media tracks.
+  await page.waitForFunction(()=>{
+    const chapter=document.querySelector('.sfv3-source-resource-card[data-kind="chapters"] .sfv3-source-resource-count');
+    const tag=document.querySelector('.sfv3-source-resource-card[data-kind="tags"] .sfv3-source-resource-count');
+    return chapter?.textContent==='01' && Number(tag?.textContent)>0;
+  },null,{timeout:60000});
+  const sourceCards=await page.locator('.sfv3-source-resource-card').count();
+  assert.equal(sourceCards,3,'exact-source secondary resources use three expandable summary cards');
+  // The original single target action now lives in Figma V3-01's visible
+  // content toolbar above source rows, without changing File/target authority.
+  assert.equal(await page.locator('#sfv3EnterOutput').count(),1);
+  const toolbarBox=await page.locator('#sfv3SourceToolbar').boundingBox();
+  const firstMediaBox=await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().boundingBox();
+  assert.ok(toolbarBox && firstMediaBox && toolbarBox.y+toolbarBox.height<=firstMediaBox.y+3,
+    'source content toolbar should precede real source rows');
+  await page.locator('#sfv3SourceSearchToggle').click();
+  const search=page.locator('#sfv3SourceSearch');
+  assert.equal(await search.isVisible(),true);
+  await search.fill('no-such-codec-123');
+  assert.equal(await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().isVisible(),false,
+    'visual source search must hide unmatched rows, not remove data');
+  assert.equal(await page.locator('#videoInput').evaluate(node=>node.files?.[0]?.name),
+    'V3 Responsive Fixture.mkv','search cannot change canonical File');
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+    'search does not create or authorize an output');
+  await search.fill('mpeg4');
+  assert.equal(await page.locator('#sfv3SourceContents > .sfv3-object-group .sfv3-observed-row').first().isVisible(),true);
+  await search.press('Escape');
+  assert.equal(await search.isVisible(),false);
+  await page.locator('#sfv3SourceStructureToggle').click();
+  assert.equal(await page.locator('.sfv3-source-resource-card[open]').count(),3,
+    'toolbar toggles only genuine read-only source disclosures');
+  await page.locator('#sfv3SourceStructureToggle').click();
+  assert.equal(await page.locator('.sfv3-source-resource-card[open]').count(),0);
+  const chapterCard=page.locator('.sfv3-source-resource-card[data-kind="chapters"]');
+  assert.equal(await chapterCard.getAttribute('open'),null);
+  assert.equal(await chapterCard.locator('.sfv3-observed-row').first().isVisible(),false,
+    'read-only chapter rows are not allowed to displace visible video/audio/subtitles');
+  await chapterCard.locator('summary').click();
+  assert.equal(await chapterCard.getAttribute('open'),'');
+  assert.match(await chapterCard.textContent(),/Actual Intro Chapter/);
+  await chapterCard.locator('.sfv3-row-select').first().click();
+  assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true,
+    'source chapter can still open the one read-only inspector');
+  await page.locator('#sfv3SourceInspectorClose').click();
+  await chapterCard.locator('summary').click();
+  assert.equal(await chapterCard.getAttribute('open'),null);
   await audit('source');
+  await page.setViewportSize({width:620,height:900});
+  await page.locator('#sfv3SourceSearchToggle').click();
+  const compactSearch=await page.locator('#sfv3SourceSearch').boundingBox();
+  const compactToolbar=await page.locator('#sfv3SourceToolbar').boundingBox();
+  assert.ok(compactSearch && compactToolbar &&
+    compactSearch.x>=-2 && compactSearch.x+compactSearch.width<=622 &&
+    compactSearch.y>=compactToolbar.y+compactToolbar.height-2 &&
+    compactSearch.y+compactSearch.height<=900,
+    '620px source search must be anchored directly below toolbar, within viewport');
+  await page.locator('#sfv3SourceSearch').press('Escape');
   await page.setViewportSize({width:820,height:1180});
   const sourceSelection=page.locator('#sfv3SourceContents .sfv3-row-select').first();
   await sourceSelection.tap();
