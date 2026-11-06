@@ -110,6 +110,14 @@ try{
        compactSourceMenuVisible:!!document.querySelector('#sfv3CompactSources summary')?.getClientRects().length,
        resourceSummaryVisible:!!document.querySelector('#sfv3ResourceDetails > summary')?.getClientRects().length,
        resourceOpen:document.getElementById('sfv3ResourceDetails')?.open,
+       verificationOpen:document.getElementById('sfv3Verification')?.open,
+       verificationBox:rect(document.getElementById('sfv3Verification')),
+       verificationLevel:document.getElementById('sfv3Verification')?.dataset.level,
+       verificationBrief:document.querySelector('#sfv3Verification .sfv3-verification-brief')?.textContent,
+       nativeVerificationNodes:[
+         '#compositionChanges','#compositionIssues','#containerCapabilitySummary',
+         '#containerCapabilityDetails','#preservationReadiness','#compositionSourceEvidence',
+       ].map(q=>document.querySelectorAll(q).length),
        resourceCards:[
          '#sfv3ResourceDetails > summary',
          '#compositionTracks .sfv3-compact-structure-open[data-sfv3-structure-open="chapter"]',
@@ -149,6 +157,17 @@ try{
    assert.equal(stat('subtitle'),'02','real subtitle count should be visible');
    assert.equal(data.resourceOpen,false,
      'real target attachments/fonts start collapsed at every V3 viewport');
+   assert.equal(data.verificationOpen,false,
+     'native verification starts compact, not full-height legacy cards');
+   assert.ok(data.verificationBox && data.lastStructureRow &&
+     data.verificationBox.y>=data.lastStructureRow.bottom-2,
+     'verification must follow all primary track and resource rows: '+
+       JSON.stringify({verification:data.verificationBox,resources:data.lastStructureRow}));
+   assert.ok(data.nativeVerificationNodes.every(n=>n===1),
+     'verification rehosting preserves exactly one of each native DOM control');
+   assert.ok(data.verificationBrief && data.verificationBrief.length>2 &&
+     !/^(?:已通过|全部通过|验证成功)$/.test(data.verificationBrief),
+     'risk summary must report live status, not inferred output-audit success');
    assert.equal(data.resourceSummaryVisible,true,
      'real font and attachment disclosure remains reachable');
    if(width>=720){
@@ -198,6 +217,22 @@ try{
    await page.screenshot({path:path.join(dir,picture)});
    evidence.viewports.push({width,height,...data});evidence.screenshots.push(picture);
  }
+ // Native risks remain discoverable, but are not allowed to swallow the
+ // entire target canvas in the approved desktop/portrait/compact screenshots.
+ const verification=page.locator('#sfv3Verification');
+ assert.equal(await verification.locator(':scope > summary').count(),1);
+ assert.equal(await verification.getAttribute('open'),null);
+ await verification.locator(':scope > summary').click();
+ assert.equal(await verification.getAttribute('open'),'');
+ assert.equal(await page.locator('#preservationReadiness').isVisible(),true);
+ assert.equal(await page.locator('#containerCapabilitySummary').count(),1);
+ assert.equal(await page.locator('#compositionIssues').count(),1);
+ assert.equal(await page.locator('#compositionSourceEvidence').count(),1);
+ await page.screenshot({path:path.join(dir,'verification-native-expanded-620x900.png')});
+ evidence.screenshots.push('verification-native-expanded-620x900.png');
+ await verification.locator(':scope > summary').click();
+ assert.equal(await verification.getAttribute('open'),null);
+ assert.equal(sha(await fs.readFile(source)),sourceSHA);
  // Real source selector remains navigable, and must not implicitly revoke
  // the confirmed File-bound target or clone the media editor.
  await page.locator('#sfv3CompactSources > summary').click();
