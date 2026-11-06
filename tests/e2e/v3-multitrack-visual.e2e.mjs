@@ -86,6 +86,12 @@ try{
          .map(x=>({kind:x.dataset.kind,count:x.querySelector('strong')?.textContent})),
        compactSourceMenuVisible:!!document.querySelector('#sfv3CompactSources summary')?.getClientRects().length,
        resourceSummaryVisible:!!document.querySelector('#sfv3ResourceDetails > summary')?.getClientRects().length,
+       resourceOpen:document.getElementById('sfv3ResourceDetails')?.open,
+       resourceCards:[
+         '#sfv3ResourceDetails > summary',
+         '#compositionTracks .sfv3-compact-structure-open[data-sfv3-structure-open="chapter"]',
+         '#compositionTracks .sfv3-compact-structure-open[data-sfv3-structure-open="metadata"]',
+       ].map(query=>rect(document.querySelector(query))),
        nativeResourceEditors:document.querySelectorAll('#sfv3ResourceDetails button[data-composition-id]').length,
        compactStructureLinks:document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open').length,
        mediaRowHeights:rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind))
@@ -118,6 +124,18 @@ try{
    assert.equal(stat('video'),'01','real video count should be visible');
    assert.equal(stat('audio'),'02','real audio count should be visible');
    assert.equal(stat('subtitle'),'02','real subtitle count should be visible');
+   assert.equal(data.resourceOpen,false,
+     'real target attachments/fonts start collapsed at every V3 viewport');
+   assert.equal(data.resourceSummaryVisible,true,
+     'real font and attachment disclosure remains reachable');
+   if(width>=720){
+     const [files,chapters,tags]=data.resourceCards;
+     assert.ok(files&&chapters&&tags && files.width>80 && chapters.width>80 && tags.width>80 &&
+       Math.abs(files.y-chapters.y)<=3 && Math.abs(chapters.y-tags.y)<=3 &&
+       files.right<=chapters.x+3 && chapters.right<=tags.x+3,
+       'approved V3-04/06/07 resource cards must share one compact horizontal row: '+
+         JSON.stringify(data.resourceCards));
+   }
    if(width<=719){
      assert.equal(data.compactSourceMenuVisible,true,'Figma compact source selector');
      assert.equal(data.resourceSummaryVisible,true,'compact attachment/structure cards');
