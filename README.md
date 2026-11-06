@@ -7,7 +7,9 @@
 它面向“已有视频 / 原 MKV + ASS / SSA / SRT / WebVTT / PGS / VobSub + 可选外部音频 + 字体附件”的成品封装场景：视频和音频保持 **stream copy**，字幕作为 Matroska 软字幕轨加入，字体作为 MKV attachment 写入，不重新压制媒体流。
 
 **Web App:** https://11576865.github.io/MKV-Fast-Muxer/  
-**Package version:** 0.1044.0  ·  **Product version:** 软封0.1044版本
+**Package version:** 0.1047.0  ·  **Product version:** 软封0.1047版本
+
+**正式工作台界面（2026-11-07 候选）：** 普通网址 `/` 默认打开 **V3 Object-first 工作台**；`?ui=v3` 保留同一 V3 的兼容直达入口。右上角“保留的旧工具”菜单提供“切换至上一版工作台”（`?ui=workbench`），原始诊断界面仍可通过 `?ui=legacy` 打开。切换页面会重新加载，浏览器 `File` 授权与未保存的结果不会自动转移；请先下载 MKV、审计报告或工程草稿。**任何界面路线都不代替明确确认拟输出目标，不能把仅仅打开来源当作封装许可。** 本次是 **UI 默认入口切换**，不是整个产品的软封 1.0 正式发布；[11 状态设计审查](docs/ui-v3/V3_11_STATE_VISUAL_AUDIT_2026-11-07.md)仍保留实体设备、辅助技术及完整视觉签核限制。GitHub CI 与 PR 合并完成前请将该默认切换视为发布候选，而不是已部署。
 
 **0.1033 S14 可执行 1.0 发布证据门禁（当前候选）：** 建立 [1.0 核验台账](docs/softmux-1.0-release-evidence.json)、[原始 44 能力迁移台账](docs/softmux-1.0-legacy-capability-ledger.json)，与既有 57 项原始场景建立严格 ID/状态对照。`npm run release:audit` 对当前开发分支进行**非通过性审计**（开发版仍能正常构建）；`npm run release:gate` 仅用于专门的 1.0 候选提交，在确切 SHA/版本、逐场景与旧功能成品证据、实体桌面/平板设备记录、部署核对、回滚执行及 GitHub 上同 SHA 完整 Node/Chromium/S12 CI 都满足时才允许通过。**当前 1.0 仍阻断；代码通过 CI 或草稿存在不能自动把任何 MUST 条目提升为 PASS。** 这次 S14 工程流程增强不宣称修复尚存的媒体、设备和各编辑范围差距。普通 Pages 流程只自动发布开发版，正式版本受部署保护阻断；只读发布门禁通过本身不执行网站发布。近期真实 CI 的附件元数据见 [证据索引](docs/softmux-1.0-observed-ci-20261101.json)，各 MUST 条目已定位关联测试，尚不代表完整验收。详细进度见 [S14 发布审查报告](docs/softmux-1.0-S14-release-readiness-20261027.md)。
 
