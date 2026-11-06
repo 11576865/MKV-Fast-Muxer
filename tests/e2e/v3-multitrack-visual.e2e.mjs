@@ -105,6 +105,7 @@ try{
        dockPlanToggle:rect(document.getElementById('sf14PlanToggle')),
        dockInspectorOpen:rect(document.getElementById('sfv3InspectorOpen')),
        idleCancelDisabled:document.getElementById('cancelBtn')?.disabled===true,
+       idleProgressVisible:!!document.querySelector('.sf14-output .execution-status .progress')?.getClientRects().length,
        lastMediaRow:rect(rows.filter(x=>['video','audio','subtitle'].includes(x.dataset.sfv3ObjectKind)).at(-1)),
        lastStructureRow:rect([...document.querySelectorAll('#compositionTracks .sfv3-compact-structure-open')].at(-1)),
        titleRect:rect(document.getElementById('sfv3PlanName')),
@@ -139,6 +140,9 @@ try{
    assert.ok(data.scrollWidth<=width+2,'no horizontal overflow '+width);
    assert.equal(data.selectedFile,path.basename(source));
    assert.equal(data.target,'plan');
+   if(data.idleCancelDisabled)
+     assert.equal(data.idleProgressVisible,false,
+       'V3 idle/completed output should not show a stale blue progress stripe; live Cancel retains native progress');
    assert.equal(data.nativeEditorCount,1);
    const scrollDiagnostic=await page.evaluate(()=>{
      const el=document.getElementById('sfv3PlanHeading');
