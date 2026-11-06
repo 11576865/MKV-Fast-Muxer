@@ -7,7 +7,7 @@
  */
 import {normalizeTrackLanguage,dispositionValue} from './mux-command.js';
 
-const allowedKinds=new Set(['video','audio','subtitle']);
+const allowedKinds=new Set(['video','audio','subtitle','attachment']);
 const allowedExternal=new Set(['audio','subtitle']);
 const validPath=x=>typeof x==='string' && /^[/\w.-]+$/.test(x) && !x.includes('..');
 const index=x=>Number.isSafeInteger(x)&&x>=0;
@@ -44,8 +44,6 @@ export function createV3BlankTargetPlan({
   if(attachments.some(a=>!(a.file instanceof Blob)||!a.file.size||
     typeof a.mimeType!=='string'||!a.mimeType||!a.file.name))
     throw Error('BLANK_ATTACHMENT_INVALID');
-  if(!sources.length&&!externalTracks.length&&!attachments.length)
-    throw Error('BLANK_TARGET_NO_SELECTED_CONTENT');
   if(!/^[^\\/\u0000-\u001f]+\.mkv$/i.test(outputName))
     throw Error('BLANK_TARGET_OUTPUT_NAME_INVALID');
   return Object.freeze({
@@ -62,6 +60,14 @@ export function createV3BlankTargetPlan({
     }))),
     outputName,
   });
+}
+
+export function v3BlankPlanReadiness(plan){
+  if(plan?.schema!=='v3-blank-target-plan-v1')
+    return Object.freeze({ready:false,reason:'空目标计划未初始化'});
+  const count=plan.sourceStreams.length+plan.externalTracks.length+plan.attachments.length;
+  if(!count)return Object.freeze({ready:false,reason:'新建空 MKV 已选择；请至少添加一条真实轨道或附件'});
+  return Object.freeze({ready:true,reason:'',count});
 }
 
 export function v3BlankTargetStillCurrent(plan,{entries=[],activeSource=null}={}) {
@@ -85,6 +91,7 @@ export function buildV3BlankMuxCommand(plan,{
 }={}) {
   if(plan?.schema!=='v3-blank-target-plan-v1'||!validPath(outputPath))
     throw Error('BLANK_COMMAND_INVALID');
+  if(!v3BlankPlanReadiness(plan).ready)throw Error('BLANK_TARGET_NO_SELECTED_CONTENT');
   if(plan.sourceStreams.length && (!plan.sourceFile||!validPath(sourcePath)))
     throw Error('BLANK_COMMAND_SOURCE_NOT_STAGED');
   if(externalPaths.length!==plan.externalTracks.length ||
