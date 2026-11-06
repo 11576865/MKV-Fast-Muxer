@@ -102,8 +102,12 @@ try {
  await page.locator('#sfv3SourceInspectorAdd').click();
  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
    'ASS Add-to only opens explicit target choice; no target is granted');
- assert.equal(await page.locator('#sfv3ConfirmTarget').isDisabled(),true,
-   'one imported source cannot act as its own destination');
+ assert.equal(await page.locator('#sfv3TargetPicker input[value="__v3_blank__"]').isChecked(),true,
+   'one source has no alternative existing-MKV base; only the explicit blank target is offered');
+ assert.equal(await page.locator('#sfv3ConfirmTarget').isDisabled(),false,
+   'an explicit new destination may be created without writing into the same source');
+ assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
+   'opening the blank destination choice alone does not grant output authority');
  await page.locator('.sfv3-picker-cancel').click();
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#sfv3AssFontDependencies').isVisible(),false,

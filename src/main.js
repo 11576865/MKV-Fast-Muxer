@@ -18,6 +18,8 @@ import {
 } from './softmux-10.14-workbench.js';
 import { mountSoftmuxV3Surface } from './softmux-v3-surface.js';
 import { createV3TargetAuthority } from './softmux-v3-intent.js';
+import {createV3BlankTargetPlan,v3BlankPlanReadiness,v3BlankTargetStillCurrent,
+  buildV3BlankMuxCommand,auditV3BlankOutput} from './v3-blank-mkv.js';
 import { buildSourceObjectSections } from './source-object-sections.js';
 import { captureSourceAttachmentUndo, sealSourceAttachmentUndo, planSourceAttachmentUndo } from './source-attachment-undo.js';
 import { PRODUCT_PACKAGE_VERSION } from './product-version.js';
@@ -654,6 +656,27 @@ const secondarySubtitleInventories = new Map();
 const secondarySubtitleBusy = new Set();
 const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
 const v3TargetAuthority = createV3TargetAuthority();
+let v3BlankPlan=null;
+const liveV3BlankMembers=()=>({
+  externalTracks:[
+    ...outputAudioTracks().map(t=>({...t,kind:'audio'})),
+    ...outputSubtitleTracks().map(t=>({...t,kind:'subtitle'})),
+  ],
+  attachments:[
+    ...includedGenericAttachments().map(e=>({
+      file:e.file,mimeType:e.mimeType,filename:e.file.name,
+    })),
+    ...selectedFontRecognition().recognized.map(e=>({
+      file:e.file,mimeType:fontMimeType(e.identity),
+      filename:normalizedFontAttachmentName(e.file.name,e.identity),
+    })),
+  ],
+});
+const v3BlankPlanCurrent=()=>Boolean(v3BlankPlan &&
+  v3BlankTargetStillCurrent(v3BlankPlan,{
+    entries:importedAssetEntries,activeSource:videoInput.files?.[0]||null,
+    ...liveV3BlankMembers(),
+  }));
 const v3MayEditOutput = () => !v3Pilot || Boolean(
   currentV3Target() &&
   document.getElementById('sf14Root')?.dataset.sfv3Surface === 'plan'
@@ -998,10 +1021,15 @@ const outputSubtitleTracks = () => externalOutputTracks(newSubtitleState);
 const outputAudioTracks = () => externalOutputTracks(externalAudioState);
 const externalOutputContext = () => ({audioRows:externalAudioState,
   subtitleRows:newSubtitleState,fonts:selectedFonts(),mode:fontMode.value});
-const currentOutputSelection = owner => Boolean(owner && (owner.kind==='attachments-only'
-  ? attachmentOnlyMode() && attachmentSelectionCurrent(owner.attachmentSelection,importedAssetEntries)
-  : isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()) &&
-    attachmentSelectionCurrent(owner.genericAttachmentSelection||[],genericAttachmentEntries())));
+const currentOutputSelection = owner => Boolean(owner && (owner.kind==='blank-mkv'
+  // An output from a new Segment is owned by the exact original immutable
+  // blank plan, not by the legacy existing-base ContainerProject.
+  ? owner.blankPlan===v3BlankPlan && currentV3Target()?.kind==='blank' &&
+    v3BlankPlanCurrent()
+  : owner.kind==='attachments-only'
+    ? attachmentOnlyMode() && attachmentSelectionCurrent(owner.attachmentSelection,importedAssetEntries)
+    : isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()) &&
+      attachmentSelectionCurrent(owner.genericAttachmentSelection||[],genericAttachmentEntries())));
 
 function selectedSubtitleFiles() {
   return selectedSubtitleTracks().map((track) => track.file);
@@ -1862,6 +1890,10 @@ function updateUI() {
   // V3's visible source list is not authorization to execute. Even a hidden
   // legacy button remains blocked until an exact File-bound target is chosen.
   if(v3Pilot && !v3MayEditOutput())muxBtn.disabled=true;
+  if(v3Pilot && currentV3Target()?.kind==='blank'){
+    muxBtn.disabled=busy||importInProgress||!v3BlankPlanCurrent()||
+      !v3BlankPlanReadiness(v3BlankPlan).ready;
+  }
   cancelBtn.disabled = !(running || scanning || previewing || extractingOriginalTrack);
   trackBulkTools?.classList.toggle('hidden', !trackState || appendMode);
   attachmentBulkTools?.classList.toggle('hidden', !trackState || appendMode || !trackState.attachments.length);
@@ -2221,6 +2253,42 @@ singleRetryDirectoryBtn?.addEventListener('click', () => {
 function renderActualOutputEvidence() {
   renderSingleDirectorySave();
   if (!outputEvidencePanel) return;
+  if(lastActualOutput?.kind==='blank-mkv') {
+    // This is a genuinely new Matroska Segment. The legacy projector asks
+    // whether an existing-base output plan still matches; that question is
+    // categorically inapplicable here. Display real new-Segment evidence
+    // without ever claiming preservation of the old container's EBML.
+    const report=lastActualOutput.report;
+    const current=currentOutputSelection(lastActualOutput);
+    const counts=report.audit?.expectedStreamCount ?? 0;
+    const sourceCount=report.source?.selectedStreams?.length || 0;
+    const externalCount=report.externalTracks?.length || 0;
+    const newAttachments=report.newAttachments?.length || 0;
+    outputEvidencePanel.hidden=false;
+    outputEvidencePanel.dataset.audit=report.audit?.status==='pass'?'pass':'unavailable';
+    outputEvidencePanel.dataset.current=String(current);
+    outputEvidenceTitle.textContent=report.audit?.status==='pass'
+      ? '新建 MKV 已完成指定范围的成品核验':'新建 MKV 的成品核验不完整';
+    outputEvidenceScopeState.textContent=current?'当前空白目标计划':'历史空白目标';
+    outputEvidenceName.textContent=report.output?.name||'';
+    outputEvidenceFacts.textContent='实际流数量核验 '+counts+
+      ' 条 · 来源明确选择 '+sourceCount+' 条 · 外部轨道 '+externalCount+
+      ' 条 · 新附件完整字节核验 '+newAttachments+' 项 · SHA-256：'+
+      (report.output?.sha256||'未记录');
+    outputEvidenceIssues.textContent=report.audit?.status==='pass'
+      ? '已对新容器的流数量与指定新附件执行核验。未声称完整源 EBML、UID 或播放器兼容。'
+      : '成品核验未完全通过，不可宣称完整保真或验收。';
+    outputEvidenceRevision.textContent=current
+      ? '与当前明确选择的新建目标和原始 File 引用一致'
+      : '输入文件、轨道计划或成员已变化；此成品为历史结果。';
+    const limits=outputEvidencePanel.querySelector('.output-evidence-limits');
+    if(limits)limits.textContent='独立新建的 Matroska；未复制来源章节、标签及未勾选流。'+
+      'ffprobe 流数量及新附件 SHA-256 不证明原来源流完整逐字节相等、'+
+      '所有播放器兼容或文件已保存到设备。';
+    if(outputIndexInspectBtn)outputIndexInspectBtn.hidden=true;
+    if(outputIndexResult)outputIndexResult.hidden=true;
+    return;
+  }
   if(lastActualOutput?.kind==='attachments-only') {
     const current=currentOutputSelection(lastActualOutput);
     outputEvidencePanel.hidden=false;outputEvidencePanel.dataset.audit='pass';outputEvidencePanel.dataset.current=String(current);
@@ -2409,6 +2477,84 @@ function renderOutputComposition() {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     sourceFile: scanned ? source : null,
   })));
+
+  // Blank destination uses the SAME actual composition DOM, but never
+  // invents a base MKV, implicitly maps a source stream, or displays legacy
+  // source objects as retained target tracks. Rows below are an immutable
+  // projection of the ONE explicitly confirmed blank-writer plan.
+  if(v3Pilot && currentV3Target()?.kind==='blank'){
+    const plan=v3BlankPlan;
+    const canWrite=v3BlankPlanCurrent()&&v3BlankPlanReadiness(plan).ready;
+    const objects=plan?[
+      ...plan.sourceStreams.map(track=>({
+        kind:track.kind,name:track.title||track.codec||'轨道 #'+track.index,
+        detail:'来源 '+plan.sourceFile.name+' · ffprobe 流 #'+track.index+
+          ' · 仅复制此流，不继承其他来源结构',
+      })),
+      ...plan.externalTracks.map(track=>({
+        kind:track.kind,name:track.title||track.file.name,
+        detail:'外部文件 · '+track.file.name,
+      })),
+      ...plan.attachments.map(item=>({
+        kind:'attachment',name:item.filename,
+        detail:'外部附件 · '+item.mimeType+' · '+formatBytes(item.file.size),
+      })),
+    ]:[];
+    const kindLabel={video:'视频',audio:'音频',subtitle:'字幕',attachment:'附件'};
+    const rows=objects.map((object,i)=>{
+      const row=document.createElement('div');
+      row.className='composition-row sfv3-blank-plan-row';
+      row.dataset.sfv3ObjectKind=object.kind;
+      row.setAttribute('role','listitem');
+      const kind=document.createElement('span');
+      kind.className='composition-kind';kind.textContent=kindLabel[object.kind]||object.kind;
+      const main=document.createElement('span');main.className='composition-track-main';
+      const title=document.createElement('strong');title.textContent=object.name;
+      const detail=document.createElement('small');detail.textContent=object.detail;
+      main.append(title,detail);
+      const index=document.createElement('span');index.className='sfv3-track-order';
+      index.textContent=String(i+1).padStart(2,'0');
+      row.append(kind,main,index);
+      return row;
+    });
+    const modify=document.createElement('button');
+    modify.id='sfv3BlankChange';
+    modify.className='sfv3-blank-modify';
+    modify.type='button';
+    modify.textContent='修改新容器成员 / 重新核对';
+    modify.setAttribute('aria-label','重新选择要复制的来源轨道和外部资源');
+    modify.addEventListener('click',()=>{
+      document.getElementById('sf14Root')?.dispatchEvent(
+        new CustomEvent('softmux:v3-edit-blank'));
+    });
+    compositionTracks.replaceChildren(...rows,modify);
+    compositionCount.textContent=objects.length+' 个明确选择的对象 · 新建容器';
+    compositionChanges.hidden=true;
+    compositionChanges.textContent='';
+    compositionIssues.hidden=canWrite;
+    compositionIssues.textContent=canWrite?'':!v3BlankPlanCurrent()
+      ? '输入文件或资源成员已改变，重新打开目标选择并核对。'
+      : v3BlankPlanReadiness(plan).reason;
+    if(containerCapabilitySummary){
+      containerCapabilitySummary.textContent=
+        '新建 Matroska · stream copy · 未选中来源结构不会复制 · 成品以实际 ffprobe 和附件回读为准';
+      containerCapabilitySummary.dataset.muxStatus=canWrite?'available':'blocked';
+    }
+    if(preservationReadinessTitle)preservationReadinessTitle.textContent='新容器，不继承来源章节与标签';
+    if(preservationReadinessEl)preservationReadinessEl.dataset.status='pending';
+    if(compositionSourceEvidence)compositionSourceEvidence.hidden=true;
+    outputCompositionPanel.hidden=false;
+    outputCompositionPanel.dataset.sfv3Blank='true';
+    currentProjectSourceProjection=null;
+    currentProjectSourceFile=null;
+    selectedCompositionId='';
+    document.querySelector('.workspace')?.setAttribute('data-has-composition',String(objects.length>0));
+    if(compositionMuxBtn)compositionMuxBtn.disabled=!canWrite||muxBtn.disabled;
+    if(editorMuxBtn)editorMuxBtn.disabled=!canWrite||muxBtn.disabled;
+    renderActualOutputEvidence();
+    return Object.freeze({kind:'blank',objects});
+  }
+  delete outputCompositionPanel.dataset.sfv3Blank;
   if (v3Pilot && !currentV3Target()) {
     currentProjectSourceProjection=null;
     currentProjectSourceFile=null;
@@ -4262,6 +4408,61 @@ document.addEventListener('softmux:v3-confirm-target', event => {
   event.preventDefault();
   document.getElementById('sf14Root')?.dispatchEvent(
     new CustomEvent('softmux:v3-target-confirmed',{detail:{baseKey,baseFile}}));
+  updateUI();
+  publishV3ResourceRegistry();
+});
+// V3-03: an actual new Segment is authored from EXPLICITLY chosen source
+// streams and current external assets. No source file becomes the destination,
+// and nothing is inherited from Matroska chapters/tags by default.
+document.addEventListener('softmux:v3-confirm-blank',event=>{
+  if(!v3Pilot || isBusy() || batchRunning || importInProgress)return;
+  const {sourceKey='',sourceFile=null,selectedIndices=[]}=event.detail||{};
+  const active=videoInput.files?.[0]||null;
+  if(sourceFile!==active)return;
+  if(sourceFile && !importedAssetEntries.some(e=>e.kind==='container' &&
+    e.file===sourceFile && e.key===sourceKey))return;
+  const verified=sourceFile && scannedSourceFile===sourceFile &&
+    trackState?.fileKey===fileKey(sourceFile);
+  if(selectedIndices.length && !verified)return;
+  const streams=verified ? (trackState.streams||[]).filter(t=>
+    ['video','audio','subtitle','attachment'].includes(t.codec_type)).map(stream=>({
+      index:stream.index,kind:stream.codec_type,codec:stream.codec_name||'',
+      title:String(stream.tags?.title||''),language:String(stream.tags?.language||'und'),
+      default:Boolean(stream.disposition?.default),forced:Boolean(stream.disposition?.forced),
+      original:Boolean(stream.disposition?.original),
+      commentary:Boolean(stream.disposition?.comment),
+      hearingImpaired:Boolean(stream.disposition?.hearing_impaired),
+    })) : [];
+  let plan;
+  try{
+    const assets=[
+      ...includedGenericAttachments().map(e=>({
+        file:e.file,mimeType:e.mimeType,filename:e.file.name,
+      })),
+      ...selectedFontRecognition().recognized.map(e=>({
+        file:e.file,mimeType:fontMimeType(e.identity),
+        filename:normalizedFontAttachmentName(e.file.name,e.identity),
+      })),
+    ];
+    const tracks=[
+      ...outputAudioTracks().map(t=>({...t,kind:'audio'})),
+      ...outputSubtitleTracks().map(t=>({...t,kind:'subtitle'})),
+    ];
+    plan=createV3BlankTargetPlan({
+      sourceFile,sourceKey,sourceStreams:streams,selectedIndices,
+      externalTracks:tracks,attachments:assets,outputName:'new.mkv',
+    });
+  }catch(error){
+    status.textContent='无法建立空白容器计划：'+(error?.message||String(error));return;
+  }
+  const result=v3TargetAuthority.confirmBlank({
+    sourceKey,sourceFile,entries:importedAssetEntries,activeFile:active,
+  });
+  if(!result.accepted)return;
+  v3BlankPlan=plan;
+  event.preventDefault();
+  document.getElementById('sf14Root')?.dispatchEvent(
+    new CustomEvent('softmux:v3-target-confirmed',{detail:result.intent}));
   updateUI();
   publishV3ResourceRegistry();
 });
@@ -6676,6 +6877,203 @@ async function executeCurrentAttachmentOnlyTask() {
   } finally {running=false;attachmentOnlyRunning=false;updateUI();}
 }
 
+// V3-03: truly NEW Matroska Segment from exact, explicitly chosen input
+// streams/assets. There is no synthetic "base" File, no inherited chapters,
+// no implicit video map and no second FFmpeg engine. The bounded generic-only
+// case reuses the established independently audited zero-track EBML writer.
+async function executeCurrentV3BlankTask(){
+  const plan=v3BlankPlan;
+  if(!v3Pilot||currentV3Target()?.kind!=='blank'||!v3MayEditOutput()||
+    isBusy()||batchRunning||importInProgress||!v3BlankPlanCurrent()||
+    !v3BlankPlanReadiness(plan).ready)return;
+  const selectionCurrent=()=>!cancelRequested &&
+    v3BlankPlan===plan && currentV3Target()?.kind==='blank' &&
+    v3BlankPlanCurrent();
+  const zeroMedia=plan.sourceStreams.length===0&&plan.externalTracks.length===0;
+  const prefix=taskPrefix();
+  const outputPath=prefix+'-v3-blank.mkv';
+  const auditPath=prefix+'-blank-audit.json';
+  const probePath=prefix+'-blank-source-probe.json';
+  const externalPaths=[];
+  const attachmentPaths=[];
+  let stagedSource=null;
+  let stagedPath=null;
+  running=true;attachmentOnlyRunning=zeroMedia;cancelRequested=false;
+  updateUI();
+  status.textContent='正在从已确认的资源创建独立新 MKV…';
+  bar.style.width='8%';
+  try {
+    let result;
+    if(zeroMedia){
+      const selected=plan.attachments.map(item=>({
+        kind:'attachment',file:item.file,mimeType:item.mimeType,include:true,
+      }));
+      const real=await generateAttachmentOnlyOutput(selected,{
+        outputName:plan.outputName,
+        isCurrent:selectionCurrent,
+      });
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      result={
+        blob:real.blob,outputSha256:real.outputSha256,
+        audit:{status:'pass',verification:real.report.verification,
+          mediaStreams:0,attachmentCount:real.report.attachments.length},
+        payloadAudit:real.report.attachments,
+      };
+    }else{
+      await loadFFmpeg();
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      if(plan.sourceStreams.length){
+        stagedSource=await stageBrowserPrimarySource({
+          ffmpeg,file:plan.sourceFile,prefix,
+          fallbackPath:prefix+'-blank-source.mkv',
+          workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,
+        });
+        stagedPath=stagedSource.path;
+        const observed=await probeInput(stagedPath,probePath,{
+          allowDecodeFallback:false,
+        });
+        for(const stream of plan.sourceStreams){
+          const actual=observed.streams.find(row=>row.index===stream.index);
+          if(!actual||actual.codec_type!==stream.kind ||
+              (stream.codec && actual.codec_name!==stream.codec))
+            throw Error('BLANK_SOURCE_STREAM_CHANGED:'+stream.index);
+        }
+      }
+      for(let i=0;i<plan.externalTracks.length;i++){
+        const item=plan.externalTracks[i];
+        const extMatch=/\.[a-z0-9]{1,8}$/i.exec(item.file.name);
+        const suffix=extMatch?extMatch[0].toLowerCase():'.source';
+        const target=prefix+'-blank-external-'+i+suffix;
+        externalPaths.push(target);
+        await ffmpeg.writeFile(target,await fetchFile(item.file));
+      }
+      for(let i=0;i<plan.attachments.length;i++){
+        const target=prefix+'-blank-attachment-'+i+'.data';
+        attachmentPaths.push(target);
+        await ffmpeg.writeFile(target,await fetchFile(plan.attachments[i].file));
+      }
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      const args=buildV3BlankMuxCommand(plan,{
+        sourcePath:stagedPath,
+        externalPaths,attachmentPaths,outputPath,
+      });
+      logEl.textContent='V3 blank target: 只映射明确选择的轨道；不复制来源章节、标签或其他 EBML。\n';
+      status.textContent='正在使用同一个 FFmpeg 引擎写入新 MKV…';
+      bar.style.width='50%';
+      const exitCode=await ffmpeg.exec(args);
+      if(exitCode!==0)throw Error('BLANK_MUX_FAILED:FFmpeg '+exitCode);
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      status.textContent='正在独立读取新容器的实际轨道与附件…';
+      bar.style.width='81%';
+      const observed=await probeInput(outputPath,auditPath,{
+        allowDecodeFallback:false,
+      });
+      const audit=auditV3BlankOutput(plan,observed.streams);
+      if(!/matroska/i.test(String(observed.format?.format_name||'')))
+        throw Error('BLANK_OUTPUT_NOT_MATROSKA');
+      const bytes=await ffmpeg.readFile(outputPath);
+      const blob=new Blob([bytes],{type:'video/x-matroska'});
+      const outputSha256=await sha256Hex(bytes);
+      const payloadAudit=[];
+      if(plan.attachments.length){
+        const reader=createMatroskaAttachmentReader(blob);
+        const inspected=await reader.inspect();
+        if(inspected.state!=='inspected')throw Error('BLANK_ATTACHMENT_AUDIT_UNAVAILABLE');
+        for(const item of plan.attachments){
+          const matches=inspected.attachments.filter(x=>x.filename===item.filename &&
+            x.mimeType===item.mimeType && x.byteLength===item.file.size);
+          if(matches.length!==1)throw Error('BLANK_ATTACHMENT_METADATA_MISMATCH');
+          const recovered=reader.openAttachment(matches[0].id).data;
+          const [sourceDigest,recoveredDigest]=await Promise.all([
+            sha256Hex(new Uint8Array(await item.file.arrayBuffer())),
+            sha256Hex(new Uint8Array(await recovered.arrayBuffer())),
+          ]);
+          if(sourceDigest!==recoveredDigest)throw Error('BLANK_ATTACHMENT_BYTES_MISMATCH');
+          payloadAudit.push({filename:item.filename,mimeType:item.mimeType,
+            bytes:item.file.size,sha256:recoveredDigest});
+        }
+      }
+      result={blob,outputSha256,payloadAudit,
+        audit:{status:'pass',...audit,
+          verification:'native-ffprobe-streams-and-new-attachment-byte-sha256',
+          sourceAttachmentByteEquality:'not-verified',
+          independentPlayerAcceptance:false,
+        }};
+    }
+    if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+    const report={
+      schema:'softmux-v3-blank-output-v1',kind:'new-matroska',
+      productVersion:PRODUCT_PACKAGE_VERSION,
+      source:plan.sourceFile?{name:plan.sourceFile.name,
+        sizeBytes:plan.sourceFile.size,
+        selectedStreams:plan.sourceStreams.map(row=>({...row}))}:null,
+      externalTracks:plan.externalTracks.map(row=>({
+        kind:row.kind,name:row.file.name,language:row.language,title:row.title,
+      })),
+      newAttachments:result.payloadAudit,
+      output:{name:plan.outputName,sizeBytes:result.blob.size,sha256:result.outputSha256},
+      audit:result.audit,sourceOriginalModified:false,
+      sourceChaptersAndTagsCopied:false,
+      sourceAttachmentDataVerified:!plan.sourceStreams.some(x=>x.kind==='attachment'),
+      physicalSaveVerified:false,fullEbmlPreservationVerified:false,
+    };
+    const reportBlob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'});
+    if(outputURL)URL.revokeObjectURL(outputURL);
+    if(reportURL)URL.revokeObjectURL(reportURL);
+    outputURL=URL.createObjectURL(result.blob);
+    reportURL=URL.createObjectURL(reportBlob);
+    downloadLink.href=outputURL;
+    downloadLink.download=plan.outputName;
+    downloadLink.textContent='保存成品 · '+plan.outputName;
+    downloadLink.classList.remove('hidden');
+    reportLink.href=reportURL;
+    reportLink.download=reportFilename(plan.outputName);
+    reportLink.textContent='保存封装报告';
+    reportLink.classList.remove('hidden');
+    ++outputIndexAuditSequence;
+    lastOutputIndexAudit=null;
+    outputIndexAuditPending=false;
+    lastActualOutput={kind:'blank-mkv',sourceKey:plan.sourceKey,
+      sourceFile:plan.sourceFile,blankPlan:plan,
+      outputBlob:result.blob,report};
+    singleDirectorySession.replace(lastActualOutput,{
+      blob:result.blob,outputName:plan.outputName,reportBlob,
+      reportName:reportFilename(plan.outputName),
+      outputSha256:result.outputSha256,
+    });
+    singleDirectoryHandle=null;singleDirectoryStatusMessage='';
+    bar.style.width='100%';
+    auditResult.className='audit-result';
+    auditResult.textContent='新 MKV 已由实际写入器生成并完成对应的流数量'+
+      (plan.attachments.length?'、新附件完整字节':'')+
+      '核验；来源章节/标签、第三方播放器及实体保存不在验收结论内。';
+    status.textContent='已生成新 MKV：'+
+      (plan.sourceStreams.length+plan.externalTracks.length)+' 条媒体轨道、'+
+      plan.attachments.length+' 个新附件；已提供成品及报告下载。';
+    renderActualOutputEvidence();
+  }catch(error){
+    status.textContent=cancelRequested?'已取消新 MKV 写入，没有发布半成品。':
+      '空白目标封装失败：'+(error?.message||String(error))+
+      '；请核对真实媒体来源、字幕格式和附件。';
+    logEl.textContent+='\nV3 BLANK ERROR: '+(error?.stack||error);
+    bar.style.width='0%';
+  }finally{
+    if(loaded){
+      try{
+        if(stagedSource)await stagedSource.cleanup();
+        else if(stagedPath)await removeQuietly(stagedPath);
+        for(const p of [...externalPaths,...attachmentPaths,outputPath,auditPath,probePath])
+          await removeQuietly(p);
+      }catch(cleanupError){
+        logEl.textContent+='\nWARN: blank task staging cleanup: '+
+          (cleanupError?.message||cleanupError);
+      }
+    }
+    attachmentOnlyRunning=false;running=false;cancelRequested=false;
+    updateUI();
+  }
+}
+
 // One mux operation returns the actual in-memory artifacts to its caller.
 // The single-task button and batch adapter share this executor without
 // synthesizing click events or polling mutable download-link state.
@@ -6688,6 +7086,8 @@ async function executeCurrentMuxTask(explicit = null) {
     status.textContent='请先明确选择目标容器；来源观察不能授权封装。';
     return;
   }
+  if(!independent && v3Pilot && currentV3Target()?.kind==='blank')
+    return executeCurrentV3BlankTask();
   if(!independent && genericAttachmentEntries().length) {
     if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
     const readiness=mediaAttachmentReadiness(genericAttachmentEntries());

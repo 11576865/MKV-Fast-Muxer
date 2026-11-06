@@ -96,15 +96,15 @@ try {
   assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
   assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
   assert.equal(await page.locator('#outputCompositionPanel').isVisible(),false);
-  // Figma V3-03: genuine target File stays a checked choice card; the blank
-  // MKV design choice is visible but cannot grant unsupported writer rights.
+  // V3-03: B remains a real read-only base; the new blank destination is
+  // now a DIFFERENT, explicit, enabled radio with real stream-selection scope.
   const picker=page.locator('#sfv3TargetPicker');
-  assert.equal(await picker.locator('.sfv3-picker-option').count(),1);
+  assert.equal(await picker.locator('.sfv3-picker-option').count(),2);
   assert.equal(await picker.locator('.sfv3-picker-option input:checked').count(),1);
   assert.match(await picker.locator('.sfv3-picker-file-name').textContent(),/以 B-base\.mkv 为基础/);
   assert.match(await picker.locator('.sfv3-picker-file-detail').textContent(),/原文件只读/);
-  assert.equal(await picker.locator('.sfv3-picker-unavailable[aria-disabled="true"]').count(),1);
-  assert.equal(await picker.locator('.sfv3-picker-unavailable input').count(),0);
+  assert.equal(await picker.locator('input[value="__v3_blank__"]').isDisabled(),false);
+  assert.equal(await picker.locator('#sfv3BlankStreamSelection').isVisible(),false);
   // The three required icons are exported from approved Figma nodes, loaded
   // through local Vite assets rather than temporary MCP URLs or text glyphs.
   await page.waitForFunction(()=>{
@@ -142,7 +142,7 @@ try {
   evidence.steps.push('read-only A observation and cancellation do not create target');
   await page.locator('#sfv3SourceContents .sfv3-row-action').click();
   const options=page.locator('#sfv3PickerOptions input[name="sfv3TargetBase"]');
-  assert.equal(await options.count(),1);
+  assert.equal(await options.count(),2);
   assert.match(await page.locator('#sfv3PickerOptions').textContent(),/B-base\.mkv/);
   await page.locator('#sfv3ConfirmTarget').click();
   await page.waitForFunction(()=>

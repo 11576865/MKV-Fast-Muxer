@@ -6,6 +6,10 @@ on:
     paths:
       - 'src/softmux-v3-*'
       - 'src/main.js'
+      - 'src/v3-blank-mkv.js'
+      - 'src/softmux-v3-intent.js'
+      - 'tests/v3-blank-mkv.test.mjs'
+      - 'tests/e2e/v3-blank-target.e2e.mjs'
       - 'tests/softmux-v3-surface.test.mjs'
       - 'tests/softmux-v3-intent.test.mjs'
       - 'tests/e2e/v3-source-first.e2e.mjs'
@@ -79,6 +83,8 @@ jobs:
         run: node tests/e2e/v3-responsive-geometry.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
+      - name: Real Chromium V3 new blank MKV from explicit source stream, native ffprobe and output SHA
+        run: node tests/e2e/v3-blank-target.e2e.mjs
       - name: Build Figma-vs-browser visual review pairs (not pixel acceptance)
         run: node scripts/ui-v3-build-comparison.mjs
       - name: Upload exact-HEAD V3 UI screenshots and evidence
@@ -92,7 +98,61 @@ jobs:
             .e2e/ui-v3-ass-source/
             .e2e/ui-v3-responsive/
             .e2e/ui-v3-multitrack/
+            .e2e/ui-v3-blank-target/
             .e2e/ui-v3-visual-comparison/
 
+          retention-days: 14
+          if-no-files-found: warn
+
+  # A parallel *functional* gate. Does not download typography dependencies
+  # because output bytes/stream provenance, not Figma glyph fidelity, is tested.
+  blank-mkv-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencies
+        run: npm install
+      - name: Pure explicit-new-target authorization and mapping tests
+        run: node --test tests/v3-blank-mkv.test.mjs
+      - name: Build
+        run: npm run build
+      - name: Chrome and ffprobe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "E2E_BROWSER_EXECUTABLE=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+          command -v ffprobe
+      - name: Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/v3-blank-preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/v3-blank-preview.log
+          exit 1
+      - name: Actual browser new MKV output, native ffprobe and SHA
+        run: node tests/e2e/v3-blank-target.e2e.mjs
+      - name: Upload real new-MKV output/evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-blank-new-segment-evidence
+          path: .e2e/ui-v3-blank-target/
           retention-days: 14
           if-no-files-found: warn
