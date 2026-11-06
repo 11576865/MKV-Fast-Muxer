@@ -2012,3 +2012,63 @@
 @media(prefers-reduced-motion:reduce){
   .sf14.sfv3 .sfv3-source-resource-chevron{transition:none!important;}
 }
+
+/* V3-01 desktop source "容器内容" is an actual toolbar above primary rows.
+ * The create-output button is REHOSTED here, not cloned. Search filters
+ * observed row visibility only; it cannot mutate the canonical scan. */
+.sf14.sfv3 .sfv3-source-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;min-height:55px;min-width:0;
+  margin:0;padding:7px 0 7px;
+  border-top:1px solid var(--sfv3-line);
+}
+.sf14.sfv3 .sfv3-source-toolbar-title{
+  display:flex;align-items:center;gap:9px;flex:0 0 auto;
+  font-size:12px;font-weight:700;white-space:nowrap;
+  color:var(--sfv3-text);
+}
+.sf14.sfv3 .sfv3-source-toolbar-title img{
+  width:17px;height:17px;flex:0 0 17px;
+}
+.sf14.sfv3 .sfv3-source-toolbar-actions{
+  display:flex;align-items:center;justify-content:flex-end;
+  gap:5px;min-width:0;
+}
+.sf14.sfv3 .sfv3-source-tool-action{
+  display:grid;place-items:center;flex:0 0 40px;
+  width:40px;height:40px;min-height:40px;
+  background:transparent;border:1px solid transparent;
+  color:var(--sfv3-soft);border-radius:8px;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-source-tool-action img{width:18px;height:18px;}
+.sf14.sfv3 .sfv3-source-tool-action:hover,
+.sf14.sfv3 .sfv3-source-tool-action[aria-expanded="true"]{
+  background:var(--sfv3-row-raised);border-color:var(--sfv3-line);
+}
+.sf14.sfv3 .sfv3-source-search{
+  flex:0 1 190px;min-width:110px;
+  height:39px;padding:8px 11px;border-radius:8px;
+  background:var(--sfv3-chrome);color:var(--sfv3-text);
+  border:1px solid var(--sfv3-line);font-size:12px;
+}
+.sf14.sfv3 .sfv3-source-search[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-source-toolbar .sfv3-plan-cta{
+  display:inline-flex;align-items:center;gap:8px;
+  align-self:auto;white-space:nowrap;
+  min-height:40px;margin:0;padding:8px 13px;
+  font-size:12px;
+}
+.sf14.sfv3 .sfv3-source-toolbar .sfv3-plan-cta img{
+  width:17px;height:17px;flex:0 0 17px;
+}
+@media(max-width:719px){
+  .sf14.sfv3 .sfv3-source-toolbar{gap:6px;min-height:50px;}
+  .sf14.sfv3 .sfv3-source-toolbar-title{font-size:11px;gap:6px;}
+  .sf14.sfv3 .sfv3-source-tool-action{width:36px;height:40px;flex-basis:36px;}
+  .sf14.sfv3 .sfv3-source-toolbar .sfv3-plan-cta{padding:8px 10px;font-size:11px;}
+  .sf14.sfv3 .sfv3-source-search{
+    position:absolute;z-index:12;right:12px;
+    width:min(250px,65vw);min-width:0;
+    margin-top:84px;box-shadow:0 10px 28px rgba(0,0,0,.4);
+  }
+}
