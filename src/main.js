@@ -1005,10 +1005,15 @@ const outputSubtitleTracks = () => externalOutputTracks(newSubtitleState);
 const outputAudioTracks = () => externalOutputTracks(externalAudioState);
 const externalOutputContext = () => ({audioRows:externalAudioState,
   subtitleRows:newSubtitleState,fonts:selectedFonts(),mode:fontMode.value});
-const currentOutputSelection = owner => Boolean(owner && (owner.kind==='attachments-only'
-  ? attachmentOnlyMode() && attachmentSelectionCurrent(owner.attachmentSelection,importedAssetEntries)
-  : isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()) &&
-    attachmentSelectionCurrent(owner.genericAttachmentSelection||[],genericAttachmentEntries())));
+const currentOutputSelection = owner => Boolean(owner && (owner.kind==='blank-mkv'
+  // An output from a new Segment is owned by the exact original immutable
+  // blank plan, not by the legacy existing-base ContainerProject.
+  ? owner.blankPlan===v3BlankPlan && currentV3Target()?.kind==='blank' &&
+    v3BlankPlanCurrent()
+  : owner.kind==='attachments-only'
+    ? attachmentOnlyMode() && attachmentSelectionCurrent(owner.attachmentSelection,importedAssetEntries)
+    : isExternalOutputSelectionCurrent(owner.externalSelection,externalOutputContext()) &&
+      attachmentSelectionCurrent(owner.genericAttachmentSelection||[],genericAttachmentEntries())));
 
 function selectedSubtitleFiles() {
   return selectedSubtitleTracks().map((track) => track.file);
@@ -2232,6 +2237,42 @@ singleRetryDirectoryBtn?.addEventListener('click', () => {
 function renderActualOutputEvidence() {
   renderSingleDirectorySave();
   if (!outputEvidencePanel) return;
+  if(lastActualOutput?.kind==='blank-mkv') {
+    // This is a genuinely new Matroska Segment. The legacy projector asks
+    // whether an existing-base output plan still matches; that question is
+    // categorically inapplicable here. Display real new-Segment evidence
+    // without ever claiming preservation of the old container's EBML.
+    const report=lastActualOutput.report;
+    const current=currentOutputSelection(lastActualOutput);
+    const counts=report.audit?.expectedStreamCount ?? 0;
+    const sourceCount=report.source?.selectedStreams?.length || 0;
+    const externalCount=report.externalTracks?.length || 0;
+    const newAttachments=report.newAttachments?.length || 0;
+    outputEvidencePanel.hidden=false;
+    outputEvidencePanel.dataset.audit=report.audit?.status==='pass'?'pass':'unavailable';
+    outputEvidencePanel.dataset.current=String(current);
+    outputEvidenceTitle.textContent=report.audit?.status==='pass'
+      ? '新建 MKV 已完成指定范围的成品核验':'新建 MKV 的成品核验不完整';
+    outputEvidenceScopeState.textContent=current?'当前空白目标计划':'历史空白目标';
+    outputEvidenceName.textContent=report.output?.name||'';
+    outputEvidenceFacts.textContent='实际流数量核验 '+counts+
+      ' 条 · 来源明确选择 '+sourceCount+' 条 · 外部轨道 '+externalCount+
+      ' 条 · 新附件完整字节核验 '+newAttachments+' 项 · SHA-256：'+
+      (report.output?.sha256||'未记录');
+    outputEvidenceIssues.textContent=report.audit?.status==='pass'
+      ? '已对新容器的流数量与指定新附件执行核验。未声称完整源 EBML、UID 或播放器兼容。'
+      : '成品核验未完全通过，不可宣称完整保真或验收。';
+    outputEvidenceRevision.textContent=current
+      ? '与当前明确选择的新建目标和原始 File 引用一致'
+      : '输入文件、轨道计划或成员已变化；此成品为历史结果。';
+    const limits=outputEvidencePanel.querySelector('.output-evidence-limits');
+    if(limits)limits.textContent='独立新建的 Matroska；未复制来源章节、标签及未勾选流。'+
+      'ffprobe 流数量及新附件 SHA-256 不证明原来源流完整逐字节相等、'+
+      '所有播放器兼容或文件已保存到设备。';
+    if(outputIndexInspectBtn)outputIndexInspectBtn.hidden=true;
+    if(outputIndexResult)outputIndexResult.hidden=true;
+    return;
+  }
   if(lastActualOutput?.kind==='attachments-only') {
     const current=currentOutputSelection(lastActualOutput);
     outputEvidencePanel.hidden=false;outputEvidencePanel.dataset.audit='pass';outputEvidencePanel.dataset.current=String(current);
@@ -6976,7 +7017,8 @@ async function executeCurrentV3BlankTask(){
     lastOutputIndexAudit=null;
     outputIndexAuditPending=false;
     lastActualOutput={kind:'blank-mkv',sourceKey:plan.sourceKey,
-      sourceFile:plan.sourceFile,outputBlob:result.blob,report};
+      sourceFile:plan.sourceFile,blankPlan:plan,
+      outputBlob:result.blob,report};
     singleDirectorySession.replace(lastActualOutput,{
       blob:result.blob,outputName:plan.outputName,reportBlob,
       reportName:reportFilename(plan.outputName),
