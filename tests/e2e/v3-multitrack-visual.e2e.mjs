@@ -220,9 +220,9 @@ try{
  // Native risks remain discoverable, but are not allowed to swallow the
  // entire target canvas in the approved desktop/portrait/compact screenshots.
  const verification=page.locator('#sfv3Verification');
- assert.equal(await verification.locator('summary').count(),1);
+ assert.equal(await verification.locator(':scope > summary').count(),1);
  assert.equal(await verification.getAttribute('open'),null);
- await verification.locator('summary').click();
+ await verification.locator(':scope > summary').click();
  assert.equal(await verification.getAttribute('open'),'');
  assert.equal(await page.locator('#preservationReadiness').isVisible(),true);
  assert.equal(await page.locator('#containerCapabilitySummary').count(),1);
@@ -230,7 +230,7 @@ try{
  assert.equal(await page.locator('#compositionSourceEvidence').count(),1);
  await page.screenshot({path:path.join(dir,'verification-native-expanded-620x900.png')});
  evidence.screenshots.push('verification-native-expanded-620x900.png');
- await verification.locator('summary').click();
+ await verification.locator(':scope > summary').click();
  assert.equal(await verification.getAttribute('open'),null);
  assert.equal(sha(await fs.readFile(source)),sourceSHA);
  // Real source selector remains navigable, and must not implicitly revoke
