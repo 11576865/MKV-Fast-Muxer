@@ -63,6 +63,16 @@ try{
    return root?.dataset.sfv3Surface==='source' && rows.length>=4 &&
      groups.includes('视频') && groups.includes('音频') && groups.includes('字幕');
  },null,{timeout:60000});
+ await page.waitForFunction(()=>
+   document.querySelector('.sfv3-source-resource-card[data-kind="attachments"] .sfv3-source-resource-count')?.textContent==='01',
+   null,{timeout:60000});
+ const duplicatedSourceAttachment=await page.evaluate(()=>{
+   const sections=[...document.querySelectorAll('#sfv3SourceContents > .sfv3-object-group')];
+   return sections.some(section=>section.querySelector('.sfv3-object-group-title')?.textContent==='其他轨道' &&
+     /SourceFont|\.ttf/i.test(section.textContent));
+ });
+ assert.equal(duplicatedSourceAttachment,false,
+   'same verified font attachment must be represented by source resource card, not a duplicate main track');
  await page.screenshot({path:path.join(dir,'five-track-source-1440x900.png')});
  evidence.screenshots.push('five-track-source-1440x900.png');
  await page.locator('#sfv3EnterOutput').click();
