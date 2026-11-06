@@ -168,7 +168,7 @@ try{
     completedDock.mux.right<=completedDock.plan.x+4 &&
     completedDock.plan.right<=completedDock.inspector.x+4,
     'completed dock must remain a single ordered row');
-  assert.match(completedDock.background,/^(?:transparent|rgba\\(0, 0, 0, 0\\))$/,
+  assert.match(completedDock.background,/^(?:transparent|rgba\(0, 0, 0, 0\))$/,
     'old tinted execution panel must not return after a successful mux');
   await snap('blank-complete-dock-620.png');
   assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-label'),
