@@ -2460,7 +2460,17 @@ function renderOutputComposition() {
       row.append(kind,main,index);
       return row;
     });
-    compositionTracks.replaceChildren(...rows);
+    const modify=document.createElement('button');
+    modify.id='sfv3BlankChange';
+    modify.className='sfv3-blank-modify';
+    modify.type='button';
+    modify.textContent='修改新容器成员 / 重新核对';
+    modify.setAttribute('aria-label','重新选择要复制的来源轨道和外部资源');
+    modify.addEventListener('click',()=>{
+      document.getElementById('sf14Root')?.dispatchEvent(
+        new CustomEvent('softmux:v3-edit-blank'));
+    });
+    compositionTracks.replaceChildren(...rows,modify);
     compositionCount.textContent=objects.length+' 个明确选择的对象 · 新建容器';
     compositionChanges.hidden=true;
     compositionChanges.textContent='';
