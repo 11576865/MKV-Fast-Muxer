@@ -1268,9 +1268,19 @@ export function mountSoftmuxV3Surface(doc = document) {
     const file=from?.file||sourceInput.files?.[0]||null;
     const mainSource=Boolean(file && file===sourceInput.files?.[0]);
     const mainScanned=Boolean(mainSource && from?.scanned);
-    const sourceRows=mainScanned?sourceRowsFromObservation(from.primaryStreams):[];
     const obs=mainSource && latestSections.scanned &&
       latestSections.sourceFile===file ? latestSections:null;
+    // An FFprobe attachment is not a second media track. Once the SAME
+    // exact-File scan has verified its attachment records, render it in the
+    // resource disclosure only. Without that observation, retain unknown
+    // stream rows rather than making real source data disappear.
+    const sourceRows=mainScanned?sourceRowsFromObservation(from.primaryStreams)
+      .filter(row=>{
+        if(!obs)return true;
+        const index=Number(String(row.id).split(':').at(-1));
+        const stream=from.primaryStreams.find(entry=>entry.index===index);
+        return String(stream?.type||'')!=='attachment';
+      }):[];
     // Every number below is derived from the exact live File scan, never
     // from prospective output rows. Unknown category != observed zero.
     counters.replaceChildren();
