@@ -373,6 +373,12 @@ export function mountSoftmuxV3Surface(doc = document) {
   // canvas as an invisible hit surface. Reuse its real click/drop handlers;
   // no second importer, click adapter or duplicate File input is needed.
   empty.appendChild(dropzone);
+  // Unlike the importer, this action explicitly chooses a new writable
+  // destination. It cannot cause an implicit output by importing a File.
+  const emptyTargetAction=appendText(doc,empty,'button','sfv3-empty-blank-target','新建空 MKV 目标');
+  emptyTargetAction.id='sfv3EmptyBlankTarget';
+  emptyTargetAction.type='button';
+  emptyTargetAction.setAttribute('aria-label','新建空 MKV，选择写入的轨道和附件');
   const contents = doc.createElement('div');
   contents.className = 'sfv3-source-contents';
   contents.id = 'sfv3SourceContents';
@@ -713,6 +719,7 @@ export function mountSoftmuxV3Surface(doc = document) {
   let latestResources = {entries:[],activeBase:null,target:null};
   let viewedSourceKey = '';
   let targetIntent = null;
+  let blankSelectedIndices=[];
   let pendingTrack = null;
   let pendingAddition = null;
   let flowMessage = '';
@@ -979,7 +986,8 @@ export function mountSoftmuxV3Surface(doc = document) {
   const surfaceScroll={source:0,plan:0};
   const setSurface = mode => {
     if (mode === 'plan' && (!targetIntent ||
-      targetIntent.baseFile !== sourceInput.files?.[0])) return false;
+      (targetIntent.kind!=='blank' &&
+        targetIntent.baseFile !== sourceInput.files?.[0]))) return false;
     if (!['source','plan'].includes(mode)) return false;
     const oldMode=root.dataset.sfv3Surface;
     if(compositionScroller && oldMode!==mode && Object.hasOwn(surfaceScroll,oldMode))
@@ -1160,24 +1168,66 @@ export function mountSoftmuxV3Surface(doc = document) {
       label.appendChild(copy);
       pickerOptions.appendChild(label);
     }
-    // Approved Figma V3-03 depicts a blank-target choice. The mux engine
-    // cannot yet safely execute it, so display the exact choice as disabled,
-    // not as an enabled radio that would grant an impossible writer target.
-    const emptyOption=doc.createElement('div');
-    emptyOption.className='sfv3-picker-unavailable';
-    emptyOption.setAttribute('aria-disabled','true');
-    emptyOption.setAttribute('role','note');
-    emptyOption.appendChild(svgIcon(doc,'picker-empty-target'));
+    // V3-03: blank is an ACTUAL distinct writer intent, not a synthetic MKV
+    // File granted as if it were a user's read-only source. Only selected
+    // stream indices and the existing imported external inventory may enter.
+    const blankOption=doc.createElement('label');
+    blankOption.className='sfv3-picker-option sfv3-picker-blank';
+    const blankRadio=doc.createElement('input');
+    blankRadio.type='radio';blankRadio.name='sfv3TargetBase';
+    blankRadio.value='__v3_blank__';
+    blankRadio.checked=targetIntent?.kind==='blank'||!possible.length;
+    const blankFrame=doc.createElement('span');
+    blankFrame.className='sfv3-picker-radio-frame';
+    blankFrame.append(blankRadio,svgIcon(doc,'picker-empty-target'));
+    blankOption.appendChild(blankFrame);
     const emptyCopy=doc.createElement('span');
     emptyCopy.className='sfv3-picker-choice-copy';
     appendText(doc,emptyCopy,'strong','sfv3-picker-empty-name','新建空 MKV');
-    appendText(doc,emptyCopy,'small','sfv3-picker-empty-reason','暂不可用 · 未完成空容器封装验收');
-    emptyOption.appendChild(emptyCopy);
-    pickerOptions.appendChild(emptyOption);
-    confirmChoice.disabled=!possible.length;
-    if(!possible.length)pickerStatus.textContent='请先导入另一份 MKV 作为目标。';
-    else if(!pickerOptions.querySelector('input:checked'))
-      pickerOptions.querySelector('input').checked=true;
+    appendText(doc,emptyCopy,'small','sfv3-picker-empty-reason',
+      '不继承来源轨道、章节或标签 · 只写入明确勾选的资源');
+    blankOption.appendChild(emptyCopy);
+    pickerOptions.appendChild(blankOption);
+    const blankSelection=doc.createElement('fieldset');
+    blankSelection.id='sfv3BlankStreamSelection';
+    blankSelection.className='sfv3-blank-stream-selection';
+    const legend=doc.createElement('legend');
+    legend.textContent='从当前已扫描来源加入轨道（可不选）';
+    blankSelection.appendChild(legend);
+    const from=activeView();
+    const validMain=from && from.file===sourceInput.files?.[0] && from.scanned;
+    const selectable=validMain?(from.primaryStreams||[]).filter(stream=>
+      ['video','audio','subtitle','attachment'].includes(stream.type)):[];
+    const prechecked=pendingTrack && pendingTrack.sourceFile===from?.file
+      ? [pendingTrack.streamIndex]
+      : targetIntent?.kind==='blank'?blankSelectedIndices:[];
+    if(!selectable.length)appendText(doc,blankSelection,'p','sfv3-picker-explanation',
+      '当前没有已验证的来源轨道；仍可选择空目标，并使用已导入的外部资源。');
+    for(const stream of selectable){
+      const label=doc.createElement('label');
+      label.className='sfv3-blank-stream-choice';
+      const check=doc.createElement('input');
+      check.type='checkbox';check.value=String(stream.index);
+      check.dataset.blankStreamIndex=String(stream.index);
+      check.checked=prechecked.includes(stream.index);
+      label.append(check,doc.createTextNode(
+        ' #'+stream.index+' · '+({video:'视频',audio:'音频',
+          subtitle:'字幕',attachment:'附件'}[stream.type]||stream.type)+
+        ' · '+(stream.title||stream.codec||'未命名')));
+      blankSelection.appendChild(label);
+    }
+    pickerOptions.appendChild(blankSelection);
+    const updateBlankVisibility=()=>{
+      blankSelection.hidden=!blankRadio.checked;
+      confirmChoice.disabled=!pickerOptions.querySelector('input[name="sfv3TargetBase"]:checked');
+      pickerStatus.textContent=blankRadio.checked
+        ? '目标尚不包含任何来源轨道；只有勾选的真实流和已导入资源会参与新 MKV 写入。':
+        '';
+    };
+    pickerOptions.addEventListener('change',updateBlankVisibility);
+    if(!pickerOptions.querySelector('input[name="sfv3TargetBase"]:checked'))
+      pickerOptions.querySelector('input[name="sfv3TargetBase"]').checked=true;
+    updateBlankVisibility();
     confirmChoiceLabel.textContent=pendingTrack
       ? (['ass','ssa'].includes(pendingTrack.codec)
           ? '确认目标并验证字幕与字体' : '创建拟输出并加入字幕')
@@ -1249,6 +1299,40 @@ export function mountSoftmuxV3Surface(doc = document) {
   };
   confirmChoice.addEventListener('click',()=>{
     const chosen=pickerOptions.querySelector('input[name="sfv3TargetBase"]:checked');
+    if(chosen?.value==='__v3_blank__'){
+      const from=activeView();
+      const currentSource=from?.file===sourceInput.files?.[0]?from:null;
+      const selectedIndices=[...pickerOptions.querySelectorAll(
+        '#sfv3BlankStreamSelection input[data-blank-stream-index]:checked')]
+        .map(node=>Number(node.value));
+      if(pendingTrack && (!currentSource ||
+          pendingTrack.sourceFile!==currentSource.file ||
+          !selectedIndices.includes(pendingTrack.streamIndex))){
+        pickerStatus.textContent='请先打开并扫描该来源，勾选其真实字幕轨，再确认空目标。';
+        return;
+      }
+      if(selectedIndices.length && !currentSource?.scanned){
+        pickerStatus.textContent='来源轨道尚未通过扫描，请先读取当前来源。';
+        return;
+      }
+      const accepted=signal('softmux:v3-confirm-blank',{
+        sourceKey:currentSource?.key||'',sourceFile:currentSource?.file||null,
+        selectedIndices,
+      });
+      if(!accepted){
+        pickerStatus.textContent='空白目标的来源或资源身份验证失败，未获得封装许可。';
+        return;
+      }
+      blankSelectedIndices=selectedIndices;
+      targetIntent={kind:'blank',baseKey:'__v3_blank__',baseFile:null,
+        sourceKey:currentSource?.key||'',sourceFile:currentSource?.file||null};
+      pendingTrack=null;pendingAddition=null;surfaceScroll.plan=0;
+      picker.close();setSurface('plan');
+      flowMessage=selectedIndices.length
+        ? '已确认从零创建 MKV；仅复制明确选中的源轨道。'
+        : '已创建空白目标计划；请导入资源或添加来源轨道后封装。';
+      schedule();return;
+    }
     const base=getEntries().find(entry=>entry.key===chosen?.value);
     if(!base) {
       pickerStatus.textContent='请选择一份仍在当前资源列表中的真实 MKV。';
@@ -1319,6 +1403,9 @@ export function mountSoftmuxV3Surface(doc = document) {
   });
   primary.replaceChildren(svgIcon(doc,'create-output'),doc.createTextNode('创建拟输出'));
   primary.addEventListener('click',()=>openTargetPicker(null));
+  emptyTargetAction.addEventListener('click',event=>{
+    event.stopPropagation();openTargetPicker(null);
+  });
 
   const render = () => {
     scheduled=false;
@@ -1492,9 +1579,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceStructureToggle.setAttribute('aria-expanded',String(Boolean(
       contents.querySelector('.sfv3-source-resource-card[open]'))));
     if(selectedSource)updateSourceSheet();
-    const targetValid=Boolean(targetIntent &&
-      exactEntry(targetIntent.baseKey,targetIntent.baseFile) &&
-      latestResources.activeBase===targetIntent.baseFile);
+    const targetValid=Boolean(targetIntent && (targetIntent.kind==='blank'
+      ? latestResources.target?.kind==='blank' &&
+        targetIntent.sourceFile===latestResources.activeBase &&
+        (!targetIntent.sourceFile ||
+          exactEntry(targetIntent.sourceKey,targetIntent.sourceFile))
+      : exactEntry(targetIntent.baseKey,targetIntent.baseFile) &&
+        latestResources.activeBase===targetIntent.baseFile));
     if(!targetValid && targetIntent) {
       targetIntent=null;pendingAddition=null;
       root.dataset.sfv3TargetConfirmed='false';
@@ -1586,7 +1677,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     } else {
       structure.replaceChildren();
     }
-    if(targetIntent) {
+    if(targetIntent?.kind==='blank') {
+      planName.textContent='新建空 MKV';
+      planName.title='独立新建 Matroska，不覆盖来源，不继承未选中的源轨道';
+      planFacts.textContent='独立新容器 · 仅保留明确选择的来源轨道与外部附件 · 章节和标签不自动复制';
+    }else if(targetIntent) {
       planName.textContent=targetIntent.baseFile.name;
       planName.title='目标文档基于：'+targetIntent.baseFile.name+
         '；不会覆盖这个来源 File';
@@ -1682,9 +1777,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     schedule();
   });
   root.addEventListener('softmux:v3-target-confirmed',event=>{
-    const {baseKey,baseFile}=event.detail||{};
-    if(!exactEntry(baseKey,baseFile))return;
-    targetIntent={baseKey,baseFile};
+    const {baseKey,baseFile,kind='existing',sourceKey,sourceFile}=event.detail||{};
+    if(kind==='blank'){
+      targetIntent={kind,baseKey,baseFile:null,sourceKey,sourceFile};
+    }else {
+      if(!exactEntry(baseKey,baseFile))return;
+      targetIntent={kind,baseKey,baseFile};
+    }
     root.dataset.sfv3TargetConfirmed='true';
     targetTab.hidden=false;
     flowMessage='目标已选择；未执行文件写入。';
