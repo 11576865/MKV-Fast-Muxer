@@ -184,6 +184,28 @@ try{
   assert.deepEqual(counters.filter(x=>x.kind==='video'),[{kind:'video',value:'01'}]);
   assert.deepEqual(counters.filter(x=>x.kind==='audio'),[{kind:'audio',value:'00'}]);
   assert.deepEqual(counters.filter(x=>x.kind==='subtitle'),[{kind:'subtitle',value:'00'}]);
+  // Figma V3-01/05: source media stays primary; actual FFprobe chapter/tag
+  // observations appear as compact cards, not extra fake media tracks.
+  await page.waitForFunction(()=>{
+    const chapter=document.querySelector('.sfv3-source-resource-card[data-kind="chapters"] .sfv3-source-resource-count');
+    const tag=document.querySelector('.sfv3-source-resource-card[data-kind="tags"] .sfv3-source-resource-count');
+    return chapter?.textContent==='01' && Number(tag?.textContent)>0;
+  },null,{timeout:60000});
+  const sourceCards=await page.locator('.sfv3-source-resource-card').count();
+  assert.equal(sourceCards,3,'exact-source secondary resources use three expandable summary cards');
+  const chapterCard=page.locator('.sfv3-source-resource-card[data-kind="chapters"]');
+  assert.equal(await chapterCard.getAttribute('open'),null);
+  assert.equal(await chapterCard.locator('.sfv3-observed-row').first().isVisible(),false,
+    'read-only chapter rows are not allowed to displace visible video/audio/subtitles');
+  await chapterCard.locator('summary').click();
+  assert.equal(await chapterCard.getAttribute('open'),'');
+  assert.match(await chapterCard.textContent(),/Actual Intro Chapter/);
+  await chapterCard.locator('.sfv3-row-select').first().click();
+  assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true,
+    'source chapter can still open the one read-only inspector');
+  await page.locator('#sfv3SourceInspectorClose').click();
+  await chapterCard.locator('summary').click();
+  assert.equal(await chapterCard.getAttribute('open'),null);
   await audit('source');
   await page.setViewportSize({width:820,height:1180});
   const sourceSelection=page.locator('#sfv3SourceContents .sfv3-row-select').first();
