@@ -2420,6 +2420,74 @@ function renderOutputComposition() {
     appendMode: Boolean(appendPreserveAll?.checked && currentVideoIsMatroska()),
     sourceFile: scanned ? source : null,
   })));
+
+  // Blank destination uses the SAME actual composition DOM, but never
+  // invents a base MKV, implicitly maps a source stream, or displays legacy
+  // source objects as retained target tracks. Rows below are an immutable
+  // projection of the ONE explicitly confirmed blank-writer plan.
+  if(v3Pilot && currentV3Target()?.kind==='blank'){
+    const plan=v3BlankPlan;
+    const canWrite=v3BlankPlanCurrent()&&v3BlankPlanReadiness(plan).ready;
+    const objects=plan?[
+      ...plan.sourceStreams.map(track=>({
+        kind:track.kind,name:track.title||track.codec||'轨道 #'+track.index,
+        detail:'来源 '+plan.sourceFile.name+' · ffprobe 流 #'+track.index+
+          ' · 仅复制此流，不继承其他来源结构',
+      })),
+      ...plan.externalTracks.map(track=>({
+        kind:track.kind,name:track.title||track.file.name,
+        detail:'外部文件 · '+track.file.name,
+      })),
+      ...plan.attachments.map(item=>({
+        kind:'attachment',name:item.filename,
+        detail:'外部附件 · '+item.mimeType+' · '+formatBytes(item.file.size),
+      })),
+    ]:[];
+    const kindLabel={video:'视频',audio:'音频',subtitle:'字幕',attachment:'附件'};
+    const rows=objects.map((object,i)=>{
+      const row=document.createElement('div');
+      row.className='composition-row sfv3-blank-plan-row';
+      row.dataset.sfv3ObjectKind=object.kind;
+      row.setAttribute('role','listitem');
+      const kind=document.createElement('span');
+      kind.className='composition-kind';kind.textContent=kindLabel[object.kind]||object.kind;
+      const main=document.createElement('span');main.className='composition-track-main';
+      const title=document.createElement('strong');title.textContent=object.name;
+      const detail=document.createElement('small');detail.textContent=object.detail;
+      main.append(title,detail);
+      const index=document.createElement('span');index.className='sfv3-track-order';
+      index.textContent=String(i+1).padStart(2,'0');
+      row.append(kind,main,index);
+      return row;
+    });
+    compositionTracks.replaceChildren(...rows);
+    compositionCount.textContent=objects.length+' 个明确选择的对象 · 新建容器';
+    compositionChanges.hidden=true;
+    compositionChanges.textContent='';
+    compositionIssues.hidden=canWrite;
+    compositionIssues.textContent=canWrite?'':!v3BlankPlanCurrent()
+      ? '输入文件或资源成员已改变，重新打开目标选择并核对。'
+      : v3BlankPlanReadiness(plan).reason;
+    if(containerCapabilitySummary){
+      containerCapabilitySummary.textContent=
+        '新建 Matroska · stream copy · 未选中来源结构不会复制 · 成品以实际 ffprobe 和附件回读为准';
+      containerCapabilitySummary.dataset.muxStatus=canWrite?'available':'blocked';
+    }
+    if(preservationReadinessTitle)preservationReadinessTitle.textContent='新容器，不继承来源章节与标签';
+    if(preservationReadinessEl)preservationReadinessEl.dataset.status='pending';
+    if(compositionSourceEvidence)compositionSourceEvidence.hidden=true;
+    outputCompositionPanel.hidden=false;
+    outputCompositionPanel.dataset.sfv3Blank='true';
+    currentProjectSourceProjection=null;
+    currentProjectSourceFile=null;
+    selectedCompositionId='';
+    document.querySelector('.workspace')?.setAttribute('data-has-composition',String(objects.length>0));
+    if(compositionMuxBtn)compositionMuxBtn.disabled=!canWrite||muxBtn.disabled;
+    if(editorMuxBtn)editorMuxBtn.disabled=!canWrite||muxBtn.disabled;
+    renderActualOutputEvidence();
+    return Object.freeze({kind:'blank',objects});
+  }
+  delete outputCompositionPanel.dataset.sfv3Blank;
   if (v3Pilot && !currentV3Target()) {
     currentProjectSourceProjection=null;
     currentProjectSourceFile=null;
