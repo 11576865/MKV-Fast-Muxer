@@ -43,32 +43,28 @@ const verifiedResult=async(label,expectedKinds)=>{
     !document.querySelector('#downloadLink')?.classList.contains('hidden') &&
     /已生成新 MKV/.test(document.querySelector('#status')?.textContent||''),
     null,{timeout:180000});
+  // Finished artifacts deliberately live in the single native object
+  // inspector's "成品验证与下载" disclosure. Click the genuine visible user
+  // entry instead of programmatically clicking a hidden descendant.
+  await page.locator('#sfv3InspectorOpen').click();
+  await page.locator('#outputEvidencePanel').waitFor({state:'visible'});
+  const evidenceDrawer=page.locator('#sfv3DeliveryDrawer');
+  if(!(await evidenceDrawer.evaluate(el=>el.open)))
+    await evidenceDrawer.locator(':scope > summary').click();
+  await page.locator('#downloadLink').waitFor({state:'visible'});
   const beforeDownload=await page.locator('#downloadLink').evaluate(link=>({
-    outerHTML:link.outerHTML.slice(0,550), href:link.href,
-    download:link.download, visible:!!link.getClientRects().length,
-    connected:link.isConnected, ancestorHidden:[...function*(node){
-      for(let p=node.parentElement;p;p=p.parentElement)
-        if(p.hidden || getComputedStyle(p).display==='none')yield p.id||p.className;
-    }(link)],
-    mediaType:'video/x-matroska',
+    href:link.href,download:link.download,
+    visible:!!link.getClientRects().length,
+    panelCurrent:link.closest('#outputEvidencePanel')?.dataset.current,
   }));
-  console.log('V3_BLANK_PRE_DOWNLOAD '+JSON.stringify(beforeDownload));
-  await page.evaluate(()=>{
-    window.__v3BlankLastClick=[];
-    const record=(phase)=>(e)=>{
-      if(e.target.closest('#downloadLink'))
-        window.__v3BlankLastClick.push({phase,defaultPrevented:e.defaultPrevented,
-          target:e.target.id,href:e.target.closest('a')?.href});
-    };
-    document.addEventListener('click',record('capture'),true);
-    document.addEventListener('click',record('bubble'),false);
-  });
-  const downloadPromise=page.waitForEvent('download',{timeout:15000});
-  await page.locator('#downloadLink').click();
-  const clickTrace=await page.evaluate(()=>({events:window.__v3BlankLastClick,
-    location:location.href,link:document.querySelector('#downloadLink')?.outerHTML}));
-  console.log('V3_BLANK_POST_DOWNLOAD_CLICK '+JSON.stringify(clickTrace));
-  const download=await downloadPromise;
+  assert.equal(beforeDownload.visible,true);
+  assert.match(beforeDownload.href,/^blob:/);
+  assert.equal(beforeDownload.download,'new.mkv');
+  assert.equal(beforeDownload.panelCurrent,'true');
+  const [download]=await Promise.all([
+    page.waitForEvent('download',{timeout:40000}),
+    page.locator('#downloadLink').click(),
+  ]);
   const saved=path.join(dir,label+'.mkv');
   await download.saveAs(saved);
   const inspected=probe(saved);
@@ -86,6 +82,7 @@ const verifiedResult=async(label,expectedKinds)=>{
   assert.equal(report.sourceChaptersAndTagsCopied,false);
   assert.equal(report.output.sha256,checksum(await fs.readFile(saved)));
   evidence.steps.push(label+': '+kinds.join(',')+'; actual downloaded MKV and independent native FFprobe');
+  await page.locator('#sfv3InspectorClose').click();
 };
 try{
   await page.goto(new URL('?ui=v3',base).href,{waitUntil:'networkidle'});
