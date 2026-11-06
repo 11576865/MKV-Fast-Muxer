@@ -239,6 +239,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     contextDismiss.focus();
   };
   const realOutputDock=root.querySelector('.sf14-output');
+  // In V3 the native plan toggle becomes a compact icon at 620px only.
+  // Keep its original listener, DOM identity and a complete accessible name.
+  const nativePlanToggle=find(doc,'sf14PlanToggle');
+  nativePlanToggle?.setAttribute('aria-label','检查封装计划、风险及执行边界');
+  nativePlanToggle?.setAttribute('title','检查封装计划、风险及执行边界');
   const inspectorOpenButton=doc.createElement('button');
   inspectorOpenButton.id='sfv3InspectorOpen';
   inspectorOpenButton.type='button';
