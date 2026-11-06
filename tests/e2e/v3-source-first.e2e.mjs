@@ -22,9 +22,9 @@ const ctx = await browser.newContext({viewport:{width:1440,height:900},deviceSca
 const page = await ctx.newPage();
 const pageErrors=[];
 page.on('pageerror',e=>pageErrors.push(String(e)));
-const evidence={schema:'softmux-ui-v3-wu01-browser-evidence-v1',source:path.basename(source),views:[],checks:[],limits:'Opt-in V3 source-only pilot. Does not prove exact Figma fidelity, true optional OutputPlan domain transition, portrait object actions, motion, real mux success, or physical tablet.'};
+const evidence={schema:'softmux-ui-v3-wu01-browser-evidence-v1',source:path.basename(source),views:[],checks:[],limits:'Default V3 source-only route and explicit alias. Does not prove exact Figma fidelity, all output domains, portrait object actions, motion, complete mux compatibility, or physical tablet.'};
 try {
- await page.goto(new URL('?ui=v3',base).href,{waitUntil:'networkidle'});
+ await page.goto(new URL(base).href,{waitUntil:'networkidle'});
  await page.locator('#sf14Root.sfv3').waitFor();
  assert.equal(await page.locator('#sfv3Empty').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceTab').textContent(),'未加载');
