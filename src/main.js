@@ -657,9 +657,25 @@ const secondarySubtitleBusy = new Set();
 const v3Pilot = new URLSearchParams(window.location.search).get('ui') === 'v3';
 const v3TargetAuthority = createV3TargetAuthority();
 let v3BlankPlan=null;
+const liveV3BlankMembers=()=>({
+  externalTracks:[
+    ...outputAudioTracks().map(t=>({...t,kind:'audio'})),
+    ...outputSubtitleTracks().map(t=>({...t,kind:'subtitle'})),
+  ],
+  attachments:[
+    ...includedGenericAttachments().map(e=>({
+      file:e.file,mimeType:e.mimeType,filename:e.file.name,
+    })),
+    ...selectedFontRecognition().recognized.map(e=>({
+      file:e.file,mimeType:fontMimeType(e.identity),
+      filename:normalizedFontAttachmentName(e.file.name,e.identity),
+    })),
+  ],
+});
 const v3BlankPlanCurrent=()=>Boolean(v3BlankPlan &&
   v3BlankTargetStillCurrent(v3BlankPlan,{
     entries:importedAssetEntries,activeSource:videoInput.files?.[0]||null,
+    ...liveV3BlankMembers(),
   }));
 const v3MayEditOutput = () => !v3Pilot || Boolean(
   currentV3Target() &&
@@ -6872,9 +6888,7 @@ async function executeCurrentV3BlankTask(){
     !v3BlankPlanReadiness(plan).ready)return;
   const selectionCurrent=()=>!cancelRequested &&
     v3BlankPlan===plan && currentV3Target()?.kind==='blank' &&
-    v3BlankTargetStillCurrent(plan,{
-      entries:importedAssetEntries,activeSource:videoInput.files?.[0]||null,
-    });
+    v3BlankPlanCurrent();
   const zeroMedia=plan.sourceStreams.length===0&&plan.externalTracks.length===0;
   const prefix=taskPrefix();
   const outputPath=prefix+'-v3-blank.mkv';
