@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Vite replaces this with the exact SHA of the Pages build. Used only
+         for deployed-code provenance, never to grant File or writer authority. -->
+    <meta name="softmux-deployment-sha" content="%VITE_GIT_SHA%" />
         <meta name="color-scheme" content="dark" />
     <meta name="description" content="浏览器本地 MKV 快速封装工作台：以 Stream Copy 保留视频与音频，添加 ASS 字幕、字体、外部音频，并管理原 MKV 轨道与附件。" />
     <meta name="robots" content="index,follow" />
