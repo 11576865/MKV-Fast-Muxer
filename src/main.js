@@ -6807,6 +6807,204 @@ async function executeCurrentAttachmentOnlyTask() {
   } finally {running=false;attachmentOnlyRunning=false;updateUI();}
 }
 
+// V3-03: truly NEW Matroska Segment from exact, explicitly chosen input
+// streams/assets. There is no synthetic "base" File, no inherited chapters,
+// no implicit video map and no second FFmpeg engine. The bounded generic-only
+// case reuses the established independently audited zero-track EBML writer.
+async function executeCurrentV3BlankTask(){
+  const plan=v3BlankPlan;
+  if(!v3Pilot||currentV3Target()?.kind!=='blank'||!v3MayEditOutput()||
+    isBusy()||batchRunning||importInProgress||!v3BlankPlanCurrent()||
+    !v3BlankPlanReadiness(plan).ready)return;
+  const selectionCurrent=()=>!cancelRequested &&
+    v3BlankPlan===plan && currentV3Target()?.kind==='blank' &&
+    v3BlankTargetStillCurrent(plan,{
+      entries:importedAssetEntries,activeSource:videoInput.files?.[0]||null,
+    });
+  const zeroMedia=plan.sourceStreams.length===0&&plan.externalTracks.length===0;
+  const prefix=taskPrefix();
+  const outputPath=prefix+'-v3-blank.mkv';
+  const auditPath=prefix+'-blank-audit.json';
+  const probePath=prefix+'-blank-source-probe.json';
+  const externalPaths=[];
+  const attachmentPaths=[];
+  let stagedSource=null;
+  let stagedPath=null;
+  running=true;attachmentOnlyRunning=zeroMedia;cancelRequested=false;
+  updateUI();
+  status.textContent='正在从已确认的资源创建独立新 MKV…';
+  bar.style.width='8%';
+  try {
+    let result;
+    if(zeroMedia){
+      const selected=plan.attachments.map(item=>({
+        kind:'attachment',file:item.file,mimeType:item.mimeType,include:true,
+      }));
+      const real=await generateAttachmentOnlyOutput(selected,{
+        outputName:plan.outputName,
+        isCurrent:selectionCurrent,
+      });
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      result={
+        blob:real.blob,outputSha256:real.outputSha256,
+        audit:{status:'pass',verification:real.report.verification,
+          mediaStreams:0,attachmentCount:real.report.attachments.length},
+        payloadAudit:real.report.attachments,
+      };
+    }else{
+      await loadFFmpeg();
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      if(plan.sourceStreams.length){
+        stagedSource=await stageBrowserPrimarySource({
+          ffmpeg,file:plan.sourceFile,prefix,
+          fallbackPath:prefix+'-blank-source.mkv',
+          workerFsType:FFFSType.WORKERFS,loadBytes:fetchFile,
+        });
+        stagedPath=stagedSource.path;
+        const observed=await probeInput(stagedPath,probePath,{
+          allowDecodeFallback:false,
+        });
+        for(const stream of plan.sourceStreams){
+          const actual=observed.streams.find(row=>row.index===stream.index);
+          if(!actual||actual.codec_type!==stream.kind ||
+              (stream.codec && actual.codec_name!==stream.codec))
+            throw Error('BLANK_SOURCE_STREAM_CHANGED:'+stream.index);
+        }
+      }
+      for(let i=0;i<plan.externalTracks.length;i++){
+        const item=plan.externalTracks[i];
+        const extMatch=/\.[a-z0-9]{1,8}$/i.exec(item.file.name);
+        const suffix=extMatch?extMatch[0].toLowerCase():'.source';
+        const target=prefix+'-blank-external-'+i+suffix;
+        externalPaths.push(target);
+        await ffmpeg.writeFile(target,await fetchFile(item.file));
+      }
+      for(let i=0;i<plan.attachments.length;i++){
+        const target=prefix+'-blank-attachment-'+i+'.data';
+        attachmentPaths.push(target);
+        await ffmpeg.writeFile(target,await fetchFile(plan.attachments[i].file));
+      }
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      const args=buildV3BlankMuxCommand(plan,{
+        sourcePath:stagedPath,
+        externalPaths,attachmentPaths,outputPath,
+      });
+      logEl.textContent='V3 blank target: 只映射明确选择的轨道；不复制来源章节、标签或其他 EBML。\n';
+      status.textContent='正在使用同一个 FFmpeg 引擎写入新 MKV…';
+      bar.style.width='50%';
+      const exitCode=await ffmpeg.exec(args);
+      if(exitCode!==0)throw Error('BLANK_MUX_FAILED:FFmpeg '+exitCode);
+      if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+      status.textContent='正在独立读取新容器的实际轨道与附件…';
+      bar.style.width='81%';
+      const observed=await probeInput(outputPath,auditPath,{
+        allowDecodeFallback:false,
+      });
+      const audit=auditV3BlankOutput(plan,observed.streams);
+      if(!/matroska/i.test(String(observed.format?.format_name||'')))
+        throw Error('BLANK_OUTPUT_NOT_MATROSKA');
+      const bytes=await ffmpeg.readFile(outputPath);
+      const blob=new Blob([bytes],{type:'video/x-matroska'});
+      const outputSha256=await sha256Hex(bytes);
+      const payloadAudit=[];
+      if(plan.attachments.length){
+        const reader=createMatroskaAttachmentReader(blob);
+        const inspected=await reader.inspect();
+        if(inspected.state!=='inspected')throw Error('BLANK_ATTACHMENT_AUDIT_UNAVAILABLE');
+        for(const item of plan.attachments){
+          const matches=inspected.attachments.filter(x=>x.filename===item.filename &&
+            x.mimeType===item.mimeType && x.byteLength===item.file.size);
+          if(matches.length!==1)throw Error('BLANK_ATTACHMENT_METADATA_MISMATCH');
+          const recovered=reader.openAttachment(matches[0].id).data;
+          const [sourceDigest,recoveredDigest]=await Promise.all([
+            sha256Hex(new Uint8Array(await item.file.arrayBuffer())),
+            sha256Hex(new Uint8Array(await recovered.arrayBuffer())),
+          ]);
+          if(sourceDigest!==recoveredDigest)throw Error('BLANK_ATTACHMENT_BYTES_MISMATCH');
+          payloadAudit.push({filename:item.filename,mimeType:item.mimeType,
+            bytes:item.file.size,sha256:recoveredDigest});
+        }
+      }
+      result={blob,outputSha256,payloadAudit,
+        audit:{status:'pass',...audit,
+          verification:'native-ffprobe-streams-and-new-attachment-byte-sha256',
+          sourceAttachmentByteEquality:'not-verified',
+          independentPlayerAcceptance:false,
+        }};
+    }
+    if(!selectionCurrent())throw Error('BLANK_SELECTION_CHANGED');
+    const report={
+      schema:'softmux-v3-blank-output-v1',kind:'new-matroska',
+      productVersion:PRODUCT_PACKAGE_VERSION,
+      source:plan.sourceFile?{name:plan.sourceFile.name,
+        sizeBytes:plan.sourceFile.size,
+        selectedStreams:plan.sourceStreams.map(row=>({...row}))}:null,
+      externalTracks:plan.externalTracks.map(row=>({
+        kind:row.kind,name:row.file.name,language:row.language,title:row.title,
+      })),
+      newAttachments:result.payloadAudit,
+      output:{name:plan.outputName,sizeBytes:result.blob.size,sha256:result.outputSha256},
+      audit:result.audit,sourceOriginalModified:false,
+      sourceChaptersAndTagsCopied:false,
+      sourceAttachmentDataVerified:!plan.sourceStreams.some(x=>x.kind==='attachment'),
+      physicalSaveVerified:false,fullEbmlPreservationVerified:false,
+    };
+    const reportBlob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json'});
+    if(outputURL)URL.revokeObjectURL(outputURL);
+    if(reportURL)URL.revokeObjectURL(reportURL);
+    outputURL=URL.createObjectURL(result.blob);
+    reportURL=URL.createObjectURL(reportBlob);
+    downloadLink.href=outputURL;
+    downloadLink.download=plan.outputName;
+    downloadLink.textContent='保存成品 · '+plan.outputName;
+    downloadLink.classList.remove('hidden');
+    reportLink.href=reportURL;
+    reportLink.download=reportFilename(plan.outputName);
+    reportLink.textContent='保存封装报告';
+    reportLink.classList.remove('hidden');
+    ++outputIndexAuditSequence;
+    lastOutputIndexAudit=null;
+    outputIndexAuditPending=false;
+    lastActualOutput={kind:'blank-mkv',sourceKey:plan.sourceKey,
+      sourceFile:plan.sourceFile,outputBlob:result.blob,report};
+    singleDirectorySession.replace(lastActualOutput,{
+      blob:result.blob,outputName:plan.outputName,reportBlob,
+      reportName:reportFilename(plan.outputName),
+      outputSha256:result.outputSha256,
+    });
+    singleDirectoryHandle=null;singleDirectoryStatusMessage='';
+    bar.style.width='100%';
+    auditResult.className='audit-result';
+    auditResult.textContent='新 MKV 已由实际写入器生成并完成对应的流数量'+
+      (plan.attachments.length?'、新附件完整字节':'')+
+      '核验；来源章节/标签、第三方播放器及实体保存不在验收结论内。';
+    status.textContent='已生成新 MKV：'+
+      (plan.sourceStreams.length+plan.externalTracks.length)+' 条媒体轨道、'+
+      plan.attachments.length+' 个新附件；已提供成品及报告下载。';
+    renderActualOutputEvidence();
+  }catch(error){
+    status.textContent=cancelRequested?'已取消新 MKV 写入，没有发布半成品。':
+      '空白目标封装失败：'+(error?.message||String(error))+
+      '；请核对真实媒体来源、字幕格式和附件。';
+    logEl.textContent+='\nV3 BLANK ERROR: '+(error?.stack||error);
+    bar.style.width='0%';
+  }finally{
+    if(loaded){
+      try{
+        if(stagedSource)await stagedSource.cleanup();
+        else if(stagedPath)await removeQuietly(stagedPath);
+        for(const p of [...externalPaths,...attachmentPaths,outputPath,auditPath,probePath])
+          await removeQuietly(p);
+      }catch(cleanupError){
+        logEl.textContent+='\nWARN: blank task staging cleanup: '+
+          (cleanupError?.message||cleanupError);
+      }
+    }
+    attachmentOnlyRunning=false;running=false;cancelRequested=false;
+    updateUI();
+  }
+}
+
 // One mux operation returns the actual in-memory artifacts to its caller.
 // The single-task button and batch adapter share this executor without
 // synthesizing click events or polling mutable download-link state.
@@ -6819,6 +7017,8 @@ async function executeCurrentMuxTask(explicit = null) {
     status.textContent='请先明确选择目标容器；来源观察不能授权封装。';
     return;
   }
+  if(!independent && v3Pilot && currentV3Target()?.kind==='blank')
+    return executeCurrentV3BlankTask();
   if(!independent && genericAttachmentEntries().length) {
     if(attachmentOnlyMode())return executeCurrentAttachmentOnlyTask();
     const readiness=mediaAttachmentReadiness(genericAttachmentEntries());
