@@ -2236,3 +2236,17 @@
   .sf14.sfv3 :is(.sfv3-blank-stream-choice,.sfv3-blank-modify,
     .sfv3-empty-blank-target){transition:none!important;animation:none!important;}
 }
+
+/* V3-08 (Figma 37:223, 620×900): align the real five-track section rhythm.
+ * Screenshot geometry showed the first real row ~2px high, then ~4px of
+ * cumulative compression at each group transition. Expand the group spacing
+ * without changing row size, object ownership, bottom dock or safety text.
+ * Below 600px retain the denser fallback because 620px is the approved frame. */
+@media (min-width:600px) and (max-width:719px) {
+  .sf14.sfv3[data-sfv3-surface="plan"] #outputCompositionPanel {
+    padding-top:2px!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .composition-tracks {
+    gap:8px!important;
+  }
+}
