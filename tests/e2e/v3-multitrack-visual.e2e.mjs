@@ -198,7 +198,12 @@ try{
  await page.locator('#sfv3ResourceDetails > summary').click();
  assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),'',
    'real font/attachment editors must remain accessible');
- assert.ok(await page.locator('#sfv3ResourceDetails button[data-composition-id]').first().isVisible());
+ const nativeResourceRow=page.locator('#sfv3ResourceDetails button[data-composition-id]').first();
+ assert.equal(await nativeResourceRow.isVisible(),true);
+ await nativeResourceRow.click();
+ assert.equal(await page.locator('#sfv3ResourceDetails').getAttribute('open'),'',
+   'selecting a real resource may re-render composition but cannot close the user-opened disclosure');
+ await page.locator('#sfv3InspectorClose').click();
  await page.locator('#sfv3ResourceDetails > summary').click();
  await page.locator('#compositionTracks button[data-sfv3-object-kind="subtitle"]').last().tap();
  assert.equal(await page.locator('.sf14-pane.sf14-inspector').isVisible(),true);
