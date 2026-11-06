@@ -147,7 +147,11 @@ try{
  page.on('crash',()=>{manifest.crashObserved=true;console.error('S12_BROWSER_RENDERER_CRASH');});
  page.on('pageerror',err=>{manifest.lastPageError=String(err);});
  const url=new URL(process.env.E2E_BASE_URL||'http://127.0.0.1:4173/');
- url.searchParams.delete('ui');
+ // S12 measures the historically validated legacy 10.14 executor path.
+  // Root URL now boots V3, where output requires an explicitly confirmed
+  // target. Do not silently turn an existing 1GB stress regression into an
+  // invalid no-target write attempt or reinterpret the result as V3 signoff.
+  url.searchParams.set('ui','workbench');
  await page.goto(url.toString(),{waitUntil:'networkidle',timeout:120_000});
  manifest.userAgent=await page.evaluate(()=>navigator.userAgent);
  await page.locator('#sf14Root').waitFor();
