@@ -100,12 +100,54 @@ Compare spacing, hierarchy, position, color, icon roles and overflow by inspecti
     visualAcceptance:'UNREVIEWED',physicalDeviceAcceptance:false,
     note:'Figma 40:2 is a state/rules diagram. No pixel-score or fake UI render.'};
   await stat(path.join(ref,adaptive.figma));
+  // The first rebuild gate uses the SAME real DOM under a single approved
+  // media fixture per scenario and compares shell geometry, not mock text.
+  // Figma and browser CONTENT fixtures remain different, so these are
+  // measured structural deviations only (never pixel similarity scores).
+  const shellRecords=[];
+  for(const [folder,label] of [
+    [multitrack,'five-track-real-source-and-target'],
+    [assSource,'selected-real-ASS-source'],
+  ]){
+    const record=JSON.parse(await readFile(path.join(folder,'shell-baseline.json'),'utf8'));
+    if(record.schema!=='v3-shell-geometry-baseline-v1'||
+       record.assessedVisualAcceptance!==false)
+      throw Error('V3_SHELL_RECORD_UNVERIFIED:'+label);
+    for(const item of record.viewportStateCases){
+      if(!item.reference?.frame || !item.state || !item.observed)
+        throw Error('V3_SHELL_MISSING_MEASUREMENT:'+label);
+      shellRecords.push({...item,fixture:label});
+    }
+  }
+  const shellStates=['desktop-source','desktop-target','portrait-source','portrait-target'];
+  for(const state of shellStates)
+    if(shellRecords.filter(r=>r.state===state).length!==1)
+      throw Error('V3_SHELL_INCOMPLETE_STATE:'+state);
+  const shellReview={
+    scope:'FIGMA_SHELL_ONLY_NOT_COMPLETE_VISUAL_ACCEPTANCE',
+    states:shellRecords,
+    evaluatedStates:shellStates.length,
+    matchedStates:shellRecords.filter(x=>x.reference.matched).map(x=>x.state),
+    mismatchedStates:shellRecords.filter(x=>!x.reference.matched)
+      .map(x=>({state:x.state,frame:x.reference.frame,
+        deviationCount:x.reference.discrepancies.length,
+        deviations:x.reference.discrepancies})),
+    fixtureMatched:false,visualAcceptance:'UNREVIEWED',
+  };
+  await writeFile(path.join(root,'shell-geometry-audit.json'),
+    JSON.stringify(shellReview,null,2)+'\\n');
+  console.log('V3 Figma shell audit:',shellReview.evaluatedStates,'measured,',
+    shellReview.mismatchedStates.length,'shell-state mismatches (not acceptance)');
   await writeFile(path.join(root,'review-index.json'),
     JSON.stringify({schema:'softmux-ui-v3-visual-review-pairs-v2',
       strictDesignAuthority:'docs/ui-v3/UI_DESIGN_CONTRACT.md',
       actualRun:'This CI HEAD, see screenshot artifact and workflow commit SHA',
       approvedStates:11,pairedScreenshotStates:summaries.length,
       adaptiveRuleStates:1,fixtureMatched:false,
+      shellGeometryAudit:'shell-geometry-audit.json',
+      shellStatesMeasured:shellReview.evaluatedStates,
+      shellStatesMatching:shellReview.matchedStates.length,
+      shellGeometryAccepted:false,
       passedStructuralPairing:true,visuallyAccepted:false,
       physicalDeviceAccepted:false,comparisons:summaries,adaptive},null,2)+'\n');
   console.log('Created '+summaries.length+' equal-scale V3 pairs + one adaptive-rule proof; visuallyAccepted=false');
