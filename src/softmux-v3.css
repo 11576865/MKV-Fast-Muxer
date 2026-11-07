@@ -2693,12 +2693,12 @@
 }
 
 
-/* V3.5 contextual capability navigation: all task categories remain visible
- * in compact viewports rather than forcing users to discover horizontal
- * scrolling. This remains behind ?nav=full and never alters default V3. */
+/* V3.5 contextual capability navigation: all 11 task categories,
+ * including the exact-source read-only structure observation, stay visible
+ * rather than depending on horizontal hidden scrolling. Opt-in only. */
 @media (max-width:959px){
   .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
-    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
     align-items:stretch;gap:5px;
     height:96px;min-height:96px;
     padding:5px 8px;overflow:visible;
