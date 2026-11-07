@@ -12,6 +12,13 @@ const video=path.join(dir,'A-video.mkv');
 const srt=path.join(dir,'A.srt');
 const run=args=>execFileSync('ffmpeg',['-v','error','-y',...args],{timeout:90000});
 const checksum=bytes=>createHash('sha256').update(bytes).digest('hex');
+// Streamhash hashes encoded packet payloads rather than Matroska container bytes.
+// It detects a transcoded or altered selected video stream despite a matching
+// codec name, and deliberately makes no timestamp/EBML-preservation claim.
+const videoPacketHash=file=>execFileSync('ffmpeg',[
+  '-v','error','-i',file,'-map','0:v:0','-c','copy',
+  '-f','streamhash','-hash','SHA256','-'
+],{encoding:'utf8',timeout:90000}).trim();
 const probe=file=>JSON.parse(execFileSync('ffprobe',
   ['-v','error','-show_streams','-show_format','-of','json',file],{encoding:'utf8'}));
 run(['-f','lavfi','-i','color=c=black:s=640x360:r=24:d=1','-c:v','mpeg4','-q:v','5',video]);
@@ -20,6 +27,8 @@ run(['-i',video,'-i',srt,'-map','0:v:0','-map','1:s:0','-c','copy','-c:s','srt',
   '-metadata:s:s:0','language=eng','-metadata:s:s:0','title=Source caption',a]);
 const sourceBefore=checksum(await fs.readFile(a));
 const sourceRows=probe(a).streams;
+const sourceVideoPacketHash=videoPacketHash(a);
+assert.match(sourceVideoPacketHash,/SHA256=[0-9a-f]{64}/i);
 const videoIndex=sourceRows.find(s=>s.codec_type==='video')?.index;
 const subtitleIndex=sourceRows.find(s=>s.codec_type==='subtitle')?.index;
 assert.ok(Number.isSafeInteger(videoIndex)&&Number.isSafeInteger(subtitleIndex));
@@ -34,6 +43,7 @@ page.on('pageerror',error=>faults.push(String(error)));
 const base=process.env.E2E_BASE_URL||'http://127.0.0.1:4173/';
 const evidence={schema:'v3-real-new-matroska-output-e2e-v1',
   source:path.basename(a),sourceSha256:sourceBefore,
+  sourceVideoStreamhash:sourceVideoPacketHash,
   snapshots:[],steps:[],limit:'One new zero-base MKV with source SubRip only, then explicitly add video. Native ffprobe validates streams. Not all ASS/font/EBML or physical-device acceptance.'};
 const snap=async name=>{await page.screenshot({path:path.join(dir,name)});
   evidence.snapshots.push(name);};
@@ -71,6 +81,19 @@ const verifiedResult=async(label,expectedKinds)=>{
   const kinds=inspected.streams.map(s=>s.codec_type).sort();
   assert.deepEqual(kinds,[...expectedKinds].sort());
   assert.match(inspected.format.format_name,/matroska/i);
+  const outputSubtitle=inspected.streams.find(stream=>stream.codec_type==='subtitle');
+  assert.equal(outputSubtitle?.codec_name,'subrip',
+    'selected source SubRip must remain SubRip in the new container');
+  assert.equal(outputSubtitle?.tags?.language,'eng',
+    'new-container mux preserves the explicitly selected source subtitle language');
+  assert.equal(outputSubtitle?.tags?.title,'Source caption',
+    'new-container mux preserves the explicitly selected source subtitle title');
+  if(expectedKinds.includes('video')) {
+    const outputVideo=inspected.streams.find(stream=>stream.codec_type==='video');
+    assert.equal(outputVideo?.codec_name,'mpeg4');
+    assert.equal(videoPacketHash(saved),sourceVideoPacketHash,
+      'selected stream-copy video packet payload must match the original exact source');
+  }
   const reportPromise=page.waitForEvent('download',{timeout:40000});
   await page.locator('#reportLink').click();
   const reportDownload=await reportPromise;
@@ -81,7 +104,10 @@ const verifiedResult=async(label,expectedKinds)=>{
   assert.equal(report.audit.status,'pass');
   assert.equal(report.sourceChaptersAndTagsCopied,false);
   assert.equal(report.output.sha256,checksum(await fs.readFile(saved)));
-  evidence.steps.push(label+': '+kinds.join(',')+'; actual downloaded MKV and independent native FFprobe');
+  evidence.steps.push(label+': '+kinds.join(',')+
+    '; native FFprobe + subtitle metadata'+
+    (expectedKinds.includes('video')?'; FFmpeg encoded-video packet SHA-256 matched source':'')+
+    '; downloaded MKV and output report SHA-256');
   await page.locator('#sfv3InspectorClose').click();
 };
 try{
