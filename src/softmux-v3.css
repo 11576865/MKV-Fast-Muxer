@@ -2584,3 +2584,16 @@
  * the selected row while those contextual native controls are visible. */
 .sf14.sfv3 .sfv3-observed-row:has(.sfv3-row-select[aria-expanded="true"])
   > .sfv3-row-action{display:none!important;}
+
+
+/* V3-09 visual audit, 820px portrait: the Default/Forced explanation is
+ * anchored inside a right-side flags cell. Its earlier left:24% + 330px
+ * width could extend past x=820 and silently crop the definitions. Keep
+ * the entire one native glossary inside the viewport and source sheet. */
+@media (max-width:959px){
+  .sf14.sfv3 .sfv3-source-flag-states #sfv3SourceFlagHelpHost{
+    left:auto;right:0;
+    width:min(330px,calc(100vw - 44px));
+    max-width:calc(100vw - 44px);
+  }
+}
