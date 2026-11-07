@@ -135,7 +135,7 @@ Compare spacing, hierarchy, position, color, icon roles and overflow by inspecti
     fixtureMatched:false,visualAcceptance:'UNREVIEWED',
   };
   await writeFile(path.join(root,'shell-geometry-audit.json'),
-    JSON.stringify(shellReview,null,2)+'\\n');
+    JSON.stringify(shellReview,null,2)+'\n');
   console.log('V3 Figma shell audit:',shellReview.evaluatedStates,'measured,',
     shellReview.mismatchedStates.length,'shell-state mismatches (not acceptance)');
   await writeFile(path.join(root,'review-index.json'),
