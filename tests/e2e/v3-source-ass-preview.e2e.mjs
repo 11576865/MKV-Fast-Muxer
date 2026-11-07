@@ -138,7 +138,7 @@ try {
  assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorPreview').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),true);
- assert.match(await page.locator('#sfv3SourceInspectorAdd').textContent(),/校验 ASS 与字体/);
+ assert.match(await page.locator('#sfv3SourceInspectorAdd').getAttribute('aria-label'),/校验 ASS 与字体/);
  await page.locator('#sfv3SourceInspectorAdd').click();
  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
    'ASS Add-to only opens explicit target choice; no target is granted');
@@ -153,7 +153,7 @@ try {
  assert.equal(await page.locator('#sfv3AssFontDependencies').isVisible(),false,
    'no font-closure evidence exists before actual source bundle processing');
  assert.equal(await page.locator('#sfv3SourceInspectorExtract').isVisible(),true);
- assert.match(await page.locator('#sfv3SourceInspectorExtract').textContent(),/不含字体/);
+ assert.match(await page.locator('#sfv3SourceInspectorExtract').getAttribute('aria-label'),/不含字体/);
  const denied=await page.evaluate(i=>{
   const file=document.querySelector('#videoInput').files[0];
   const key=document.querySelector('#sfv3SourceTab').dataset.sfv3SourceKey;
