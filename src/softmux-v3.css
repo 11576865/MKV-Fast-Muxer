@@ -2774,7 +2774,7 @@
   padding:8px 9px;text-align:left;cursor:pointer;
   border:1px solid var(--sfv3-line);border-radius:9px;
   color:var(--sfv3-text);background:var(--sfv3-row-raised);
-  font:650 12px/1.35 inherit;
+  font-family:inherit;font-weight:650;font-size:12px;line-height:1.35;
 }
 .sf14.sfv3.sfv35-nav .sfv35-batch-phase[aria-pressed="true"]{
   color:var(--sfv3-accent);background:var(--sfv3-accent-back);
@@ -2863,4 +2863,17 @@
   .sf14.sfv3.sfv35-nav .sfv35-batch-phase{
     min-height:46px;
   }
+}
+
+/* Real ambiguous pairing intentionally produces no executable rows.
+ * Do not let a strong primary-green surface visually claim that Start is
+ * available while the native BatchRunner has disabled it. */
+.sf14.sfv3.sfv35-nav #sf14Batch #batchStartBtn:disabled {
+  opacity:.43;filter:grayscale(.55);cursor:not-allowed;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-conflict="true"]
+  #batchPlan .batch-review-conflicts{
+  border:1px solid #b38a4f;
+  background:rgba(179,138,79,.08);
+  border-radius:9px;padding:10px;
 }
