@@ -2641,7 +2641,7 @@
   scrollbar-width:thin;white-space:nowrap;
 }
 .sf14.sfv3.sfv35-nav .sfv35-feature-button{
-  flex:0 0 auto;min-height:39px;padding:8px 16px;
+  flex:0 0 auto;min-width:56px;min-height:40px;padding:8px 16px;
   color:var(--sfv3-soft);background:transparent;
   font-size:12px;font-weight:680;
   border:1px solid var(--sfv3-line);border-radius:8px;cursor:pointer;
