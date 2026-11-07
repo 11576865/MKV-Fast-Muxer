@@ -2747,7 +2747,7 @@
  * inspector, sources, recipe, run console, result list and container probe.
  */
 .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-batch-workflow{
-  position:sticky;top:0;z-index:8;min-width:0;
+  position:sticky;top:0;z-index:100;isolation:isolate;min-width:0;
   margin:0 0 14px;padding:12px;
   background:var(--sfv3-chrome);
   border:1px solid var(--sfv3-line);
@@ -2880,4 +2880,12 @@
   border:1px solid #b38a4f;
   background:rgba(179,138,79,.08);
   border-radius:9px;padding:10px;
+}
+
+/* The native <details>.batch-drawer can paint its import dropzone OVER
+ * sticky phase buttons after the inner batch viewport scrolls at 820px.
+ * Establish separate paint layers: native inputs remain fully interactive
+ * BELOW the task switcher, not allowed to intercept task navigation. */
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-drawer{
+  position:relative;z-index:0;isolation:isolate;
 }
