@@ -787,23 +787,43 @@ export function mountSoftmuxV3Surface(doc = document) {
   let selectedSource=null;
   let sourceDetailRequested=false;
   let sourceHelpOpen=false;
+  const closeSourceFlagHelp=(restoreFocus=false)=>{
+    sourceHelpOpen=false;
+    sourceSheetHelpHost.hidden=true;
+    subtitleFlagHelp.open=false;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
+    if(restoreFocus)sourceFlagHelpTrigger.focus();
+  };
   sourceFlagHelpTrigger.addEventListener('click',()=>{
     if(!selectedSource || selectedSource.group!=='字幕')return;
-    sourceHelpOpen=!sourceHelpOpen;
-    sourceSheetHelpHost.hidden=!sourceHelpOpen;
-    subtitleFlagHelp.open=sourceHelpOpen;
-    sourceFlagHelpTrigger.setAttribute('aria-expanded',String(sourceHelpOpen));
+    if(sourceHelpOpen) {
+      closeSourceFlagHelp();
+    }else{
+      sourceHelpOpen=true;
+      sourceSheetHelpHost.hidden=false;
+      subtitleFlagHelp.open=true;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded','true');
+    }
+  });
+  // Unlike a pinned editor, source technical help is a contextual popover.
+  // Dismiss it outside without consuming the original click/permission flow.
+  doc.addEventListener('pointerdown',event=>{
+    if(sourceHelpOpen && event.target!==sourceFlagHelpTrigger &&
+       !sourceSheetHelpHost.contains(event.target))
+      closeSourceFlagHelp();
+  });
+  subtitleFlagHelp.addEventListener('toggle',()=>{
+    // Inner <details> may also be closed by keyboard or pointer. Do not
+    // leave an empty popover with aria-expanded="true" on the outer trigger.
+    if(sourceHelpOpen && subtitleFlagHelp.parentElement===sourceSheetHelpHost &&
+       !subtitleFlagHelp.open)closeSourceFlagHelp(true);
   });
   sourceSheet.addEventListener('keydown',event=>{
     if(event.key!=='Escape' || !sourceHelpOpen)return;
     // Closing the just-in-time help must NOT dismiss the whole source sheet.
     event.preventDefault();
     event.stopPropagation();
-    sourceHelpOpen=false;
-    sourceSheetHelpHost.hidden=true;
-    subtitleFlagHelp.open=false;
-    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
-    sourceFlagHelpTrigger.focus();
+    closeSourceFlagHelp(true);
   });
   const desktopSourceActions=()=>Boolean(
     doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
