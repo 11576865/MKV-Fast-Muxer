@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from 'playwright';
+import {inspectV3ShellGeometry} from '../../src/v3-shell-geometry-contract.mjs';
 
 const dir=path.resolve('.e2e/ui-v3-ass-source');
 await fs.mkdir(dir,{recursive:true});
@@ -95,6 +96,19 @@ try {
    selectedSourceLayout.actionBottom<=selectedSourceLayout.sheetBottom &&
    selectedSourceLayout.actionBottom<=selectedSourceLayout.flagTop,
    'selected ASS Preview/Extract/Add-to must precede secondary flags in visible portrait context');
+ // Source selection is live and the original File identity is unchanged.
+ // Compare only the outer 820px shell geometry to the approved V3-05 node.
+ const portraitShell=await page.evaluate(()=>{
+   const box=sel=>{
+     const b=document.querySelector(sel)?.getBoundingClientRect();
+     return b?Object.fromEntries(['x','y','width','height']
+       .map(k=>[k,Math.round(b[k]*100)/100])):null;
+   };
+   return {chrome:box('.sf14-header'),workspace:box('#sf14Single'),
+     footer:box('.sfv3-source-status')};
+ });
+ evidence.shellBaseline={state:'portrait-source',observed:portraitShell,
+   reference:inspectV3ShellGeometry('portrait-source',portraitShell)};
  await page.screenshot({path:path.join(dir,'v3-ass-selected-820x1180.png')});
  // V3-05/09: use real ffprobe disposition; unknown must stay unknown.
  const observedFlags=page.locator('#sfv3SourceInspector #sfv3SourceFlagStates');
@@ -381,5 +395,11 @@ try {
 } finally {
  evidence.errors=errors;
  await fs.writeFile(path.join(dir,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');
+ await fs.writeFile(path.join(dir,'shell-baseline.json'),
+   JSON.stringify({schema:'v3-shell-geometry-baseline-v1',
+     realSourceSha256:original,
+     viewportStateCases:evidence.shellBaseline?[evidence.shellBaseline]:[],
+     assessedVisualAcceptance:false,
+     note:'Figma 33:2 versus authentic selected ASS viewport shell; source metadata differs from mock fixture.'},null,2)+'\n');
  await context.close();await browser.close();
 }
