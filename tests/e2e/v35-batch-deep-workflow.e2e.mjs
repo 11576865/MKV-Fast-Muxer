@@ -24,6 +24,7 @@ const ff=(color,target)=>execFileSync('ffmpeg',[
 ],{timeout:90000,stdio:'pipe'});
 ff('blue',a);ff('green',b);
 await writeFile(subtitle,'1\n00:00:00,100 --> 00:00:00,900\nManually paired subtitle\n\n');
+await writeFile(subtitleA,'1\n00:00:00,100 --> 00:00:00,900\nAutomatically paired A subtitle\n\n');
 const before={a:sha(await readFile(a)),b:sha(await readFile(b)),
   subtitle:sha(await readFile(subtitle)),subtitleA:sha(await readFile(subtitleA))};
 const browser=await chromium.launch({
