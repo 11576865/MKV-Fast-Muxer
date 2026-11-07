@@ -2576,3 +2576,11 @@
     background:url('./v3-assets/object-list.svg') center/contain no-repeat;
   }
 }
+
+
+/* V3-02 / V3-05: when a source row is selected, the SAME Add-to action
+ * is available directly under that row (desktop) or in the real context
+ * sheet (portrait). Do not show a second competing Add-to affordance in
+ * the selected row while those contextual native controls are visible. */
+.sf14.sfv3 .sfv3-observed-row:has(.sfv3-row-select[aria-expanded="true"])
+  > .sfv3-row-action{display:none!important;}
