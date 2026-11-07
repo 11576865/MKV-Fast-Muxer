@@ -1843,7 +1843,7 @@
  * Reorder presentation only. Native preview still requires explicit action
  * (and actual font availability); never show a fabricated rendered subtitle.
  * When the real preview is active, WU-08 owns its separate media/tools grid. */
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))){
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))){
   display:grid;
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:
@@ -1858,19 +1858,19 @@
   align-items:start;
   gap:9px;
 }
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-header{grid-area:source-head;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-header{grid-area:source-head;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-actions{
   grid-area:source-actions;
   display:flex;align-items:center;justify-content:flex-start;
   flex-wrap:wrap;gap:8px;
 }
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-detail{grid-area:source-detail;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-states{grid-area:source-flags;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-font-evidence{grid-area:source-fonts;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-help-host{grid-area:source-help;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-notice{grid-area:source-notice;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-detail{grid-area:source-detail;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-flag-states{grid-area:source-flags;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-font-evidence{grid-area:source-fonts;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-flag-help-host{grid-area:source-help;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-notice{grid-area:source-notice;}
 @media(max-width:959px){
-  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-actions{
     position:relative;
     padding:0 0 7px;border-bottom:1px solid var(--sfv3-line);
   }
