@@ -86,6 +86,8 @@ jobs:
         run: node tests/e2e/v3-responsive-geometry.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
+      - name: Real opt-in next-shell topology with original media File and editor
+        run: node tests/e2e/v3-shell-next.e2e.mjs
       - name: Real Chromium V3 new blank MKV from explicit source stream, native ffprobe and output SHA
         run: node tests/e2e/v3-blank-target.e2e.mjs
       - name: Build Figma-vs-browser visual review pairs (not pixel acceptance)
@@ -102,6 +104,7 @@ jobs:
             .e2e/ui-v3-ass-source/
             .e2e/ui-v3-responsive/
             .e2e/ui-v3-multitrack/
+            .e2e/ui-v3-shell-next/
             .e2e/ui-v3-blank-target/
             .e2e/ui-v3-visual-comparison/
 

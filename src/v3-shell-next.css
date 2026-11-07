@@ -1,0 +1,128 @@
+/*
+ * V3 structural shell NEXT: single state-driven layout, not a succession of
+ * per-button CSS overrides. This stylesheet is inert without the explicit
+ * ?ui=v3&shell=next opt-in. Children are the SAME native live V3 DOM nodes.
+ *
+ * Geometry authority: Figma 28:2, 32:2, 33:2, 35:2.
+ * This stage does not rework track, contextual editor or writer internals.
+ */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame]{
+  display:grid;
+  box-sizing:border-box;
+  grid-template-columns:minmax(0,1fr);
+  width:100%;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sf14-header{
+  grid-area:chrome;
+  min-height:0;
+  /* Header was still 58px in 820px portrait target, leaving a 2px gap. */
+  height:100%!important;
+  box-sizing:border-box;
+  min-width:0;
+}
+/* A pre-existing :has(#cancelBtn:disabled) selector carries ID specificity.
+ * Use the native root ID at the *single* shell boundary so its old
+ * height:calc(100dvh - 118px)!important cannot shorten this grid area. */
+#sf14Root.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > #sf14Single{
+  grid-area:workspace;
+  /* Override inherited plan-state calc(100dvh - 118px)!important.
+   * The shell grid, not the legacy output-card height, owns this slot. */
+  min-height:0!important;
+  max-height:100%!important;
+  height:100%!important;
+  min-width:0;
+  overflow:hidden;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sfv3-source-status{
+  grid-area:footer;
+  height:100%;
+  min-height:0;
+  box-sizing:border-box;
+  min-width:0;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sf14-output{
+  grid-area:footer;
+  height:100%;
+  min-height:0;
+  max-height:100%;
+  box-sizing:border-box;
+  min-width:0;
+}
+/* 1440px Figma source (28:2) deliberately places the file tabs after the
+ * workspace. Target (32:2) places them above the workspace. */
+.sf14.sfv3[data-sfv3-shell-frame="desktop-source"]{
+  grid-template-areas:"workspace" "chrome" "footer";
+  grid-template-rows:minmax(0,1fr) 58px 56px;
+}
+.sf14.sfv3[data-sfv3-shell-frame="desktop-target"]{
+  grid-template-areas:"chrome" "workspace" "footer";
+  grid-template-rows:58px minmax(0,1fr) 56px;
+}
+/* 820px portrait target mux actions sit directly below the source tabs.
+ * Source has an informational footer, not a writable mux toolbar. */
+.sf14.sfv3[data-sfv3-shell-frame="portrait-source"]{
+  grid-template-areas:"chrome" "workspace" "footer";
+  grid-template-rows:60px minmax(0,1fr) 60px;
+}
+.sf14.sfv3[data-sfv3-shell-frame="portrait-target"]{
+  grid-template-areas:"chrome" "footer" "workspace";
+  grid-template-rows:60px 60px minmax(0,1fr);
+}
+/* Only the shell owns vertical slot heights. Existing native element
+ * listeners, the single editor and the exact-File write gate are unaffected. */
+
+/* The legacy `:has(#cancelBtn:disabled)` selector contains an ID
+ * (#cancelBtn) AND multiple classes/pseudoclasses; even the new #sf14Single
+ * general rule can LOSE an !important height conflict on specificity.
+ * Give the next shell's target workspace a stronger state+ID ownership rule.
+ * It assigns geometry only, never modifies active Cancel, native target File,
+ * or execution ownership. */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame][data-sfv3-surface="plan"]
+  > #sf14Single.sf14-single{
+  min-height:0!important;max-height:100%!important;height:100%!important;
+}
+
+/* The legacy 10.14 idle output card declared min-height:60px!important.
+ * The approved desktop target shell reserves exactly 56px; override that
+ * obsolete card constraint ONCE at the shell boundary, not per button.
+ * A running Cancel remains governed by the original executor state. */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame="desktop-target"][data-sfv3-surface="plan"]
+  > .sf14-output:has(#cancelBtn:disabled){
+  min-height:56px!important;max-height:56px!important;height:56px!important;
+  padding-block:6px!important;
+}
+
+
+/* The Figma 72px desktop rail is an object-navigation component with four
+ * positions: documents, objects, search, and pinned help. Import remains
+ * in the real header / Figma add-resource button, not a duplicate rail slot. */
+#sf14Root.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame^="desktop-"] #sfv3Rail{
+  width:72px;
+  padding:16px 12px;
+  gap:24px;
+  align-items:center;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail > button[aria-label="添加资源"]{
+  display:none!important;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-help{
+  margin-top:auto;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action{
+  display:grid;
+  place-items:center;
+  border:0;
+  padding:0;
+  background:transparent;
+  color:var(--sfv3-soft);
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action:hover,
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action:focus-visible{
+  background:var(--sfv3-row-raised);
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action .sfv3-svg-icon{
+  width:19px;height:19px;
+}

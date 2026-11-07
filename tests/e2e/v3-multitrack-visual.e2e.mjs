@@ -5,6 +5,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
+import {inspectV3ShellGeometry} from '../../src/v3-shell-geometry-contract.mjs';
 const dir=path.resolve('.e2e/ui-v3-multitrack');
 await fs.mkdir(dir,{recursive:true});
 const source=path.join(dir,'V3 Five Track Source.mkv');
@@ -39,6 +40,16 @@ const browser=await chromium.launch({headless:true,
 const page=await browser.newPage({viewport:{width:1440,height:900},
  acceptDownloads:true,hasTouch:true,reducedMotion:'reduce'});
 page.setDefaultTimeout(45000);
+// Measure original live DOM boxes; no mock data or File permission changes.
+const measureShell=async footerSelector=>page.evaluate(selector=>{
+  const rect=query=>{
+    const b=document.querySelector(query)?.getBoundingClientRect();
+    if(!b)return null;
+    return Object.fromEntries(['x','y','width','height']
+      .map(k=>[k,Math.round(b[k]*100)/100]));
+  };
+  return {chrome:rect('.sf14-header'),workspace:rect('#sf14Single'),footer:rect(selector)};
+},footerSelector);
 const evidence={schema:'v3-native-five-track-compact-v1',sourceSha256:sourceSHA,
  figma:['36:2','37:223'],viewports:[],screenshots:[],
  limits:'Real 1 video / 2 audio / 2 subtitle target with one source font and one external font. Figma mock has two source MKVs and six fonts; compare track density and geometry only, NOT pixel identity or full design sign-off.'};
@@ -73,6 +84,14 @@ try{
  });
  assert.equal(duplicatedSourceAttachment,false,
    'same verified font attachment must be represented by source resource card, not a duplicate main track');
+ // Figma V3-01 versus the SAME real-browser source-only state.
+ // Mismatch is explicit negative evidence, not an automatic failure/visual PASS.
+ evidence.shellBaseline=[];
+ const sourceShell=await measureShell('.sfv3-source-status');
+ evidence.shellBaseline.push({
+   state:'desktop-source',observed:sourceShell,
+   reference:inspectV3ShellGeometry('desktop-source',sourceShell),
+ });
  await page.screenshot({path:path.join(dir,'five-track-source-1440x900.png')});
  evidence.screenshots.push('five-track-source-1440x900.png');
  await page.locator('#sfv3EnterOutput').click();
@@ -140,6 +159,13 @@ try{
    assert.ok(data.scrollWidth<=width+2,'no horizontal overflow '+width);
    assert.equal(data.selectedFile,path.basename(source));
    assert.equal(data.target,'plan');
+   if(width===1440 || width===820){
+     const state=width===1440?'desktop-target':'portrait-target';
+     const observed=await measureShell('.sf14-output');
+     evidence.shellBaseline.push({
+       state,observed,reference:inspectV3ShellGeometry(state,observed),
+     });
+   }
    if(data.idleCancelDisabled)
      assert.equal(data.idleProgressVisible,false,
        'V3 idle/completed output should not show a stale blue progress stripe; live Cancel retains native progress');
@@ -385,5 +411,12 @@ try{
  throw e;
 }finally{
  await fs.writeFile(path.join(dir,'evidence.json'),JSON.stringify(evidence,null,2)+'\n');
+ await fs.writeFile(path.join(dir,'shell-baseline.json'),
+   JSON.stringify({schema:'v3-shell-geometry-baseline-v1',
+     realSourceSha256:sourceSHA,
+     viewportStateCases:evidence.shellBaseline||[],
+     requiresMatchedFigmaFixture:true,
+     assessedVisualAcceptance:false,
+     note:'Approved Figma shell geometry versus measured original DOM; never claim overall visual acceptance.'},null,2)+'\n');
  await browser.close();
 }

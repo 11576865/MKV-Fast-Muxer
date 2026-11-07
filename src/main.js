@@ -12,6 +12,7 @@ import './workbench.css';
 import './softmux-10.14.css';
 import './softmux-figma-tablet.css';
 import './softmux-v3.css';
+import './v3-shell-next.css';
 import {
   mountSoftmux1014Workbench,
   updateSoftmux1014SourceSections,
