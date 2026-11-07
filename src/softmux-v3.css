@@ -2889,3 +2889,18 @@
 .sf14.sfv3.sfv35-nav #sf14Batch .batch-drawer{
   position:relative;z-index:0;isolation:isolate;
 }
+
+
+/* The source-only 56px status footer was still present when the native
+ * Batch/Tools view occupied the full app. Together with the viewport-height
+ * task pane it caused document-level scrolling: screenshots at 820/620 lost
+ * the 58px global header and part of the 11-task rail. In these task modes
+ * their own native status surfaces are authoritative. */
+.sf14.sfv3.sfv35-nav[data-view="batch"] #sfv3SourceStatus,
+.sf14.sfv3.sfv35-nav[data-view="tools"] #sfv3SourceStatus{
+  display:none!important;
+}
+.sf14.sfv3.sfv35-nav[data-view="batch"],
+.sf14.sfv3.sfv35-nav[data-view="tools"]{
+  height:100dvh;min-height:0;overflow:hidden;
+}
