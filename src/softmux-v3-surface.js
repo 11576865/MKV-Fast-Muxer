@@ -1634,6 +1634,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     // business state, invoke a writer, synthesize provenance or rehost a copy.
     const focusRealTask=(task)=>{
       if(task==='plan')closeInspector();
+      // Disclosures belong to the selected task, not to a page-global
+      // permanent expansion. A previously opened recovery/preview must not
+      // bury the actual controls of a newly selected specialist category.
+      if(task!=='project'){
+        const recovery=find(doc,'sf14Recovery');
+        if(recovery)recovery.open=false;
+      }
       root.dataset.sfv35Task=task;
       if(task==='tracks'){
         closeInspector();
@@ -1642,14 +1649,22 @@ export function mountSoftmuxV3Surface(doc = document) {
       }else if(task==='subtitle'||task==='font'){
         const editor=find(doc,'sf14OptionsDrawer');
         if(editor)editor.open=true;
-        if(task==='subtitle'){
-          const preview=find(doc,'sf14PreviewDrawer');
-          if(preview)preview.open=true;
-        }
+        // Never leave an empty large video preview above actual subtitle/font
+        // controls. Its ONE real preview drawer remains available on demand.
+        const preview=find(doc,'sf14PreviewDrawer');
+        if(preview)preview.open=false;
         root.querySelector('[data-editor-filter="'+
           (task==='subtitle'?'subtitle':'font')+'"]')?.click();
         // The ONLY native inspector presents existing editors and controls.
-        find(doc,'sfv3InspectorOpen')?.click();
+        if(root.dataset.sfv3Inspector!=='open')
+          find(doc,'sfv3InspectorOpen')?.click();
+        doc.defaultView?.requestAnimationFrame(()=>{
+          if(root.dataset.sfv35Task!==task||
+              root.dataset.sfv3Inspector!=='open')return;
+          const field=task==='subtitle'?find(doc,'newSubtitleList'):
+            find(doc,'fontMode');
+          field?.scrollIntoView?.({block:'center'});
+        });
       }else if(task==='attachments'){
         const extraction=find(doc,'attachmentExtractionDetails');
         const impact=find(doc,'existingAttachmentImpactDetails');
