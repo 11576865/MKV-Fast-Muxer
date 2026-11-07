@@ -29,7 +29,7 @@ const ctx=await browser.newContext({
 const page=await ctx.newPage(),pageErrors=[];
 page.on('pageerror',error=>pageErrors.push(String(error)));
 const evidence={
-  schema:'softmux-v35-real-native-entry-pilot-v3',
+  schema:'softmux-v35-real-native-entry-pilot-v4',
   source:path.basename(source),
   claims:[],
   limits:[
@@ -187,6 +187,9 @@ try {
   },null,{timeout:10000});
   assert.ok(await page.locator('#newSubtitleList [data-new-sub-field="title"]').count()>=1,
     'the real imported subtitle property is present in the one editor');
+  assert.ok(await page.locator('.sf14-header').evaluate(el=>
+    el.getBoundingClientRect().top>=-2),
+    'subtitle task scroll must not clip the fixed workbench header');
   await page.screenshot({path:path.join(output,'06-subtitle-native-inspector.png')});
   evidence.claims.push('deferred subtitle entry resumes only after explicit target acceptance and uses one inspector');
 
@@ -202,6 +205,9 @@ try {
       field.top<pane.bottom-30;
   },null,{timeout:10000});
   assert.equal(await nav.locator('[data-sfv35-task="font"]').getAttribute('aria-current'),'page');
+  assert.ok(await page.locator('.sf14-header').evaluate(el=>
+    el.getBoundingClientRect().top>=-2),
+    'font task must scroll only the inspector pane');
   await page.screenshot({path:path.join(output,'07-font-native-editor.png')});
 
   await nav.locator('[data-sfv35-task="tracks"]').click();
@@ -222,6 +228,9 @@ try {
   await nav.locator('[data-sfv35-task="project"]').click();
   assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
   assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),true);
+  assert.ok(await page.locator('.sf14-header').evaluate(el=>
+    el.getBoundingClientRect().top>=-2),
+    'project recovery navigation cannot scroll away the workbench header');
   assert.equal(await page.evaluate(()=>
     window.__v35Source===document.getElementById('videoInput').files[0]),true);
   await nav.locator('[data-sfv35-task="source"]').click();
