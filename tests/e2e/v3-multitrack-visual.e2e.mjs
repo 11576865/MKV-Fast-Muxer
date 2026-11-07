@@ -318,10 +318,13 @@ try{
      assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-label'),
        '查看对象详情与真实成品',
        'icon-only inspector must retain the actual output / download / audit entry');
-     const inspectorGlyph=await page.locator('#sfv3InspectorOpen')
-       .evaluate(node=>getComputedStyle(node,'::before').backgroundImage);
-     assert.ok(inspectorGlyph && inspectorGlyph!=='none' && /mkv-document/.test(inspectorGlyph),
-       'compact output-inspector glyph must be distinct from the plan list icon');
+     const glyphs=await page.evaluate(()=>({
+       inspector:getComputedStyle(document.getElementById('sfv3InspectorOpen'),'::before').backgroundImage,
+       plan:getComputedStyle(document.getElementById('sf14PlanToggle'),'::before').backgroundImage,
+     }));
+     assert.ok(glyphs.inspector && glyphs.inspector!=='none' &&
+       glyphs.plan && glyphs.plan!=='none' && glyphs.inspector!==glyphs.plan,
+       'compact output inspector and plan must render distinct real SVGs after Vite asset bundling');
      await page.locator('#sf14PlanToggle').click();
      assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'true',
        'compact plan button must open the SAME native detailed plan');
