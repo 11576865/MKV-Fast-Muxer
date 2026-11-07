@@ -239,6 +239,18 @@ try{
     await page.setViewportSize({width,height});
     await page.locator('#sfv35FeatureNavigation [data-sfv35-task="batch"]').click();
     for(const key of phases){
+      await control(key).scrollIntoViewIfNeeded();
+      const hit=await control(key).evaluate(el=>{
+        const rect=el.getBoundingClientRect();
+        const at=document.elementFromPoint(rect.left+rect.width/2,
+          rect.top+rect.height/2);
+        return {task:at?.closest('[data-sfv35-batch-phase]')
+          ?.dataset.sfv35BatchPhase||'',element:at?.id||at?.className||'',
+          top:rect.top,visible:rect.top>=0&&rect.bottom<=innerHeight};
+      });
+      assert.equal(hit.task,key,
+        'Batch stage must be physically pointer-accessible at '+width+
+        ', not obscured by native source drawer: '+JSON.stringify(hit));
       await step(key);
       assert.equal(await control(key).getAttribute('aria-pressed'),'true');
       await screenshot('phase-'+key+'-'+width+'.png');
