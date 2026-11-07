@@ -1,0 +1,69 @@
+/*
+ * V3 structural shell NEXT: single state-driven layout, not a succession of
+ * per-button CSS overrides. This stylesheet is inert without the explicit
+ * ?ui=v3&shell=next opt-in. Children are the SAME native live V3 DOM nodes.
+ *
+ * Geometry authority: Figma 28:2, 32:2, 33:2, 35:2.
+ * This stage does not rework track, contextual editor or writer internals.
+ */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame]{
+  display:grid;
+  box-sizing:border-box;
+  grid-template-columns:minmax(0,1fr);
+  width:100%;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sf14-header{
+  grid-area:chrome;
+  min-height:0;
+  height:100%;
+  box-sizing:border-box;
+  min-width:0;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > #sf14Single{
+  grid-area:workspace;
+  min-height:0;
+  max-height:100%;
+  height:100%;
+  min-width:0;
+  overflow:hidden;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sfv3-source-status{
+  grid-area:footer;
+  height:100%;
+  min-height:0;
+  box-sizing:border-box;
+  min-width:0;
+}
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > .sf14-output{
+  grid-area:footer;
+  height:100%;
+  min-height:0;
+  max-height:100%;
+  box-sizing:border-box;
+  min-width:0;
+}
+/* 1440px Figma source (28:2) deliberately places the file tabs after the
+ * workspace. Target (32:2) places them above the workspace. */
+.sf14.sfv3[data-sfv3-shell-frame="desktop-source"]{
+  grid-template-areas:"workspace" "chrome" "footer";
+  grid-template-rows:minmax(0,1fr) 58px 56px;
+}
+.sf14.sfv3[data-sfv3-shell-frame="desktop-target"]{
+  grid-template-areas:"chrome" "workspace" "footer";
+  grid-template-rows:58px minmax(0,1fr) 56px;
+}
+/* 820px portrait target mux actions sit directly below the source tabs.
+ * Source has an informational footer, not a writable mux toolbar. */
+.sf14.sfv3[data-sfv3-shell-frame="portrait-source"]{
+  grid-template-areas:"chrome" "workspace" "footer";
+  grid-template-rows:60px minmax(0,1fr) 60px;
+}
+.sf14.sfv3[data-sfv3-shell-frame="portrait-target"]{
+  grid-template-areas:"chrome" "footer" "workspace";
+  grid-template-rows:60px 60px minmax(0,1fr);
+}
+/* Only the shell owns vertical slot heights. Existing native element
+ * listeners, the single editor and the exact-File write gate are unaffected. */
