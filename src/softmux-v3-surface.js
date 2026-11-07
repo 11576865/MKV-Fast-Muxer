@@ -1613,8 +1613,11 @@ export function mountSoftmuxV3Surface(doc = document) {
       const active=root.dataset.view==='batch'?'batch':
         root.dataset.view==='tools'?'tools':
         root.dataset.sfv3Surface==='plan'?'plan':'source';
-      for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]'))
-        button.toggleAttribute('aria-current',button.dataset.sfv35Task===active);
+      for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]')) {
+        if(button.dataset.sfv35Task===active)
+          button.setAttribute('aria-current','page');
+        else button.removeAttribute('aria-current');
+      }
     };
     // The native 10.14 changeView remains the ONE authority for switching
     // workspaces. Source/plan remains governed by exact-File target intent.
