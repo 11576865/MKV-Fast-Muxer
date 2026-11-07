@@ -81,7 +81,8 @@ try{
     ?.dataset.sfv3TargetConfirmed==='true',{timeout:180000});
   await page.locator('#sfv3TargetTab').click();
   await measure('portrait-target');
-  assert.equal(await page.locator('#sf14Root').getAttribute('data-sfv3TargetConfirmed'),'true');
+  assert.equal(await page.locator('#sf14Root').evaluate(el=>el.dataset.sfv3TargetConfirmed),'true',
+    'the original V3 exact-File target authority must survive portrait shell positioning');
 
   await page.setViewportSize({width:1440,height:900});
   await measure('desktop-target');
