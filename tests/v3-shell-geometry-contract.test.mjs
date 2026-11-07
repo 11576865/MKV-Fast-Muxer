@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {resolveV3ShellFrame} from '../src/v3-shell-next.js';
 import assert from 'node:assert/strict';
 import {
   V3_APPROVED_SHELLS,inspectV3ShellGeometry,V3_SHELL_REGION_SELECTORS,
@@ -65,4 +66,17 @@ test('shell maps original DOM, not new File permission or media engine',()=>{
     'target-footer':'.sf14-output',
   });
   assert.throws(()=>inspectV3ShellGeometry('v3-12',{}),/UNKNOWN_REFERENCE/);
+});
+
+test('candidate next shell covers only explicitly reviewed frame modes',()=>{
+  for(const [width,height,surface,expected] of [
+    [1440,900,'source','desktop-source'],
+    [1440,900,'plan','desktop-target'],
+    [820,1180,'source','portrait-source'],
+    [820,1180,'plan','portrait-target'],
+    [620,900,'source',null],
+    [1180,820,'plan',null],
+    [820,1180,'unknown',null],
+  ])assert.equal(resolveV3ShellFrame({width,height,surface}),expected,
+    JSON.stringify({width,height,surface}));
 });
