@@ -1672,7 +1672,14 @@ export function mountSoftmuxV3Surface(doc = document) {
             sourceStructureToggle.click();
           const strip=contents.querySelector(
             '.sfv3-source-resource-strip');
-          if(strip)revealWithin(strip,compositionHost);
+          if(strip){
+            // Explicit task navigation should land keyboard/AT users on the
+            // source observation region, not leave focus in the top toolbar.
+            // preventScroll retains the bounded native pane scroll owner.
+            strip.tabIndex=-1;
+            revealWithin(strip,compositionHost);
+            strip.focus({preventScroll:true});
+          }
         });
       }else if(task==='tracks'){
         closeInspector();
