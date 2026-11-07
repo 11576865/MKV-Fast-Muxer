@@ -47,3 +47,27 @@ V3.5 55 态设计包含完整的轨道、字幕、字体、附件、验证、工
 **Pending（整体验收）：** Figma 设计版本冻结、九类入口充分性、全旧能力功能可达性、设备与无障碍、1.0 发布。
 
 此台账是基于当前实现源码的**局部真实接线审查**，并非从 Figma 或旧报告推定全量功能完成。
+
+
+## 6. 续建：六类专业入口与真实控件路由（待精确 HEAD CI）
+
+本次在同一 `?ui=v3&nav=full` 试验开关下，把原来的四个入口扩展为十个：**来源、拟输出、轨道、字幕、字体、附件、批量任务、验证、工程、容器工具**。与 Figma 的九大任务类别相比，容器工具是额外的安全能力隔离页，不以“全部功能已完成”论证。
+
+| 新增入口 | 原始真实所有者 | 允许动作及边界 |
+|---|---|---|
+| 轨道 | `#compositionTracks` / 原 `[data-sf-section=tracks]` | 必须先确认目标；打开现有拟输出轨道列表，不合成新 Track |
+| 字幕 | `#sf14OptionsDrawer` / `[data-editor-filter=subtitle]` / `#sf14PreviewDrawer` | 只展开现存字幕字段和真实预览工具，不生成虚拟字幕 |
+| 字体 | `#sf14OptionsDrawer` / `[data-editor-filter=font]` / `#fontMode` | 使用原字体模式和子集化控件，不自动改用户设定 |
+| 附件 | `#sf14Tools` / `#attachmentExtractionDetails` / `#existingAttachmentImpactDetails` | 路由到已有附件读取/提取/影响检查；不存在“任意附件安全改写”假权能 |
+| 验证 | `#sfv3Verification` / 实际 `#outputEvidencePanel` | 必须先确认目标；打开真实预检，未生成成品时不显示通过报告 |
+| 工程 | `#sf14Recovery` | 来源模式即可进入真实 JSON 草稿/恢复控件；不会凭恢复记录重获 File 权限 |
+
+**延迟上下文请求（deferred context navigation）**：当用户点击轨道/字幕/字体/验证却还没有有效的目标时，首先出现**原生目标选择器**。只有原本的 `setSurface('plan')` 经身份校验成功，才转入请求的实际对象上下文。取消和 Escape 放弃请求；来源/批量/容器工具/工程不获得写入权限。没有创建第二套 Inspector、Wasm 执行器、BatchRunner 或业务状态仓库。
+
+响应式设计：大屏入口持续可见；<=959px 用两行五列显示十个带中文名称的任务按钮，避免把专业入口全塞进横向隐性滚动。<=499px 使用四列三行。此布局仍为试验方案，尚需真机人体工学及视觉验收。
+
+**测试策略**：延长 `tests/e2e/v35-native-feature-nav.e2e.mjs` 的真实 Chromium 操作，检验来源→工程恢复→附件工具→目标门禁/取消→确认→字幕/字体/轨道/验证→来源及紧凑十入口，验证原 File 身份不变、所有对象唯一、无虚假结果，并产出截图。具体 PASS/FAIL 以后续精确 HEAD 的 V3 Pilot CI 为准。
+
+**独立既有阻断（不得并入本变更已修复）**：PR #267 先前的完整 Browser E2E [#42368921977](https://github.com/11576865/MKV-Fast-Muxer/actions/runs/42368921977) 在 `batch-run-console-scenario.mjs` 的 **Stop 模式运行记录下载**等待时出现 `page.waitForEvent('download')` 30 秒超时，且该测试前已报告一个任务已生成/审计通过。来源有待单独重现及分类（下载事件或报告导出程序/测试时序），不可把子集通过宣告成全套通过，也不应为了转绿放宽验收条件。
+
+实现和验证与获批 V3 视觉权威继续隔离，PR 保持 Draft，默认 UI 不切换。
