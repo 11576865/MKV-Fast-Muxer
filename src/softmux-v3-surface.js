@@ -1630,6 +1630,22 @@ export function mountSoftmuxV3Surface(doc = document) {
         else button.removeAttribute('aria-current');
       }
     };
+    // Reveal the native control only inside the native owning scroll pane.
+    // scrollIntoView() scrolls the whole document too, clipping the fixed
+    // workbench header in actual Chromium screenshots.
+    const revealWithin=(node,scroller)=>{
+      if(!node||!scroller||!node.isConnected)return;
+      const field=node.getBoundingClientRect();
+      const area=scroller.getBoundingClientRect();
+      const margin=12;
+      if(!area.height)return;
+      const delta=field.height>area.height-2*margin ||
+          field.top<area.top+margin
+        ? field.top-area.top-margin
+        : field.bottom>area.bottom-margin
+          ? field.bottom-area.bottom+margin : 0;
+      if(delta)scroller.scrollTop+=delta;
+    };
     // Only navigate to original native controls. The category does not own
     // business state, invoke a writer, synthesize provenance or rehost a copy.
     const focusRealTask=(task)=>{
@@ -1645,7 +1661,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       if(task==='tracks'){
         closeInspector();
         root.querySelector('[data-sf-section="tracks"]')?.click();
-        currentTracks.scrollIntoView?.({block:'nearest'});
+        revealWithin(currentTracks,compositionHost);
       }else if(task==='subtitle'||task==='font'){
         const editor=find(doc,'sf14OptionsDrawer');
         if(editor)editor.open=true;
@@ -1663,19 +1679,19 @@ export function mountSoftmuxV3Surface(doc = document) {
               root.dataset.sfv3Inspector!=='open')return;
           const field=task==='subtitle'?find(doc,'newSubtitleList'):
             find(doc,'fontMode');
-          field?.scrollIntoView?.({block:'center'});
+          revealWithin(field,find(doc,'sf14Inspector'));
         });
       }else if(task==='attachments'){
         const extraction=find(doc,'attachmentExtractionDetails');
         const impact=find(doc,'existingAttachmentImpactDetails');
         if(extraction)extraction.open=true;
         if(impact)impact.open=true;
-        (extraction||impact||find(doc,'sf14ToolInspect'))
-          ?.scrollIntoView?.({block:'nearest'});
+        revealWithin(extraction||impact||find(doc,'sf14ToolInspect'),
+          find(doc,'sf14Tools'));
       }else if(task==='verification'){
         closeInspector();
         verification.open=true;
-        verification.scrollIntoView?.({block:'nearest'});
+        revealWithin(verification,compositionHost);
         // A completed output is visible only if the real evidence is present.
         if(inspectorEvidence&&!inspectorEvidence.hidden){
           evidenceDrawer.open=true;
@@ -1684,7 +1700,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         const recovery=find(doc,'sf14Recovery');
         if(recovery){
           recovery.open=true;
-          recovery.scrollIntoView?.({block:'nearest'});
+          revealWithin(recovery,compositionHost);
         }
       }
       syncFeatureNavigation();
