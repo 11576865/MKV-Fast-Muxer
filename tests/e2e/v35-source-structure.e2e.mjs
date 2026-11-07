@@ -83,6 +83,9 @@ try{
   });
   assert.equal(await nav.locator('[data-sfv35-task="structure"]')
     .getAttribute('aria-current'),'page');
+  assert.equal(await page.evaluate(()=>document.activeElement?.classList
+    .contains('sfv3-source-resource-strip')),true,
+    'direct structure task must focus actual source observation region');
   assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   assert.equal(await page.locator('#sfv3ObservedStructure').isVisible(),false);
