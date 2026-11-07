@@ -13,6 +13,7 @@ await mkdir(out,{recursive:true});
 const a=path.join(out,'Series A S01E01.mp4');
 const b=path.join(out,'Series B S01E01.mp4');
 const subtitle=path.join(out,'S01E01.zh.srt');
+const subtitleA=path.join(out,'Series A S01E01.en.srt');
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const ff=(color,target)=>execFileSync('ffmpeg',[
   '-hide_banner','-loglevel','error','-y',
@@ -24,7 +25,7 @@ const ff=(color,target)=>execFileSync('ffmpeg',[
 ff('blue',a);ff('green',b);
 await writeFile(subtitle,'1\n00:00:00,100 --> 00:00:00,900\nManually paired subtitle\n\n');
 const before={a:sha(await readFile(a)),b:sha(await readFile(b)),
-  subtitle:sha(await readFile(subtitle))};
+  subtitle:sha(await readFile(subtitle)),subtitleA:sha(await readFile(subtitleA))};
 const browser=await chromium.launch({
   headless:true,
   ...(process.env.E2E_BROWSER_EXECUTABLE?
@@ -37,7 +38,7 @@ const page=await ctx.newPage();const pageErrors=[];
 page.on('pageerror',error=>pageErrors.push(String(error)));
 const base=process.env.E2E_BASE_URL||'http://127.0.0.1:4173/';
 const result={schema:'v35-eight-real-batch-contexts-v1',
-  sourceNames:[path.basename(a),path.basename(b),path.basename(subtitle)],
+  sourceNames:[path.basename(a),path.basename(b),path.basename(subtitle),path.basename(subtitleA)],
   beforeHash:before,screenFiles:[],checks:[],limits:[
     'Screenshots show 8 UI task contexts in 3 viewport sizes, NOT 24 different product features',
     'Uses two short synthetic videos with genuine bytes; not long-form media performance certification',
@@ -74,19 +75,20 @@ try{
   assert.equal(await control('resources').getAttribute('aria-pressed'),'true');
   assert.equal(await page.locator('#sf14Batch').getAttribute('data-controls'),'sources');
   await screenshot('01-resources-empty-1440.png');
-  await page.setInputFiles('#batchUnifiedInput',[a,b,subtitle]);
-  // The canonical batch owner intentionally emits NO executable JobPlan
-  // rows while an episode tie is unresolved; only the review selector is
-  // present. Test the fail-closed behavior, not an imaginary partial plan.
+  await page.setInputFiles('#batchUnifiedInput',[a,b,subtitle,subtitleA]);
+  // A uniquely named A subtitle yields a legitimate independent job while
+  // the shared-episode B subtitle remains ambiguous. The native batch owner
+  // may build that unambiguous job, but MUST block all execution until the
+  // remaining tie is explicitly reviewed. Never assume a guessed B job.
   await page.waitForFunction(()=>(
     document.querySelectorAll('#batchPlan select[data-batch-tie-index]').length===1 &&
-    document.querySelectorAll('#batchPlan button[data-batch-job-index]').length===0 &&
-    (document.querySelector('#batchAssetStatus')?.textContent||'').includes('3 文件')
+    document.querySelectorAll('#batchPlan button[data-batch-job-index]').length===1 &&
+    (document.querySelector('#batchAssetStatus')?.textContent||'').includes('4 文件')
   ),null,{timeout:60000});
   assert.equal(await page.locator('#batchStartBtn').isDisabled(),true,
     'real ambiguous episode match MUST block execution');
   assert.match(await page.locator('#sfv35BatchReviewStatus').textContent(),/待处理/);
-  result.checks.push('Actual three files: ONE unresolved tie, ZERO executable rows and Start blocked');
+  result.checks.push('Four real files: one unambiguous A job, ONE unresolved B tie and Start blocked');
 
   await step('pairing');
   assert.equal(await control('pairing').getAttribute('aria-pressed'),'true');
@@ -219,6 +221,7 @@ try{
   assert.equal(sha(await readFile(a)),before.a);
   assert.equal(sha(await readFile(b)),before.b);
   assert.equal(sha(await readFile(subtitle)),before.subtitle);
+  assert.equal(sha(await readFile(subtitleA)),before.subtitleA);
   await screenshot('10-real-mkv-audit-and-save-links-1440.png');
   result.checks.push('Actual downloaded MKV and report SHA, ffprobe subtitle tags/cues, run-record, source immutability');
 
