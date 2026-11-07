@@ -38,6 +38,7 @@ const measure=async frame=>{
     return {
       shell:root.dataset.sfv3Shell,frame:root.dataset.sfv3ShellFrame,
       surface:root.dataset.sfv3Surface,
+      targetConfirmed:root.dataset.sfv3TargetConfirmed==='true',
       sourceFile:document.getElementById('videoInput')?.files?.[0]?.name,
       originalEditorCount:document.querySelectorAll('#newSubtitleList').length,
       originalMuxButtonCount:document.querySelectorAll('#muxBtn').length,
@@ -57,7 +58,10 @@ const measure=async frame=>{
   assert.equal(reference.matched,true,
     'new shell must occupy the approved Figma chrome/workspace/footer slots: '+
     JSON.stringify(reference.discrepancies));
-  await page.screenshot({path:path.join(dir,frame+'.png')});
+  const phase=boxes.targetConfirmed?'post-target-confirmed':'source-only';
+  const shot=frame+'-'+phase+'.png';
+  evidence.frames.at(-1).screenshot=shot;
+  await page.screenshot({path:path.join(dir,shot)});
 };
 try{
   await page.goto(url.href,{waitUntil:'networkidle'});
@@ -70,6 +74,8 @@ try{
   assert.equal(await page.locator('#muxBtn').isDisabled(),true,
     'source-only view may never authorize a write');
   await measure('desktop-source');
+  assert.equal(evidence.frames.at(-1).boxes.targetConfirmed,false,
+    'initial V3-01 screenshot must precede explicit target choice');
   // V3-01 desktop rail is a functional object-navigation system, not
   // decoration. Each action delegates to original DOM and input ownership.
   assert.equal(await page.locator('#sfv3Rail').getAttribute('aria-label'),
