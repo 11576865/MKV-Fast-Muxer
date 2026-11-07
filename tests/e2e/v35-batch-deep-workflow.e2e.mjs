@@ -75,14 +75,18 @@ try{
   assert.equal(await page.locator('#sf14Batch').getAttribute('data-controls'),'sources');
   await screenshot('01-resources-empty-1440.png');
   await page.setInputFiles('#batchUnifiedInput',[a,b,subtitle]);
+  // The canonical batch owner intentionally emits NO executable JobPlan
+  // rows while an episode tie is unresolved; only the review selector is
+  // present. Test the fail-closed behavior, not an imaginary partial plan.
   await page.waitForFunction(()=>(
     document.querySelectorAll('#batchPlan select[data-batch-tie-index]').length===1 &&
-    document.querySelectorAll('#batchPlan button[data-batch-job-index]').length===2
-  ),null,{timeout:120000});
+    document.querySelectorAll('#batchPlan button[data-batch-job-index]').length===0 &&
+    (document.querySelector('#batchAssetStatus')?.textContent||'').includes('3 文件')
+  ),null,{timeout:60000});
   assert.equal(await page.locator('#batchStartBtn').isDisabled(),true,
     'real ambiguous episode match MUST block execution');
   assert.match(await page.locator('#sfv35BatchReviewStatus').textContent(),/待处理/);
-  result.checks.push('Actual three files: two jobs and one genuine unresolved tie block Start');
+  result.checks.push('Actual three files: ONE unresolved tie, ZERO executable rows and Start blocked');
 
   await step('pairing');
   assert.equal(await control('pairing').getAttribute('aria-pressed'),'true');
@@ -95,8 +99,9 @@ try{
   await tie.selectOption(String(idxB-1));
   await page.waitForFunction(()=>(
     document.querySelectorAll('#batchPlan select[data-batch-tie-index]').length===0 &&
+    document.querySelectorAll('#batchPlan button[data-batch-job-index]').length===2 &&
     (document.querySelector('#batchReviewSummary')?.textContent||'').includes('1 项已人工确认')
-  ),null,{timeout:120000});
+  ),null,{timeout:60000});
   await screenshot('03-manual-pair-confirmed-1440.png');
   result.checks.push('Original per-session explicit B pairing resolves native ambiguous gate');
 
