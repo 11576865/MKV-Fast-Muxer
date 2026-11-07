@@ -153,6 +153,15 @@ try {
   assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
   assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
 
+  // A real standalone subtitle is required to evaluate the actual editor
+  // geometry. An empty subtitle list alone cannot prove controls are visible.
+  await page.setInputFiles('#unifiedAssetInput',subtitle);
+  await page.waitForFunction(()=>(
+    document.querySelector('#subInput')?.files?.[0]?.name==='Pilot S01E01.srt' &&
+    document.querySelectorAll('#assetInventory .asset-entry[data-kind="subtitle"]').length===1
+  ),null,{timeout:45000});
+  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+
   await nav.locator('[data-sfv35-task="subtitle"]').click();
   assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
   await page.locator('#sfv3ConfirmTarget').click();
@@ -167,6 +176,8 @@ try {
     'empty preview does not bury live subtitle editing controls');
   assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),false,
     'unrelated recovery disclosure must collapse when changing task');
+  assert.equal(await page.locator('#sfv3ObjectContext').isVisible(),false,
+    'irrelevant selected-video context does not bury the requested subtitle controls');
   assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'true');
   await page.waitForFunction(()=>{
     const field=document.querySelector('#newSubtitleList')?.getBoundingClientRect();
@@ -174,7 +185,8 @@ try {
     return field&&pane&&field.top>=pane.top &&
       field.top<pane.bottom-30;
   },null,{timeout:10000});
-  assert.equal(await page.locator('#newSubtitleList').count(),1);
+  assert.ok(await page.locator('#newSubtitleList [data-new-sub-field="title"]').count()>=1,
+    'the real imported subtitle property is present in the one editor');
   await page.screenshot({path:path.join(output,'06-subtitle-native-inspector.png')});
   evidence.claims.push('deferred subtitle entry resumes only after explicit target acceptance and uses one inspector');
 
