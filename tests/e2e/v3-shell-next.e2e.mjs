@@ -77,6 +77,17 @@ try{
   const rail=page.locator('#sfv3Rail');
   assert.equal(await rail.locator('button:visible').count(),4,
     'Figma source rail has documents, object list, search and help');
+  const loadedRailIcons=await page.locator('#sfv3Rail .sfv3-shell-rail-action img')
+    .evaluateAll(async icons=>Promise.all(icons.map(async img=>{
+      await img.decode().catch(()=>{});
+      return {icon:img.dataset.sfv3Icon,
+        loaded:img.complete&&img.naturalWidth>0&&img.naturalHeight>0,
+        width:img.naturalWidth,height:img.naturalHeight};
+    })));
+  assert.deepEqual(loadedRailIcons.map(x=>x.icon),['object-list','search','help']);
+  assert.ok(loadedRailIcons.every(x=>x.loaded),
+    'the Figma rail must show real locally bundled SVGs, not broken glyph placeholders: '+
+    JSON.stringify(loadedRailIcons));
   assert.equal(await page.locator('#sfv3Rail > button[aria-label="添加资源"]').isVisible(),false,
     'native import still belongs in the real header, not duplicate rail button');
   await page.locator('#sfv3ShellObjectList').click();
