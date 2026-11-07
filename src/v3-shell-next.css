@@ -23,7 +23,10 @@
   box-sizing:border-box;
   min-width:0;
 }
-.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > #sf14Single{
+/* A pre-existing :has(#cancelBtn:disabled) selector carries ID specificity.
+ * Use the native root ID at the *single* shell boundary so its old
+ * height:calc(100dvh - 118px)!important cannot shorten this grid area. */
+#sf14Root.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame] > #sf14Single{
   grid-area:workspace;
   /* Override inherited plan-state calc(100dvh - 118px)!important.
    * The shell grid, not the legacy output-card height, owns this slot. */
