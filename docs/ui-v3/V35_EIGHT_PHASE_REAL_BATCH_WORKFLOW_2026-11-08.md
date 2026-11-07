@@ -27,9 +27,9 @@
 
 ## 浏览器与真实成品的覆盖计划
 
-`tests/e2e/v35-batch-deep-workflow.e2e.mjs` 创建两个实际、内容不同的视频文件以及一条相同集数的真实 SRT。这构成有意且可复现的 **双来源配对歧义**：
+`tests/e2e/v35-batch-deep-workflow.e2e.mjs` 创建两个实际、内容不同的视频文件，以及一条与 A 精确命名匹配的 SRT 和另一条只有集数的 SRT。这构成有意且可复现的 **真实独立任务 + 双来源配对歧义**：
 
-1. 正式批量统一导入真实三份文件，实际预检生成 2 Job + 1 歧义；原 `#batchStartBtn` 必须 disabled。
+1. 正式批量统一导入真实四份文件，保留 A 的独立任务与 B 的待人工处理字幕歧义；原 `#batchStartBtn` 必须 disabled。
 2. 操作者通过原 `[data-batch-tie-index]` 明确选择 B 源，确认阻断解除；不得因为文件枚举顺序自动决策。
 3. 通过实际选中 Job 原 `[data-batch-task-field]` 编辑标题与语言（例如 `Review confirmed subtitle` / `zho`），导出真实 JSON v2 规则确认写入的是本任务字段。
 4. 打开真实 Group 子集策略并恢复默认；**此 SRT 测试不验证 HarfBuzz/ASS 群组闭包**，留作单独含 ASS 与字体的专项。
