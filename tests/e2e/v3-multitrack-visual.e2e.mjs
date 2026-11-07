@@ -230,6 +230,29 @@ try{
        'approved Figma output dock must reach bottom, not leave a blank strip: '+
          JSON.stringify(data.dock));
    }
+   if((width===820 || width===1180) && data.idleCancelDisabled){
+     // Figma V3-06/07: no legacy blue execution card or disabled Cancel
+     // in the compact idle tablet dock. Live Cancel retains its native UI.
+     assert.match(data.dockExecutionPanelBackground,
+       /^(?:transparent|rgba\(0, 0, 0, 0\))$/,
+       'tablet idle dock must be a neutral single-row status and mux surface');
+     assert.equal(await page.locator('#cancelBtn').isVisible(),false,
+       'disabled Cancel must not compete with the native mux command');
+     assert.equal(await page.locator('.sf14-output-head').isVisible(),false,
+       'tablet output status must not create a second legacy header');
+     for(const [label,rect] of [
+       ['real mux',data.dockMux],['native plan',data.dockPlanToggle],
+       ['original inspector',data.dockInspectorOpen],
+     ]){
+       assert.ok(rect && rect.width>=40 && rect.y>=data.dock.y-3 &&
+         rect.bottom<=data.dock.bottom+3,
+         'tablet native '+label+' must stay inside the same 60px dock: '+
+           JSON.stringify({rect,dock:data.dock}));
+     }
+     assert.ok(data.dockMux.x<data.dockPlanToggle.x &&
+       data.dockPlanToggle.x<data.dockInspectorOpen.x,
+       'tablet action order must be mux → plan → inspector, not stacked');
+   }
    if(width===1180){
      assert.ok(data.lastMediaRow?.bottom<=data.dock.y,
        'all five real target tracks must be visible above the 1180 dock');
