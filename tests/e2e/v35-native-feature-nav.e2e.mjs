@@ -29,7 +29,7 @@ const ctx=await browser.newContext({
 const page=await ctx.newPage(),pageErrors=[];
 page.on('pageerror',error=>pageErrors.push(String(error)));
 const evidence={
-  schema:'softmux-v35-real-native-entry-pilot-v1',
+  schema:'softmux-v35-real-native-entry-pilot-v2',
   source:path.basename(source),
   claims:[],
   limits:[
@@ -44,7 +44,8 @@ try {
   await root.waitFor();
   const nav=page.locator('#sfv35FeatureNavigation');
   assert.deepEqual(await nav.locator('button').allTextContents(),
-    ['来源','拟输出','批量任务','容器工具']);
+    ['来源','拟输出','轨道','字幕','字体','附件',
+      '批量任务','验证','工程','容器工具']);
   assert.equal(await nav.locator('[data-sfv35-task="source"]').getAttribute('aria-current'),'page');
   assert.equal(await page.locator('#sf14Batch').count(),1);
   assert.equal(await page.locator('#batchPlan').count(),1);
@@ -127,17 +128,92 @@ try {
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   evidence.claims.push('round-trip tools/batch/source retains File and target authorization boundary');
 
+  // Actual full-capability contextual navigation: not copies of editors.
+  await nav.locator('[data-sfv35-task="project"]').click();
+  assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
+  assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#sf14Recovery').count(),1);
+  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
+  evidence.claims.push('project recovery is the one real cross-session draft control and needs no target');
+
+  await nav.locator('[data-sfv35-task="attachments"]').click();
+  assert.equal(await root.getAttribute('data-view'),'tools');
+  assert.equal(await page.locator('#sf14Tools').isVisible(),true);
+  assert.equal(await page.locator('#attachmentExtractionDetails').count(),1);
+  assert.equal(await page.locator('#attachmentExtractionDetails').evaluate(el=>el.open),true);
+  assert.equal(await nav.locator('[data-sfv35-task="attachments"]').getAttribute('aria-current'),'page');
+  await page.screenshot({path:path.join(output,'05-attachments-native-tools.png')});
+  evidence.claims.push('attachment entry opens original read/inspect/extract tool, no writer bypass');
+
+  await nav.locator('[data-sfv35-task="tracks"]').click();
+  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
+    'track editor requires an explicitly approved output target');
+  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+  await page.locator('.sfv3-picker-cancel').click();
+  assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
+  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+
+  await nav.locator('[data-sfv35-task="subtitle"]').click();
+  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
+  await page.locator('#sfv3ConfirmTarget').click();
+  await page.waitForFunction(()=>{
+    const el=document.querySelector('#sf14Root');
+    return el?.dataset.sfv3Surface==='plan' &&
+      el?.dataset.sfv35Task==='subtitle' &&
+      el?.dataset.sfv3TargetConfirmed==='true';
+  },null,{timeout:60000});
+  assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'true');
+  assert.equal(await page.locator('#newSubtitleList').count(),1);
+  await page.screenshot({path:path.join(output,'06-subtitle-native-inspector.png')});
+  evidence.claims.push('deferred subtitle entry resumes only after explicit target acceptance and uses one inspector');
+
+  await nav.locator('[data-sfv35-task="font"]').click();
+  assert.equal(await root.getAttribute('data-sfv3-surface'),'plan');
+  assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#fontMode').count(),1);
+  assert.equal(await nav.locator('[data-sfv35-task="font"]').getAttribute('aria-current'),'page');
+  await page.screenshot({path:path.join(output,'07-font-native-editor.png')});
+
+  await nav.locator('[data-sfv35-task="tracks"]').click();
+  assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'false');
+  assert.equal(await page.locator('#compositionTracks').count(),1);
+  assert.equal(await nav.locator('[data-sfv35-task="tracks"]').getAttribute('aria-current'),'page');
+
+  await nav.locator('[data-sfv35-task="verification"]').click();
+  assert.equal(await page.locator('#sfv3Verification').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'false');
+  assert.equal(await page.locator('#outputEvidencePanel').count(),1);
+  assert.equal(await page.locator('#outputEvidencePanel').isVisible(),false,
+    'no output was generated; verification cannot claim a completed delivery');
+  await page.screenshot({path:path.join(output,'08-verification-unverified.png')});
+  evidence.claims.push('real verification summary opens without inventing a generated or audited MKV');
+
+  await nav.locator('[data-sfv35-task="project"]').click();
+  assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
+  assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),true);
+  assert.equal(await page.evaluate(()=>
+    window.__v35Source===document.getElementById('videoInput').files[0]),true);
+  await nav.locator('[data-sfv35-task="source"]').click();
+  assert.equal(await nav.locator('[data-sfv35-task="source"]').getAttribute('aria-current'),'page');
+
   await page.setViewportSize({width:620,height:900});
   const boxes=await nav.locator('button').evaluateAll(nodes=>nodes.map(n=>{
     const r=n.getBoundingClientRect();return {width:r.width,height:r.height};
   }));
+  assert.equal(boxes.length,10);
   assert.ok(boxes.every(b=>b.width>=49&&b.height>=39),
-    'compact named nav remains keyboard/touch reachable and not zero-sized');
-  await page.screenshot({path:path.join(output,'05-compact-source.png')});
+    'all ten compact named task buttons have a visible touch target');
+  const rows=await nav.locator('button').evaluateAll(nodes=>[
+    ...new Set(nodes.map(n=>Math.round(n.getBoundingClientRect().top)))
+  ]);
+  assert.equal(rows.length,2,'compact layout must show ten entries in two rows');
+  await page.screenshot({path:path.join(output,'09-compact-ten-entry-navigation.png')});
   assert.deepEqual(pageErrors,[]);
   await writeFile(path.join(output,'navigation-evidence.json'),
     JSON.stringify({...evidence,passed:true},null,2)+'\n');
-  console.log('V3.5 real native source/batch/tools nav pilot PASS');
+  console.log('V3.5 ten real native task/context entries and no implicit output authority: PASS');
 }catch(error){
   evidence.domAtFailure=await page.evaluate(()=>({
     rootView:document.querySelector('#sf14Root')?.dataset?.view,
