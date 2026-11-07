@@ -154,6 +154,18 @@ try {
  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1,
    'opening source technical help cannot clone the shared help DOM');
  await page.screenshot({path:path.join(dir,'v3-source-ass-flags-and-font-observation.png')});
+ // Native <details> summary cannot leave an empty floating popover behind.
+ await sourceHelp.locator('summary').click();
+ await page.waitForFunction(()=>document.querySelector('#sfv3SourceFlagHelpHost')?.hidden===true);
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false');
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
+ // Outside pointerdown closes only help, without consuming the native click.
+ await flagHelpButton.click();
+ await page.locator('#sfv3SourceInspectorTitle').click();
+ assert.equal(await sourceHelp.isVisible(),false);
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false');
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
+ await flagHelpButton.click();
  await flagHelpButton.focus();
  await page.keyboard.press('Escape');
  assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false',
