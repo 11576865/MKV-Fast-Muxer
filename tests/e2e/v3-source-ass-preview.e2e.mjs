@@ -136,6 +136,19 @@ try {
  assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'true');
  assert.equal(await sourceHelp.isVisible(),true);
  assert.equal(await sourceHelp.getAttribute('open'),'');
+ // Approved V3-09: the actual 330px help popover must not be cropped
+ // to the right of the 820px portrait viewport or disappear under the dock.
+ const popoverBounds=await page.locator('#sfv3SourceFlagHelpHost').boundingBox();
+ const popoverOverflow=await page.locator('#sfv3SourceFlagHelpHost').evaluate(el=>({
+   clippedContent:el.scrollWidth>el.clientWidth+2,
+   visible:getComputedStyle(el).visibility==='visible',
+ }));
+ assert.ok(popoverBounds && popoverBounds.x>=0 &&
+   popoverBounds.x+popoverBounds.width<=820-4 &&
+   popoverBounds.y>=0 && popoverBounds.y+popoverBounds.height<=1180-4 &&
+   !popoverOverflow.clippedContent && popoverOverflow.visible,
+   'V3-09 source glossary must fit inside portrait viewport: '+
+     JSON.stringify({popoverBounds,popoverOverflow}));
  assert.match(await sourceHelp.textContent(),/默认轨道标记/);
  assert.match(await sourceHelp.textContent(),/强制字幕标记/);
  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1,
