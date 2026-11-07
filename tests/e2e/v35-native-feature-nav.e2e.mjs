@@ -94,10 +94,13 @@ try {
   assert.equal(await chooser.element().evaluate(el=>el.id),'batchUnifiedInput',
     'global Add must follow the active batch, not replace the single-project source');
   await chooser.setFiles([source,subtitle]);
+  // The canonical importer intentionally clears input.value immediately
+  // after it transfers exact File identity to its domain-owned inventory.
+  // Assert the actual recognized assets, never the reset file picker.
   await page.waitForFunction(()=>
-    document.querySelector('#batchUnifiedInput')?.files?.length===2 &&
-    document.querySelector('#batchAssetInventory')?.children?.length>0,
-  null,{timeout:120000});
+    document.querySelectorAll('#batchAssetInventory .asset-entry').length===2 &&
+    (document.querySelector('#batchAssetStatus')?.textContent||'').includes('2 文件'),
+  null,{timeout:60000});
   assert.equal(await page.evaluate(()=>
     window.__v35Source===document.getElementById('videoInput').files[0]),true,
     'opening/importing batch cannot replace the independent single-project File');
