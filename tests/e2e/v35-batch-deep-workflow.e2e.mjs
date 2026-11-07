@@ -253,6 +253,15 @@ try{
         ', not obscured by native source drawer: '+JSON.stringify(hit));
       await step(key);
       assert.equal(await control(key).getAttribute('aria-pressed'),'true');
+      const shell=await page.evaluate(()=>({
+        headerTop:document.querySelector('.sf14-header')?.getBoundingClientRect().top,
+        taskTop:document.querySelector('#sfv35FeatureNavigation')?.getBoundingClientRect().top,
+        sourceFooterVisible:!!document.querySelector('#sfv3SourceStatus')?.getClientRects().length,
+        documentY:window.scrollY,
+      }));
+      assert.ok(shell.headerTop>=-2&&shell.taskTop>=55&&!shell.sourceFooterVisible,
+        'batch phase must preserve global 58px header and 11-entry navigator at '
+          +width+' after '+key+': '+JSON.stringify(shell));
       await screenshot('phase-'+key+'-'+width+'.png');
     }
     const bounds=await phaseNav.locator('button').evaluateAll(els=>els.map(el=>{
