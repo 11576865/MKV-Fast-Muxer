@@ -667,6 +667,13 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetHelpHost.id='sfv3SourceFlagHelpHost';
   sourceSheetHelpHost.className='sfv3-source-flag-help-host';
   sourceSheetHelpHost.hidden=true;
+  const sourceFlagHelpTrigger=appendText(doc,doc.createElement('span'),'button',
+    'sfv3-source-flag-help-trigger','?');
+  sourceFlagHelpTrigger.id='sfv3SourceFlagHelpTrigger';
+  sourceFlagHelpTrigger.type='button';
+  sourceFlagHelpTrigger.setAttribute('aria-label','解释当前来源字幕的 Default 与 Forced 标记');
+  sourceFlagHelpTrigger.setAttribute('aria-controls','sfv3SourceFlagHelpHost');
+  sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
   const sourceSheetActions=doc.createElement('div');
   sourceSheetActions.className='sfv3-source-sheet-actions';
   // Figma V3-02: the original source actions appear immediately after the
@@ -708,12 +715,23 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetPreviewHost.id='sfv3SourcePreviewHost';
   sourceSheetPreviewHost.className='sfv3-source-sheet-preview-host';
   sourceSheetPreviewHost.hidden=true;
+  // A real preview has NOT been rendered until the native FFmpeg/libass
+  // action succeeds. Keep the Figma 16:9 preview region visible in portrait
+  // with an explicit unrendered state; NEVER insert a mock subtitle image.
+  const sourcePreviewIdle=doc.createElement('div');
+  sourcePreviewIdle.id='sfv3SourcePreviewIdle';
+  sourcePreviewIdle.className='sfv3-source-preview-idle';
+  sourcePreviewIdle.hidden=true;
+  sourcePreviewIdle.setAttribute('role','status');
+  appendText(doc,sourcePreviewIdle,'strong','','尚未生成预览帧');
+  appendText(doc,sourcePreviewIdle,'span','',
+    '选择「生成 ASS 预览帧」后，显示真实 FFmpeg/libass 渲染结果');
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
   sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetFlags,sourceFontEvidence,
     sourceSheetNotice,sourceSheetActions,sourceSheetHelpHost,
-    sourceSheetPreviewHost,sourceSheetExtractionHost);
+    sourcePreviewIdle,sourceSheetPreviewHost,sourceSheetExtractionHost);
   single.appendChild(sourceSheet);
 
   // V3 target picker is an explicit action, never an implicit file import side effect.
@@ -766,6 +784,14 @@ export function mountSoftmuxV3Surface(doc = document) {
   };
   let selectedSource=null;
   let sourceDetailRequested=false;
+  let sourceHelpOpen=false;
+  sourceFlagHelpTrigger.addEventListener('click',()=>{
+    if(!selectedSource || selectedSource.group!=='字幕')return;
+    sourceHelpOpen=!sourceHelpOpen;
+    sourceSheetHelpHost.hidden=!sourceHelpOpen;
+    subtitleFlagHelp.open=sourceHelpOpen;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded',String(sourceHelpOpen));
+  });
   const desktopSourceActions=()=>Boolean(
     doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
   const restoreSourceActions=()=>{
@@ -776,6 +802,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceInlineDetail.setAttribute('aria-expanded','false');
   };
   const restoreNativePreview=()=>{
+    sourcePreviewIdle.hidden=true;
     if(nativePreviewDrawer?.parentNode===sourceSheetPreviewHost && nativePreviewHome){
       nativePreviewDrawer.open=false;
       nativePreviewHome.insertBefore(nativePreviewDrawer,
@@ -795,6 +822,8 @@ export function mountSoftmuxV3Surface(doc = document) {
     const previouslySelected=selectedSource;
     selectedSource=null;
     sourceDetailRequested=false;
+    sourceHelpOpen=false;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
     restoreSourceActions();
     restoreNativePreview();
     restoreNativeExtraction();
@@ -844,15 +873,21 @@ export function mountSoftmuxV3Surface(doc = document) {
         entry.dataset.observation=value==='未观察'?'unknown':'observed';
         appendText(doc,entry,'strong','',label);
         appendText(doc,entry,'span','',value);
+        if(label==='Default')entry.appendChild(sourceFlagHelpTrigger);
         sourceSheetFlags.appendChild(entry);
       }
       appendText(doc,sourceSheetFlags,'small','sfv3-source-flag-provenance',
         '来源 ffprobe · 只读；与拟输出的可编辑标记分离');
     }
     if(subtitleObserved){
+      // The SAME glossary is anchored to the selected source flag, instead
+      // of consuming a full width unrelated inspector section (Figma V3-09).
+      sourceSheetFlags.appendChild(sourceSheetHelpHost);
       sourceSheetHelpHost.appendChild(subtitleFlagHelp);
       subtitleFlagHelp.hidden=false;
-      sourceSheetHelpHost.hidden=false;
+      sourceSheetHelpHost.hidden=!sourceHelpOpen;
+      subtitleFlagHelp.open=sourceHelpOpen;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded',String(sourceHelpOpen));
     }else{
       if(subtitleFlagHelp.parentNode===sourceSheetHelpHost) {
         subtitleFlagHelp.open=false;
@@ -860,6 +895,8 @@ export function mountSoftmuxV3Surface(doc = document) {
         objectContext.appendChild(subtitleFlagHelp);
       }
       sourceSheetHelpHost.hidden=true;
+      sourceHelpOpen=false;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
     }
     const scannedSourceSections=subtitleObserved && latestSections.scanned &&
       latestSections.sourceFile===selectedSource.sourceFile;
@@ -904,6 +941,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       restoreNativePreview();
       restoreNativeExtraction();
     }
+    sourcePreviewIdle.hidden=!previewable || !sourceSheetPreviewHost.hidden;
     sourceSheetAdd.hidden=!selectedSource.transfer;
     sourceSheetAdd.textContent=['ass','ssa'].includes(selectedSource.transfer?.codec)
       ? '加入到…（校验 ASS 与字体）' : '加入到…';
@@ -953,6 +991,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       return;
     }
     sourceSheetPreviewHost.hidden=false;
+    sourcePreviewIdle.hidden=true;
     sourceSheetPreviewHost.appendChild(nativePreviewDrawer);
     nativePreviewDrawer.open=true;
     if(!signal('softmux:v3-preview-source',{
@@ -1204,6 +1243,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         restoreNativePreview();
         restoreNativeExtraction();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
+        sourceHelpOpen=false;
         sourceDetailRequested=false;
         updateSourceSheet();
         if(!sourceSheet.hidden)sourceSheetClose.focus();
