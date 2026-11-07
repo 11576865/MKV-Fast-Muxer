@@ -792,6 +792,17 @@ export function mountSoftmuxV3Surface(doc = document) {
     subtitleFlagHelp.open=sourceHelpOpen;
     sourceFlagHelpTrigger.setAttribute('aria-expanded',String(sourceHelpOpen));
   });
+  sourceSheet.addEventListener('keydown',event=>{
+    if(event.key!=='Escape' || !sourceHelpOpen)return;
+    // Closing the just-in-time help must NOT dismiss the whole source sheet.
+    event.preventDefault();
+    event.stopPropagation();
+    sourceHelpOpen=false;
+    sourceSheetHelpHost.hidden=true;
+    subtitleFlagHelp.open=false;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
+    sourceFlagHelpTrigger.focus();
+  });
   const desktopSourceActions=()=>Boolean(
     doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
   const restoreSourceActions=()=>{
@@ -973,6 +984,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceDetailRequested=true;
     updateSourceSheet();
     sourceSheetClose.focus();
+  });
+  doc.defaultView?.addEventListener('resize',()=>{
+    if(selectedSource && root.dataset.sfv3Surface==='source')
+      updateSourceSheet();
   });
   sourceSheetClose.addEventListener('click',()=>closeSourceSheet(true));
   sourceSheetPreview.addEventListener('click',()=>{
