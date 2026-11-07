@@ -8,6 +8,14 @@
  */
 import {V3_APPROVED_SHELLS} from './v3-shell-geometry-contract.mjs';
 
+// Static Vite-resolved exact Figma SVG asset paths. Do not compose an
+// unresolved string URL relative to the hashed production bundle.
+const RAIL_ICON_URLS=Object.freeze({
+  'object-list':new URL('./v3-assets/object-list.svg',import.meta.url).href,
+  search:new URL('./v3-assets/search.svg',import.meta.url).href,
+  help:new URL('./v3-assets/help.svg',import.meta.url).href,
+});
+
 export function resolveV3ShellFrame({width,height,surface}){
   if(surface!=='source' && surface!=='plan')return null;
   const mode=surface==='plan'?'target':'source';
@@ -50,7 +58,8 @@ export function mountV3ShellNext(doc,root){
     button.title=label;
     button.setAttribute('aria-label',label);
     const svg=doc.createElement('img');
-    svg.src=new URL('./v3-assets/'+icon+'.svg',import.meta.url).href;
+    if(!RAIL_ICON_URLS[icon])throw new Error('V3_NEXT_UNKNOWN_RAIL_ICON:'+icon);
+    svg.src=RAIL_ICON_URLS[icon];
     svg.className='sfv3-svg-icon';
     svg.dataset.sfv3Icon=icon;
     svg.alt='';
