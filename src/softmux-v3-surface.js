@@ -667,16 +667,41 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetHelpHost.id='sfv3SourceFlagHelpHost';
   sourceSheetHelpHost.className='sfv3-source-flag-help-host';
   sourceSheetHelpHost.hidden=true;
+  const sourceFlagHelpTrigger=appendText(doc,doc.createElement('span'),'button',
+    'sfv3-source-flag-help-trigger','?');
+  sourceFlagHelpTrigger.id='sfv3SourceFlagHelpTrigger';
+  sourceFlagHelpTrigger.type='button';
+  sourceFlagHelpTrigger.setAttribute('aria-label','解释当前来源字幕的 Default 与 Forced 标记');
+  sourceFlagHelpTrigger.setAttribute('aria-controls','sfv3SourceFlagHelpHost');
+  sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
   const sourceSheetActions=doc.createElement('div');
   sourceSheetActions.className='sfv3-source-sheet-actions';
-  const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','生成 ASS 预览帧');
+  // Figma V3-02: the original source actions appear immediately after the
+  // selected desktop row; the source inspector opens only when requested.
+  // This moves the SAME buttons (with their File-bound listeners), never
+  // clones a preview/extraction/target writer.
+  const sourceInlineActions=doc.createElement('div');
+  sourceInlineActions.id='sfv3SourceInlineActions';
+  sourceInlineActions.className='sfv3-source-inline-actions';
+  sourceInlineActions.setAttribute('role','listitem');
+  sourceInlineActions.setAttribute('aria-label','已选来源对象的直接操作');
+  sourceInlineActions.hidden=true;
+  const sourceInlineDetail=appendText(doc,sourceInlineActions,'button',
+    'sfv3-source-inline-detail','对象详情');
+  sourceInlineDetail.id='sfv3SourceInlineDetail';
+  sourceInlineDetail.type='button';
+  sourceInlineDetail.setAttribute('aria-controls','sfv3SourceInspector');
+  sourceInlineDetail.setAttribute('aria-expanded','false');
+  const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','预览');
   sourceSheetPreview.id='sfv3SourceInspectorPreview';
   sourceSheetPreview.type='button';
+  sourceSheetPreview.setAttribute('aria-label','生成来源 ASS 的真实 FFmpeg/libass 预览帧');
   sourceSheetPreview.hidden=true;
   const sourceSheetExtract=appendText(doc,sourceSheetActions,'button',
-    'sfv3-source-sheet-extract','提取 ASS（不含字体）');
+    'sfv3-source-sheet-extract','提取');
   sourceSheetExtract.id='sfv3SourceInspectorExtract';
   sourceSheetExtract.type='button';
+  sourceSheetExtract.setAttribute('aria-label','提取来源 ASS 字幕轨道（不含字体附件）');
   sourceSheetExtract.hidden=true;
   const nativeExtractionPanel=find(doc,'originalTrackExtractionPanel');
   const nativeExtractionHome=nativeExtractionPanel?.parentNode;
@@ -692,12 +717,23 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetPreviewHost.id='sfv3SourcePreviewHost';
   sourceSheetPreviewHost.className='sfv3-source-sheet-preview-host';
   sourceSheetPreviewHost.hidden=true;
+  // A real preview has NOT been rendered until the native FFmpeg/libass
+  // action succeeds. Keep the Figma 16:9 preview region visible in portrait
+  // with an explicit unrendered state; NEVER insert a mock subtitle image.
+  const sourcePreviewIdle=doc.createElement('div');
+  sourcePreviewIdle.id='sfv3SourcePreviewIdle';
+  sourcePreviewIdle.className='sfv3-source-preview-idle';
+  sourcePreviewIdle.hidden=true;
+  sourcePreviewIdle.setAttribute('role','status');
+  appendText(doc,sourcePreviewIdle,'strong','','尚未生成预览帧');
+  appendText(doc,sourcePreviewIdle,'span','',
+    '选择「生成 ASS 预览帧」后，显示真实 FFmpeg/libass 渲染结果');
   const sourceSheetAdd=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-add','加入到…');
   sourceSheetAdd.id='sfv3SourceInspectorAdd';
   sourceSheetAdd.type='button';
   sourceSheet.append(sourceSheetHeader,sourceSheetDetail,sourceSheetFlags,sourceFontEvidence,
     sourceSheetNotice,sourceSheetActions,sourceSheetHelpHost,
-    sourceSheetPreviewHost,sourceSheetExtractionHost);
+    sourcePreviewIdle,sourceSheetPreviewHost,sourceSheetExtractionHost);
   single.appendChild(sourceSheet);
 
   // V3 target picker is an explicit action, never an implicit file import side effect.
@@ -749,7 +785,62 @@ export function mountSoftmuxV3Surface(doc = document) {
       entries[0] || null;
   };
   let selectedSource=null;
+  let sourceDetailRequested=false;
+  let sourceHelpOpen=false;
+  const closeSourceFlagHelp=(restoreFocus=false)=>{
+    sourceHelpOpen=false;
+    sourceSheetHelpHost.hidden=true;
+    subtitleFlagHelp.open=false;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
+    if(restoreFocus)sourceFlagHelpTrigger.focus();
+  };
+  sourceFlagHelpTrigger.addEventListener('click',()=>{
+    if(!selectedSource || selectedSource.group!=='字幕')return;
+    if(sourceHelpOpen) {
+      closeSourceFlagHelp();
+    }else{
+      sourceHelpOpen=true;
+      sourceSheetHelpHost.hidden=false;
+      subtitleFlagHelp.open=true;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded','true');
+    }
+  });
+  // Unlike a pinned editor, source technical help is a contextual popover.
+  // Dismiss it outside without consuming the original click/permission flow.
+  doc.addEventListener('pointerdown',event=>{
+    if(sourceHelpOpen && event.target!==sourceFlagHelpTrigger &&
+       !sourceSheetHelpHost.contains(event.target))
+      closeSourceFlagHelp();
+  });
+  subtitleFlagHelp.addEventListener('toggle',()=>{
+    // Inner <details> may also be closed by keyboard or pointer. Do not
+    // leave an empty popover with aria-expanded="true" on the outer trigger.
+    if(sourceHelpOpen && subtitleFlagHelp.parentElement===sourceSheetHelpHost &&
+       !subtitleFlagHelp.open)closeSourceFlagHelp(true);
+  });
+  sourceSheet.addEventListener('keydown',event=>{
+    if(event.key!=='Escape' || !sourceHelpOpen)return;
+    // Closing the just-in-time help must NOT dismiss the whole source sheet.
+    event.preventDefault();
+    event.stopPropagation();
+    closeSourceFlagHelp(true);
+  });
+  const desktopSourceActions=()=>Boolean(
+    doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
+  const restoreSourceActions=()=>{
+    // #sfv3SourceFlagHelpHost is intentionally rehosted INSIDE the Default
+    // observation flags. It is no longer a direct child of sourceSheet, so
+    // using it as insertBefore reference throws NotFoundError and prevents
+    // the explicit desktop "对象详情" inspector from opening.
+    // The preview placeholder is a stable direct child of the ONE sheet.
+    if(sourceSheetActions.parentElement!==sourceSheet)
+      sourceSheet.insertBefore(sourceSheetActions,sourcePreviewIdle);
+    sourceInlineActions.hidden=true;
+    sourceInlineActions.remove();
+    sourceInlineDetail.setAttribute('aria-expanded','false');
+  };
   const restoreNativePreview=()=>{
+    sourcePreviewIdle.hidden=true;
     if(nativePreviewDrawer?.parentNode===sourceSheetPreviewHost && nativePreviewHome){
       nativePreviewDrawer.open=false;
       nativePreviewHome.insertBefore(nativePreviewDrawer,
@@ -768,6 +859,10 @@ export function mountSoftmuxV3Surface(doc = document) {
   const closeSourceSheet=(restoreFocus=false)=>{
     const previouslySelected=selectedSource;
     selectedSource=null;
+    sourceDetailRequested=false;
+    sourceHelpOpen=false;
+    sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
+    restoreSourceActions();
     restoreNativePreview();
     restoreNativeExtraction();
     if(subtitleFlagHelp.parentNode===sourceSheetHelpHost){
@@ -816,15 +911,21 @@ export function mountSoftmuxV3Surface(doc = document) {
         entry.dataset.observation=value==='未观察'?'unknown':'observed';
         appendText(doc,entry,'strong','',label);
         appendText(doc,entry,'span','',value);
+        if(label==='Default')entry.appendChild(sourceFlagHelpTrigger);
         sourceSheetFlags.appendChild(entry);
       }
       appendText(doc,sourceSheetFlags,'small','sfv3-source-flag-provenance',
         '来源 ffprobe · 只读；与拟输出的可编辑标记分离');
     }
     if(subtitleObserved){
+      // The SAME glossary is anchored to the selected source flag, instead
+      // of consuming a full width unrelated inspector section (Figma V3-09).
+      sourceSheetFlags.appendChild(sourceSheetHelpHost);
       sourceSheetHelpHost.appendChild(subtitleFlagHelp);
       subtitleFlagHelp.hidden=false;
-      sourceSheetHelpHost.hidden=false;
+      sourceSheetHelpHost.hidden=!sourceHelpOpen;
+      subtitleFlagHelp.open=sourceHelpOpen;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded',String(sourceHelpOpen));
     }else{
       if(subtitleFlagHelp.parentNode===sourceSheetHelpHost) {
         subtitleFlagHelp.open=false;
@@ -832,6 +933,8 @@ export function mountSoftmuxV3Surface(doc = document) {
         objectContext.appendChild(subtitleFlagHelp);
       }
       sourceSheetHelpHost.hidden=true;
+      sourceHelpOpen=false;
+      sourceFlagHelpTrigger.setAttribute('aria-expanded','false');
     }
     const scannedSourceSections=subtitleObserved && latestSections.scanned &&
       latestSections.sourceFile===selectedSource.sourceFile;
@@ -876,15 +979,53 @@ export function mountSoftmuxV3Surface(doc = document) {
       restoreNativePreview();
       restoreNativeExtraction();
     }
+    sourcePreviewIdle.hidden=!previewable || !sourceSheetPreviewHost.hidden;
     sourceSheetAdd.hidden=!selectedSource.transfer;
-    sourceSheetAdd.textContent=['ass','ssa'].includes(selectedSource.transfer?.codec)
-      ? '加入到…（校验 ASS 与字体）' : '加入到…';
-    sourceSheet.hidden=false;
-    root.dataset.sfv3SourceInspector='open';
+    sourceSheetAdd.textContent='加入到…';
+    sourceSheetAdd.setAttribute('aria-label',
+      ['ass','ssa'].includes(selectedSource.transfer?.codec)
+        ? '加入到明确目标（校验 ASS 与字体依赖）'
+        : '加入到明确目标（不会修改来源）');
+    // Keep desktop row actions local to the selected ASS: the old 440px
+    // inspector must NOT open just by selecting an observed source track.
+    // Portrait stays a real lower sheet; preview/extract/details can still
+    // explicitly open the SAME inspector in desktop mode.
+    const inline=desktopSourceActions() && !sourceDetailRequested &&
+      (previewable || Boolean(selectedSource.transfer));
+    if(inline) {
+      matchingRow.after(sourceInlineActions);
+      sourceInlineActions.insertBefore(sourceSheetActions,sourceInlineDetail);
+      sourceInlineActions.hidden=false;
+      sourceSheet.hidden=true;
+      root.dataset.sfv3SourceInspector='closed';
+      sourceInlineDetail.setAttribute('aria-expanded','false');
+    }else{
+      restoreSourceActions();
+      sourceSheet.hidden=false;
+      root.dataset.sfv3SourceInspector='open';
+      sourceInlineDetail.setAttribute('aria-expanded','true');
+    }
+    const sourceRowButton=matchingRow.querySelector('.sfv3-row-select');
+    sourceRowButton?.setAttribute('aria-controls',inline
+      ? 'sfv3SourceInlineActions':'sfv3SourceInspector');
   };
+  sourceInlineDetail.addEventListener('click',()=>{
+    if(!selectedSource)return;
+    sourceDetailRequested=true;
+    updateSourceSheet();
+    sourceSheetClose.focus();
+  });
+  doc.defaultView?.addEventListener('resize',()=>{
+    if(selectedSource && root.dataset.sfv3Surface==='source')
+      updateSourceSheet();
+  });
   sourceSheetClose.addEventListener('click',()=>closeSourceSheet(true));
   sourceSheetPreview.addEventListener('click',()=>{
     const selected=selectedSource;
+    if(sourceSheet.hidden && desktopSourceActions()) {
+      sourceDetailRequested=true;
+      updateSourceSheet();
+    }
     if(!selected?.preview || !nativePreviewDrawer ||
         root.dataset.sfv3Surface!=='source' ||
         !exactEntry(selected.sourceKey,selected.sourceFile) ||
@@ -895,6 +1036,7 @@ export function mountSoftmuxV3Surface(doc = document) {
       return;
     }
     sourceSheetPreviewHost.hidden=false;
+    sourcePreviewIdle.hidden=true;
     sourceSheetPreviewHost.appendChild(nativePreviewDrawer);
     nativePreviewDrawer.open=true;
     if(!signal('softmux:v3-preview-source',{
@@ -908,6 +1050,10 @@ export function mountSoftmuxV3Surface(doc = document) {
   });
   sourceSheetExtract.addEventListener('click',()=>{
     const selected=selectedSource;
+    if(sourceSheet.hidden && desktopSourceActions()) {
+      sourceDetailRequested=true;
+      updateSourceSheet();
+    }
     if(!selected?.preview || !nativeExtractionPanel ||
         root.dataset.sfv3Surface!=='source' ||
         !exactEntry(selected.sourceKey,selected.sourceFile) ||
@@ -1142,8 +1288,11 @@ export function mountSoftmuxV3Surface(doc = document) {
         restoreNativePreview();
         restoreNativeExtraction();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
+        sourceHelpOpen=false;
+        sourceDetailRequested=false;
         updateSourceSheet();
-        sourceSheetClose.focus();
+        if(!sourceSheet.hidden)sourceSheetClose.focus();
+        else (sourceSheetPreview.hidden?sourceInlineDetail:sourceSheetPreview).focus();
       });
       if (item.transfer) {
         const button=appendText(doc,row,'button','sfv3-row-action','加入到…');

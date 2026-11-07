@@ -76,6 +76,15 @@ try {
     .filter({hasText:'Caption from A'}).first();
   await selectObserved.click();
   const sourceSheet=page.locator('#sfv3SourceInspector');
+  const direct=page.locator('#sfv3SourceInlineActions');
+  await direct.waitFor({state:'visible'});
+  assert.equal(await sourceSheet.isVisible(),false,
+    'desktop source selection must reveal local actions, not an automatic 440px inspector');
+  assert.equal(await direct.locator('#sfv3SourceInspectorAdd').count(),1);
+  assert.equal(await page.locator('#sfv3SourceInspectorAdd').count(),1,
+    'one original Add-to action is rehosted, not cloned');
+  await screenshot('wu04-source-subtitle-direct-actions.png');
+  await page.locator('#sfv3SourceInlineDetail').click();
   await sourceSheet.waitFor({state:'visible'});
   assert.match(await sourceSheet.textContent(),/A-with-SubRip/);
   assert.match(await sourceSheet.textContent(),/Caption from A/);

@@ -141,6 +141,12 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
       'V3 source observation is not output authorization');
     await page.locator('#sfv3SourceContents .sfv3-row-select')
       .filter({hasText:'Source ASS proof'}).click();
+    // After the Figma V3-02 correction source operations stay adjacent to the
+    // selected desktop row. The original technical inspector is explicit.
+    await page.locator('#sfv3SourceInlineActions').waitFor({state:'visible'});
+    assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),false);
+    await page.locator('#sfv3SourceInlineDetail').click();
+    await page.locator('#sfv3SourceInspector').waitFor({state:'visible'});
     await page.waitForFunction(()=>
       document.querySelector('#sfv3SourceFontEvidence')?.textContent
         ?.includes('1 项疑似字体附件'),null,{timeout:60000});
@@ -148,14 +154,19 @@ export async function scenarioCrossSourceAssFontBundle(browser,{root,outDir,base
     assert.match(await page.locator('#sfv3SourceFontEvidence').textContent(),/P3EmbeddedProof\.ttf/);
     assert.match(await page.locator('#sfv3SourceFontEvidence').textContent(),/不等于字体 face/);
     assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1);
-    assert.equal(await page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp').isVisible(),true);
+    assert.equal(await page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp').isVisible(),false,
+      'approved V3-09 glossary remains locally collapsed until requested');
+    await page.locator('#sfv3SourceFlagHelpTrigger').click();
+    assert.equal(await page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp').isVisible(),true,
+      'the actual single shared Default/Forced glossary opens from its field');
     assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false,
       'font observation and technical help do not authorize a target');
     await page.screenshot({path:path.join(outDir,'v3-source-ass-font-observation.png')});
     const v3Add=page.locator('#sfv3SourceInspectorAdd');
     assert.equal(await v3Add.isVisible(),true,
       'V3 must offer a font-closure-gated Add-to for scanned ASS');
-    assert.match(await v3Add.textContent(),/校验 ASS 与字体/);
+    assert.match(await v3Add.getAttribute('aria-label'),/校验 ASS 与字体/,
+      'compact Figma button retains full font-closure meaning for accessibility');
     await v3Add.click();
     assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true);
     assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);

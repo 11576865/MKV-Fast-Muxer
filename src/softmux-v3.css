@@ -1843,7 +1843,7 @@
  * Reorder presentation only. Native preview still requires explicit action
  * (and actual font availability); never show a fabricated rendered subtitle.
  * When the real preview is active, WU-08 owns its separate media/tools grid. */
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))){
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))){
   display:grid;
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:
@@ -1858,19 +1858,19 @@
   align-items:start;
   gap:9px;
 }
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-header{grid-area:source-head;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-header{grid-area:source-head;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-actions{
   grid-area:source-actions;
   display:flex;align-items:center;justify-content:flex-start;
   flex-wrap:wrap;gap:8px;
 }
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-detail{grid-area:source-detail;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-states{grid-area:source-flags;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-font-evidence{grid-area:source-fonts;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-flag-help-host{grid-area:source-help;}
-.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-notice{grid-area:source-notice;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-detail{grid-area:source-detail;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-flag-states{grid-area:source-flags;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-font-evidence{grid-area:source-fonts;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-flag-help-host{grid-area:source-help;}
+.sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-notice{grid-area:source-notice;}
 @media(max-width:959px){
-  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))) .sfv3-source-sheet-actions{
+  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]:not(:has(#sfv3SourcePreviewHost:not([hidden]))):not(:has(#sfv3SourcePreviewIdle:not([hidden]))) .sfv3-source-sheet-actions{
     position:relative;
     padding:0 0 7px;border-bottom:1px solid var(--sfv3-line);
   }
@@ -2375,4 +2375,255 @@
  * Unlike a hidden audit this is decoration, not evidence of a completed mux. */
 .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) .execution-status .progress{
   display:none!important;
+}
+
+
+/* Figma parity: V3-02 selected ASS direct-action band.
+ * The SINGLE native preview, extraction and Add-to buttons are REHOSTED
+ * immediately below the observed source row on desktop. Details explicitly
+ * opens the ONE existing metadata/preview inspector, not another editor. */
+.sf14.sfv3 .sfv3-source-inline-actions[hidden]{display:none!important;}
+@media (min-width:960px){
+  .sf14.sfv3[data-sfv3-surface="source"] .sfv3-source-inline-actions{
+    display:flex;align-items:center;justify-content:flex-start;gap:10px;
+    min-height:50px;padding:5px 10px;margin:-4px 0 4px;
+    border:1px solid var(--sfv3-line);border-top:0;
+    border-radius:0 0 9px 9px;background:var(--sfv3-row);
+    min-width:0;
+  }
+  .sf14.sfv3 .sfv3-source-inline-actions .sfv3-source-sheet-actions{
+    display:flex;flex:1 1 auto;flex-wrap:wrap;gap:8px;
+    align-items:center;justify-content:flex-start;min-width:0;
+  }
+  .sf14.sfv3 .sfv3-source-inline-actions :is(
+    .sfv3-source-sheet-preview,.sfv3-source-sheet-extract,.sfv3-source-sheet-add){
+    min-height:39px;padding:7px 12px;font-size:12px;
+  }
+  .sf14.sfv3 .sfv3-source-inline-detail {
+    display:inline-flex;align-items:center;min-height:39px;
+    padding:8px 12px;margin-left:auto;white-space:nowrap;
+    background:transparent;color:var(--sfv3-soft);
+    border:1px solid var(--sfv3-line);border-radius:8px;
+    cursor:pointer;font-size:12px;
+  }
+  .sf14.sfv3 .sfv3-source-inline-detail:hover,
+  .sf14.sfv3 .sfv3-source-inline-detail:focus-visible {
+    color:var(--sfv3-text);border-color:var(--sfv3-accent);
+    outline-offset:2px;
+  }
+  .sf14.sfv3 .sfv3-observed-row:has(.sfv3-row-select[aria-expanded="true"])
+    > .sfv3-row-action{
+    display:none!important; /* same Add-to remains in adjacent native action bar */
+  }
+}
+
+/* Figma V3-09: one contextual read-only explanation anchored at the real
+ * observed Default field, not a second full-width editor or an inferred
+ * writeable flag value. Only the original glossary DOM is displayed. */
+.sf14.sfv3 .sfv3-source-flag-states {
+  position:relative;overflow:visible;
+}
+.sf14.sfv3 .sfv3-source-flag-help-trigger{
+  display:inline-grid;place-items:center;width:22px;height:22px;
+  min-width:22px;margin:0 0 0 2px;padding:0;
+  border:1px solid var(--sfv3-muted);border-radius:50%;
+  background:transparent;color:var(--sfv3-soft);
+  font-size:12px;font-weight:750;cursor:pointer;
+}
+.sf14.sfv3 .sfv3-source-flag-help-trigger:hover,
+.sf14.sfv3 .sfv3-source-flag-help-trigger[aria-expanded="true"]{
+  border-color:var(--sfv3-accent);color:var(--sfv3-accent);
+}
+.sf14.sfv3 .sfv3-source-flag-help-trigger:focus-visible{
+  outline:2px solid var(--sfv3-accent);outline-offset:2px;
+}
+.sf14.sfv3 .sfv3-source-flag-states #sfv3SourceFlagHelpHost{
+  position:absolute;top:calc(100% + 6px);
+  left:clamp(8px,24%,95px);
+  z-index:40;box-sizing:border-box;
+  width:min(330px,calc(100vw - 52px));max-height:min(45vh,390px);
+  overflow-y:auto;padding:10px 13px;
+  border:1px solid #537361;border-radius:9px;
+  background:#26352f;box-shadow:0 12px 32px rgba(0,0,0,.48);
+}
+.sf14.sfv3 .sfv3-source-flag-states #sfv3SourceFlagHelpHost
+  .sfv3-subtitle-flag-help > summary{
+  min-height:28px;font-weight:700;color:#e8ece9;
+}
+.sf14.sfv3 .sfv3-source-flag-states #sfv3SourceFlagHelpHost
+  .sfv3-subtitle-flag-definitions{
+  font-size:11px;line-height:1.6;margin:7px 0 3px;
+}
+
+/* Figma V3-05: reserve a real 16:9 ASS preview stage in portrait before
+ * FFmpeg/libass renders a frame. The text explicitly states it is unrendered.
+ * After native preview starts, the SAME #sf14PreviewDrawer replaces it. */
+.sf14.sfv3 .sfv3-source-preview-idle[hidden]{display:none!important;}
+.sf14.sfv3 .sfv3-source-preview-idle{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;width:100%;min-width:0;aspect-ratio:16/9;
+  min-height:160px;padding:12px;box-sizing:border-box;
+  border:1px solid #20262b;border-radius:9px;
+  background:#101720;color:var(--sfv3-muted);text-align:center;
+}
+.sf14.sfv3 .sfv3-source-preview-idle strong{
+  font-size:13px;color:var(--sfv3-soft);font-weight:650;
+}
+.sf14.sfv3 .sfv3-source-preview-idle span{
+  font-size:11px;line-height:1.5;max-width:32ch;
+}
+@media (min-width:720px) and (max-width:959px) and (orientation:portrait){
+  .sf14.sfv3 .sfv3-source-sheet[data-sfv3-previewable="true"]
+    :is(.sfv3-source-preview-idle){min-height:165px;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden])){
+    display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);
+    grid-template-areas:
+      "source-head source-head"
+      "source-actions source-actions"
+      "source-preview source-flags"
+      "source-preview source-fonts"
+      "source-detail source-notice";
+    align-content:start;align-items:start;gap:8px 12px;
+    max-height:min(49dvh,600px);
+  }
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-sheet-header{grid-area:source-head;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-sheet-actions{grid-area:source-actions;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-preview-idle{grid-area:source-preview;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-flag-states{grid-area:source-flags;align-self:start;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-font-evidence{grid-area:source-fonts;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-sheet-detail{grid-area:source-detail;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-sheet-notice{grid-area:source-notice;}
+  .sf14.sfv3 .sfv3-source-sheet:has(#sfv3SourcePreviewIdle:not([hidden]))
+    .sfv3-source-flag-provenance{
+    flex-basis:100%;text-align:start;
+  }
+}
+
+/* Figma V3-06 / V3-07: the 820 portrait and 1180 landscape *idle* mux
+ * presentation was the last legacy blue box. Keep a single 60px dock,
+ * preserving real status, mux, plan, inspector, active Cancel and output
+ * evidence. Never conceal progress while the executor enables Cancel. */
+@media (min-width:720px) and (max-width:1319px){
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled){
+    align-items:center!important;flex-wrap:nowrap!important;
+    gap:9px!important;min-width:0;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .sf14-output-head {
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .output-hub {
+    display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+    min-width:0!important;gap:10px!important;
+    padding:0!important;border:0!important;border-radius:0!important;
+    background:transparent!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .execution-panel {
+    display:flex!important;align-items:center!important;flex-wrap:nowrap!important;
+    min-width:0!important;gap:10px!important;
+    padding:0!important;border:0!important;border-radius:0!important;
+    background:transparent!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .execution-status{
+    flex:1 1 auto!important;min-width:0!important;max-width:none!important;
+    min-height:0!important;padding:0!important;margin:0!important;
+    border:0!important;background:transparent!important;box-shadow:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .execution-status #status{
+    display:block!important;min-width:0!important;max-height:34px;
+    overflow:hidden!important;text-overflow:ellipsis!important;
+    white-space:nowrap!important;line-height:19px;font-size:11px!important;
+    border:0!important;background:transparent!important;box-shadow:none!important;
+    padding:0!important;margin:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) .execution-panel .actions {
+    display:flex!important;flex:0 0 auto!important;align-items:center!important;
+    gap:0!important;margin:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] #cancelBtn:disabled{
+    display:none!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle{
+    display:grid!important;place-items:center!important;flex:0 0 42px!important;
+    width:42px!important;min-width:42px!important;max-width:42px!important;
+    min-height:42px!important;height:42px!important;
+    padding:0!important;margin:0!important;font-size:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sf14PlanToggle::before{
+    content:"";display:block;width:18px;height:18px;
+    background:url('./v3-assets/more.svg') center/contain no-repeat;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen{
+    display:grid!important;place-items:center!important;flex:0 0 42px!important;
+    width:42px!important;min-width:42px!important;max-width:42px!important;
+    min-height:42px!important;height:42px!important;
+    padding:0!important;margin:0!important;font-size:0!important;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"] .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen::before{
+    content:"";display:block;width:18px;height:18px;
+    background:url('./v3-assets/object-list.svg') center/contain no-repeat;
+  }
+}
+
+
+/* V3-02 / V3-05: when a source row is selected, the SAME Add-to action
+ * is available directly under that row (desktop) or in the real context
+ * sheet (portrait). Do not show a second competing Add-to affordance in
+ * the selected row while those contextual native controls are visible. */
+.sf14.sfv3 .sfv3-observed-row:has(.sfv3-row-select[aria-expanded="true"])
+  > .sfv3-row-action{display:none!important;}
+
+
+/* V3-09 visual audit, 820px portrait: the Default/Forced explanation is
+ * anchored inside a right-side flags cell. Its earlier left:24% + 330px
+ * width could extend past x=820 and silently crop the definitions. Keep
+ * the entire one native glossary inside the viewport and source sheet. */
+@media (max-width:959px){
+  .sf14.sfv3 .sfv3-source-flag-states #sfv3SourceFlagHelpHost{
+    left:auto;right:0;
+    width:min(330px,calc(100vw - 44px));
+    max-width:calc(100vw - 44px);
+  }
+}
+
+
+/* V3-08 screenshot review: the inspector's 78px two-line text button visibly
+ * collides with the compact 620px dock hierarchy. Keep the SAME live
+ * inspector / output evidence action, accessible name and keyboard handler,
+ * but give it a distinct 42px document icon. The plan button stays a list
+ * icon, and the native mux remains the primary action. */
+@media (min-width:600px) and (max-width:719px){
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen{
+    display:grid!important;place-items:center!important;
+    flex:0 0 42px!important;width:42px!important;
+    min-width:42px!important;max-width:42px!important;
+    min-height:42px!important;height:42px!important;
+    padding:0!important;margin:0!important;
+    font-size:0!important;overflow:hidden;
+    white-space:nowrap;
+    border:1px solid var(--sfv3-line);
+    background:var(--sfv3-row-raised);color:var(--sfv3-soft);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen::before{
+    content:"";display:block;width:19px;height:19px;
+    background:url('./v3-assets/mkv-document.svg') center/contain no-repeat;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen[aria-expanded="true"]{
+    border-color:var(--sfv3-accent);
+  }
 }

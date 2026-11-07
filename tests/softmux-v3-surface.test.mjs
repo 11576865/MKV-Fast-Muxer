@@ -131,7 +131,11 @@ test('V3 ASS Add-to stays an explicit target intent and reuses P3 complete font 
   assert.match(main,/pruneSecondaryAssFontBundleForSource\(importedAssetEntries,removed.file\)/);
   assert.match(surface,/\['subrip','ass','ssa'\]\.includes\(track.codec\)/);
   assert.match(surface,/\['subrip','ass','ssa'\]\.includes\(stream\?\.codec\)/);
-  assert.match(surface,/sourceSheetAdd\.textContent=\['ass','ssa'\]/);
+  assert.match(surface,/sourceSheetAdd\.textContent='加入到…'/);
+  assert.match(surface,/sourceSheetAdd\.setAttribute\('aria-label'/);
+  assert.match(surface,/\? '加入到明确目标（校验 ASS 与字体依赖）'/);
+  assert.match(surface,/sourceSheet\.insertBefore\(sourceSheetActions,sourcePreviewIdle\)/,
+    'original buttons restore relative to an actual direct sheet child after the flag glossary is rehosted');
   assert.match(surface,/pendingAddition=\{/);
   assert.match(surface,/setSurface\('plan'\)/);
 });

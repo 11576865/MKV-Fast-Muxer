@@ -43,11 +43,43 @@ try {
  await page.locator('#sfv3SourceInspector').waitFor({state:'visible'});
  await page.setViewportSize({width:1440,height:900});
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+ // V3-02 direct actions belong under the selected row; a 440px inspector
+ // should NOT automatically occupy the desktop on source selection.
+ await page.locator('#sfv3SourceInlineActions').waitFor({state:'visible'});
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),false);
+ const inlineGeometry=await page.evaluate(()=>{
+   const row=document.querySelector('.sfv3-observed-row:has(.sfv3-row-select[aria-expanded="true"])');
+   const actions=document.getElementById('sfv3SourceInlineActions');
+   const rb=row?.getBoundingClientRect(),ab=actions?.getBoundingClientRect();
+   return {rowBottom:rb?.bottom,actionsTop:ab?.top,actionsBottom:ab?.bottom,
+     actionsWidth:ab?.width,sourceButtons:actions?.querySelectorAll(
+       '#sfv3SourceInspectorPreview,#sfv3SourceInspectorExtract,#sfv3SourceInspectorAdd').length};
+ });
+ assert.ok(Math.abs(inlineGeometry.actionsTop-inlineGeometry.rowBottom)<=8 &&
+   inlineGeometry.actionsWidth>300 && inlineGeometry.sourceButtons===3,
+   'V3-02 must place exactly the original three source actions beneath the selected desktop row');
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
  assert.equal(await page.locator('#muxBtn').isDisabled(),true);
  await page.screenshot({path:path.join(dir,'v3-ass-selected-1440x900.png')});
  await page.setViewportSize({width:820,height:1180});
  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
+ await page.locator('#sfv3SourceInspector').waitFor({state:'visible'});
+ assert.equal(await page.locator('#sfv3SourceInlineActions').count(),0,
+   'portrait rehosts real actions in the bottom sheet instead of cloning them');
+ assert.equal(await page.locator('#sfv3SourcePreviewIdle').isVisible(),true,
+   'V3-05 must reserve a truthful 16:9 stage before FFmpeg renders');
+ assert.equal(await page.locator('#sfv3SourcePreviewHost').isVisible(),false);
+ // The Figma V3-05 820px context is an actual two-column preview + metadata
+ // sheet, not a one-column form with an orphaned media stage at bottom-right.
+ const previewRect=await page.locator('#sfv3SourcePreviewIdle').boundingBox();
+ const flagRect=await page.locator('#sfv3SourceFlagStates').boundingBox();
+ const sheetRect=await page.locator('#sfv3SourceInspector').boundingBox();
+ assert.ok(previewRect && flagRect && sheetRect &&
+   previewRect.width>=290 && previewRect.x<flagRect.x-20 &&
+   Math.abs(previewRect.y-flagRect.y)<=16 &&
+   previewRect.y+previewRect.height<=sheetRect.y+sheetRect.height+3,
+   'Figma V3-05 preview must align LEFT of actual source flags in portrait: '+
+     JSON.stringify({previewRect,flagRect,sheetRect}));
  const selectedSourceLayout=await page.evaluate(()=>{
    const sheet=document.getElementById('sfv3SourceInspector');
    const actions=sheet?.querySelector('.sfv3-source-sheet-actions');
@@ -69,17 +101,29 @@ try {
  assert.equal(await observedFlags.isVisible(),true);
  const expectedFlag=value=>value===1||value===true?'开':
    value===0||value===false?'关':'未观察';
- const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').allTextContents();
- assert.deepEqual(sourceFlagLabels.map(s=>s.replace(/\s+/g,'')),
-   ['Default'+expectedFlag(stream.disposition?.default),'Forced'+expectedFlag(stream.disposition?.forced)]);
- assert.equal(await observedFlags.locator('input,select,button').count(),0,
+ const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').evaluateAll(nodes=>
+   nodes.map(node=>({
+     field:node.querySelector('strong')?.textContent?.trim(),
+     observed:node.querySelector('span')?.textContent?.trim(),
+   })));
+ assert.deepEqual(sourceFlagLabels,
+   [{field:'Default',observed:expectedFlag(stream.disposition?.default)},
+    {field:'Forced',observed:expectedFlag(stream.disposition?.forced)}],
+   'actual source values, not the adjacent help button, are observation evidence');
+ assert.equal(await observedFlags.locator('input,select').count(),0,
    'source disposition is observation only and cannot write target track state');
+ assert.equal(await observedFlags.locator('button').count(),1,
+   'the one nearby Default/Forced help trigger is not a mutable flag control');
  assert.match(await observedFlags.textContent(),/来源 ffprobe · 只读/);
  const sourceHelp=page.locator('#sfv3SourceInspector #sfv3SubtitleFlagsHelp');
  assert.equal(await sourceHelp.count(),1,
    'V3-09 source ASS has the same single Default/Forced glossary as the target editor');
  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1);
- assert.equal(await sourceHelp.isVisible(),true);
+ assert.equal(await sourceHelp.isVisible(),false,
+   'V3-09 should not display a full explanatory panel until local help is requested');
+ const flagHelpButton=page.locator('#sfv3SourceFlagHelpTrigger');
+ assert.equal(await flagHelpButton.isVisible(),true);
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false');
  const sourceFonts=page.locator('#sfv3SourceFontEvidence');
  await page.waitForFunction(()=>
    document.querySelector('#sfv3SourceFontEvidence')?.textContent
@@ -88,17 +132,49 @@ try {
  assert.equal(await sourceFonts.locator('li').count(),0,
    'a real ASS with no attachments must not display invented font files');
  assert.equal(await page.locator('#sfv3TargetTab').isVisible(),false);
- await sourceHelp.locator('summary').click();
+ await flagHelpButton.click();
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'true');
+ assert.equal(await sourceHelp.isVisible(),true);
  assert.equal(await sourceHelp.getAttribute('open'),'');
+ // Approved V3-09: the actual 330px help popover must not be cropped
+ // to the right of the 820px portrait viewport or disappear under the dock.
+ const popoverBounds=await page.locator('#sfv3SourceFlagHelpHost').boundingBox();
+ const popoverOverflow=await page.locator('#sfv3SourceFlagHelpHost').evaluate(el=>({
+   clippedContent:el.scrollWidth>el.clientWidth+2,
+   visible:getComputedStyle(el).visibility==='visible',
+ }));
+ assert.ok(popoverBounds && popoverBounds.x>=0 &&
+   popoverBounds.x+popoverBounds.width<=820-4 &&
+   popoverBounds.y>=0 && popoverBounds.y+popoverBounds.height<=1180-4 &&
+   !popoverOverflow.clippedContent && popoverOverflow.visible,
+   'V3-09 source glossary must fit inside portrait viewport: '+
+     JSON.stringify({popoverBounds,popoverOverflow}));
  assert.match(await sourceHelp.textContent(),/默认轨道标记/);
  assert.match(await sourceHelp.textContent(),/强制字幕标记/);
  assert.equal(await page.locator('#sfv3SubtitleFlagsHelp').count(),1,
    'opening source technical help cannot clone the shared help DOM');
  await page.screenshot({path:path.join(dir,'v3-source-ass-flags-and-font-observation.png')});
+ // Native <details> summary cannot leave an empty floating popover behind.
  await sourceHelp.locator('summary').click();
+ await page.waitForFunction(()=>document.querySelector('#sfv3SourceFlagHelpHost')?.hidden===true);
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false');
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
+ // Outside pointerdown closes only help, without consuming the native click.
+ await flagHelpButton.click();
+ await page.locator('#sfv3SourceInspectorTitle').click();
+ assert.equal(await sourceHelp.isVisible(),false);
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false');
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
+ await flagHelpButton.click();
+ await flagHelpButton.focus();
+ await page.keyboard.press('Escape');
+ assert.equal(await flagHelpButton.getAttribute('aria-expanded'),'false',
+   'Escape closes only the nearby technical help; the source sheet remains');
+ assert.equal(await sourceHelp.isVisible(),false);
+ assert.equal(await page.locator('#sfv3SourceInspector').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorPreview').isVisible(),true);
  assert.equal(await page.locator('#sfv3SourceInspectorAdd').isVisible(),true);
- assert.match(await page.locator('#sfv3SourceInspectorAdd').textContent(),/校验 ASS 与字体/);
+ assert.match(await page.locator('#sfv3SourceInspectorAdd').getAttribute('aria-label'),/校验 ASS 与字体/);
  await page.locator('#sfv3SourceInspectorAdd').click();
  assert.equal(await page.locator('#sfv3TargetPicker').isVisible(),true,
    'ASS Add-to only opens explicit target choice; no target is granted');
@@ -113,7 +189,7 @@ try {
  assert.equal(await page.locator('#sfv3AssFontDependencies').isVisible(),false,
    'no font-closure evidence exists before actual source bundle processing');
  assert.equal(await page.locator('#sfv3SourceInspectorExtract').isVisible(),true);
- assert.match(await page.locator('#sfv3SourceInspectorExtract').textContent(),/不含字体/);
+ assert.match(await page.locator('#sfv3SourceInspectorExtract').getAttribute('aria-label'),/不含字体/);
  const denied=await page.evaluate(i=>{
   const file=document.querySelector('#videoInput').files[0];
   const key=document.querySelector('#sfv3SourceTab').dataset.sfv3SourceKey;
@@ -133,6 +209,8 @@ try {
  },stream.index);
  assert.equal(deniedExtraction,false,'forged File cannot gain original-track extraction permission');
  await page.locator('#sfv3SourceInspectorPreview').click();
+ assert.equal(await page.locator('#sfv3SourcePreviewIdle').isVisible(),false,
+   'real preview always replaces the unrendered placeholder');
  assert.equal(await page.locator('#sfv3SourceInspector #sf14PreviewDrawer').count(),1);
  // No font attachment is present, and the isolated ffmpeg.wasm libass runtime
  // has NO host/browser font provider. This must fail visibly, not claim a
