@@ -375,6 +375,7 @@ export function mountSoftmuxV3Surface(doc = document) {
     featureNavigation.setAttribute('aria-label','工作区功能入口');
     for(const [key,label,control] of [
       ['source','来源','sf14Single'],
+      ['structure','源结构','sfv3SourceContents'],
       ['plan','拟输出','sf14Single'],
       ['tracks','轨道','compositionTracks'],
       ['subtitle','字幕','sf14Inspector'],
@@ -1623,7 +1624,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         root.dataset.view==='tools'?(context==='attachments'?'attachments':'tools'):
         root.dataset.sfv3Surface==='plan'?
           (planTasks.has(context)?context:'plan'):
-          (context==='project'?'project':'source');
+          (context==='project'||context==='structure'?context:'source');
       for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]')) {
         if(button.dataset.sfv35Task===active)
           button.setAttribute('aria-current','page');
@@ -1658,7 +1659,22 @@ export function mountSoftmuxV3Surface(doc = document) {
         if(recovery)recovery.open=false;
       }
       root.dataset.sfv35Task=task;
-      if(task==='tracks'){
+      if(task==='structure'){
+        // The exact-File source readout already owns attachment, flat
+        // chapter and format-tag observations. This is only a direct route
+        // to its three EXISTING read-only disclosure cards.
+        doc.defaultView?.requestAnimationFrame(()=>{
+          if(root.dataset.sfv35Task!=='structure' ||
+              root.dataset.sfv3Surface!=='source')return;
+          const cards=[...contents.querySelectorAll(
+            '.sfv3-source-resource-card')];
+          if(cards.length&&!cards.every(card=>card.open))
+            sourceStructureToggle.click();
+          const strip=contents.querySelector(
+            '.sfv3-source-resource-strip');
+          if(strip)revealWithin(strip,compositionHost);
+        });
+      }else if(task==='tracks'){
         closeInspector();
         root.querySelector('[data-sf-section="tracks"]')?.click();
         revealWithin(currentTracks,compositionHost);
@@ -1712,7 +1728,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         const view=task==='batch'?'batch':'tools';
         root.querySelector('[data-sf-view="'+view+'"]')?.click();
         focusRealTask(task);
-      }else if(task==='project'||task==='source'){
+      }else if(task==='project'||task==='source'||task==='structure'){
         root.querySelector('[data-sf-view="single"]')?.click();
         setSurface('source');
         focusRealTask(task);
