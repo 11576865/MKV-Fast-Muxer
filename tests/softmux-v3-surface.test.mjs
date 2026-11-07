@@ -280,3 +280,23 @@ test('Figma V3-03 renders native existing/blank target choices with accessible d
   assert.match(css,/@media\(max-width:959px\)/);
   assert.match(css,/\.sfv3-picker-confirm:focus-visible/);
 });
+
+
+test('V3.5 opt-in named task entry reuses native batch/tools and keeps exact-source output authorization',async()=>{
+  const surface=await readFile(new URL('../src/softmux-v3-surface.js',import.meta.url),'utf8');
+  const css=await readFile(new URL('../src/softmux-v3.css',import.meta.url),'utf8');
+  const native=await readFile(new URL('../src/softmux-10.14-workbench.js',import.meta.url),'utf8');
+  assert.match(surface,/get\('nav'\)==='full'/);
+  assert.match(surface,/featureNavigationEnabled\?doc\.createElement\('nav'\):null/);
+  assert.match(surface,/featureNavigation\.id='sfv35FeatureNavigation'/);
+  assert.match(surface,/\['batch','批量任务','sf14Batch'\]/);
+  assert.match(surface,/\['tools','容器工具','sf14Tools'\]/);
+  assert.match(surface,/root\.querySelector\('\[data-sf-view="'\+nativeView\+'"\]'\)\?\.click\(\)/);
+  assert.match(surface,/if\(!setSurface\('plan'\)\)\s*\{/);
+  assert.match(surface,/openTargetPicker\(null\)/);
+  assert.match(surface,/button\.setAttribute\('aria-current','page'\)/);
+  assert.match(native,/get\(doc,'sf14Batch'\)\.appendChild\(batch\)/);
+  assert.match(native,/get\(doc,'sf14Batch'\)\.hidden = view !== 'batch'/);
+  assert.match(css,/\.sf14\.sfv3\.sfv35-nav #sf14Single\[hidden\]/);
+  assert.match(css,/\.sf14\.sfv3\.sfv35-nav #sf14Batch:not\(\[hidden\]\)/);
+});
