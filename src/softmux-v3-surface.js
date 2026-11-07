@@ -1965,6 +1965,9 @@ export function mountSoftmuxV3Surface(doc = document) {
     flowMessage='目标已选择；未执行文件写入。';
     schedule();
   });
+  // Candidate shell is deliberately opt-in until geometry and real File
+  // interaction pass. It only arranges existing live header/workspace/footer.
+  mountV3ShellNext(doc,root);
   render();
   return true;
 }
