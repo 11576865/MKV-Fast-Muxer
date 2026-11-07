@@ -101,7 +101,12 @@ export function mountV35BatchWorkflow(doc,root) {
     const nativeReview=native(doc,'batchReviewSummary')?.textContent?.trim()||'等待配对审核';
     const nativeRun=native(doc,'batchRunStatus')?.textContent?.trim()||'尚未启动批次';
     status.textContent='已识别资源：'+files;
-    review.textContent=nativeReview;
+    // A tie intentionally leaves ZERO executable jobs. The native
+    // empty-plan summary therefore says "无可执行任务"; show the
+    // concrete observed blocker before it rather than hiding the cause.
+    review.textContent=conflicts
+      ?'待处理：'+conflicts+' 条字幕配对歧义，需人工确认 · '+nativeReview
+      :nativeReview;
     run.textContent=nativeRun;
     const fontMode=native(doc,'batchFontSubsetEnabled')?.checked
       ?native(doc,'batchSubsetScope')?.value==='group'?'Group 子集':'逐任务子集'
