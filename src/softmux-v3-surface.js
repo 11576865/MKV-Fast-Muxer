@@ -1,3 +1,5 @@
+import { mountV35BatchWorkflow } from './v35-batch-workflow.js';
+
 /*
  * Softmux V3 / WU-01: source-first presentation over the EXISTING live DOM.
  * Opt-in via ?ui=v3. Does not create a second ContainerProject or write media.
@@ -393,6 +395,8 @@ export function mountSoftmuxV3Surface(doc = document) {
       button.setAttribute('aria-controls',control);
     }
     header?.after(featureNavigation);
+    // Task-specific batch command surface: original native DOM only.
+    mountV35BatchWorkflow(doc,root);
   }
 
   // This is a read-only observation of the SAME authoritative source scan.
