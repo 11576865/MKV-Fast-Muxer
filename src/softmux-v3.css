@@ -2691,3 +2691,40 @@
     padding:10px 8px;
   }
 }
+
+
+/* V3.5 contextual capability navigation: all task categories remain visible
+ * in compact viewports rather than forcing users to discover horizontal
+ * scrolling. This remains behind ?nav=full and never alters default V3. */
+@media (max-width:959px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+    align-items:stretch;gap:5px;
+    height:96px;min-height:96px;
+    padding:5px 8px;overflow:visible;
+  }
+  .sf14.sfv3.sfv35-nav .sfv35-feature-button{
+    min-width:0;width:100%;height:40px;min-height:40px;
+    padding:5px 3px;font-size:11px;line-height:1.3;white-space:normal;
+  }
+  .sf14.sfv3.sfv35-nav .sf14-single{
+    height:calc(100dvh - 58px - 96px - 56px);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    height:calc(100dvh - 58px - 96px);
+  }
+}
+@media (max-width:499px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    height:138px;min-height:138px;
+  }
+  .sf14.sfv3.sfv35-nav .sf14-single{
+    height:calc(100dvh - 58px - 138px - 56px);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    height:calc(100dvh - 58px - 138px);
+  }
+}
