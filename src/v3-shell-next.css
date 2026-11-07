@@ -71,6 +71,17 @@
 /* Only the shell owns vertical slot heights. Existing native element
  * listeners, the single editor and the exact-File write gate are unaffected. */
 
+/* The legacy `:has(#cancelBtn:disabled)` selector contains an ID
+ * (#cancelBtn) AND multiple classes/pseudoclasses; even the new #sf14Single
+ * general rule can LOSE an !important height conflict on specificity.
+ * Give the next shell's target workspace a stronger state+ID ownership rule.
+ * It assigns geometry only, never modifies active Cancel, native target File,
+ * or execution ownership. */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame][data-sfv3-surface="plan"]
+  > #sf14Single.sf14-single{
+  min-height:0!important;max-height:100%!important;height:100%!important;
+}
+
 /* The legacy 10.14 idle output card declared min-height:60px!important.
  * The approved desktop target shell reserves exactly 56px; override that
  * obsolete card constraint ONCE at the shell boundary, not per button.
