@@ -1633,8 +1633,10 @@ export function mountSoftmuxV3Surface(doc = document) {
     // Only navigate to original native controls. The category does not own
     // business state, invoke a writer, synthesize provenance or rehost a copy.
     const focusRealTask=(task)=>{
+      if(task==='plan')closeInspector();
       root.dataset.sfv35Task=task;
       if(task==='tracks'){
+        closeInspector();
         root.querySelector('[data-sf-section="tracks"]')?.click();
         currentTracks.scrollIntoView?.({block:'nearest'});
       }else if(task==='subtitle'||task==='font'){
@@ -1656,6 +1658,7 @@ export function mountSoftmuxV3Surface(doc = document) {
         (extraction||impact||find(doc,'sf14ToolInspect'))
           ?.scrollIntoView?.({block:'nearest'});
       }else if(task==='verification'){
+        closeInspector();
         verification.open=true;
         verification.scrollIntoView?.({block:'nearest'});
         // A completed output is visible only if the real evidence is present.
