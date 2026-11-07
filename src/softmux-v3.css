@@ -2597,3 +2597,33 @@
     max-width:calc(100vw - 44px);
   }
 }
+
+
+/* V3-08 screenshot review: the inspector's 78px two-line text button visibly
+ * collides with the compact 620px dock hierarchy. Keep the SAME live
+ * inspector / output evidence action, accessible name and keyboard handler,
+ * but give it a distinct 42px document icon. The plan button stays a list
+ * icon, and the native mux remains the primary action. */
+@media (min-width:600px) and (max-width:719px){
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen{
+    display:grid!important;place-items:center!important;
+    flex:0 0 42px!important;width:42px!important;
+    min-width:42px!important;max-width:42px!important;
+    min-height:42px!important;height:42px!important;
+    padding:0!important;margin:0!important;
+    font-size:0!important;overflow:hidden;
+    white-space:nowrap;
+    border:1px solid var(--sfv3-line);
+    background:var(--sfv3-row-raised);color:var(--sfv3-soft);
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen::before{
+    content:"";display:block;width:19px;height:19px;
+    background:url('./v3-assets/mkv-document.svg') center/contain no-repeat;
+  }
+  .sf14.sfv3[data-sfv3-surface="plan"]
+    .sf14-output:has(#cancelBtn:disabled) #sfv3InspectorOpen[aria-expanded="true"]{
+    border-color:var(--sfv3-accent);
+  }
+}
