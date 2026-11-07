@@ -299,7 +299,7 @@ test('V3.5 opt-in named task entry reuses native batch/tools and keeps exact-sou
   assert.match(native,/get\(doc,'sf14Batch'\)\.hidden = view !== 'batch'/);
   assert.match(css,/\.sf14\.sfv3\.sfv35-nav #sf14Single\[hidden\]/);
   assert.match(css,/\.sf14\.sfv3\.sfv35-nav #sf14Batch:not\(\[hidden\]\)/);
-  for(const task of ['tracks','subtitle','font','attachments','verification','project']){
+  for(const task of ['structure','tracks','subtitle','font','attachments','verification','project']){
     assert.match(surface,new RegExp("\\['"+task+"','"));
   }
   assert.match(surface,/const planTasks=new Set\(\['plan','tracks','subtitle','font','verification'\]\)/);
@@ -312,6 +312,11 @@ test('V3.5 opt-in named task entry reuses native batch/tools and keeps exact-sou
   assert.match(surface,/find\(doc,'attachmentExtractionDetails'\)/);
   assert.match(surface,/find\(doc,'sf14Recovery'\)/);
   assert.match(surface,/verification\.open=true/);
-  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(surface,/\['structure','源结构','sfv3SourceContents'\]/);
+  assert.match(surface,/task==='project'\|\|task==='source'\|\|task==='structure'/);
+  assert.match(surface,/sourceStructureToggle\.click\(\)/);
+  assert.match(surface,/root\.dataset\.sfv35Task!=='structure'/);
+
+  assert.match(css,/grid-template-columns:repeat\(6,minmax\(0,1fr\)\)/);
 
 });
