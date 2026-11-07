@@ -669,6 +669,22 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceSheetHelpHost.hidden=true;
   const sourceSheetActions=doc.createElement('div');
   sourceSheetActions.className='sfv3-source-sheet-actions';
+  // Figma V3-02: the original source actions appear immediately after the
+  // selected desktop row; the source inspector opens only when requested.
+  // This moves the SAME buttons (with their File-bound listeners), never
+  // clones a preview/extraction/target writer.
+  const sourceInlineActions=doc.createElement('div');
+  sourceInlineActions.id='sfv3SourceInlineActions';
+  sourceInlineActions.className='sfv3-source-inline-actions';
+  sourceInlineActions.setAttribute('role','listitem');
+  sourceInlineActions.setAttribute('aria-label','已选来源对象的直接操作');
+  sourceInlineActions.hidden=true;
+  const sourceInlineDetail=appendText(doc,sourceInlineActions,'button',
+    'sfv3-source-inline-detail','对象详情');
+  sourceInlineDetail.id='sfv3SourceInlineDetail';
+  sourceInlineDetail.type='button';
+  sourceInlineDetail.setAttribute('aria-controls','sfv3SourceInspector');
+  sourceInlineDetail.setAttribute('aria-expanded','false');
   const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','生成 ASS 预览帧');
   sourceSheetPreview.id='sfv3SourceInspectorPreview';
   sourceSheetPreview.type='button';
@@ -749,6 +765,16 @@ export function mountSoftmuxV3Surface(doc = document) {
       entries[0] || null;
   };
   let selectedSource=null;
+  let sourceDetailRequested=false;
+  const desktopSourceActions=()=>Boolean(
+    doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
+  const restoreSourceActions=()=>{
+    if(sourceSheetActions.parentElement!==sourceSheet)
+      sourceSheet.insertBefore(sourceSheetActions,sourceSheetHelpHost);
+    sourceInlineActions.hidden=true;
+    sourceInlineActions.remove();
+    sourceInlineDetail.setAttribute('aria-expanded','false');
+  };
   const restoreNativePreview=()=>{
     if(nativePreviewDrawer?.parentNode===sourceSheetPreviewHost && nativePreviewHome){
       nativePreviewDrawer.open=false;
@@ -768,6 +794,8 @@ export function mountSoftmuxV3Surface(doc = document) {
   const closeSourceSheet=(restoreFocus=false)=>{
     const previouslySelected=selectedSource;
     selectedSource=null;
+    sourceDetailRequested=false;
+    restoreSourceActions();
     restoreNativePreview();
     restoreNativeExtraction();
     if(subtitleFlagHelp.parentNode===sourceSheetHelpHost){
@@ -879,12 +907,42 @@ export function mountSoftmuxV3Surface(doc = document) {
     sourceSheetAdd.hidden=!selectedSource.transfer;
     sourceSheetAdd.textContent=['ass','ssa'].includes(selectedSource.transfer?.codec)
       ? '加入到…（校验 ASS 与字体）' : '加入到…';
-    sourceSheet.hidden=false;
-    root.dataset.sfv3SourceInspector='open';
+    // Keep desktop row actions local to the selected ASS: the old 440px
+    // inspector must NOT open just by selecting an observed source track.
+    // Portrait stays a real lower sheet; preview/extract/details can still
+    // explicitly open the SAME inspector in desktop mode.
+    const inline=desktopSourceActions() && !sourceDetailRequested &&
+      (previewable || Boolean(selectedSource.transfer));
+    if(inline) {
+      matchingRow.after(sourceInlineActions);
+      sourceInlineActions.insertBefore(sourceSheetActions,sourceInlineDetail);
+      sourceInlineActions.hidden=false;
+      sourceSheet.hidden=true;
+      root.dataset.sfv3SourceInspector='closed';
+      sourceInlineDetail.setAttribute('aria-expanded','false');
+    }else{
+      restoreSourceActions();
+      sourceSheet.hidden=false;
+      root.dataset.sfv3SourceInspector='open';
+      sourceInlineDetail.setAttribute('aria-expanded','true');
+    }
+    const sourceRowButton=matchingRow.querySelector('.sfv3-row-select');
+    sourceRowButton?.setAttribute('aria-controls',inline
+      ? 'sfv3SourceInlineActions':'sfv3SourceInspector');
   };
+  sourceInlineDetail.addEventListener('click',()=>{
+    if(!selectedSource)return;
+    sourceDetailRequested=true;
+    updateSourceSheet();
+    sourceSheetClose.focus();
+  });
   sourceSheetClose.addEventListener('click',()=>closeSourceSheet(true));
   sourceSheetPreview.addEventListener('click',()=>{
     const selected=selectedSource;
+    if(sourceSheet.hidden && desktopSourceActions()) {
+      sourceDetailRequested=true;
+      updateSourceSheet();
+    }
     if(!selected?.preview || !nativePreviewDrawer ||
         root.dataset.sfv3Surface!=='source' ||
         !exactEntry(selected.sourceKey,selected.sourceFile) ||
@@ -908,6 +966,10 @@ export function mountSoftmuxV3Surface(doc = document) {
   });
   sourceSheetExtract.addEventListener('click',()=>{
     const selected=selectedSource;
+    if(sourceSheet.hidden && desktopSourceActions()) {
+      sourceDetailRequested=true;
+      updateSourceSheet();
+    }
     if(!selected?.preview || !nativeExtractionPanel ||
         root.dataset.sfv3Surface!=='source' ||
         !exactEntry(selected.sourceKey,selected.sourceFile) ||
@@ -1142,8 +1204,10 @@ export function mountSoftmuxV3Surface(doc = document) {
         restoreNativePreview();
         restoreNativeExtraction();
         selectedSource={...item,group,sourceKey:from.key,sourceFile:from.file};
+        sourceDetailRequested=false;
         updateSourceSheet();
-        sourceSheetClose.focus();
+        if(!sourceSheet.hidden)sourceSheetClose.focus();
+        else (sourceSheetPreview.hidden?sourceInlineDetail:sourceSheetPreview).focus();
       });
       if (item.transfer) {
         const button=appendText(doc,row,'button','sfv3-row-action','加入到…');
