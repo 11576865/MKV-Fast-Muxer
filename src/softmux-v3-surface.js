@@ -361,6 +361,39 @@ export function mountSoftmuxV3Surface(doc = document) {
   addBtn.addEventListener('click', () => find(doc, 'sf14Add')?.click());
   single.prepend(rail);
 
+  // Opt-in V3.5 capability-entry pilot. The existing native workbench already
+  // owns single / batch / tools, and all File, plan and executor state. These
+  // named controls only navigate to those ORIGINAL DOM nodes; they never clone
+  // batch editors or create an implicit writable target. Default V3 unchanged.
+  const featureNavigationEnabled=new URLSearchParams(
+    doc.defaultView?.location?.search||'').get('nav')==='full';
+  const featureNavigation=featureNavigationEnabled?doc.createElement('nav'):null;
+  if(featureNavigation) {
+    root.classList.add('sfv35-nav');
+    featureNavigation.id='sfv35FeatureNavigation';
+    featureNavigation.className='sfv35-feature-navigation';
+    featureNavigation.setAttribute('aria-label','工作区功能入口');
+    for(const [key,label,control] of [
+      ['source','来源','sf14Single'],
+      ['plan','拟输出','sf14Single'],
+      ['tracks','轨道','compositionTracks'],
+      ['subtitle','字幕','sf14Inspector'],
+      ['font','字体','sf14Inspector'],
+      ['attachments','附件','sf14Tools'],
+      ['batch','批量任务','sf14Batch'],
+      ['verification','验证','sfv3Verification'],
+      ['project','工程','sf14Recovery'],
+      ['tools','容器工具','sf14Tools'],
+    ]) {
+      const button=appendText(doc,featureNavigation,'button',
+        'sfv35-feature-button',label);
+      button.type='button';
+      button.dataset.sfv35Task=key;
+      button.setAttribute('aria-controls',control);
+    }
+    header?.after(featureNavigation);
+  }
+
   // This is a read-only observation of the SAME authoritative source scan.
   // It is not another track editor and never dispatches mutating commands.
   const readout = doc.createElement('section');
@@ -1580,6 +1613,162 @@ export function mountSoftmuxV3Surface(doc = document) {
   root.addEventListener('softmux:v3-edit-blank',()=>{
     if(targetIntent?.kind==='blank')openTargetPicker(null);
   });
+
+  if(featureNavigation) {
+    const planTasks=new Set(['plan','tracks','subtitle','font','verification']);
+    let pendingFeatureTask=null;
+    const syncFeatureNavigation=()=>{
+      const context=root.dataset.sfv35Task||'source';
+      const active=root.dataset.view==='batch'?'batch':
+        root.dataset.view==='tools'?(context==='attachments'?'attachments':'tools'):
+        root.dataset.sfv3Surface==='plan'?
+          (planTasks.has(context)?context:'plan'):
+          (context==='project'?'project':'source');
+      for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]')) {
+        if(button.dataset.sfv35Task===active)
+          button.setAttribute('aria-current','page');
+        else button.removeAttribute('aria-current');
+      }
+    };
+    // Reveal the native control only inside the native owning scroll pane.
+    // scrollIntoView() scrolls the whole document too, clipping the fixed
+    // workbench header in actual Chromium screenshots.
+    const revealWithin=(node,scroller)=>{
+      if(!node||!scroller||!node.isConnected)return;
+      const field=node.getBoundingClientRect();
+      const area=scroller.getBoundingClientRect();
+      const margin=12;
+      if(!area.height)return;
+      const delta=field.height>area.height-2*margin ||
+          field.top<area.top+margin
+        ? field.top-area.top-margin
+        : field.bottom>area.bottom-margin
+          ? field.bottom-area.bottom+margin : 0;
+      if(delta)scroller.scrollTop+=delta;
+    };
+    // Only navigate to original native controls. The category does not own
+    // business state, invoke a writer, synthesize provenance or rehost a copy.
+    const focusRealTask=(task)=>{
+      if(task==='plan')closeInspector();
+      // Disclosures belong to the selected task, not to a page-global
+      // permanent expansion. A previously opened recovery/preview must not
+      // bury the actual controls of a newly selected specialist category.
+      if(task!=='project'){
+        const recovery=find(doc,'sf14Recovery');
+        if(recovery)recovery.open=false;
+      }
+      root.dataset.sfv35Task=task;
+      if(task==='tracks'){
+        closeInspector();
+        root.querySelector('[data-sf-section="tracks"]')?.click();
+        revealWithin(currentTracks,compositionHost);
+      }else if(task==='subtitle'||task==='font'){
+        const editor=find(doc,'sf14OptionsDrawer');
+        if(editor)editor.open=true;
+        // Never leave an empty large video preview above actual subtitle/font
+        // controls. Its ONE real preview drawer remains available on demand.
+        const preview=find(doc,'sf14PreviewDrawer');
+        if(preview)preview.open=false;
+        root.querySelector('[data-editor-filter="'+
+          (task==='subtitle'?'subtitle':'font')+'"]')?.click();
+        // The ONLY native inspector presents existing editors and controls.
+        if(root.dataset.sfv3Inspector!=='open')
+          find(doc,'sfv3InspectorOpen')?.click();
+        doc.defaultView?.requestAnimationFrame(()=>{
+          if(root.dataset.sfv35Task!==task||
+              root.dataset.sfv3Inspector!=='open')return;
+          const field=task==='subtitle'?find(doc,'newSubtitleList'):
+            find(doc,'fontMode');
+          revealWithin(field,find(doc,'sf14Inspector'));
+        });
+      }else if(task==='attachments'){
+        const extraction=find(doc,'attachmentExtractionDetails');
+        const impact=find(doc,'existingAttachmentImpactDetails');
+        if(extraction)extraction.open=true;
+        if(impact)impact.open=true;
+        revealWithin(extraction||impact||find(doc,'sf14ToolInspect'),
+          find(doc,'sf14Tools'));
+      }else if(task==='verification'){
+        closeInspector();
+        verification.open=true;
+        revealWithin(verification,compositionHost);
+        // A completed output is visible only if the real evidence is present.
+        if(inspectorEvidence&&!inspectorEvidence.hidden){
+          evidenceDrawer.open=true;
+        }
+      }else if(task==='project'){
+        const recovery=find(doc,'sf14Recovery');
+        if(recovery){
+          recovery.open=true;
+          revealWithin(recovery,compositionHost);
+        }
+      }
+      syncFeatureNavigation();
+    };
+    // Native view selection retains all original source/target/execution
+    // handlers. Plan-only tasks must pass the SAME exact-File target gate.
+    const navigateRealTask=(task)=>{
+      if(task==='batch'||task==='tools'||task==='attachments'){
+        const view=task==='batch'?'batch':'tools';
+        root.querySelector('[data-sf-view="'+view+'"]')?.click();
+        focusRealTask(task);
+      }else if(task==='project'||task==='source'){
+        root.querySelector('[data-sf-view="single"]')?.click();
+        setSurface('source');
+        focusRealTask(task);
+      }else if(planTasks.has(task)){
+        root.querySelector('[data-sf-view="single"]')?.click();
+        if(!setSurface('plan')){
+          pendingFeatureTask=task;
+          setSurface('source');
+          flowMessage='先明确选择拟输出目标，再进入'+
+            (task==='subtitle'?'字幕':task==='font'?'字体':
+              task==='tracks'?'轨道':task==='verification'?'验证':'拟输出')+
+            '；尚未获得写入许可。';
+          openTargetPicker(null);
+          syncFeatureNavigation();
+          schedule();
+          return;
+        }
+        focusRealTask(task);
+      }
+      schedule();
+    };
+    featureNavigation.addEventListener('click',event=>{
+      const task=event.target.closest('button[data-sfv35-task]')?.dataset.sfv35Task;
+      if(!task)return;
+      pendingFeatureTask=null;
+      navigateRealTask(task);
+    });
+    // A user-confirmed source-bound target is the only point at which a
+    // deferred category can gain edit visibility. Escape/cancel discards it.
+    root.addEventListener('softmux:v3-surface-changed',event=>{
+      if(event.detail?.surface==='plan'&&pendingFeatureTask){
+        const requested=pendingFeatureTask;
+        pendingFeatureTask=null;
+        focusRealTask(requested);
+      }
+      syncFeatureNavigation();
+    });
+    cancelChoice.addEventListener('click',()=>{pendingFeatureTask=null;});
+    picker.addEventListener('cancel',()=>{pendingFeatureTask=null;});
+    picker.addEventListener('close',()=>{
+      if(root.dataset.sfv3Surface!=='plan')pendingFeatureTask=null;
+    });
+    sourceTab.addEventListener('click',()=>{
+      root.dataset.sfv35Task='source';syncFeatureNavigation();
+    });
+    targetTab.addEventListener('click',()=>{
+      root.dataset.sfv35Task='plan';syncFeatureNavigation();
+    });
+    planBack.addEventListener('click',()=>{
+      root.dataset.sfv35Task='source';syncFeatureNavigation();
+    });
+    const navViewObserver=new MutationObserver(syncFeatureNavigation);
+    navViewObserver.observe(root,{attributes:true,
+      attributeFilter:['data-view','data-sfv3-surface','data-sfv35-task']});
+    syncFeatureNavigation();
+  }
 
   const render = () => {
     scheduled=false;
