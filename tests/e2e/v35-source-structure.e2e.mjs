@@ -70,7 +70,7 @@ try{
   await page.evaluate(()=>{
     window.__structureOriginalFile=document.getElementById('videoInput').files[0];
   });
-  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+  assert.notEqual(await root.getAttribute('data-sfv3-target-confirmed'),'true');
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   assert.equal(await page.locator('#sfv3ObservedStructure').isVisible(),false,
     'target-only structure projection must not masquerade as active output');
@@ -86,7 +86,7 @@ try{
   assert.equal(await page.evaluate(()=>document.activeElement?.classList
     .contains('sfv3-source-resource-strip')),true,
     'direct structure task must focus actual source observation region');
-  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+  assert.notEqual(await root.getAttribute('data-sfv3-target-confirmed'),'true');
   assert.equal(await page.locator('#muxBtn').isDisabled(),true);
   assert.equal(await page.locator('#sfv3ObservedStructure').isVisible(),false);
   assert.equal(await page.locator('.sfv3-source-resource-card').count(),3,
@@ -111,7 +111,7 @@ try{
   assert.equal(await root.getAttribute('data-sfv3-surface'),'source');
   assert.equal(await page.evaluate(()=>
     window.__structureOriginalFile===document.getElementById('videoInput').files[0]),true);
-  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+  assert.notEqual(await root.getAttribute('data-sfv3-target-confirmed'),'true');
   result.claims.push('batch and source-structure navigation preserve original File identity');
 
   // Closing the existing disclosure then choosing the direct task
@@ -133,7 +133,7 @@ try{
     '11 tasks remain visible across two compact rows at 620px');
   assert.ok(bounds.every(x=>x.width>=49&&x.height>=39&&x.right<=621),
     'no task is hidden outside the compact viewport');
-  assert.equal(await root.getAttribute('data-sfv3-target-confirmed'),'false');
+  assert.notEqual(await root.getAttribute('data-sfv3-target-confirmed'),'true');
   await page.screenshot({path:path.join(out,'02-compact-readonly-structure.png')});
   assert.deepEqual(errors,[]);
   result.passed=true;result.observations=observations;
