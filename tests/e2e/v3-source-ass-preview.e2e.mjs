@@ -77,7 +77,7 @@ try {
  assert.ok(previewRect && flagRect && sheetRect &&
    previewRect.width>=290 && previewRect.x<flagRect.x-20 &&
    Math.abs(previewRect.y-flagRect.y)<=16 &&
-   previewRect.bottom<=sheetRect.bottom+3,
+   previewRect.y+previewRect.height<=sheetRect.y+sheetRect.height+3,
    'Figma V3-05 preview must align LEFT of actual source flags in portrait: '+
      JSON.stringify({previewRect,flagRect,sheetRect}));
  const selectedSourceLayout=await page.evaluate(()=>{
