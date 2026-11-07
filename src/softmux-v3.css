@@ -2627,3 +2627,67 @@
     border-color:var(--sfv3-accent);
   }
 }
+
+
+/* V3.5 opt-in navigation pilot (?ui=v3&nav=full).
+ * Reuses the EXISTING native single/batch/tools modes and all original File,
+ * JobPlan, inspector, mux and result nodes. No second writable editor.
+ * Keep this entirely opt-in until layout and real device acceptance. */
+.sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+  display:flex;align-items:center;gap:7px;box-sizing:border-box;
+  width:100%;height:52px;min-height:52px;overflow-x:auto;overflow-y:hidden;
+  padding:6px 14px;background:var(--sfv3-chrome);
+  border-bottom:1px solid var(--sfv3-line);
+  scrollbar-width:thin;white-space:nowrap;
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button{
+  flex:0 0 auto;min-height:39px;padding:8px 16px;
+  color:var(--sfv3-soft);background:transparent;
+  font-size:12px;font-weight:680;
+  border:1px solid var(--sfv3-line);border-radius:8px;cursor:pointer;
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button[aria-current="page"]{
+  color:var(--sfv3-accent);border-color:#55705f;
+  background:var(--sfv3-accent-back);
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button:hover{
+  color:var(--sfv3-text);background:var(--sfv3-row-raised);
+}
+.sf14.sfv3.sfv35-nav .sf14-single{
+  height:calc(100dvh - 58px - 52px - 56px);
+}
+/* V3's grid display!important must NOT resurrect a hidden single surface
+ * when the real native workbench switches to the batch/tools page. */
+.sf14.sfv3.sfv35-nav #sf14Single[hidden],
+.sf14.sfv3.sfv35-nav .sf14-output[hidden],
+.sf14.sfv3.sfv35-nav #sf14Batch[hidden],
+.sf14.sfv3.sfv35-nav #sf14Tools[hidden]{
+  display:none!important;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+.sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+  display:block;
+  min-height:0;height:calc(100dvh - 58px - 52px);
+  box-sizing:border-box;overflow:auto;
+  background:var(--sfv3-bg);color:var(--sfv3-text);
+  padding:14px clamp(12px,2vw,24px);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-workspace{
+  min-width:0;max-width:none;
+  background:transparent;box-shadow:none;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-queue{
+  min-width:0;
+}
+@media(max-width:719px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    gap:5px;padding:6px 8px;
+  }
+  .sf14.sfv3.sfv35-nav .sfv35-feature-button{
+    min-height:40px;padding:7px 11px;font-size:11px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    padding:10px 8px;
+  }
+}
