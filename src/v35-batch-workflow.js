@@ -63,8 +63,9 @@ export function mountV35BatchWorkflow(doc,root) {
   const summary=doc.createElement('div');
   summary.id='sfv35BatchSummary';
   summary.className='sfv35-batch-summary';
-  summary.setAttribute('role','status');
-  summary.setAttribute('aria-live','polite');
+  // Existing native status elements already have aria-live. Do not broadcast
+  // a second copy of every byte of run progress to screen readers.
+  summary.setAttribute('aria-label','当前批次状态摘要');
   const status=doc.createElement('span');
   status.id='sfv35BatchSourceStatus';
   const review=doc.createElement('span');
