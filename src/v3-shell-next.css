@@ -94,3 +94,35 @@
   min-height:56px!important;max-height:56px!important;height:56px!important;
   padding-block:6px!important;
 }
+
+
+/* The Figma 72px desktop rail is an object-navigation component with four
+ * positions: documents, objects, search, and pinned help. Import remains
+ * in the real header / Figma add-resource button, not a duplicate rail slot. */
+#sf14Root.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame^="desktop-"] #sfv3Rail{
+  width:72px;
+  padding:16px 12px;
+  gap:24px;
+  align-items:center;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail > button[aria-label="添加资源"]{
+  display:none!important;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-help{
+  margin-top:auto;
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action{
+  display:grid;
+  place-items:center;
+  border:0;
+  padding:0;
+  background:transparent;
+  color:var(--sfv3-soft);
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action:hover,
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action:focus-visible{
+  background:var(--sfv3-row-raised);
+}
+#sf14Root.sfv3[data-sfv3-shell="next"] #sfv3Rail .sfv3-shell-rail-action .sfv3-svg-icon{
+  width:19px;height:19px;
+}
