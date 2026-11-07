@@ -21,6 +21,9 @@ on:
       - 'tests/e2e/v3-responsive-geometry.e2e.mjs'
       - 'tests/e2e/v35-native-feature-nav.e2e.mjs'
       - 'tests/e2e/v35-source-structure.e2e.mjs'
+      - 'src/v35-batch-workflow.js'
+      - 'tests/e2e/v35-batch-deep-workflow.e2e.mjs'
+      - 'tests/v35-batch-workflow.test.mjs'
       - 'scripts/ui-v3-build-comparison.mjs'
       - 'docs/ui-v3/**'
       - '.github/workflows/ui-v3-pilot.yml'
@@ -90,6 +93,8 @@ jobs:
         run: node tests/e2e/v35-native-feature-nav.e2e.mjs
       - name: Chromium V3.5 real MKV source attachments chapters and tags
         run: node tests/e2e/v35-source-structure.e2e.mjs
+      - name: Chromium V3.5 eight real batch contexts + output audit
+        run: node tests/e2e/v35-batch-deep-workflow.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
       - name: Real Chromium V3 new blank MKV from explicit source stream, native ffprobe and output SHA
@@ -109,6 +114,7 @@ jobs:
             .e2e/ui-v3-responsive/
             .e2e/ui-v35-navigation/
             .e2e/ui-v35-source-structure/
+            .e2e/ui-v35-batch-deep-workflow/
             .e2e/ui-v3-multitrack/
             .e2e/ui-v3-blank-target/
             .e2e/ui-v3-visual-comparison/
