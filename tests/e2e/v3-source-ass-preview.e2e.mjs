@@ -90,9 +90,15 @@ try {
  assert.equal(await observedFlags.isVisible(),true);
  const expectedFlag=value=>value===1||value===true?'开':
    value===0||value===false?'关':'未观察';
- const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').allTextContents();
- assert.deepEqual(sourceFlagLabels.map(s=>s.replace(/\s+/g,'')),
-   ['Default'+expectedFlag(stream.disposition?.default),'Forced'+expectedFlag(stream.disposition?.forced)]);
+ const sourceFlagLabels=await observedFlags.locator('.sfv3-source-flag-state').evaluateAll(nodes=>
+   nodes.map(node=>({
+     field:node.querySelector('strong')?.textContent?.trim(),
+     observed:node.querySelector('span')?.textContent?.trim(),
+   })));
+ assert.deepEqual(sourceFlagLabels,
+   [{field:'Default',observed:expectedFlag(stream.disposition?.default)},
+    {field:'Forced',observed:expectedFlag(stream.disposition?.forced)}],
+   'actual source values, not the adjacent help button, are observation evidence');
  assert.equal(await observedFlags.locator('input,select').count(),0,
    'source disposition is observation only and cannot write target track state');
  assert.equal(await observedFlags.locator('button').count(),1,
