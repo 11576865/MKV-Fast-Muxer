@@ -361,6 +361,33 @@ export function mountSoftmuxV3Surface(doc = document) {
   addBtn.addEventListener('click', () => find(doc, 'sf14Add')?.click());
   single.prepend(rail);
 
+  // Opt-in V3.5 capability-entry pilot. The existing native workbench already
+  // owns single / batch / tools, and all File, plan and executor state. These
+  // named controls only navigate to those ORIGINAL DOM nodes; they never clone
+  // batch editors or create an implicit writable target. Default V3 unchanged.
+  const featureNavigationEnabled=new URLSearchParams(
+    doc.defaultView?.location?.search||'').get('nav')==='full';
+  const featureNavigation=featureNavigationEnabled?doc.createElement('nav'):null;
+  if(featureNavigation) {
+    root.classList.add('sfv35-nav');
+    featureNavigation.id='sfv35FeatureNavigation';
+    featureNavigation.className='sfv35-feature-navigation';
+    featureNavigation.setAttribute('aria-label','工作区功能入口');
+    for(const [key,label,control] of [
+      ['source','来源','sf14Single'],
+      ['plan','拟输出','sf14Single'],
+      ['batch','批量任务','sf14Batch'],
+      ['tools','容器工具','sf14Tools'],
+    ]) {
+      const button=appendText(doc,featureNavigation,'button',
+        'sfv35-feature-button',label);
+      button.type='button';
+      button.dataset.sfv35Task=key;
+      button.setAttribute('aria-controls',control);
+    }
+    header?.after(featureNavigation);
+  }
+
   // This is a read-only observation of the SAME authoritative source scan.
   // It is not another track editor and never dispatches mutating commands.
   const readout = doc.createElement('section');
@@ -1580,6 +1607,38 @@ export function mountSoftmuxV3Surface(doc = document) {
   root.addEventListener('softmux:v3-edit-blank',()=>{
     if(targetIntent?.kind==='blank')openTargetPicker(null);
   });
+
+  if(featureNavigation) {
+    const syncFeatureNavigation=()=>{
+      const active=root.dataset.view==='batch'?'batch':
+        root.dataset.view==='tools'?'tools':
+        root.dataset.sfv3Surface==='plan'?'plan':'source';
+      for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]'))
+        button.toggleAttribute('aria-current',button.dataset.sfv35Task===active);
+    };
+    // The native 10.14 changeView remains the ONE authority for switching
+    // workspaces. Source/plan remains governed by exact-File target intent.
+    featureNavigation.addEventListener('click',event=>{
+      const task=event.target.closest('button[data-sfv35-task]')?.dataset.sfv35Task;
+      if(!task)return;
+      const nativeView=task==='batch'?'batch':task==='tools'?'tools':'single';
+      root.querySelector('[data-sf-view="'+nativeView+'"]')?.click();
+      if(task==='source')setSurface('source');
+      if(task==='plan') {
+        if(!setSurface('plan')) {
+          setSurface('source');
+          openTargetPicker(null);
+        }
+      }
+      syncFeatureNavigation();
+      schedule();
+    });
+    const navViewObserver=new MutationObserver(syncFeatureNavigation);
+    navViewObserver.observe(root,{attributes:true,
+      attributeFilter:['data-view','data-sfv3-surface']});
+    root.addEventListener('softmux:v3-surface-changed',syncFeatureNavigation);
+    syncFeatureNavigation();
+  }
 
   const render = () => {
     scheduled=false;
