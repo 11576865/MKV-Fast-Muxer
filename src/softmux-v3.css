@@ -2728,3 +2728,15 @@
     height:calc(100dvh - 58px - 138px);
   }
 }
+
+
+/* Specialist focus is a VIEW over the existing editor, not a new selection
+ * owner. When navigating explicitly to Subtitle/Font, the previously
+ * selected unrelated stream card must not consume the only visible inspector
+ * space and hide the actual native specialist controls below the fold.
+ * Returning to Tracks restores the exact original context DOM. */
+.sf14.sfv3.sfv35-nav[data-sfv3-surface="plan"]:is(
+  [data-sfv35-task="subtitle"],[data-sfv35-task="font"])
+  :is(#sfv3ObjectContext,#assetInspectorHost){
+  display:none!important;
+}
