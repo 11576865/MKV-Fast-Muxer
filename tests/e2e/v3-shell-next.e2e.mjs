@@ -70,6 +70,34 @@ try{
   assert.equal(await page.locator('#muxBtn').isDisabled(),true,
     'source-only view may never authorize a write');
   await measure('desktop-source');
+  // V3-01 desktop rail is a functional object-navigation system, not
+  // decoration. Each action delegates to original DOM and input ownership.
+  assert.equal(await page.locator('#sfv3Rail').getAttribute('aria-label'),
+    '资源与对象导航');
+  const rail=page.locator('#sfv3Rail');
+  assert.equal(await rail.locator('button:visible').count(),4,
+    'Figma source rail has documents, object list, search and help');
+  assert.equal(await page.locator('#sfv3Rail > button[aria-label="添加资源"]').isVisible(),false,
+    'native import still belongs in the real header, not duplicate rail button');
+  await page.locator('#sfv3ShellObjectList').click();
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'sfv3SourceContents',
+    'object rail locates and focuses the real source list');
+  await page.locator('#sfv3ShellSearch').click();
+  assert.equal(await page.locator('#sfv3SourceSearch').isVisible(),true,
+    'rail search opens original source search, not a shadow index');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'sfv3SourceSearch');
+  await page.locator('#sfv3SourceSearch').fill('aac');
+  assert.equal(await page.locator('#sfv3SourceContents .sfv3-observed-row')
+    .filter({hasText:'aac'}).count(),1,'real scanned AAC source is searchable');
+  await page.locator('#sfv3SourceSearch').fill('');
+  await page.locator('#sfv3SourceSearchToggle').click();
+  await page.locator('#sfv3ShellHelp').click();
+  assert.equal(await page.locator('#sf14HelpDialog').evaluate(el=>el.open),true,
+    'rail help opens the native workbench dialog');
+  await page.locator('#sf14HelpDialog button').last().click();
+  assert.equal(await page.locator('#sf14HelpDialog').evaluate(el=>el.open),false);
+  assert.equal(await page.locator('#videoInput').evaluate(el=>el.files?.[0]?.name),
+    path.basename(source),'navigation cannot revoke File provenance');
 
   await page.setViewportSize({width:820,height:1180});
   await measure('portrait-source');
