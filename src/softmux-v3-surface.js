@@ -808,8 +808,13 @@ export function mountSoftmuxV3Surface(doc = document) {
   const desktopSourceActions=()=>Boolean(
     doc.defaultView?.matchMedia?.('(min-width: 960px)')?.matches);
   const restoreSourceActions=()=>{
+    // #sfv3SourceFlagHelpHost is intentionally rehosted INSIDE the Default
+    // observation flags. It is no longer a direct child of sourceSheet, so
+    // using it as insertBefore reference throws NotFoundError and prevents
+    // the explicit desktop "对象详情" inspector from opening.
+    // The preview placeholder is a stable direct child of the ONE sheet.
     if(sourceSheetActions.parentElement!==sourceSheet)
-      sourceSheet.insertBefore(sourceSheetActions,sourceSheetHelpHost);
+      sourceSheet.insertBefore(sourceSheetActions,sourcePreviewIdle);
     sourceInlineActions.hidden=true;
     sourceInlineActions.remove();
     sourceInlineDetail.setAttribute('aria-expanded','false');
