@@ -69,6 +69,17 @@ try {
  assert.equal(await page.locator('#sfv3SourcePreviewIdle').isVisible(),true,
    'V3-05 must reserve a truthful 16:9 stage before FFmpeg renders');
  assert.equal(await page.locator('#sfv3SourcePreviewHost').isVisible(),false);
+ // The Figma V3-05 820px context is an actual two-column preview + metadata
+ // sheet, not a one-column form with an orphaned media stage at bottom-right.
+ const previewRect=await page.locator('#sfv3SourcePreviewIdle').boundingBox();
+ const flagRect=await page.locator('#sfv3SourceFlagStates').boundingBox();
+ const sheetRect=await page.locator('#sfv3SourceInspector').boundingBox();
+ assert.ok(previewRect && flagRect && sheetRect &&
+   previewRect.width>=290 && previewRect.x<flagRect.x-20 &&
+   Math.abs(previewRect.y-flagRect.y)<=16 &&
+   previewRect.bottom<=sheetRect.bottom+3,
+   'Figma V3-05 preview must align LEFT of actual source flags in portrait: '+
+     JSON.stringify({previewRect,flagRect,sheetRect}));
  const selectedSourceLayout=await page.evaluate(()=>{
    const sheet=document.getElementById('sfv3SourceInspector');
    const actions=sheet?.querySelector('.sfv3-source-sheet-actions');
