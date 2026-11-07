@@ -29,7 +29,7 @@ const ctx=await browser.newContext({
 const page=await ctx.newPage(),pageErrors=[];
 page.on('pageerror',error=>pageErrors.push(String(error)));
 const evidence={
-  schema:'softmux-v35-real-native-entry-pilot-v2',
+  schema:'softmux-v35-real-native-entry-pilot-v3',
   source:path.basename(source),
   claims:[],
   limits:[
@@ -163,8 +163,17 @@ try {
       el?.dataset.sfv3TargetConfirmed==='true';
   },null,{timeout:60000});
   assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
-  assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el=>el.open),true);
+  assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el=>el.open),false,
+    'empty preview does not bury live subtitle editing controls');
+  assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),false,
+    'unrelated recovery disclosure must collapse when changing task');
   assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'true');
+  await page.waitForFunction(()=>{
+    const field=document.querySelector('#newSubtitleList')?.getBoundingClientRect();
+    const pane=document.querySelector('.sf14-pane.sf14-inspector')?.getBoundingClientRect();
+    return field&&pane&&field.top>=pane.top &&
+      field.top<pane.bottom-30;
+  },null,{timeout:10000});
   assert.equal(await page.locator('#newSubtitleList').count(),1);
   await page.screenshot({path:path.join(output,'06-subtitle-native-inspector.png')});
   evidence.claims.push('deferred subtitle entry resumes only after explicit target acceptance and uses one inspector');
@@ -173,6 +182,13 @@ try {
   assert.equal(await root.getAttribute('data-sfv3-surface'),'plan');
   assert.equal(await page.locator('#sf14OptionsDrawer').evaluate(el=>el.open),true);
   assert.equal(await page.locator('#fontMode').count(),1);
+  assert.equal(await page.locator('#sf14PreviewDrawer').evaluate(el=>el.open),false);
+  await page.waitForFunction(()=>{
+    const field=document.querySelector('#fontMode')?.getBoundingClientRect();
+    const pane=document.querySelector('.sf14-pane.sf14-inspector')?.getBoundingClientRect();
+    return field&&pane&&field.top>=pane.top &&
+      field.top<pane.bottom-30;
+  },null,{timeout:10000});
   assert.equal(await nav.locator('[data-sfv35-task="font"]').getAttribute('aria-current'),'page');
   await page.screenshot({path:path.join(output,'07-font-native-editor.png')});
 
@@ -182,6 +198,7 @@ try {
   assert.equal(await nav.locator('[data-sfv35-task="tracks"]').getAttribute('aria-current'),'page');
 
   await nav.locator('[data-sfv35-task="verification"]').click();
+  assert.equal(await page.locator('#sf14Recovery').evaluate(el=>el.open),false);
   assert.equal(await page.locator('#sfv3Verification').evaluate(el=>el.open),true);
   assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-expanded'),'false');
   assert.equal(await page.locator('#outputEvidencePanel').count(),1);
