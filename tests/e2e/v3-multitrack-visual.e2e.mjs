@@ -313,6 +313,15 @@ try{
      assert.equal(await page.locator('#sf14PlanToggle').getAttribute('aria-label'),
        '检查封装计划、风险及执行边界',
        'native icon-only plan action must retain its accessible name');
+     assert.ok(data.dockInspectorOpen.width>=40 && data.dockInspectorOpen.width<=44,
+       'Figma V3-08 compact inspector must not be a cramped 78px text button');
+     assert.equal(await page.locator('#sfv3InspectorOpen').getAttribute('aria-label'),
+       '查看对象详情与真实成品',
+       'icon-only inspector must retain the actual output / download / audit entry');
+     const inspectorGlyph=await page.locator('#sfv3InspectorOpen')
+       .evaluate(node=>getComputedStyle(node,'::before').backgroundImage);
+     assert.ok(inspectorGlyph && inspectorGlyph!=='none' && /mkv-document/.test(inspectorGlyph),
+       'compact output-inspector glyph must be distinct from the plan list icon');
      await page.locator('#sf14PlanToggle').click();
      assert.equal(await page.locator('.sf14-output').getAttribute('data-plan-open'),'true',
        'compact plan button must open the SAME native detailed plan');
