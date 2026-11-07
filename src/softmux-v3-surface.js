@@ -4,6 +4,8 @@
  * Existing source inputs, composition editor, mux action and output evidence
  * are retained in place. Source observation is a read-only DOM projection.
  */
+import {mountV3ShellNext} from './v3-shell-next.js';
+
 const find = (doc, id) => doc.getElementById(id);
 
 // Exact SVG exports from the approved Figma V3 nodes, all local and immutable
