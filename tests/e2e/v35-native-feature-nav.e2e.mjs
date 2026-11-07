@@ -44,7 +44,7 @@ try {
   await root.waitFor();
   const nav=page.locator('#sfv35FeatureNavigation');
   assert.deepEqual(await nav.locator('button').allTextContents(),
-    ['来源','拟输出','轨道','字幕','字体','附件',
+    ['来源','源结构','拟输出','轨道','字幕','字体','附件',
       '批量任务','验证','工程','容器工具']);
   assert.equal(await nav.locator('[data-sfv35-task="source"]').getAttribute('aria-current'),'page');
   assert.equal(await page.locator('#sf14Batch').count(),1);
@@ -240,18 +240,18 @@ try {
   const boxes=await nav.locator('button').evaluateAll(nodes=>nodes.map(n=>{
     const r=n.getBoundingClientRect();return {width:r.width,height:r.height};
   }));
-  assert.equal(boxes.length,10);
+  assert.equal(boxes.length,11);
   assert.ok(boxes.every(b=>b.width>=49&&b.height>=39),
-    'all ten compact named task buttons have a visible touch target');
+    'all eleven compact named task buttons have a visible touch target');
   const rows=await nav.locator('button').evaluateAll(nodes=>[
     ...new Set(nodes.map(n=>Math.round(n.getBoundingClientRect().top)))
   ]);
-  assert.equal(rows.length,2,'compact layout must show ten entries in two rows');
-  await page.screenshot({path:path.join(output,'09-compact-ten-entry-navigation.png')});
+  assert.equal(rows.length,2,'compact layout must show eleven entries in two rows');
+  await page.screenshot({path:path.join(output,'09-compact-eleven-entry-navigation.png')});
   assert.deepEqual(pageErrors,[]);
   await writeFile(path.join(output,'navigation-evidence.json'),
     JSON.stringify({...evidence,passed:true},null,2)+'\n');
-  console.log('V3.5 ten real native task/context entries and no implicit output authority: PASS');
+  console.log('V3.5 eleven real task/context entries and no implicit output authority: PASS');
 }catch(error){
   evidence.domAtFailure=await page.evaluate(()=>({
     rootView:document.querySelector('#sf14Root')?.dataset?.view,
