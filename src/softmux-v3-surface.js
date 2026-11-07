@@ -692,14 +692,16 @@ export function mountSoftmuxV3Surface(doc = document) {
   sourceInlineDetail.type='button';
   sourceInlineDetail.setAttribute('aria-controls','sfv3SourceInspector');
   sourceInlineDetail.setAttribute('aria-expanded','false');
-  const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','生成 ASS 预览帧');
+  const sourceSheetPreview=appendText(doc,sourceSheetActions,'button','sfv3-source-sheet-preview','预览');
   sourceSheetPreview.id='sfv3SourceInspectorPreview';
   sourceSheetPreview.type='button';
+  sourceSheetPreview.setAttribute('aria-label','生成来源 ASS 的真实 FFmpeg/libass 预览帧');
   sourceSheetPreview.hidden=true;
   const sourceSheetExtract=appendText(doc,sourceSheetActions,'button',
-    'sfv3-source-sheet-extract','提取 ASS（不含字体）');
+    'sfv3-source-sheet-extract','提取');
   sourceSheetExtract.id='sfv3SourceInspectorExtract';
   sourceSheetExtract.type='button';
+  sourceSheetExtract.setAttribute('aria-label','提取来源 ASS 字幕轨道（不含字体附件）');
   sourceSheetExtract.hidden=true;
   const nativeExtractionPanel=find(doc,'originalTrackExtractionPanel');
   const nativeExtractionHome=nativeExtractionPanel?.parentNode;
@@ -954,8 +956,11 @@ export function mountSoftmuxV3Surface(doc = document) {
     }
     sourcePreviewIdle.hidden=!previewable || !sourceSheetPreviewHost.hidden;
     sourceSheetAdd.hidden=!selectedSource.transfer;
-    sourceSheetAdd.textContent=['ass','ssa'].includes(selectedSource.transfer?.codec)
-      ? '加入到…（校验 ASS 与字体）' : '加入到…';
+    sourceSheetAdd.textContent='加入到…';
+    sourceSheetAdd.setAttribute('aria-label',
+      ['ass','ssa'].includes(selectedSource.transfer?.codec)
+        ? '加入到明确目标（校验 ASS 与字体依赖）'
+        : '加入到明确目标（不会修改来源）');
     // Keep desktop row actions local to the selected ASS: the old 440px
     // inspector must NOT open just by selecting an observed source track.
     // Portrait stays a real lower sheet; preview/extract/details can still
