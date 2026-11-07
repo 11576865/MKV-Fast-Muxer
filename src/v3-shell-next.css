@@ -67,3 +67,13 @@
 }
 /* Only the shell owns vertical slot heights. Existing native element
  * listeners, the single editor and the exact-File write gate are unaffected. */
+
+/* The legacy 10.14 idle output card declared min-height:60px!important.
+ * The approved desktop target shell reserves exactly 56px; override that
+ * obsolete card constraint ONCE at the shell boundary, not per button.
+ * A running Cancel remains governed by the original executor state. */
+.sf14.sfv3[data-sfv3-shell="next"][data-sfv3-shell-frame="desktop-target"][data-sfv3-surface="plan"]
+  > .sf14-output:has(#cancelBtn:disabled){
+  min-height:56px!important;max-height:56px!important;height:56px!important;
+  padding-block:6px!important;
+}
