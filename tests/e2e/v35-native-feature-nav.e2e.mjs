@@ -8,7 +8,7 @@ import {chromium} from 'playwright';
 // editor and original File inputs. Does not claim full 55-state implementation.
 const output=path.resolve('.e2e/ui-v35-navigation');
 await mkdir(output,{recursive:true});
-const source=path.join(output,'Pilot S01E01.mp4');
+const source=path.join(output,'Pilot S01E01.mkv');
 const subtitle=path.join(output,'Pilot S01E01.srt');
 execFileSync('ffmpeg',[
   '-hide_banner','-loglevel','error','-y',
@@ -51,12 +51,14 @@ try {
   assert.equal(await page.locator('#unifiedAssetInput').count(),1);
   assert.equal(await page.locator('#muxBtn').count(),1);
   await page.setInputFiles('#unifiedAssetInput',source);
+  // V3's approved first-source path is a real Matroska source; do not
+  // generalize an MP4-only input fixture into a V3 MKV inventory failure.
   await page.waitForFunction(()=>{
     const f=document.getElementById('videoInput')?.files?.[0];
-    return f?.name==='Pilot S01E01.mp4' &&
+    return f?.name==='Pilot S01E01.mkv' &&
       document.getElementById('sfv3FileName')?.textContent===f.name &&
       document.querySelector('#sfv3SourceContents .sfv3-observed-row');
-  },null,{timeout:150000});
+  },null,{timeout:45000});
   await page.evaluate(()=>{
     window.__v35Source=document.getElementById('videoInput').files[0];
   });
@@ -134,6 +136,14 @@ try {
     JSON.stringify({...evidence,passed:true},null,2)+'\n');
   console.log('V3.5 real native source/batch/tools nav pilot PASS');
 }catch(error){
+  evidence.domAtFailure=await page.evaluate(()=>({
+    rootView:document.querySelector('#sf14Root')?.dataset?.view,
+    surface:document.querySelector('#sf14Root')?.dataset?.sfv3Surface,
+    file:document.querySelector('#videoInput')?.files?.[0]?.name,
+    activeTitle:document.querySelector('#sfv3FileName')?.textContent,
+    observedRows:document.querySelectorAll('#sfv3SourceContents .sfv3-observed-row').length,
+    batchCount:document.querySelectorAll('#batchPlan [data-batch-job-index]').length,
+  })).catch(()=>null);
   await page.screenshot({path:path.join(output,'failure.png'),fullPage:true}).catch(()=>{});
   await writeFile(path.join(output,'navigation-evidence.json'),
     JSON.stringify({...evidence,passed:false,error:String(error),pageErrors},null,2)+'\n');
