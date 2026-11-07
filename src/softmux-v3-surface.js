@@ -376,7 +376,13 @@ export function mountSoftmuxV3Surface(doc = document) {
     for(const [key,label,control] of [
       ['source','来源','sf14Single'],
       ['plan','拟输出','sf14Single'],
+      ['tracks','轨道','compositionTracks'],
+      ['subtitle','字幕','sf14Inspector'],
+      ['font','字体','sf14Inspector'],
+      ['attachments','附件','sf14Tools'],
       ['batch','批量任务','sf14Batch'],
+      ['verification','验证','sfv3Verification'],
+      ['project','工程','sf14Recovery'],
       ['tools','容器工具','sf14Tools'],
     ]) {
       const button=appendText(doc,featureNavigation,'button',
@@ -1609,37 +1615,124 @@ export function mountSoftmuxV3Surface(doc = document) {
   });
 
   if(featureNavigation) {
+    const planTasks=new Set(['plan','tracks','subtitle','font','verification']);
+    let pendingFeatureTask=null;
     const syncFeatureNavigation=()=>{
+      const context=root.dataset.sfv35Task||'source';
       const active=root.dataset.view==='batch'?'batch':
-        root.dataset.view==='tools'?'tools':
-        root.dataset.sfv3Surface==='plan'?'plan':'source';
+        root.dataset.view==='tools'?(context==='attachments'?'attachments':'tools'):
+        root.dataset.sfv3Surface==='plan'?
+          (planTasks.has(context)?context:'plan'):
+          (context==='project'?'project':'source');
       for(const button of featureNavigation.querySelectorAll('[data-sfv35-task]')) {
         if(button.dataset.sfv35Task===active)
           button.setAttribute('aria-current','page');
         else button.removeAttribute('aria-current');
       }
     };
-    // The native 10.14 changeView remains the ONE authority for switching
-    // workspaces. Source/plan remains governed by exact-File target intent.
-    featureNavigation.addEventListener('click',event=>{
-      const task=event.target.closest('button[data-sfv35-task]')?.dataset.sfv35Task;
-      if(!task)return;
-      const nativeView=task==='batch'?'batch':task==='tools'?'tools':'single';
-      root.querySelector('[data-sf-view="'+nativeView+'"]')?.click();
-      if(task==='source')setSurface('source');
-      if(task==='plan') {
-        if(!setSurface('plan')) {
-          setSurface('source');
-          openTargetPicker(null);
+    // Only navigate to original native controls. The category does not own
+    // business state, invoke a writer, synthesize provenance or rehost a copy.
+    const focusRealTask=(task)=>{
+      root.dataset.sfv35Task=task;
+      if(task==='tracks'){
+        root.querySelector('[data-sf-section="tracks"]')?.click();
+        currentTracks.scrollIntoView?.({block:'nearest'});
+      }else if(task==='subtitle'||task==='font'){
+        const editor=find(doc,'sf14OptionsDrawer');
+        if(editor)editor.open=true;
+        if(task==='subtitle'){
+          const preview=find(doc,'sf14PreviewDrawer');
+          if(preview)preview.open=true;
+        }
+        root.querySelector('[data-editor-filter="'+
+          (task==='subtitle'?'subtitle':'font')+'"]')?.click();
+        // The ONLY native inspector presents existing editors and controls.
+        find(doc,'sfv3InspectorOpen')?.click();
+      }else if(task==='attachments'){
+        const extraction=find(doc,'attachmentExtractionDetails');
+        const impact=find(doc,'existingAttachmentImpactDetails');
+        if(extraction)extraction.open=true;
+        if(impact)impact.open=true;
+        (extraction||impact||find(doc,'sf14ToolInspect'))
+          ?.scrollIntoView?.({block:'nearest'});
+      }else if(task==='verification'){
+        verification.open=true;
+        verification.scrollIntoView?.({block:'nearest'});
+        // A completed output is visible only if the real evidence is present.
+        if(inspectorEvidence&&!inspectorEvidence.hidden){
+          evidenceDrawer.open=true;
+        }
+      }else if(task==='project'){
+        const recovery=find(doc,'sf14Recovery');
+        if(recovery){
+          recovery.open=true;
+          recovery.scrollIntoView?.({block:'nearest'});
         }
       }
       syncFeatureNavigation();
+    };
+    // Native view selection retains all original source/target/execution
+    // handlers. Plan-only tasks must pass the SAME exact-File target gate.
+    const navigateRealTask=(task)=>{
+      if(task==='batch'||task==='tools'||task==='attachments'){
+        const view=task==='batch'?'batch':'tools';
+        root.querySelector('[data-sf-view="'+view+'"]')?.click();
+        focusRealTask(task);
+      }else if(task==='project'||task==='source'){
+        root.querySelector('[data-sf-view="single"]')?.click();
+        setSurface('source');
+        focusRealTask(task);
+      }else if(planTasks.has(task)){
+        root.querySelector('[data-sf-view="single"]')?.click();
+        if(!setSurface('plan')){
+          pendingFeatureTask=task;
+          setSurface('source');
+          flowMessage='先明确选择拟输出目标，再进入'+
+            (task==='subtitle'?'字幕':task==='font'?'字体':
+              task==='tracks'?'轨道':task==='verification'?'验证':'拟输出')+
+            '；尚未获得写入许可。';
+          openTargetPicker(null);
+          syncFeatureNavigation();
+          schedule();
+          return;
+        }
+        focusRealTask(task);
+      }
       schedule();
+    };
+    featureNavigation.addEventListener('click',event=>{
+      const task=event.target.closest('button[data-sfv35-task]')?.dataset.sfv35Task;
+      if(!task)return;
+      pendingFeatureTask=null;
+      navigateRealTask(task);
+    });
+    // A user-confirmed source-bound target is the only point at which a
+    // deferred category can gain edit visibility. Escape/cancel discards it.
+    root.addEventListener('softmux:v3-surface-changed',event=>{
+      if(event.detail?.surface==='plan'&&pendingFeatureTask){
+        const requested=pendingFeatureTask;
+        pendingFeatureTask=null;
+        focusRealTask(requested);
+      }
+      syncFeatureNavigation();
+    });
+    cancelChoice.addEventListener('click',()=>{pendingFeatureTask=null;});
+    picker.addEventListener('cancel',()=>{pendingFeatureTask=null;});
+    picker.addEventListener('close',()=>{
+      if(root.dataset.sfv3Surface!=='plan')pendingFeatureTask=null;
+    });
+    sourceTab.addEventListener('click',()=>{
+      root.dataset.sfv35Task='source';syncFeatureNavigation();
+    });
+    targetTab.addEventListener('click',()=>{
+      root.dataset.sfv35Task='plan';syncFeatureNavigation();
+    });
+    planBack.addEventListener('click',()=>{
+      root.dataset.sfv35Task='source';syncFeatureNavigation();
     });
     const navViewObserver=new MutationObserver(syncFeatureNavigation);
     navViewObserver.observe(root,{attributes:true,
-      attributeFilter:['data-view','data-sfv3-surface']});
-    root.addEventListener('softmux:v3-surface-changed',syncFeatureNavigation);
+      attributeFilter:['data-view','data-sfv3-surface','data-sfv35-task']});
     syncFeatureNavigation();
   }
 
