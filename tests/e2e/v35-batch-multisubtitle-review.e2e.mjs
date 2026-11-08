@@ -285,7 +285,13 @@ try{
   await shot('08-actual-two-track-mkv-audited-620.png');
   result.checks.push('Real downloaded MKV has exactly two SubRip tracks, original per-track tags and cues; SHA and all input hashes checked');
   result.passed=true;result.terminal=terminal;result.mkvSHA256=receipt.output.sha256;
-  result.subtitleStreams=ss.map(s=>({codec:s.codec_name,tags:s.tags}));
+  // Preserve actual independent FFprobe values in the downloadable receipt,
+  // rather than only reporting a passing assertion in CI stdout.
+  result.subtitleStreams=ss.map(s=>({
+    codec:s.codec_name,tags:s.tags,
+    disposition:{default:Number(s.disposition?.default||0),
+      forced:Number(s.disposition?.forced||0)},
+  }));
   result.semantics=semantics;
   await writeFile(f('multi-subtitle-review-evidence.json'),JSON.stringify(result,null,2)+'\n');
   console.log('V3.5 two simultaneous tie blocks, 2 track-specific original metadata rows and real 2-subtitle MKV PASS');
