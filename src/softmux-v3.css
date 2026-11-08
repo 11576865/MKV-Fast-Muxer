@@ -2757,7 +2757,7 @@
   min-height:32px;padding:5px 9px;
   color:var(--sfv3-soft);background:var(--sfv3-row-raised);
   border:1px solid var(--sfv3-line);border-radius:7px;
-  font:600 11px/1.35 inherit;white-space:nowrap;cursor:pointer;
+  font-family:inherit;font-weight:600;font-size:11px;line-height:1.35;white-space:nowrap;cursor:pointer;
 }
 .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button[aria-expanded="true"]{
   border-color:#55705f;color:var(--sfv3-accent);
