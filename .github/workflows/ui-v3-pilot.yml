@@ -117,7 +117,7 @@ jobs:
         run: node tests/e2e/v35-batch-multisubtitle-review.e2e.mjs
       - name: Chromium V3.5 real ASS Group subset union in two audited MKVs
         run: node tests/e2e/v35-batch-ass-group-union.e2e.mjs
-      - name: Chromium V3.5 isolated Group ASS: real HarfBuzz and exact libass pixel parity
+      - name: Chromium V3.5 isolated Group ASS with real HarfBuzz and exact libass pixel parity
         run: node tests/e2e/v35-batch-ass-group-isolated-shaping.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
