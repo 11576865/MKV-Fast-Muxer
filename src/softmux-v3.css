@@ -2843,3 +2843,37 @@
     order:1;
   }
 }
+
+
+/* V3.5 Batch object-focused tablet layout.
+ * 780..1180: use the available horizontal workspace for BOTH the real
+ * queue and the currently-selected object's native metadata inspector.
+ * This is not another view, drawer, copied editor or data owner.
+ * Below 780px the original stacked layout stays intact.
+ */
+@media (min-width:780px) and (max-width:1180px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-review-layout{
+    display:grid;
+    grid-template-columns:minmax(285px,.84fr) minmax(360px,1.16fr);
+    gap:10px;align-items:start;min-width:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan{
+    min-width:0;max-height:min(53dvh,600px);
+    overflow-x:hidden;overflow-y:auto;
+    scrollbar-gutter:stable;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchJobInspector{
+    min-width:0;max-height:none;overflow:visible;
+    align-content:start;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-job-facts > div{
+    grid-template-columns:60px minmax(0,1fr);
+  }
+}
+/* At a compact width, keep the actual chosen task's editor reachable:
+ * the one native batch pane scrolls; do not invent an overlay inspector. */
+@media(max-width:779px){
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchJobInspector{
+    scroll-margin-top:10px;
+  }
+}
