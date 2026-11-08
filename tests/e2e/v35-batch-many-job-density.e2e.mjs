@@ -159,6 +159,23 @@ try{
   assert.equal(compact.sourceVisible,false);
   await shot('04-compact-sixteen-job-matrix-620.png');
 
+  // Executing a job and INSPECTING a job are orthogonal actions. Toggling
+  // the native checkbox must NOT send the user to the task editor.
+  const executionBox=page.locator(
+    '#batchPlan input[data-batch-execute-index="10"]');
+  await executionBox.uncheck();
+  await page.waitForFunction(()=>(
+    (document.querySelector('#batchSelectionStatus')?.textContent||'').includes('15 / 16')
+  ),null,{timeout:15000});
+  assert.ok((await page.locator('#sf14Batch').evaluate(el=>el.scrollTop))<20,
+    'execution selection must not trigger a compact editor navigation');
+  assert.notEqual(await page.evaluate(()=>document.activeElement?.id),'batchJobInspector');
+  await executionBox.check();
+  await page.waitForFunction(()=>(
+    (document.querySelector('#batchSelectionStatus')?.textContent||'').includes('16 / 16')
+  ),null,{timeout:15000});
+  assert.equal(await numbers().count(),count);
+
   await page.locator('#batchPlan button[data-batch-job-index="13"]').click();
   // The compact selection's native delegated UI listener schedules one
   // requestAnimationFrame scroll/focus to the selected task's OWN inspector.
