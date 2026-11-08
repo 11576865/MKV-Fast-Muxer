@@ -1,3 +1,5 @@
+import { mountV35BatchReviewDetail } from './v35-batch-review-detail.js';
+
 /*
  * Softmux V3 / WU-01: source-first presentation over the EXISTING live DOM.
  * Opt-in via ?ui=v3. Does not create a second ContainerProject or write media.
@@ -402,6 +404,9 @@ export function mountSoftmuxV3Surface(doc = document) {
     const originalBatchHeader=batchRoot?.querySelector('.batch-head');
     if(originalBatchControls&&originalBatchHeader)
       originalBatchHeader.appendChild(originalBatchControls);
+    // Only annotate original live controls; the owner still decides File,
+    // assignments, metadata, enabled state, execution and output evidence.
+    mountV35BatchReviewDetail(doc,root);
 
     // Compact batch master -> detail transition. The original matrix
     // changes the selected File and renders the same native inspector.
