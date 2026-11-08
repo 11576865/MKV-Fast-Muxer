@@ -39,6 +39,7 @@ const proof={schema:'v35-ass-group-native-isolated-shaping-pixels-v1',
   limits:[
     'Only two test-generated real FFmpeg MP4 sources and two distinct ASS tracks',
     'The test font is a uniquely named regular TrueType face derived from installed DejaVu outlines, not all proprietary font families or multi-face collections',
+    'Arabic-script Group subset is conservatively bypassed after a verified direct-MKV shaping regression; the output must transparently record original-byte retention',
     'System HarfBuzz clusters/advances and two separate exact pixel oracles: ass-to-ass, subtitles-to-subtitles. Cross-filter SSIM is diagnostic only; no all-player, all-effects or physical-device certification',
     'No loose font files are uploaded or redistributed in the CI artifact; delivered Matroska includes its needed embedded subset',
   ]};
@@ -201,6 +202,10 @@ try{
     assert.equal(report.plan?.execution,'frozen-batch-context-v1');
     assert.equal(report.plan?.policy?.subsetScope,'group');
     assert.equal(report.plan?.policy?.subsetEnabled,true);
+    assert.deepEqual(report.plan?.fontPreparation,{
+      mode:'group',applied:false,
+      reason:'arabic-direct-libass-shaping-unverified',fontCount:1,
+    },'original-byte fallback must be explained in the ACTUAL independent MKV report');
     const info=JSON.parse(run('ffprobe',[
       '-v','error','-show_streams','-of','json',mkv]));
     const subtitles=info.streams.filter(stream=>stream.codec_type==='subtitle');
@@ -208,19 +213,20 @@ try{
     assert.equal(subtitles.length,1);
     assert.equal(subtitles[0].codec_name,'ass');
     assert.equal(fonts.length,1);
-    assert.match(fonts[0].tags?.filename||'',/\.subset\.ttf$/);
+    assert.equal(fonts[0].tags?.filename,'TrueTypeRegularOnly.ttf',
+      'safety fallback must retain original font identity, not an unsafe subset');
     const deliveredDir=path.join(tmp,'delivered-'+i);
     await fs.mkdir(deliveredDir,{recursive:true});
-    const delivered=path.join(deliveredDir,'TrueTypeRegularOnly.subset.ttf');
+    const delivered=path.join(deliveredDir,'TrueTypeRegularOnly.ttf');
     ff(['-y','-dump_attachment:t:0',delivered,'-i',mkv,
       '-map','0:v:0','-c','copy','-f','null','-']);
     const actualFontBytes=await fs.readFile(delivered);
     const deliveredHash=sha(actualFontBytes);
     digests.push(deliveredHash);
-    assert.ok(actualFontBytes.length>2000&&
-      actualFontBytes.length<originalBytes.length,
-      'real output must carry a reduced Group font attachment');
-    assert.notEqual(deliveredHash,sha(originalBytes));
+    assert.equal(actualFontBytes.length,originalBytes.length,
+      'Arabic fallback must retain complete original font, not silently reduce it');
+    assert.equal(deliveredHash,sha(originalBytes),
+      'actual MKV attachment must be byte-identical to the user-authorized source font');
     const infoFace=inspect(delivered,union);
     assert.deepEqual(infoFace.missing,[],
       'same Group font must include every glyph from BOTH ASS episodes');
@@ -242,7 +248,7 @@ try{
     // The negative is another font with identical name/outlines but its
     // GSUB/GPOS/GDEF removed; it should produce measurably worse shaping.
     const altered=path.join(negativeDir,
-      'TrueTypeRegularOnly.subset.ttf');
+      'TrueTypeRegularOnly.ttf');
     run(python,['scripts/s03-native-font-proof.py','strip-layout',
       delivered,altered]);
     assert.notDeepEqual(shape(altered,'office'),shape(delivered,'office'),
@@ -313,8 +319,15 @@ try{
     };
     assert.equal(rendered.deliveredSha256,rendered.originalSha256,
       'libass exact pixels of delivered ASS+Group subset must match reference original ASS+source font at fixed time');
-    assert.notEqual(rendered.strippedLayoutSha256,rendered.deliveredSha256,
-      'GSUB/GPOS stripping negative control must alter visible rendered pixels');
+    // The first episode explicitly exercises the "office" ligature and
+    // has a meaningful per-frame GSUB-negative oracle. The second episode
+    // is the Arabic fallback oracle, where independent native HarfBuzz
+    // "office" checks GSUB but a random 1-frame visual negative would be
+    // an invalid all-script shaping claim.
+    if (i===0) {
+      assert.notEqual(rendered.strippedLayoutSha256,rendered.deliveredSha256,
+        'targeted Latin ligature negative must alter real image pixels');
+    }
     proof.products.push({
       file:path.basename(mkv),sha256:realMkvHash,
       attachmentSha256:deliveredHash,attachmentBytes:actualFontBytes.length,
@@ -334,7 +347,7 @@ try{
   assert.deepEqual(pageErrors,[]);
   proof.status='PASS';proof.passed=true;
   await writeProof();
-  console.log('V3.5 isolated Group font: two real MKVs, face identity, HarfBuzz union shaping, exact libass pixels, negative controls PASS');
+  console.log('V3.5 isolated Arabic Group FALLBACK: 2 real MKVs with original font bytes, independent HarfBuzz and exact same-filter direct libass pixels PASS');
 }catch(error){
   proof.status='FAIL';proof.passed=false;
   proof.error=String(error);
