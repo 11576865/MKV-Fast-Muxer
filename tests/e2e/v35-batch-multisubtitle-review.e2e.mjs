@@ -78,6 +78,20 @@ async function edit(trackFile,field,value){
         el.querySelector('[data-batch-task-field="'+field+'"]')?.value===value),
     {file:trackFile,field,value},{timeout:30000});
 }
+async function setFlag(trackFile,field,wanted){
+  // Real per-track native checkbox, not a synthesized output disposition.
+  // Change triggers existing File-identity-bound metadata projection.
+  const row=rows().filter({has:page.locator('strong',{hasText:trackFile})});
+  assert.equal(await row.count(),1);
+  const input=row.locator('[data-batch-task-field="'+field+'"]');
+  if(wanted)await input.check();
+  else await input.uncheck();
+  await page.waitForFunction(({trackFile,field,wanted})=>
+    [...document.querySelectorAll('#batchJobInspector .batch-inspector-subtitle')]
+      .some(el=>el.querySelector('strong')?.textContent.includes(trackFile) &&
+        el.querySelector('[data-batch-task-field="'+field+'"]')?.checked===wanted),
+    {trackFile,field,wanted},{timeout:30000});
+}
 try{
   const base=process.env.E2E_BASE_URL||'http://127.0.0.1:4173/';
   await page.goto(new URL('?ui=v3&nav=full',base).href,{waitUntil:'networkidle'});
@@ -161,6 +175,13 @@ try{
   await edit(exactName,'language','eng');
   await edit(sharedName,'title','Shared track for B reviewed');
   await edit(sharedName,'language','zho');
+  // Explicitly choose non-inferred, opposite flags. Both Default and Forced
+  // must survive the one native metadata owner all the way into EBML,
+  // not merely appear checked in the visible UI.
+  await setFlag(exactName,'default',false);
+  await setFlag(exactName,'forced',true);
+  await setFlag(sharedName,'default',true);
+  await setFlag(sharedName,'forced',false);
   await shot('05-both-subtitle-tracks-edited-820.png');
 
   // Original File-identity metadata must survive selecting another job
@@ -175,8 +196,14 @@ try{
     file:el.querySelector(':scope > strong')?.textContent,
     title:el.querySelector('[data-batch-task-field="title"]')?.value,
     language:el.querySelector('[data-batch-task-field="language"]')?.value,
+    default:el.querySelector('[data-batch-task-field="default"]')?.checked,
+    forced:el.querySelector('[data-batch-task-field="forced"]')?.checked,
   })));
   assert.equal(edited.find(x=>x.file===exactName).title,'English for B reviewed');
+  assert.deepEqual([edited.find(x=>x.file===exactName).default,
+    edited.find(x=>x.file===exactName).forced],[false,true]);
+  assert.deepEqual([edited.find(x=>x.file===sharedName).default,
+    edited.find(x=>x.file===sharedName).forced],[true,false]);
   assert.equal(edited.find(x=>x.file===sharedName).title,'Shared track for B reviewed');
   await shot('06-track-specific-drafts-survive-job-switch-820.png');
   result.checks.push('Per-track metadata survives actual A->B task switching without cross-track contamination');
@@ -232,6 +259,18 @@ try{
   assert.deepEqual([...titles].sort(),
     ['English for B reviewed','Shared track for B reviewed'].sort());
   assert.deepEqual([...languages].sort(),['eng','zho']);
+  const byLanguage=new Map(ss.map(track=>[track.tags?.language,track]));
+  // Independent Matroska stream-level Default/Forced: the 2 tracks must
+  // have opposite dispositions matching exactly the original checkboxes.
+  assert.equal(Boolean(byLanguage.get('eng')?.disposition?.default),false,
+    'original English subtitle was explicitly NOT Default');
+  assert.equal(Boolean(byLanguage.get('eng')?.disposition?.forced),true,
+    'original English subtitle was explicitly Forced');
+  assert.equal(Boolean(byLanguage.get('zho')?.disposition?.default),true,
+    'original Chinese subtitle was explicitly Default');
+  assert.equal(Boolean(byLanguage.get('zho')?.disposition?.forced),false,
+    'original Chinese subtitle was explicitly NOT Forced');
+  result.checks.push('Independent FFprobe validates four Default/Forced stream dispositions from exact native metadata flags');
   let allCues='';
   for(let i=0;i<2;i++){
     allCues+=execFileSync('ffmpeg',[
