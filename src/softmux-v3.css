@@ -2877,3 +2877,28 @@
     scroll-margin-top:10px;
   }
 }
+
+
+/* Multi-job scanning density: the 820px matrix is not a second inspector.
+ * An unselected row presents a concise preview; its complete text remains
+ * in the DOM, while selecting it reveals the single full-detail inspector.
+ * Never truncate the focused/selected row or reduce the native checkbox hit
+ * target; this is opt-in and tablet-width only.
+ */
+@media(min-width:780px) and (max-width:1180px){
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row{
+    grid-template-columns:32px minmax(0,1fr);
+    column-gap:6px;padding:7px 6px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row:not([aria-pressed="true"]) .plan-main small{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    overflow:hidden;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row:focus-visible .plan-main small{
+    -webkit-line-clamp:unset;
+  }
+}
