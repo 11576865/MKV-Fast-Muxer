@@ -83,22 +83,10 @@ try{
   assert.equal(await page.locator('#batchResults').count(),1);
   assert.equal(await page.locator('#batchInspectBtn').count(),1);
 
-  const controlLayout=await page.evaluate(()=>{
-    let n=document.querySelector('#sf14Batch [data-sf-batch-controls="sources"]');
-    const chain=[];
-    while(n && chain.length<10){
-      const cs=getComputedStyle(n),r=n.getBoundingClientRect();
-      chain.push({tag:n.tagName,id:n.id,classes:typeof n.className==='string'?n.className:'',
-        display:cs.display,visibility:cs.visibility,rect:[r.x,r.y,r.width,r.height],
-        hidden:n.hidden});
-      n=n.parentElement;
-    }
-    return chain;
-  });
-  assert.ok(controlLayout[0]?.rect?.[2]>0 && controlLayout[0]?.rect?.[3]>0,
-    'native sources disclosure must have actual layout, not be hidden: '+
-    JSON.stringify(controlLayout));
-  await showNative('sources');
+  // Desktop already displays the original file rail; revealing another
+  // redundant "resources" button would regress information hierarchy.
+  assert.equal(await disclosure('sources').isVisible(),false);
+  assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),true);
   await screenshot('01-resources-empty-1440.png');
   await page.setInputFiles('#batchUnifiedInput',[a,b,subtitle,subtitleA]);
   // A uniquely named A subtitle yields a legitimate independent job while
@@ -151,7 +139,7 @@ try{
   await screenshot('04-per-job-title-language-edited-1440.png');
   result.checks.push('Real per-job subtitle title/language mutable metadata, no secondary editor');
 
-  await showNative('recipe');
+  assert.equal(await disclosure('recipe').isVisible(),false);
   const subset=page.locator('#batchFontSubsetEnabled');
   await subset.check();
   await page.locator('#batchSubsetScope').selectOption('group');
@@ -162,7 +150,6 @@ try{
   await subset.uncheck();
   result.checks.push('Original Group subset control reachable and resets; no font-output claim');
 
-  await showNative('recipe');
   const [recipeDownload]=await Promise.all([
     page.waitForEvent('download',{timeout:30000}),
     page.locator('#batchRecipeV2ExportBtn').click(),
@@ -293,17 +280,22 @@ try{
     }
     viewportMetrics.push(geometry);
     await screenshot('native-matrix-'+width+'.png');
-    await showNative('sources');
-    assert.equal(await page.locator('#batchUnifiedInput').count(),1);
-    if(width===620)
+    if(width===1440){
+      assert.equal(await disclosure('sources').isVisible(),false);
       assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),true);
+    }else{
+      assert.equal(await disclosure('sources').isVisible(),true);
+      await showNative('sources');
+      assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),true);
+    }
+    assert.equal(await page.locator('#batchUnifiedInput').count(),1);
     await screenshot('native-sources-'+width+'.png');
-    await showNative('recipe');
-    assert.equal(await page.locator('#batchRecipeV2ExportBtn').count(),1);
-    if(width===620){
+    if(width!==1440){
+      await showNative('recipe');
       assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),false);
       assert.equal(await page.locator('#sf14Batch .batch-settings').isVisible(),true);
     }
+    assert.equal(await page.locator('#batchRecipeV2ExportBtn').count(),1);
     await screenshot('native-recipe-'+width+'.png');
     await closeNative();
     const items=[
