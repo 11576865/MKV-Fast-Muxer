@@ -2902,3 +2902,68 @@
     -webkit-line-clamp:unset;
   }
 }
+
+
+/* Multi-track and multi-conflict review is within ONE original JobPlan and
+ * one existing Job inspector, not an additional top-level navigation layer.
+ * The ordinal and candidate indicators annotate native choices only. */
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  align-content:start;gap:6px;
+  min-width:0;padding:10px;
+  border:1px solid var(--sfv3-line);
+  border-left:3px solid #a5874e;
+  background:var(--sfv3-row-raised);
+  border-radius:7px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-ordinal,
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-index{
+  display:block;width:fit-content;
+  font-weight:750;letter-spacing:.02em;
+  font-size:11px;line-height:1.25;
+  color:var(--sfv3-soft);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-count{
+  display:block;font-size:11px;
+  color:var(--sfv3-muted);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review select{
+  min-width:0;width:100%;min-height:40px;
+  font-size:12px;line-height:1.35;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review:focus-within{
+  outline:1px solid var(--sfv3-accent);outline-offset:2px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor{
+  min-width:0;gap:7px 8px;
+  padding:11px;
+  border:1px solid var(--sfv3-line);
+  border-radius:8px;
+  background:var(--sfv3-row-raised);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor .sfv35-subtitle-index{
+  grid-column:1/-1;
+  padding:0 0 1px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor > strong{
+  grid-column:1/-1;line-height:1.35;
+  color:var(--sfv3-text);
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor:focus-within{
+  border-color:var(--sfv3-accent);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor label{
+  min-width:0;
+}
+@media(max-width:779px){
+  /* On compact screens, keep title and language on separate full-width
+   * rows, while Default / Forced remain authentic native flags. */
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor > strong,
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor .sfv35-subtitle-index{
+    grid-column:1;
+  }
+}
