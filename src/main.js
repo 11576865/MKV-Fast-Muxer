@@ -138,6 +138,7 @@ import {
   visibleTextForPlainSubtitle,
 } from './subtitle-format.js';
 import { subsetFontItems } from './font-subset.js';
+import { extendAssGroupSubsetTextForArabic } from './ass-arabic-presentation-closure.js';
 import {
   fontIdentityMismatchMessage,
   fontMimeType,
@@ -9006,7 +9007,12 @@ async function collectBatchSubsetText(pairing) {
 
 async function buildGroupedSubsetFonts(fonts, pairing) {
   if (!fonts.length) return [];
-  const subsetText = await collectBatchSubsetText(pairing);
+  const allVisibleAssText = await collectBatchSubsetText(pairing);
+  // Native direct Matroska/libass can request Arabic presentation-form
+  // cmap glyphs even when standalone ASS+fontsdir HarfBuzz succeeds.
+  // Extend ONLY this frozen Group font subset's script closure; no change
+  // to the original subtitle text, File identity or source authorization.
+  const subsetText = extendAssGroupSubsetTextForArabic(allVisibleAssText);
   const deduped = await dedupeFilesBySha256(fonts);
   const identityByFile = new Map(
     Array.from(pairing?.fontRecognition?.recognized || [])
