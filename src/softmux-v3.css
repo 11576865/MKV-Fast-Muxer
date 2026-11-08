@@ -2805,3 +2805,32 @@
 .sf14.sfv3.sfv35-nav[data-view="tools"]{
   height:100dvh;min-height:0;overflow:hidden;
 }
+
+
+/* Narrow Batch: keep the actual job matrix above the fold by default.
+ * The native Source and Recipe controls are explicitly exposed in the
+ * existing Batch header; clicking them projects their ORIGINAL DOM only.
+ * This does not create a new editor or sever File/JobPlan identity. */
+@media(max-width:719px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-layout{
+    display:flex!important;flex-direction:column;gap:9px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-detail{
+    order:0;width:100%;min-width:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-inputs{
+    order:1;display:none!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="sources"] .batch-inputs{
+    order:-1;display:flex!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-settings{
+    display:none!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="recipe"] .batch-settings{
+    display:grid!important;order:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="recipe"] .batch-queue{
+    order:1;
+  }
+}
