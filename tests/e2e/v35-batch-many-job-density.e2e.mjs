@@ -66,7 +66,7 @@ const sample=async width=>{
     return {
       viewport:[innerWidth,innerHeight],
       header:r('.sf14-header'),tasks:r('#sfv35FeatureNavigation'),
-      pane:r('#sf14Batch'),queue:r('#batchPlan'),
+      pane:r('#sf14Batch'),queue:r('#sf14Batch .batch-queue'),matrix:r('#batchPlan'),
       inspector:r('#batchJobInspector'),
       titleInput:r('#batchJobInspector [data-batch-task-field="title"]'),
       globalScroll:scrollY,
@@ -103,20 +103,20 @@ try{
   assert.equal(await page.locator('.sfv35-batch-workflow').count(),0);
 
   const d=await sample(1440);
-  assert.ok(Math.abs(d.queue.top-d.inspector.top)<25);
-  assert.ok(d.inspector.width>300&&d.queue.width>300);
+  assert.ok(Math.abs(d.matrix.top-d.inspector.top)<25);
+  assert.ok(d.inspector.width>300&&d.matrix.width>300);
   await shot('01-desktop-sixteen-job-matrix-1440.png');
 
   await page.setViewportSize({width:820,height:1180});
   const tablet=await sample(820);
-  assert.ok(Math.abs(tablet.queue.top-tablet.inspector.top)<25,
+  assert.ok(Math.abs(tablet.matrix.top-tablet.inspector.top)<25,
     '820px must show the ONE native selected task editor alongside the live matrix: '+
     JSON.stringify(tablet));
-  assert.ok(tablet.queue.width>=280&&tablet.inspector.width>=355,
+  assert.ok(tablet.matrix.width>=280&&tablet.inspector.width>=355,
     'both tablet work areas must remain usable: '+JSON.stringify(tablet));
-  assert.ok(tablet.titleInput?.top<980&&tablet.titleInput?.left>tablet.queue.right,
+  assert.ok(tablet.titleInput?.top<980&&tablet.titleInput?.left>tablet.matrix.right,
     'subtitle authoring must be alongside the matrix, not below 16 jobs');
-  assert.ok(tablet.queue.scrollHeight>tablet.queue.clientHeight+50,
+  assert.ok(tablet.matrix.scrollHeight>tablet.matrix.clientHeight+50,
     'real 16-job list must scroll in its own native matrix region');
   await shot('02-tablet-sixteen-job-split-820.png');
 
@@ -125,12 +125,13 @@ try{
   assert.equal(await last.getAttribute('aria-pressed'),'true');
   assert.match(await page.locator('#batchJobInspector').textContent(),/Dense S01E16/);
   const tabletAfter=await sample(820);
-  assert.ok(Math.abs(tabletAfter.queue.top-tabletAfter.inspector.top)<25);
+  assert.ok(Math.abs(tabletAfter.matrix.top-tabletAfter.inspector.top)<25);
   await shot('03-tablet-last-task-inspector-820.png');
 
   await page.setViewportSize({width:620,height:900});
   const compact=await sample(620);
-  assert.ok(compact.queue.top<400,'task queue must be in compact first screen');
+  assert.ok(compact.queue.top<400 && compact.matrix.top<550,
+    'queue must begin in compact first screen, measured at its actual wrapper rather than only inside its controls: '+JSON.stringify(compact));
   assert.ok(compact.inspector.top>=compact.queue.top,
     'compact native layout deliberately stacks one real inspector');
   assert.equal(compact.sourceVisible,false);
