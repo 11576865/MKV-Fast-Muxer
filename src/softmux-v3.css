@@ -2742,154 +2742,23 @@
 }
 
 
-/* V3.5 actual Batch flow: only ?ui=v3&nav=full, never the default V3.
- * This is a non-mutating presentation of the ONE native batch matrix,
- * inspector, sources, recipe, run console, result list and container probe.
- */
-.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-batch-workflow{
-  position:sticky;top:0;z-index:100;isolation:isolate;min-width:0;
-  margin:0 0 14px;padding:12px;
-  background:var(--sfv3-chrome);
-  border:1px solid var(--sfv3-line);
-  border-radius:12px;
-  box-shadow:0 4px 18px rgba(0,0,0,.16);
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-workflow-head{
-  display:flex;align-items:baseline;justify-content:space-between;
-  gap:10px;margin-bottom:10px;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-workflow-head strong{
-  color:var(--sfv3-text);font-size:15px;font-weight:780;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-workflow-head small{
-  color:var(--sfv3-muted);font-size:11px;line-height:1.45;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-flow{
-  display:grid;grid-template-columns:repeat(8,minmax(0,1fr));
-  gap:6px;min-width:0;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-phase{
-  display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
-  min-width:0;min-height:56px;gap:4px;
-  padding:8px 9px;text-align:left;cursor:pointer;
-  border:1px solid var(--sfv3-line);border-radius:9px;
-  color:var(--sfv3-text);background:var(--sfv3-row-raised);
-  font-family:inherit;font-weight:650;font-size:12px;line-height:1.35;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-phase[aria-pressed="true"]{
-  color:var(--sfv3-accent);background:var(--sfv3-accent-back);
-  border-color:#6b8b78;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-phase:hover{
-  border-color:var(--sfv3-soft);filter:brightness(1.05);
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-phase:focus-visible{
-  outline:2px solid var(--sfv3-accent);outline-offset:2px;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-phase-count{
-  display:block;width:100%;min-width:0;
-  color:var(--sfv3-muted);font-size:10px;font-weight:500;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-summary{
-  display:grid;grid-template-columns:1fr 1.5fr 1.2fr;
-  gap:8px;margin-top:9px;
-  color:var(--sfv3-muted);font-size:11px;line-height:1.4;
-}
-.sf14.sfv3.sfv35-nav .sfv35-batch-summary>span{
-  display:block;min-width:0;padding:8px 10px;
-  border:1px solid var(--sfv3-line);border-radius:7px;
-  background:var(--sfv3-bg);overflow-wrap:anywhere;
-}
-/* Concrete native task ownership: draw attention to the REAL original pane.
- * Never present a parallel editable inspector or move File inputs. */
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="resources"] #sf14BatchSources,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="recipe"] #sf14BatchRecipe,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="fonts"] #sf14BatchRecipe,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="pairing"] #batchPlan,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="job"] #batchJobInspector,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="run"] #batchRunConsole,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="results"] #batchResults,
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="inspection"] .container-batch-review{
-  outline:1px solid #6b8b78;outline-offset:3px;border-radius:7px;
-}
-/* Make selected job editor a first-class working region, not a narrow
- * sidebar when the user explicitly chooses "逐任务属性". */
-@media(min-width:1181px){
-  .sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="job"]
-    .batch-review-layout{
-    grid-template-columns:minmax(250px,.8fr) minmax(360px,1.2fr);
-  }
-  .sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-focus="resources"]
-    .batch-layout{
-    grid-template-columns:minmax(320px,.42fr) minmax(0,.58fr);
-  }
-}
-@media(max-width:1279px){
-  .sf14.sfv3.sfv35-nav .sfv35-batch-flow{
-    grid-template-columns:repeat(4,minmax(0,1fr));
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-summary{
-    grid-template-columns:1fr 1fr;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-summary>span:last-child{
-    grid-column:1/-1;
-  }
-}
-@media(max-width:719px){
-  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-batch-workflow{
-    margin:0 0 10px;padding:8px;position:sticky;top:0;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-workflow-head{
-    flex-direction:column;align-items:flex-start;gap:4px;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-flow{
-    grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-phase{
-    min-height:49px;padding:6px 5px;font-size:11px;line-height:1.25;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-summary{
-    grid-template-columns:1fr;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-summary>span:last-child{
-    grid-column:auto;
-  }
-}
-@media(max-width:479px){
-  /* Four rows of batch controls would cover too much of a 390px screen. */
-  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-batch-workflow{
-    position:relative;top:auto;
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-flow{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  .sf14.sfv3.sfv35-nav .sfv35-batch-phase{
-    min-height:46px;
-  }
-}
-
-/* Real ambiguous pairing intentionally produces no executable rows.
- * Do not let a strong primary-green surface visually claim that Start is
- * available while the native BatchRunner has disabled it. */
-.sf14.sfv3.sfv35-nav #sf14Batch #batchStartBtn:disabled {
+/* V3.5 Batch presentation correction: task matrix/inspector first.
+ * The duplicate 8-stage toolbar and three status echoes were removed.
+ * Real original actions and the compact source/recipe disclosures remain
+ * the only control surfaces.  Scope is opt-in, no default UI change. */
+.sf14.sfv3.sfv35-nav #sf14Batch #batchStartBtn:disabled{
   opacity:.43;filter:grayscale(.55);cursor:not-allowed;
 }
-.sf14.sfv3.sfv35-nav #sf14Batch[data-sfv35-batch-conflict="true"]
-  #batchPlan .batch-review-conflicts{
+.sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-review-conflicts{
   border:1px solid #b38a4f;
   background:rgba(179,138,79,.08);
   border-radius:9px;padding:10px;
 }
-
-/* The native <details>.batch-drawer can paint its import dropzone OVER
- * sticky phase buttons after the inner batch viewport scrolls at 820px.
- * Establish separate paint layers: native inputs remain fully interactive
- * BELOW the task switcher, not allowed to intercept task navigation. */
-.sf14.sfv3.sfv35-nav #sf14Batch .batch-drawer{
-  position:relative;z-index:0;isolation:isolate;
+@media(min-width:1181px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-review-layout{
+    grid-template-columns:minmax(310px,1.1fr) minmax(340px,1fr);
+  }
 }
-
 
 /* The source-only 56px status footer was still present when the native
  * Batch/Tools view occupied the full app. Together with the viewport-height
