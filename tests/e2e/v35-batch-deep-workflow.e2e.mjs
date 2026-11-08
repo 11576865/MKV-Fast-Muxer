@@ -83,6 +83,21 @@ try{
   assert.equal(await page.locator('#batchResults').count(),1);
   assert.equal(await page.locator('#batchInspectBtn').count(),1);
 
+  const controlLayout=await page.evaluate(()=>{
+    let n=document.querySelector('#sf14Batch [data-sf-batch-controls="sources"]');
+    const chain=[];
+    while(n && chain.length<10){
+      const cs=getComputedStyle(n),r=n.getBoundingClientRect();
+      chain.push({tag:n.tagName,id:n.id,classes:typeof n.className==='string'?n.className:'',
+        display:cs.display,visibility:cs.visibility,rect:[r.x,r.y,r.width,r.height],
+        hidden:n.hidden});
+      n=n.parentElement;
+    }
+    return chain;
+  });
+  assert.ok(controlLayout[0]?.rect?.[2]>0 && controlLayout[0]?.rect?.[3]>0,
+    'native sources disclosure must have actual layout, not be hidden: '+
+    JSON.stringify(controlLayout));
   await showNative('sources');
   await screenshot('01-resources-empty-1440.png');
   await page.setInputFiles('#batchUnifiedInput',[a,b,subtitle,subtitleA]);
