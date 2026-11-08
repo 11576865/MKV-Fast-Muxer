@@ -64,7 +64,7 @@ test('actual Group fallback provenance is frozen beside requested policy, not a 
   assert.deepEqual(ctx.reportPlan.fontPreparation,decision,
     'actual original-font preservation must be auditable per MKV');
   assert.equal(ctx.fonts[0],p.fonts[0],
-    'the frozen context must still own the user's original File');
+    "the frozen context must still own the user's original File");
   assert.equal(Object.isFrozen(ctx.reportPlan.fontPreparation),true);
 });
 
