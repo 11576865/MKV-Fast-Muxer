@@ -284,13 +284,26 @@ try{
       assert.ok(geometry.queueTop<450,
         'batch queue must return to practical first-screen position: '+JSON.stringify(geometry));
     }
+    if(width===620){
+      assert.ok(geometry.queueTop<400,
+        '620px default batch task queue must be ABOVE fold, not below the source inventory: '+
+        JSON.stringify(geometry));
+      assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),false,
+        'the real source inventory must be available via its visible contextual control');
+    }
     viewportMetrics.push(geometry);
     await screenshot('native-matrix-'+width+'.png');
     await showNative('sources');
     assert.equal(await page.locator('#batchUnifiedInput').count(),1);
+    if(width===620)
+      assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),true);
     await screenshot('native-sources-'+width+'.png');
     await showNative('recipe');
     assert.equal(await page.locator('#batchRecipeV2ExportBtn').count(),1);
+    if(width===620){
+      assert.equal(await page.locator('#sf14Batch .batch-inputs').isVisible(),false);
+      assert.equal(await page.locator('#sf14Batch .batch-settings').isVisible(),true);
+    }
     await screenshot('native-recipe-'+width+'.png');
     await closeNative();
     const items=[
