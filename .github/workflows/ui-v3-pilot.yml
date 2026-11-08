@@ -25,6 +25,9 @@ on:
       - 'tests/e2e/v35-batch-many-job-density.e2e.mjs'
       - 'tests/e2e/v35-batch-multisubtitle-review.e2e.mjs'
       - 'tests/e2e/v35-batch-ass-group-union.e2e.mjs'
+      - 'tests/e2e/v35-batch-ass-group-isolated-shaping.e2e.mjs'
+      - 'scripts/s03-make-font-fixtures.py'
+      - 'scripts/s03-native-font-proof.py'
       - 'src/v35-batch-review-detail.js'
       - 'scripts/ui-v3-build-comparison.mjs'
       - 'docs/ui-v3/**'
@@ -67,6 +70,15 @@ jobs:
           elif [[ -z "$(fc-list :lang=zh-cn family)" ]]; then
             packages+=(fonts-noto-cjk)
           fi
+          # Native independent oracle for isolated HarfBuzz/GSUB/GPOS and
+          # test-only renamed font fixture. Use /usr/bin/python3 explicitly
+          # to match the Ubuntu python3-fonttools package installation.
+          if ! /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection' >/dev/null 2>&1; then
+            packages+=(python3-fonttools)
+          fi
+          if ! /usr/bin/python3 -c "import ctypes.util; assert ctypes.util.find_library('harfbuzz')" >/dev/null 2>&1; then
+            packages+=(libharfbuzz0b)
+          fi
           if (("${#packages[@]}" > 0)); then
             sudo apt-get update
             sudo apt-get install -y "${packages[@]}"
@@ -74,6 +86,8 @@ jobs:
           command -v ffmpeg
           fc-cache -f
           test -n "$(fc-list :lang=zh-cn family)"
+          /usr/bin/python3 -c 'from fontTools.ttLib import TTFont, TTCollection'
+          /usr/bin/python3 -c "import ctypes.util; assert ctypes.util.find_library('harfbuzz')"
       - name: Start preview
         run: |
           nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/softmux-v3-preview.log 2>&1 &
@@ -103,6 +117,8 @@ jobs:
         run: node tests/e2e/v35-batch-multisubtitle-review.e2e.mjs
       - name: Chromium V3.5 real ASS Group subset union in two audited MKVs
         run: node tests/e2e/v35-batch-ass-group-union.e2e.mjs
+      - name: Chromium V3.5 isolated Group ASS: real HarfBuzz and exact libass pixel parity
+        run: node tests/e2e/v35-batch-ass-group-isolated-shaping.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
       - name: Real Chromium V3 new blank MKV from explicit source stream, native ffprobe and output SHA
@@ -126,6 +142,7 @@ jobs:
             .e2e/ui-v35-batch-density/
             .e2e/ui-v35-multisubtitle-review/
             .e2e/ui-v35-ass-group/
+            .e2e/ui-v35-ass-group-isolated/
             .e2e/ui-v3-multitrack/
             .e2e/ui-v3-blank-target/
             .e2e/ui-v3-visual-comparison/
