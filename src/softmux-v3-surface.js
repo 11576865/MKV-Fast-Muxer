@@ -393,6 +393,15 @@ export function mountSoftmuxV3Surface(doc = document) {
       button.setAttribute('aria-controls',control);
     }
     header?.after(featureNavigation);
+    // Keep only the two EXISTING native batch context commands.
+    // V3 had inadvertently CSS-hidden their host; moving those exact
+    // buttons into the native Batch header restores real mouse/keyboard
+    // access without introducing a second navigation layer or state owner.
+    const batchRoot=find(doc,'sf14Batch');
+    const originalBatchControls=batchRoot?.querySelector('.sf14-batch-controls');
+    const originalBatchHeader=batchRoot?.querySelector('.batch-head');
+    if(originalBatchControls&&originalBatchHeader)
+      originalBatchHeader.appendChild(originalBatchControls);
   }
 
   // This is a read-only observation of the SAME authoritative source scan.
