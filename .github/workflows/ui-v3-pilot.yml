@@ -23,6 +23,8 @@ on:
       - 'tests/e2e/v35-source-structure.e2e.mjs'
       - 'tests/e2e/v35-batch-deep-workflow.e2e.mjs'
       - 'tests/e2e/v35-batch-many-job-density.e2e.mjs'
+      - 'tests/e2e/v35-batch-multisubtitle-review.e2e.mjs'
+      - 'src/v35-batch-review-detail.js'
       - 'scripts/ui-v3-build-comparison.mjs'
       - 'docs/ui-v3/**'
       - '.github/workflows/ui-v3-pilot.yml'
@@ -96,6 +98,8 @@ jobs:
         run: node tests/e2e/v35-batch-deep-workflow.e2e.mjs
       - name: Chromium V3.5 actual 16-job tablet split inspector and compact editor focus
         run: node tests/e2e/v35-batch-many-job-density.e2e.mjs
+      - name: Chromium V3.5 two real ambiguous subtitle grants and independently audited two-track MKV
+        run: node tests/e2e/v35-batch-multisubtitle-review.e2e.mjs
       - name: Real native five-track compact target visual evidence (not design signoff)
         run: node tests/e2e/v3-multitrack-visual.e2e.mjs
       - name: Real Chromium V3 new blank MKV from explicit source stream, native ffprobe and output SHA
@@ -117,6 +121,7 @@ jobs:
             .e2e/ui-v35-source-structure/
             .e2e/ui-v35-batch-deep-workflow/
             .e2e/ui-v35-batch-density/
+            .e2e/ui-v35-multisubtitle-review/
             .e2e/ui-v3-multitrack/
             .e2e/ui-v3-blank-target/
             .e2e/ui-v3-visual-comparison/
