@@ -8,6 +8,7 @@ import { inferredSubtitleMetadata } from './subtitle-format.js';
  */
 export function createFrozenBatchMuxContext(plan, job, {
   headerIdentity, fonts = plan?.fonts || [], fontIdentities = [],
+  fontPreparation = null,
 } = {}) {
   if (plan?.schema !== BATCH_JOB_PLAN_SCHEMA || !plan.jobs.includes(job) ||
       !job?.video || !job?.outputName ||
@@ -76,6 +77,16 @@ export function createFrozenBatchMuxContext(plan, job, {
         format: track.format?.id || '',
       }))),
       fontCount: files.length,
+      // This is read-only provenance of the ACTUAL byte preparation, not
+      // another mutable font policy. The selected policy can be group=true
+      // while a safety guard deliberately preserves original font bytes.
+      fontPreparation: fontPreparation
+        ? Object.freeze({
+          mode: fontPreparation.mode,
+          applied: Boolean(fontPreparation.applied),
+          reason: String(fontPreparation.reason||''),
+          fontCount: Number(fontPreparation.fontCount||0),
+        }) : null,
       policy: plan.policy,
     }),
   });
