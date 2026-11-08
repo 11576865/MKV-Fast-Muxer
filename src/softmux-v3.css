@@ -2742,6 +2742,38 @@
 }
 
 
+/* Two original batch disclosure controls must be physically visible.
+ * Rehosted into the EXISTING header to avoid a separate navigation row;
+ * this restores previously hidden commands, not any duplicated inputs. */
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-head{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+  display:flex!important;flex:0 1 auto;align-items:center;justify-content:flex-end;
+  flex-wrap:wrap;gap:5px;margin:0 0 0 auto;padding:0;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  min-height:32px;padding:5px 9px;
+  color:var(--sfv3-soft);background:var(--sfv3-row-raised);
+  border:1px solid var(--sfv3-line);border-radius:7px;
+  font:600 11px/1.35 inherit;white-space:nowrap;cursor:pointer;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button[aria-expanded="true"]{
+  border-color:#55705f;color:var(--sfv3-accent);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-status-chip{
+  flex:0 0 auto;order:3;
+}
+@media(max-width:719px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+    order:3;width:auto;max-width:100%;margin-left:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-status-chip{
+    order:2;margin-left:auto;
+  }
+}
+
 /* V3.5 Batch presentation correction: task matrix/inspector first.
  * The duplicate 8-stage toolbar and three status echoes were removed.
  * Real original actions and the compact source/recipe disclosures remain
