@@ -39,14 +39,20 @@ const proof={schema:'v35-ass-group-native-isolated-shaping-pixels-v1',
   limits:[
     'Only two test-generated real FFmpeg MP4 sources and two distinct ASS tracks',
     'The test font is a uniquely named regular TrueType face derived from installed DejaVu outlines, not all proprietary font families or multi-face collections',
-    'System HarfBuzz clusters/advances, exact extracted ASS+font pixels and direct MKV libass SSIM at one time; no all-player, all-effects or physical-device certification',
+    'System HarfBuzz clusters/advances and two separate exact pixel oracles: ass-to-ass, subtitles-to-subtitles. Cross-filter SSIM is diagnostic only; no all-player, all-effects or physical-device certification',
     'No loose font files are uploaded or redistributed in the CI artifact; delivered Matroska includes its needed embedded subset',
   ]};
 let browser,context,page;
 const writeProof=()=>fs.writeFile(path.join(out,'isolated-ass-group-evidence.json'),
   JSON.stringify(proof,null,2)+'\n');
-function render(ass,fonts,dest){
-  const filter='ass=filename='+p3RenderFilterPath(ass)+
+function render(ass,fonts,dest,{engine='ass'}={}){
+  assert.ok(['ass','subtitles'].includes(engine),
+    'CI oracle only accepts the two explicit FFmpeg/libass entry paths');
+  // Critical: FFmpeg's "ass" and "subtitles" filters are NOT pixel
+  // interchangeable for some complex-script samples even with the same
+  // source font, source ASS, and canvas dimensions. Compare only a given
+  // filter to the SAME filter's reference. Do not loosen an SSIM threshold.
+  const filter=engine+'=filename='+p3RenderFilterPath(ass)+
     ':fontsdir='+p3RenderFilterPath(fonts);
   const proc=spawnSync('ffmpeg',[
     '-hide_banner','-loglevel','verbose','-nostdin','-y',
@@ -254,6 +260,7 @@ try{
     const actualPng=prefix+'-delivered.png';
     const changedPng=prefix+'-layout-stripped-negative.png';
     const directPng=prefix+'-direct-mkv.png';
+    const subtitlesReferencePng=prefix+'-subtitles-filter-reference.png';
     const directMkv=path.join(tmp,'direct-'+i+'.mkv');
     await fs.copyFile(mkv,directMkv);
     // libavfilter's CI-only path sanitizer rejects spaces; the SAME exact
@@ -261,14 +268,29 @@ try{
     const refRender=render(stagedAss,fontDir,referencePng);
     const gotRender=render(extractedAss,deliveredDir,actualPng);
     const alteredRender=render(extractedAss,negativeDir,changedPng);
+    // Same libass entry path comparison: original ASS as subtitles filter
+    // with isolated source font, versus delivered MKV as subtitles filter
+    // with ONLY the embedded font. Their resulting pixels must be exact.
+    const sourceSubtitleRender=render(stagedAss,fontDir,
+      subtitlesReferencePng,{engine:'subtitles'});
     const directRender=renderMkvDirect(directMkv,directPng);
     assert.ok(directRender.selected.some(s=>
       s.includes(initial.postScript)||s.includes(family)),
       'direct final MKV must select embedded isolated font, not system fallback: '+
       directRender.selected.join(' | '));
-    const directSsim=imageSsim(referencePng,directPng);
-    assert.ok(directSsim>=0.995,
-      'native direct final MKV libass must match reference within explicit P3 SSIM bound: '+directSsim);
+    assert.ok(sourceSubtitleRender.selected.some(s=>
+      s.includes(initial.postScript)||s.includes(family)),
+      'original ASS subtitles filter must select isolated font, not fallback: '+
+      sourceSubtitleRender.selected.join(' | '));
+    const sameEngineSsim=imageSsim(subtitlesReferencePng,directPng);
+    assert.equal(sha(await fs.readFile(directPng)),
+      sha(await fs.readFile(subtitlesReferencePng)),
+      'direct MKV subtitles filter must pixel-match original ASS through SAME subtitles filter');
+    assert.equal(sameEngineSsim,1,
+      'same-engine independent SSIM must be 1, not silently weakened');
+    // Deliberate non-gating diagnostic: the distinct ass/subtitles filter
+    // entry points may render Arabic ligatures/kerning differently.
+    const crossEngineSsim=imageSsim(referencePng,directPng);
     for(const [name,evidence] of [['reference',refRender],['delivered',gotRender]]){
       assert.ok(evidence.selected.some(s=>
         s.includes(initial.postScript)||s.includes(family)),
@@ -282,8 +304,12 @@ try{
       deliveredSelection:gotRender.selected,
       strippedLayoutSelection:alteredRender.selected,
       directMkvSelection:directRender.selected,
+      subtitlesFilterReferenceSelection:sourceSubtitleRender.selected,
       directMkvPngSha256:sha(await fs.readFile(directPng)),
-      directMkvSsimToReference:directSsim,
+      subtitlesFilterReferencePngSha256:sha(await fs.readFile(subtitlesReferencePng)),
+      sameSubtitlesFilterSsim:sameEngineSsim,
+      crossAssVsSubtitlesFilterSsim:crossEngineSsim,
+      crossFilterPixelEquivalenceClaim:false,
     };
     assert.equal(rendered.deliveredSha256,rendered.originalSha256,
       'libass exact pixels of delivered ASS+Group subset must match reference original ASS+source font at fixed time');
