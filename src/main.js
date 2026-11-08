@@ -138,6 +138,7 @@ import {
   visibleTextForPlainSubtitle,
 } from './subtitle-format.js';
 import { subsetFontItems } from './font-subset.js';
+import { mustPreserveOriginalGroupFonts } from './ass-arabic-presentation-closure.js';
 import {
   fontIdentityMismatchMessage,
   fontMimeType,
@@ -9005,9 +9006,30 @@ async function collectBatchSubsetText(pairing) {
 }
 
 async function buildGroupedSubsetFonts(fonts, pairing) {
-  if (!fonts.length) return [];
+  if (!fonts.length) return {
+    files: [], decision: Object.freeze({
+      mode: 'group', applied: false, reason: 'no-fonts', fontCount: 0,
+    }),
+  };
   const subsetText = await collectBatchSubsetText(pairing);
   const deduped = await dedupeFilesBySha256(fonts);
+  // Observed exact-head output difference: original and HarfBuzz-subset
+  // fonts shaped identically through standalone ass=, but NOT when
+  // consumed directly from Matroska with FFmpeg's subtitles= renderer.
+  // Adding Arabic presentation forms to the subset still failed.
+  // Fail *safe*: preserve the same user-authorized ORIGINAL File objects
+  // and explicitly report the real decision. Do not synthesize a font,
+  // copy an editor state, change pairing, or silently call it subsetted.
+  if (mustPreserveOriginalGroupFonts(subsetText)) {
+    return {
+      files: deduped.unique.map(item => item.file),
+      decision: Object.freeze({
+        mode: 'group', applied: false,
+        reason: 'arabic-direct-libass-shaping-unverified',
+        fontCount: deduped.unique.length,
+      }),
+    };
+  }
   const identityByFile = new Map(
     Array.from(pairing?.fontRecognition?.recognized || [])
       .map((entry) => [entry.file, entry.identity])
@@ -9021,7 +9043,15 @@ async function buildGroupedSubsetFonts(fonts, pairing) {
     fontIdentity: identityByFile.get(item.file) || null,
   }));
   const subsetted = await subsetFontItems(items, subsetText);
-  return subsetted.map((item) => item.file);
+  return {
+    files: subsetted.map(item => item.file),
+    decision: Object.freeze({
+      mode: 'group', applied: subsetted.some(item => item.subset.applied),
+      reason: subsetted.every(item => item.subset.applied)
+        ? '' : 'some-fonts-not-subsettable',
+      fontCount: subsetted.length,
+    }),
+  };
 }
 
 // The previous 150 ms polling loop over mutable download links is removed.
@@ -9598,6 +9628,7 @@ async function executeFrozenBatch(preparation, retryIds = null) {
   let batchFatalError = '';
   let batchStopped = false;
   let jobFonts = requestedBatchFonts;
+  let groupFontDecision = null;
   let activeBatchMuxContext = null;
 
   // Frozen batch context no longer rewrites the user's FileLists or editor.
@@ -9608,7 +9639,12 @@ async function executeFrozenBatch(preparation, retryIds = null) {
       requestedBatchFonts.length
     ) {
       batchStatus.textContent = '正在汇总全批次字幕字符并生成 Group 字体子集……';
-      jobFonts = await buildGroupedSubsetFonts(requestedBatchFonts, frozenPlan);
+      const prepared = await buildGroupedSubsetFonts(requestedBatchFonts, frozenPlan);
+      jobFonts = prepared.files;
+      groupFontDecision = prepared.decision;
+      if (groupFontDecision.reason === 'arabic-direct-libass-shaping-unverified') {
+        batchStatus.textContent = '当前批次包含阿拉伯文：为避免未验证的字形变化，Group 字体保留原文件；此决定将写入输出报告。';
+      }
     }
 
     const outcome = await runFrozenBatchQueue(frozenPlan, {
@@ -9631,6 +9667,7 @@ async function executeFrozenBatch(preparation, retryIds = null) {
         }
         activeBatchMuxContext = createFrozenBatchMuxContext(frozenPlan, job, {
           headerIdentity, fonts: jobFonts, fontIdentities,
+          fontPreparation: groupFontDecision,
         });
       },
       execute: async (job) => {
@@ -9702,7 +9739,9 @@ async function executeFrozenBatch(preparation, retryIds = null) {
     batchStatus.textContent = formatBatchTerminalStatus({
       results: combinedResults,
       ...retainedBatchTerminal,
-    });
+    }) + (groupFontDecision?.reason === 'arabic-direct-libass-shaping-unverified'
+      ? ' · Group 字体保留原件：阿拉伯文字形塑造尚未验证可安全子集化'
+      : '');
     retainedBatchRunRecord=Object.freeze({...currentBatchRunRecord(),
       terminal:Object.freeze({...currentTerminal}),batchTerminal:Object.freeze({...retainedBatchTerminal})});
     activeBatchRunControl=null;

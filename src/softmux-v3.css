@@ -2627,3 +2627,343 @@
     border-color:var(--sfv3-accent);
   }
 }
+
+
+/* V3.5 opt-in navigation pilot (?ui=v3&nav=full).
+ * Reuses the EXISTING native single/batch/tools modes and all original File,
+ * JobPlan, inspector, mux and result nodes. No second writable editor.
+ * Keep this entirely opt-in until layout and real device acceptance. */
+.sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+  display:flex;align-items:center;gap:7px;box-sizing:border-box;
+  width:100%;height:52px;min-height:52px;overflow-x:auto;overflow-y:hidden;
+  padding:6px 14px;background:var(--sfv3-chrome);
+  border-bottom:1px solid var(--sfv3-line);
+  scrollbar-width:thin;white-space:nowrap;
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button{
+  flex:0 0 auto;min-width:56px;min-height:40px;padding:8px 16px;
+  color:var(--sfv3-soft);background:transparent;
+  font-size:12px;font-weight:680;
+  border:1px solid var(--sfv3-line);border-radius:8px;cursor:pointer;
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button[aria-current="page"]{
+  color:var(--sfv3-accent);border-color:#55705f;
+  background:var(--sfv3-accent-back);
+}
+.sf14.sfv3.sfv35-nav .sfv35-feature-button:hover{
+  color:var(--sfv3-text);background:var(--sfv3-row-raised);
+}
+.sf14.sfv3.sfv35-nav .sf14-single{
+  height:calc(100dvh - 58px - 52px - 56px);
+}
+/* V3's grid display!important must NOT resurrect a hidden single surface
+ * when the real native workbench switches to the batch/tools page. */
+.sf14.sfv3.sfv35-nav #sf14Single[hidden],
+.sf14.sfv3.sfv35-nav .sf14-output[hidden],
+.sf14.sfv3.sfv35-nav #sf14Batch[hidden],
+.sf14.sfv3.sfv35-nav #sf14Tools[hidden]{
+  display:none!important;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+.sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+  display:block;
+  min-height:0;height:calc(100dvh - 58px - 52px);
+  box-sizing:border-box;overflow:auto;
+  background:var(--sfv3-bg);color:var(--sfv3-text);
+  padding:14px clamp(12px,2vw,24px);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-workspace{
+  min-width:0;max-width:none;
+  background:transparent;box-shadow:none;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-queue{
+  min-width:0;
+}
+@media(max-width:719px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    gap:5px;padding:6px 8px;
+  }
+  .sf14.sfv3.sfv35-nav .sfv35-feature-button{
+    min-height:40px;padding:7px 11px;font-size:11px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    padding:10px 8px;
+  }
+}
+
+
+/* V3.5 contextual capability navigation: all 11 task categories,
+ * including the exact-source read-only structure observation, stay visible
+ * rather than depending on horizontal hidden scrolling. Opt-in only. */
+@media (max-width:959px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+    align-items:stretch;gap:5px;
+    height:96px;min-height:96px;
+    padding:5px 8px;overflow:visible;
+  }
+  .sf14.sfv3.sfv35-nav .sfv35-feature-button{
+    min-width:0;width:100%;height:40px;min-height:40px;
+    padding:5px 3px;font-size:11px;line-height:1.3;white-space:normal;
+  }
+  .sf14.sfv3.sfv35-nav .sf14-single{
+    height:calc(100dvh - 58px - 96px - 56px);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    height:calc(100dvh - 58px - 96px);
+  }
+}
+@media (max-width:499px){
+  .sf14.sfv3.sfv35-nav .sfv35-feature-navigation{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    height:138px;min-height:138px;
+  }
+  .sf14.sfv3.sfv35-nav .sf14-single{
+    height:calc(100dvh - 58px - 138px - 56px);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch:not([hidden]),
+  .sf14.sfv3.sfv35-nav #sf14Tools:not([hidden]){
+    height:calc(100dvh - 58px - 138px);
+  }
+}
+
+
+/* Specialist focus is a VIEW over the existing editor, not a new selection
+ * owner. When navigating explicitly to Subtitle/Font, the previously
+ * selected unrelated stream card must not consume the only visible inspector
+ * space and hide the actual native specialist controls below the fold.
+ * Returning to Tracks restores the exact original context DOM. */
+.sf14.sfv3.sfv35-nav[data-sfv3-surface="plan"]:is(
+  [data-sfv35-task="subtitle"],[data-sfv35-task="font"])
+  :is(#sfv3ObjectContext,#assetInspectorHost){
+  display:none!important;
+}
+
+
+/* Two original batch disclosure controls must be physically visible.
+ * Rehosted into the EXISTING header to avoid a separate navigation row;
+ * this restores previously hidden commands, not any duplicated inputs. */
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-head{
+  display:flex;align-items:center;flex-wrap:wrap;gap:6px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+  /* Desktop has a permanently visible source rail and full settings.
+   * There is no useful action for a second disclosure button there. */
+  display:none!important;flex:0 1 auto;align-items:center;justify-content:flex-end;
+  flex-wrap:wrap;gap:5px;margin:0 0 0 auto;padding:0;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  min-height:32px;padding:5px 9px;
+  color:var(--sfv3-soft);background:var(--sfv3-row-raised);
+  border:1px solid var(--sfv3-line);border-radius:7px;
+  font-family:inherit;font-weight:600;font-size:11px;line-height:1.35;white-space:nowrap;cursor:pointer;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button[aria-expanded="true"]{
+  border-color:#55705f;color:var(--sfv3-accent);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .batch-status-chip{
+  flex:0 0 auto;order:3;
+}
+@media(max-width:1180px){
+  /* Tablet/compact: buttons are real entry points into the original
+   * source and recipe sections, which are not permanently laid out. */
+  .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+    display:flex!important;
+  }
+}
+@media(max-width:719px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+    order:3;width:auto;max-width:100%;margin-left:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-status-chip{
+    order:2;margin-left:auto;
+  }
+}
+
+/* V3.5 Batch presentation correction: task matrix/inspector first.
+ * The duplicate 8-stage toolbar and three status echoes were removed.
+ * Real original actions and the compact source/recipe disclosures remain
+ * the only control surfaces.  Scope is opt-in, no default UI change. */
+.sf14.sfv3.sfv35-nav #sf14Batch #batchStartBtn:disabled{
+  opacity:.43;filter:grayscale(.55);cursor:not-allowed;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-review-conflicts{
+  border:1px solid #b38a4f;
+  background:rgba(179,138,79,.08);
+  border-radius:9px;padding:10px;
+}
+@media(min-width:1181px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-review-layout{
+    grid-template-columns:minmax(310px,1.1fr) minmax(340px,1fr);
+  }
+}
+
+/* The source-only 56px status footer was still present when the native
+ * Batch/Tools view occupied the full app. Together with the viewport-height
+ * task pane it caused document-level scrolling: screenshots at 820/620 lost
+ * the 58px global header and part of the 11-task rail. In these task modes
+ * their own native status surfaces are authoritative. */
+.sf14.sfv3.sfv35-nav[data-view="batch"] #sfv3SourceStatus,
+.sf14.sfv3.sfv35-nav[data-view="tools"] #sfv3SourceStatus{
+  display:none!important;
+}
+.sf14.sfv3.sfv35-nav[data-view="batch"],
+.sf14.sfv3.sfv35-nav[data-view="tools"]{
+  height:100dvh;min-height:0;overflow:hidden;
+}
+
+
+/* Narrow Batch: keep the actual job matrix above the fold by default.
+ * The native Source and Recipe controls are explicitly exposed in the
+ * existing Batch header; clicking them projects their ORIGINAL DOM only.
+ * This does not create a new editor or sever File/JobPlan identity. */
+@media(max-width:1180px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-layout{
+    display:flex!important;flex-direction:column;gap:9px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-detail{
+    order:0;width:100%;min-width:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-inputs{
+    order:1;display:none!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="sources"] .batch-inputs{
+    order:-1;display:flex!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-settings{
+    display:none!important;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="recipe"] .batch-settings{
+    display:grid!important;order:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch[data-controls="recipe"] .batch-queue{
+    order:1;
+  }
+}
+
+
+/* V3.5 Batch object-focused tablet layout.
+ * 780..1180: use the available horizontal workspace for BOTH the real
+ * queue and the currently-selected object's native metadata inspector.
+ * This is not another view, drawer, copied editor or data owner.
+ * Below 780px the original stacked layout stays intact.
+ */
+@media (min-width:780px) and (max-width:1180px){
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-review-layout{
+    display:grid;
+    grid-template-columns:minmax(285px,.84fr) minmax(360px,1.16fr);
+    gap:10px;align-items:start;min-width:0;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan{
+    min-width:0;max-height:min(53dvh,600px);
+    overflow-x:hidden;overflow-y:auto;
+    scrollbar-gutter:stable;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchJobInspector{
+    min-width:0;max-height:none;overflow:visible;
+    align-content:start;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .batch-job-facts > div{
+    grid-template-columns:60px minmax(0,1fr);
+  }
+}
+/* At a compact width, keep the actual chosen task's editor reachable:
+ * the one native batch pane scrolls; do not invent an overlay inspector. */
+@media(max-width:779px){
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchJobInspector{
+    scroll-margin-top:10px;
+  }
+}
+
+
+/* Multi-job scanning density: the 820px matrix is not a second inspector.
+ * An unselected row presents a concise preview; its complete text remains
+ * in the DOM, while selecting it reveals the single full-detail inspector.
+ * Never truncate the focused/selected row or reduce the native checkbox hit
+ * target; this is opt-in and tablet-width only.
+ */
+@media(min-width:780px) and (max-width:1180px){
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row{
+    grid-template-columns:32px minmax(0,1fr);
+    column-gap:6px;padding:7px 6px;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row:not([aria-pressed="true"]) .plan-main small{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    overflow:hidden;
+    line-height:1.35;
+    overflow-wrap:anywhere;
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch #batchPlan .batch-job-row:focus-visible .plan-main small{
+    -webkit-line-clamp:unset;
+  }
+}
+
+
+/* Multi-track and multi-conflict review is within ONE original JobPlan and
+ * one existing Job inspector, not an additional top-level navigation layer.
+ * The ordinal and candidate indicators annotate native choices only. */
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review{
+  display:grid;grid-template-columns:minmax(0,1fr);
+  align-content:start;gap:6px;
+  min-width:0;padding:10px;
+  border:1px solid var(--sfv3-line);
+  border-left:3px solid #a5874e;
+  background:var(--sfv3-row-raised);
+  border-radius:7px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-ordinal,
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-index{
+  display:block;width:fit-content;
+  font-weight:750;letter-spacing:.02em;
+  font-size:11px;line-height:1.25;
+  color:var(--sfv3-soft);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-count{
+  display:block;font-size:11px;
+  color:var(--sfv3-muted);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review select{
+  min-width:0;width:100%;min-height:40px;
+  font-size:12px;line-height:1.35;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-pair-review:focus-within{
+  outline:1px solid var(--sfv3-accent);outline-offset:2px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor{
+  min-width:0;gap:7px 8px;
+  padding:11px;
+  border:1px solid var(--sfv3-line);
+  border-radius:8px;
+  background:var(--sfv3-row-raised);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor .sfv35-subtitle-index{
+  grid-column:1/-1;
+  padding:0 0 1px;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor > strong{
+  grid-column:1/-1;line-height:1.35;
+  color:var(--sfv3-text);
+  overflow-wrap:anywhere;
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor:focus-within{
+  border-color:var(--sfv3-accent);
+}
+.sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor label{
+  min-width:0;
+}
+@media(max-width:779px){
+  /* On compact screens, keep title and language on separate full-width
+   * rows, while Default / Forced remain authentic native flags. */
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor > strong,
+  .sf14.sfv3.sfv35-nav #sf14Batch .sfv35-subtitle-editor .sfv35-subtitle-index{
+    grid-column:1;
+  }
+}

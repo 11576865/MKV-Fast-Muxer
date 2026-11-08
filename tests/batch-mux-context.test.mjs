@@ -47,6 +47,27 @@ test('explicit batch context keeps video, subtitle, output and policy in frozen 
   assert.equal(ctx.reportPlan.policy, p.policy);
 });
 
+test('actual Group fallback provenance is frozen beside requested policy, not a second owner',()=>{
+  const p=plan({source:'Show S01E01.mp4',subset:true,scope:'group'});
+  const decision=Object.freeze({
+    mode:'group',applied:false,
+    reason:'arabic-direct-libass-shaping-unverified',fontCount:1,
+  });
+  const ctx=createFrozenBatchMuxContext(p,p.jobs[0],{
+    headerIdentity:{container:'iso-bmff'},
+    fonts:p.fonts,fontIdentities:p.fontRecognition.recognized,
+    fontPreparation:decision,
+  });
+  assert.equal(ctx.reportPlan.policy.subsetEnabled,true,
+    'requested Group policy remains truthful, not rewritten');
+  assert.equal(ctx.reportPlan.policy.subsetScope,'group');
+  assert.deepEqual(ctx.reportPlan.fontPreparation,decision,
+    'actual original-font preservation must be auditable per MKV');
+  assert.equal(ctx.fonts[0],p.fonts[0],
+    "the frozen context must still own the user's original File");
+  assert.equal(Object.isFrozen(ctx.reportPlan.fontPreparation),true);
+});
+
 test('group subset files are bound to freshly checked transformed identities with no second job subset', () => {
   const p = plan({ source: 'Show S01E01.mp4', subset: true, scope: 'group' });
   const transformed = file('Group.subset.ttf');
