@@ -1,35 +1,21 @@
 /**
- * Content-derived compatibility closure for actual libass Matroska ASS
- * attachment rendering. The observed native subtitles= path may ask the
- * embedded font for Arabic presentation-form codepoints, while the same
- * subset rendered via a standalone ass=fontdir path shapes logical Arabic
- * successfully. Merely keeping GSUB/GPOS and matching HarfBuzz clusters is
- * therefore insufficient to guarantee a self-contained MKV.
+ * Conservative compatibility boundary for Group ASS font subsetting.
  *
- * Include only real Unicode Script=Arabic presentation forms; HarfBuzz
- * subsetting will intersect them with the current source font cmap.
- * No synthetic file, renderer state, permissions, or font family mutation.
+ * Real FFmpeg/libass "subtitles=" rendering of an Arabic mixed-script
+ * subtitle differed when an original full TrueType face was replaced with
+ * a HarfBuzz-subset font. Native HarfBuzz clusters/advances and the
+ * "ass=" renderer both passed, and an attempt to add every Unicode Arabic
+ * presentation form to the subset did NOT repair the direct-MKV picture.
  *
- * This is a specific observed workaround, NOT a general Unicode shaping
- * closure proof for all scripts/players. An independent real-output browser
- * test must demonstrate direct subtitles= rendering after any change.
+ * The product has no reliable browser-local proof for all native target
+ * renderers. Preserve the USER'S ORIGINAL FONT BYTES for this observed
+ * script class instead of silently generating an unsafe Group subset.
+ * This is intentionally conservative, not a claim of universal font
+ * safety for any other writing system.
  */
-const HAS_ARABIC_LOGICAL=/[\u0600-\u06ff\u0750-\u077f\u0870-\u089f\u08a0-\u08ff]/u;
+export const ASS_GROUP_ARABIC_FALLBACK_VERSION='ass-group-arabic-preserve-v2';
 const ARABIC_SCRIPT=/\p{Script=Arabic}/u;
-export const ASS_ARABIC_PRESENTATION_CLOSURE_VERSION='ass-arabic-presentation-v1';
-const ArabicPresentationForms=(()=>{
-  let result='';
-  for(const [first,last] of [[0xfb50,0xfdff],[0xfe70,0xfefc]]){
-    for(let codepoint=first;codepoint<=last;codepoint++){
-      const char=String.fromCodePoint(codepoint);
-      if(ARABIC_SCRIPT.test(char))result+=char;
-    }
-  }
-  return result;
-})();
 
-export function extendAssGroupSubsetTextForArabic(text){
-  const original=String(text??'');
-  return HAS_ARABIC_LOGICAL.test(original)
-    ? original+ArabicPresentationForms : original;
+export function mustPreserveOriginalGroupFonts(text){
+  return ARABIC_SCRIPT.test(String(text??''));
 }
