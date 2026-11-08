@@ -211,12 +211,13 @@ try{
     // GSUB/GPOS/GDEF removed; it should produce measurably worse shaping.
     const altered=path.join(negativeDir,
       'TrueTypeRegularOnly.subset.ttf');
-    fontProof; // Native font oracle remains the only shaping authority.
     run(python,['scripts/s03-native-font-proof.py','strip-layout',
       delivered,altered]);
     assert.notDeepEqual(shape(altered,'office'),shape(delivered,'office'),
       'removing GSUB/GPOS must defeat the office-ligature control');
-    const extractedAss=path.join(tmp,outputs[i]+'.delivered.ass');
+    const extractedAss=path.join(tmp,'delivered-'+i+'.ass');
+    const stagedAss=path.join(tmp,'staged-'+i+'.ass');
+    await fs.copyFile(assFiles[i],stagedAss);
     const muxAss=run('ffmpeg',['-hide_banner','-loglevel','error','-i',mkv,
       '-map','0:s:0','-c:s','ass','-f','ass','pipe:1']);
     await fs.writeFile(extractedAss,muxAss);
@@ -226,7 +227,9 @@ try{
     const referencePng=prefix+'-reference.png';
     const actualPng=prefix+'-delivered.png';
     const changedPng=prefix+'-layout-stripped-negative.png';
-    const refRender=render(assFiles[i],fontDir,referencePng);
+    // libavfilter's CI-only path sanitizer rejects spaces; the SAME exact
+    // original ASS bytes are staged under a safe temporary basename.
+    const refRender=render(stagedAss,fontDir,referencePng);
     const gotRender=render(extractedAss,deliveredDir,actualPng);
     const alteredRender=render(extractedAss,negativeDir,changedPng);
     for(const [name,evidence] of [['reference',refRender],['delivered',gotRender]]){
