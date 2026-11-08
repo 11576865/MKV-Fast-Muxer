@@ -43,7 +43,7 @@ const context=await browser.newContext({
 const page=await context.newPage();const errors=[];
 page.on('pageerror',error=>errors.push(String(error)));
 const result={schema:'v35-two-ties-two-tracks-native-actual-mkv-v1',
-  inputs:files.map(path.basename),original,passed:false,
+  inputs:files.map(file=>path.basename(file)),original,passed:false,
   shots:[],checks:[],limits:[
     'Two independent genuinely ambiguous subtitles; no auto-mapping or alternate business owner',
     'Two short actual FFmpeg videos and four actual SRT tracks; not a long-form performance benchmark',
