@@ -2749,7 +2749,9 @@
   display:flex;align-items:center;flex-wrap:wrap;gap:6px;
 }
 .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
-  display:flex!important;flex:0 1 auto;align-items:center;justify-content:flex-end;
+  /* Desktop has a permanently visible source rail and full settings.
+   * There is no useful action for a second disclosure button there. */
+  display:none!important;flex:0 1 auto;align-items:center;justify-content:flex-end;
   flex-wrap:wrap;gap:5px;margin:0 0 0 auto;padding:0;
 }
 .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls button{
@@ -2764,6 +2766,13 @@
 }
 .sf14.sfv3.sfv35-nav #sf14Batch .batch-status-chip{
   flex:0 0 auto;order:3;
+}
+@media(max-width:1180px){
+  /* Tablet/compact: buttons are real entry points into the original
+   * source and recipe sections, which are not permanently laid out. */
+  .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
+    display:flex!important;
+  }
 }
 @media(max-width:719px){
   .sf14.sfv3.sfv35-nav #sf14Batch .sf14-batch-controls{
@@ -2811,7 +2820,7 @@
  * The native Source and Recipe controls are explicitly exposed in the
  * existing Batch header; clicking them projects their ORIGINAL DOM only.
  * This does not create a new editor or sever File/JobPlan identity. */
-@media(max-width:719px){
+@media(max-width:1180px){
   .sf14.sfv3.sfv35-nav #sf14Batch .batch-layout{
     display:flex!important;flex-direction:column;gap:9px;
   }
