@@ -39,7 +39,7 @@ const proof={schema:'v35-ass-group-native-isolated-shaping-pixels-v1',
   limits:[
     'Only two test-generated real FFmpeg MP4 sources and two distinct ASS tracks',
     'The test font is a uniquely named regular TrueType face derived from installed DejaVu outlines, not all proprietary font families or multi-face collections',
-    'System HarfBuzz clusters/advances and exact libass frame comparison at one time; no cross-player, all-effects or physical-device certification',
+    'System HarfBuzz clusters/advances, exact extracted ASS+font pixels and direct MKV libass SSIM at one time; no all-player, all-effects or physical-device certification',
     'No loose font files are uploaded or redistributed in the CI artifact; delivered Matroska includes its needed embedded subset',
   ]};
 let browser,context,page;
@@ -60,6 +60,32 @@ function render(ass,fonts,dest){
     .filter(line=>line.includes('fontselect:'))
     .map(line=>line.split('->').slice(1).join('->').trim());
   return {log,selected};
+}
+function renderMkvDirect(mkv,dest){
+  // The original delivered Matroska is read by libass including its
+  // embedded font; unlike the reference, no external fontsdir is supplied.
+  const filter='subtitles=filename='+p3RenderFilterPath(mkv)+':si=0';
+  const proc=spawnSync('ffmpeg',[
+    '-hide_banner','-loglevel','verbose','-nostdin','-y',
+    '-f','lavfi','-i','color=c=black:s=640x360:r=10:d=1.2',
+    '-vf',filter,'-ss','0.65','-frames:v','1',
+    '-c:v','png','-f','image2',dest,
+  ],{encoding:'utf8',timeout:120000,maxBuffer:12*1024*1024});
+  assert.equal(proc.status,0,proc.error?.message||String(proc.stderr).slice(-1800));
+  const log=String(proc.stderr||'');
+  const selected=log.split('\n').filter(x=>x.includes('fontselect:'))
+    .map(x=>x.split('->').slice(1).join('->').trim());
+  return {selected};
+}
+function imageSsim(source,delivered){
+  const proc=spawnSync('ffmpeg',[
+    '-hide_banner','-loglevel','info','-nostdin',
+    '-i',source,'-i',delivered,'-lavfi','ssim','-f','null','-',
+  ],{encoding:'utf8',timeout:30000,maxBuffer:4*1024*1024});
+  assert.equal(proc.status,0,proc.error?.message||String(proc.stderr).slice(-700));
+  const match=String(proc.stderr||'').match(/All:([0-9]+(?:\.[0-9]+)?)/);
+  assert.ok(match,'independent native FFmpeg did not report SSIM');
+  return Number(match[1]);
 }
 function makeAss(family,cue){
   return [
@@ -227,11 +253,22 @@ try{
     const referencePng=prefix+'-reference.png';
     const actualPng=prefix+'-delivered.png';
     const changedPng=prefix+'-layout-stripped-negative.png';
+    const directPng=prefix+'-direct-mkv.png';
+    const directMkv=path.join(tmp,'direct-'+i+'.mkv');
+    await fs.copyFile(mkv,directMkv);
     // libavfilter's CI-only path sanitizer rejects spaces; the SAME exact
     // original ASS bytes are staged under a safe temporary basename.
     const refRender=render(stagedAss,fontDir,referencePng);
     const gotRender=render(extractedAss,deliveredDir,actualPng);
     const alteredRender=render(extractedAss,negativeDir,changedPng);
+    const directRender=renderMkvDirect(directMkv,directPng);
+    assert.ok(directRender.selected.some(s=>
+      s.includes(initial.postScript)||s.includes(family)),
+      'direct final MKV must select embedded isolated font, not system fallback: '+
+      directRender.selected.join(' | '));
+    const directSsim=imageSsim(referencePng,directPng);
+    assert.ok(directSsim>=0.995,
+      'native direct final MKV libass must match reference within explicit P3 SSIM bound: '+directSsim);
     for(const [name,evidence] of [['reference',refRender],['delivered',gotRender]]){
       assert.ok(evidence.selected.some(s=>
         s.includes(initial.postScript)||s.includes(family)),
@@ -244,6 +281,9 @@ try{
       originalSelection:refRender.selected,
       deliveredSelection:gotRender.selected,
       strippedLayoutSelection:alteredRender.selected,
+      directMkvSelection:directRender.selected,
+      directMkvPngSha256:sha(await fs.readFile(directPng)),
+      directMkvSsimToReference:directSsim,
     };
     assert.equal(rendered.deliveredSha256,rendered.originalSha256,
       'libass exact pixels of delivered ASS+Group subset must match reference original ASS+source font at fixed time');
