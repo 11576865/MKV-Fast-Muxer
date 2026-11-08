@@ -29,6 +29,8 @@ on:
       - 'scripts/s03-make-font-fixtures.py'
       - 'scripts/s03-native-font-proof.py'
       - 'src/v35-batch-review-detail.js'
+      - 'src/ass-arabic-presentation-closure.js'
+      - 'tests/ass-arabic-presentation-closure.test.mjs'
       - 'scripts/ui-v3-build-comparison.mjs'
       - 'docs/ui-v3/**'
       - '.github/workflows/ui-v3-pilot.yml'
