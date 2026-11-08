@@ -402,6 +402,31 @@ export function mountSoftmuxV3Surface(doc = document) {
     const originalBatchHeader=batchRoot?.querySelector('.batch-head');
     if(originalBatchControls&&originalBatchHeader)
       originalBatchHeader.appendChild(originalBatchControls);
+
+    // Compact batch master -> detail transition. The original matrix
+    // changes the selected File and renders the same native inspector.
+    // Only afterwards, move the EXISTING bounded batch pane to that
+    // inspector. Never scroll the whole document or react to execution
+    // checkboxes, and never maintain a second "selected task" state.
+    const nativeBatchMatrix=find(doc,'batchPlan');
+    const nativeBatchInspector=find(doc,'batchJobInspector');
+    nativeBatchMatrix?.addEventListener('click',event=>{
+      const row=event.target.closest('button[data-batch-job-index]');
+      const view=doc.defaultView;
+      if(!row || root.dataset.view!=='batch' ||
+          !view?.matchMedia('(max-width:779px)').matches ||
+          !batchRoot || !nativeBatchInspector)return;
+      view.requestAnimationFrame(()=>{
+        if(root.dataset.view!=='batch'||!nativeBatchInspector.isConnected)
+          return;
+        const paneBounds=batchRoot.getBoundingClientRect();
+        const detailBounds=nativeBatchInspector.getBoundingClientRect();
+        if(!paneBounds.height||!detailBounds.height)return;
+        batchRoot.scrollTop+=detailBounds.top-paneBounds.top-12;
+        nativeBatchInspector.tabIndex=-1;
+        nativeBatchInspector.focus({preventScroll:true});
+      });
+    });
   }
 
   // This is a read-only observation of the SAME authoritative source scan.
