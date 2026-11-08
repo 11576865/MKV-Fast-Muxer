@@ -118,6 +118,28 @@ try{
     'subtitle authoring must be alongside the matrix, not below 16 jobs');
   assert.ok(tablet.matrix.scrollHeight>tablet.matrix.clientHeight+50,
     'real 16-job list must scroll in its own native matrix region');
+  const unselectedPreview=await page.locator(
+    '#batchPlan button[data-batch-job-index="1"]').evaluate(el=>{
+    const label=el.parentElement.querySelector('.batch-job-check');
+    const small=el.querySelector('.plan-main small');
+    const css=getComputedStyle(small);
+    return {
+      previewText:small.textContent,
+      height:small.getBoundingClientRect().height,
+      lineHeight:parseFloat(css.lineHeight),
+      clamp:css.webkitLineClamp,
+      checkboxColumnWidth:label.getBoundingClientRect().width,
+    };
+  });
+  assert.equal(unselectedPreview.clamp,'2',
+    'unselected previews may be visually summarized, not removed from the DOM');
+  assert.ok(unselectedPreview.height<=2*unselectedPreview.lineHeight+3,
+    'unselected long subtitle provenance must fit two actual text lines');
+  assert.ok(unselectedPreview.checkboxColumnWidth>=40,
+    'never trade touch checkbox target size for denser task rows');
+  assert.match(unselectedPreview.previewText,/Dense S01E02.en.srt/,
+    'full provenance must still be readable by assistive technology and native object inspection');
+  proof.tabletPreviewDensity=unselectedPreview;
   await shot('02-tablet-sixteen-job-split-820.png');
 
   const last=page.locator('#batchPlan button[data-batch-job-index="15"]');
